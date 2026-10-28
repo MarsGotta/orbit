@@ -160,7 +160,7 @@ function opened({
   );
 }
 
-/** Reuniones: the list in the window's list column (`MeetingsColumn`), and
+/** Meetings: the list in the window's list column (`MeetingsColumn`), and
  * here the open meeting, or why there is none. */
 export default function NotesView({ error, onRecord, send, snapshot }: NotesViewProps) {
   const es = useCopy();

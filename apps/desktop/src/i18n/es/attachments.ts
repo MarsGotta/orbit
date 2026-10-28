@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import type { Refusal } from "../../bridge/refusal";
 import { fields } from "./refusalDetails";
@@ -148,7 +149,9 @@ export const attachmentsCopy = {
       `No se pudo leer su texto (causa ${cause}); va solo la captura.`,
     windowTextRefused: (reason: string) => `Su texto no se adjuntó: ${reason}`,
     pages: (pages: number) =>
-      pages === 1 ? "1 página" : `${numberFormat().format(pages)} páginas`,
+      pluralRules().select(pages) === "one"
+        ? "1 página"
+        : `${numberFormat().format(pages)} páginas`,
     view: "Ver",
     viewImage: (name: string) => `Ver ${name}`,
     open: "Abrir",

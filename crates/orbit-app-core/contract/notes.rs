@@ -402,12 +402,12 @@ app_type! {
         #[ts(skip)]
         pub(crate) projection_clock: Option<Box<(i64, crate::LocalZone)>>,
         /// The last read of the next meeting's series (`client::series`),
-        /// which Hoy projects (`briefing.next.previous_actions`).
+        /// which Today projects (`briefing.next.previous_actions`).
         #[serde(skip)]
         #[ts(skip)]
         pub(crate) series_previous: Option<Box<SeriesPreviousRead>>,
         /// The last read of a meeting's «Recordatorio personal» on the hub
-        /// (`client::reminders`), which Hoy projects (`briefing.next.reminder`).
+        /// (`client::reminders`), which Today projects (`briefing.next.reminder`).
         #[serde(skip)]
         #[ts(skip)]
         pub(crate) reminder: Option<Box<ReminderRead>>,

@@ -5,7 +5,7 @@ import { TEST_NOW_MS } from "../../test-clock";
 import SettingsView, { type SettingsViewProps } from "./SettingsView";
 import type { SettingsSection } from "../../state/ui";
 
-// Ajustes in five sections. Only the view fields Settings reads; names,
+// Settings in five sections. Only the view fields Settings reads; names,
 // hosts and contents are invented.
 
 const TODAY_MS = TEST_NOW_MS - (14 * 60 + 30) * 60_000;

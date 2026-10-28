@@ -27,7 +27,7 @@ function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
   return [tab, (next) => setChosen({ id: note.recording_id, tab: next })];
 }
 
-/** Resumen · Acciones · N · Transcripción · Notas privadas; the count once the note is written. */
+/** Summary · Actions · N · Transcript · Private notes; the count once the note is written. */
 function tabsOf(note: OpenNoteSnapshot): { id: NoteTab; label: string }[] {
   const open = note.actions.filter((action) => !action.done).length;
   return [

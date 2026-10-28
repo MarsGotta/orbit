@@ -3,7 +3,7 @@ import type { AssistantFoldersState } from "./AssistantFoldersState";
 import type { FolderView } from "./FolderView";
 
 /**
- * What Ajustes knows of the folders the user gave the assistant. A
+ * What Settings knows of the folders the user gave the assistant. A
  * list that could not be read says so; one not reported yet is
  * `unknown`, never an empty list.
  */

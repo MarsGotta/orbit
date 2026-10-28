@@ -69,7 +69,7 @@ fn open_note<'a>(snapshot: &'a AppSnapshot, recording_id: &str) -> Option<&'a Op
 }
 
 /// The hub's revision of the note an edit is made on: the open note's, or
-/// the series' earlier note Hoy shows the tasks of.
+/// the series' earlier note Today shows the tasks of.
 fn note_revision(snapshot: &AppSnapshot, recording_id: &str) -> Result<u64, crate::AppError> {
     open_note(snapshot, recording_id)
         .and_then(|note| note.note_revision)
@@ -303,7 +303,7 @@ mod mapping_tests {
         Ok(())
     }
 
-    /// Hoy marks a task of the series' earlier note done through the same
+    /// Today marks a task of the series' earlier note done through the same
     /// order as its Actions tab, on the revision the series read gave.
     #[test]
     fn a_task_of_the_series_earlier_note_is_marked_on_its_revision() -> Result<(), serde_json::Error>

@@ -1,4 +1,4 @@
-//! The last installation's result, as Ajustes shows it: the installer's log
+//! The last installation's result, as Settings shows it: the installer's log
 //! when there is one, otherwise the install record.
 use super::{
     MAX_INSTALL_LOG_BYTES, UpdateService,

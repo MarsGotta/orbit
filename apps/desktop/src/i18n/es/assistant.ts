@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { assistantBase } from "./assistantBase";
 import { voiceFailureDetail, voiceFailureText } from "./voice-failures";
@@ -55,7 +56,8 @@ const base = {
       working: (duration: string) => `Trabajando · ${duration}`,
       worked: (duration: string) => `Trabajó ${duration}`,
       used: (subjects: string) => `Usó ${subjects}`,
-      steps: (count: number) => (count === 1 ? "1 paso" : `${numberFormat().format(count)} pasos`),
+      steps: (count: number) =>
+        pluralRules().select(count) === "one" ? "1 paso" : `${numberFormat().format(count)} pasos`,
       reasoning: "Razonamiento",
       stepStatus: {
         pending: "Pendiente",
@@ -128,7 +130,7 @@ export function assistantCopy(assistantName: string) {
       messageCount: (count: number) =>
         count === 0
           ? "Sin mensajes"
-          : count === 1
+          : pluralRules().select(count) === "one"
             ? "1 mensaje"
             : `${numberFormat().format(count)} mensajes`,
       // The header of the open conversation.

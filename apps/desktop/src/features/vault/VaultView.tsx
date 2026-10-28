@@ -65,8 +65,7 @@ function IndexPages({
   return (
     <div className={styles.pagination}>
       <span>
-        {catalog.notes.length} {inlineCopy.notesOnPage}{" "}
-        {catalog.notes_count + catalog.sources_count} {inlineCopy.inVault}
+        {inlineCopy.pageCounts(catalog.notes.length, catalog.notes_count + catalog.sources_count)}
       </span>
       {number > 1 && (
         <Button onClick={() => setNumber(number - 1)} size={28}>

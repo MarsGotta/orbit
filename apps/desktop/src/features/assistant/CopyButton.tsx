@@ -34,7 +34,7 @@ export function copyStatus(state: CopyState): string | null {
 }
 
 /**
- * Copiar as an icon: its tooltip says what it does (`tip`, «Copiar» by
+ * Copy as an icon: its tooltip says what it does (`tip`, «Copiar» by
  * default) and its name what it copies (`label`, «Copiar respuesta»). Once
  * copied it turns to ✓ with «Copiado»; a failure is said beside it.
  */

@@ -10,7 +10,7 @@ import type { AppView } from "../../state/app-view";
 import { TEST_NOW_MS } from "../../test-clock";
 import BriefingView from "./BriefingView";
 
-// Hoy as the redesign draws it (Main.dc.html): the day, the next meeting
+// Today as the redesign draws it (Main.dc.html): the day, the next meeting
 // with what was left open last time, the personal reminder and the day's
 // agenda. The suite's clock is Tuesday 15 September 2026, 14:30 UTC.
 const MINUTE = 60_000;
@@ -191,9 +191,17 @@ describe("Pendiente de la última vez", () => {
   });
 
   it("a read that failed says why", () => {
-    show(withActions({ state: "unknown", cause: "La serie de la reunión llegó vacía" }));
+    show(
+      withActions({
+        state: "unknown",
+        cause: JSON.stringify({
+          code: "internal",
+          cause: { kind: "app_operation", code: "read_series_empty", error: "{}" },
+        }),
+      }),
+    );
     expect(screen.getByText("No se pudo leer lo pendiente de la última vez.")).toBeTruthy();
-    expect(screen.getByText("La serie de la reunión llegó vacía")).toBeTruthy();
+    expect(screen.getByText("La serie de la reunión llegó vacía.")).toBeTruthy();
   });
 
   it("the first meeting of a series has nothing pending", () => {

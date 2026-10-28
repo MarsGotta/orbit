@@ -143,7 +143,7 @@ export function AssistantHome({
           <div className={styles.homeTitle}>
             <h1>{agent.name}</h1>
             {agent.id === primaryId && agents.length > 1 && (
-              <span className={styles.pill}>{copy.principal}</span>
+              <span className={styles.pill}>{copy.primaryBadge}</span>
             )}
           </div>
           {agent.description !== undefined && agent.description !== "" && (

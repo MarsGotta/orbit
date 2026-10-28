@@ -29,9 +29,11 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             view.stale = true;
         }
     }
+    input.copy.optional_detail(&mut view.reading.detail);
     view
 }
 
+/// The complete read, retaining diagnostic codes for other projections.
 pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
     let mut view = input.local.calendar.clone();
     // A count in the head does not contain calendar identities or colors.
@@ -41,7 +43,6 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
     view.writes.clear();
     let mut page_loaded = false;
     let Some(topic) = input.topics.topic(TopicId::Agenda) else {
-        input.copy.optional_detail(&mut view.reading.detail);
         return (view, false);
     };
     if let TopicData::Agenda(knowledge) = &topic.knowledge {
@@ -53,7 +54,6 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
             }
         }
     }
-    input.copy.optional_detail(&mut view.reading.detail);
     (view, page_loaded)
 }
 

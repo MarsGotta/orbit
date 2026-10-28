@@ -85,14 +85,14 @@ app_type! {
         #[ts(optional)]
         pub history_error: Option<String>,
         pub history: Vec<ControlHistorySnapshot>,
-        /// Ajustes › the assistant's folders: each one and whether it opens.
+        /// Settings › the assistant's folders: each one and whether it opens.
         #[serde(default)]
         pub folders: AssistantFoldersSnapshot,
     }
 }
 
 app_type! {
-    /// What Ajustes knows of the folders the user gave the assistant. A
+    /// What Settings knows of the folders the user gave the assistant. A
     /// list that could not be read says so; one not reported yet is
     /// `unknown`, never an empty list.
     #[derive(Default)]

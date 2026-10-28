@@ -22,7 +22,7 @@ interface DayAgendaProps {
 const LOADING_ROWS = ["70%", "55%", "62%"];
 
 /**
- * The day picked in the month, on its right: «Hoy · Miércoles, 21 de
+ * The day picked in the month, on its right: «Today · Miércoles, 21 de
  * octubre», its events in order and «Abrir este día».
  */
 export function DayAgenda(props: DayAgendaProps) {

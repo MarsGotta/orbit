@@ -1,4 +1,4 @@
-//! «Recordatorio personal» of Hoy's next meeting on the hub: read when Hoy
+//! «Recordatorio personal» of Today's next meeting on the hub: read when Today
 //! asks, and saved through the daemon, which answers once the hub kept it.
 //! The interface keeps its own copy whatever this says.
 use super::*;

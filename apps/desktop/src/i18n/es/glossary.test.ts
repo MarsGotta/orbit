@@ -14,7 +14,7 @@ describe("the glossary", () => {
 
   it("calls the section of meetings «Reuniones», and keeps «nota» for one meeting's note", () => {
     expect(es.shell.notes).toBe("Reuniones");
-    expect(es.shell.settingsSections.reuniones).toBe("Reuniones");
+    expect(es.shell.settingsSections.meetings).toBe("Reuniones");
     expect(es.notes.empty).toBe("Aún no hay reuniones");
     expect(es.notes.emptyBody).toBe("Graba tu primera reunión y Orbit escribirá la nota por ti.");
     expect(es.meeting.openNote).toBe("Abrir nota");
@@ -75,11 +75,11 @@ describe("the glossary", () => {
       "Notas",
     ]);
     for (const { description } of accessGroups) expect(description).not.toMatch(/orbit_/);
-    // Each one is changed from its conversation; Ajustes › Asistentes sums them up.
-    expect(es.settings.leads.asistentes).toBe(
+    // Each one is changed from its conversation; Settings › Assistants sums them up.
+    expect(es.settings.leads.assistants).toBe(
       "Cada asistente se edita desde su conversación: el lápiz cambia su nombre, descripción y color; el engranaje abre el resto de sus ajustes.",
     );
-    expect(es.shell.settingsSections.asistentes).toBe("Asistentes");
+    expect(es.shell.settingsSections.assistants).toBe("Asistentes");
     expect(es.settings.controlHistory).toBe("Lo que han hecho en este Mac");
   });
 

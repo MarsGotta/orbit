@@ -13,7 +13,7 @@ import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
 const figure = numberFormat().format;
 
 /**
- * The groups of Orbit's tools an agent may use, in the order Ajustes shows
+ * The groups of Orbit's tools an agent may use, in the order Settings shows
  * them (hub-v1 «Agents»), each said by what it lets the agent do. The tools
  * each one opens are the hub's (`TOOLS` in `server/orbit_hub/assistant/access.py`).
  */

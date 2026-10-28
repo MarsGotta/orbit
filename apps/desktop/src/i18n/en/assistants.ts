@@ -77,7 +77,7 @@ export const assistantsCopy = {
   expired: (vendor: string) => `${vendor} session expired`,
   limitUntil: (atMs: number, nowMs: number) => `At its limit until ${whenBack(atMs, nowMs)}`,
   limitUnknown: "Your plan’s limit has been reached",
-  principal: "Main",
+  primaryBadge: "Main",
 
   // A new conversation.
   newConversation: "New conversation",

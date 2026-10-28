@@ -58,7 +58,7 @@ function Footer({
 }
 
 /**
- * The window's list column (`ListColumn`) of the Asistente: «+ Nueva»,
+ * The window's list column (`ListColumn`) of the Assistant: «+ Nueva»,
  * «Tus asistentes» with «+» to add one, and «Conversaciones» by date, each
  * with its assistant's avatar and name. A row's name keeps when it began
  * («Hoy, 09:31»), as the real-test harness finds it.

@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { dateTime, listFormat } from "../locale";
 import { duration } from "./duration";
@@ -20,7 +21,10 @@ const base = {
     week: (week: number) => `week ${numberFormat().format(week)}`,
     daySentence: (meetings: number, focusMinutes: number) => {
       if (meetings === 0) return "You have no meetings today.";
-      const count = meetings === 1 ? "1 meeting" : `${numberFormat().format(meetings)} meetings`;
+      const count =
+        pluralRules().select(meetings) === "one"
+          ? "1 meeting"
+          : `${numberFormat().format(meetings)} meetings`;
       return focusMinutes === 0
         ? `You have ${count} today and no free time to focus.`
         : `You have ${count} today and ${duration(focusMinutes)} free to focus.`;
@@ -76,7 +80,7 @@ const base = {
     peopleCount: (count: number) =>
       count === 0
         ? "Just you"
-        : count === 1
+        : pluralRules().select(count) === "one"
           ? "1 person"
           : `${numberFormat().format(count)} people`,
     readingAgenda: "Reading your agenda…",

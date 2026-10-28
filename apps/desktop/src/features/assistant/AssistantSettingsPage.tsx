@@ -97,7 +97,7 @@ function SettingsHead({
         <div className={styles.settingsTitleRow}>
           <h1>{copy.settingsTitle(agent.name)}</h1>
           {agent.id === snapshot.settings.default_agent_id && agents.length > 1 && (
-            <span className={styles.pill}>{copy.principal}</span>
+            <span className={styles.pill}>{copy.primaryBadge}</span>
           )}
           <AssistantIdentity
             agent={agent}
@@ -155,8 +155,8 @@ function NoSuchAssistant({ known }: { known: boolean }) {
 }
 
 /**
- * An assistant's settings, behind its gear (annex 37–39): what Ajustes ›
- * Asistente showed for it, with its connection and its plan's usage. Its
+ * An assistant's settings, behind its gear (annex 37–39): what Settings ›
+ * Assistant showed for it, with its connection and its plan's usage. Its
  * name, description, colour and whether it is the primary are the pencil's.
  * What its assistants did on this Mac is everyone's: the hub does not yet
  * say which assistant asked for each action.

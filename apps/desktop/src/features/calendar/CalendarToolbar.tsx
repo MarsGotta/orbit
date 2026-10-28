@@ -68,7 +68,7 @@ function stepLabels(range: Range): [string, string] {
   }
 }
 
-/** Día · 3 días · Semana · Mes · Agenda; «3 días» names the N days on screen. */
+/** Day · 3 days · Week · Month · Agenda; «3 días» names the N days on screen. */
 function viewOptions(range: Range): { value: CalendarViewKind; label: string }[] {
   return [
     { label: getCopy().calendar.day, value: "day" },

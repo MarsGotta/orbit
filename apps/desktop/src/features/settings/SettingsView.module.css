@@ -1,4 +1,4 @@
-/* Ajustes: the 256 px index at the left, the open section at the right. */
+/* Settings: the 256 px index at the left, the open section at the right. */
 .page {
   display: flex;
   height: 100%;
@@ -336,7 +336,7 @@
   margin-top: var(--o-space-14);
 }
 
-/* Grabación y llamadas › the shortcuts. */
+/* Recording and calls › the shortcuts. */
 .shortcut {
   display: flex;
   gap: var(--o-space-16);
@@ -350,7 +350,7 @@
   font: 600 13px/1.5 var(--o-font-sans);
 }
 
-/* Asistente › the folders and the history. */
+/* Assistant › the folders and the history. */
 .folder {
   display: flex;
   align-items: center;
@@ -409,7 +409,7 @@
   color: var(--o-warn);
 }
 
-/* Reuniones › Diccionarios. */
+/* Meetings › Diccionarios. */
 /* Several dictionaries: one card each, a little apart. */
 .cards {
   display: flex;
@@ -459,7 +459,7 @@
   outline: none;
 }
 
-/* Ajustes › Asistentes: one row per assistant, the primary's selector. */
+/* Settings › Assistants: one row per assistant, the primary's selector. */
 .visuallyHidden {
   position: absolute;
   width: 1px;

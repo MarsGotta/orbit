@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 // Creating, moving, editing and deleting events from the calendar.
 // Kept beside `agenda.ts`, which merges it into `es.calendar`.
@@ -14,9 +15,11 @@ export const agendaEdit = {
     undoLoses: (lost: string) => `Undo recreates it ${lost}.`,
     and: "and",
     withoutGuests: (count: number) =>
-      count === 1 ? "without its guest" : `without its ${numberFormat().format(count)} guests`,
+      pluralRules().select(count) === "one"
+        ? "without its guest"
+        : `without its ${numberFormat().format(count)} guests`,
     withoutReminders: (count: number) =>
-      count === 1
+      pluralRules().select(count) === "one"
         ? "without 1 reminder Orbit can’t edit"
         : `without ${numberFormat().format(count)} reminders Orbit can’t edit`,
     cannotUndo: (title: string) => `The last change to “${title}” can’t be undone.`,
@@ -61,10 +64,10 @@ export const agendaEdit = {
     every: "Every",
     interval: "Repeat interval",
     units: {
-      daily: (count: number) => (count === 1 ? "day" : "days"),
-      weekly: (count: number) => (count === 1 ? "week" : "weeks"),
-      monthly: (count: number) => (count === 1 ? "month" : "months"),
-      yearly: (count: number) => (count === 1 ? "year" : "years"),
+      daily: (count: number) => (pluralRules().select(count) === "one" ? "day" : "days"),
+      weekly: (count: number) => (pluralRules().select(count) === "one" ? "week" : "weeks"),
+      monthly: (count: number) => (pluralRules().select(count) === "one" ? "month" : "months"),
+      yearly: (count: number) => (pluralRules().select(count) === "one" ? "year" : "years"),
     },
     locationPlaceholder: "Add location",
     notes: "Event notes",
@@ -83,7 +86,7 @@ export const agendaEdit = {
     ] as const,
     minutesBefore: (minutes: number) => `${numberFormat().format(minutes)} min`,
     remindersKept: (count: number) =>
-      count === 1
+      pluralRules().select(count) === "one"
         ? "It also has 1 reminder Orbit can’t edit; it will be kept."
         : `It also has ${numberFormat().format(count)} reminders Orbit can’t edit; they will be kept.`,
     remindersTooMany: "It has more reminders than Orbit can edit. Change them in Calendar.",

@@ -142,6 +142,8 @@ app_type! {
 
 app_type! {
     #[serde(tag = "state", rename_all = "snake_case")]
+    /// Causes are stable codes, JSON code/facts records, or serialized refusals.
+    /// They remain facts until the interface catalogue renders them.
     pub enum BriefingSourceState {
         Present,
         Unknown { cause: String },

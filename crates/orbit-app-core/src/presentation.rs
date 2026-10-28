@@ -113,17 +113,3 @@ impl PresentationCopy {
         }
     }
 }
-
-impl PresentationCopy {
-    pub(crate) fn source(
-        self,
-        mut source: crate::BriefingSourceState,
-    ) -> crate::BriefingSourceState {
-        match &mut source {
-            crate::BriefingSourceState::Unknown { cause }
-            | crate::BriefingSourceState::Absent { cause } => *cause = self.detail(cause),
-            crate::BriefingSourceState::Present => {}
-        }
-        source
-    }
-}

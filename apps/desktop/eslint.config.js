@@ -34,7 +34,7 @@ export default tseslint.config(
           patterns: [
             {
               group: ["@tauri-apps/*"],
-              message: "Tauri solo puede importarse desde src/bridge/.",
+              message: "Tauri may only be imported from src/bridge/.",
             },
           ],
         },

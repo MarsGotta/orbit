@@ -78,15 +78,15 @@ function ErrorReports({ enabled, send }: { enabled: boolean; send: Send }) {
   );
 }
 
-/** Ajustes › Privacidad y permisos: stop everything, the four macOS permissions, reports. */
+/** Settings › Privacidad y permisos: stop everything, the four macOS permissions, reports. */
 export function PrivacySection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
   const base = useCopy();
   const settings = snapshot.settings;
   return (
     <>
       <SectionHeading
-        lead={base.settings.leads.privacidad}
-        title={base.shell.settingsSections.privacidad}
+        lead={base.settings.leads.privacy}
+        title={base.shell.settingsSections.privacy}
       />
       <StopCard send={send} stopped={settings.privacy_stopped} />
       <SystemPermissions send={send} settings={settings} />

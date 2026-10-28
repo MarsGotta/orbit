@@ -44,8 +44,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .copied()
         .map(|event| next_event(event, note_lookup.as_ref()))
         .collect::<Vec<_>>();
-    let localized_notes = input.localized_notes();
-    let notes = localized_notes.as_ref();
+    // Briefing causes stay as codes/facts until the UI catalogue renders them.
+    let notes = input.local.notes.as_ref();
     let series = notes.and_then(|notes| notes.series_previous.as_deref());
     let reminder = notes.and_then(|notes| notes.reminder.as_deref());
     // The next meeting is also the day's entry for it, the same in both.
@@ -88,24 +88,9 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     })
 }
 
-fn agenda_source_state(
-    input: &FeatureInput<'_>,
-    calendar: &crate::CalendarSnapshot,
-    page_loaded: bool,
-    zone: Option<&LocalZone>,
-) -> BriefingSourceState {
-    input
-        .copy
-        .source(raw_agenda_source_state(input, calendar, page_loaded, zone))
-}
-
-fn notes_source_state(input: &FeatureInput<'_>, available: bool) -> BriefingSourceState {
-    input.copy.source(raw_notes_source_state(input, available))
-}
-
 /// Whether the agenda can say what today holds: a current head whose read
 /// arrived, in a known local zone, over a window that covers today.
-fn raw_agenda_source_state(
+fn agenda_source_state(
     input: &FeatureInput<'_>,
     calendar: &crate::CalendarSnapshot,
     page_loaded: bool,
@@ -183,10 +168,14 @@ fn today_coverage(
             BriefingSourceState::Present
         }
         Some(window) => BriefingSourceState::Unknown {
-            cause: format!(
-                "agenda_window_excludes_today:window_start_ms={}:window_end_ms={}:today_start_ms={today_start}:today_end_ms={today_end}",
-                window.start_unix_ms, window.end_unix_ms
-            ),
+            cause: serde_json::json!({
+                "code": "agenda_window_excludes_today",
+                "window_start_ms": window.start_unix_ms,
+                "window_end_ms": window.end_unix_ms,
+                "today_start_ms": today_start,
+                "today_end_ms": today_end,
+            })
+            .to_string(),
         },
         None => BriefingSourceState::Unknown {
             cause: "agenda_window_missing".into(),
@@ -208,7 +197,7 @@ fn available_notes<'a>(input: &FeatureInput<'a>) -> Option<&'a [crate::NoteListI
 
 /// Whether the notes can say which meetings have a previous one: the
 /// topic, and the list the client read.
-fn raw_notes_source_state(input: &FeatureInput<'_>, list_available: bool) -> BriefingSourceState {
+fn notes_source_state(input: &FeatureInput<'_>, list_available: bool) -> BriefingSourceState {
     let notes_cell = input.topics.topic(TopicId::Notes);
     if let Some(stale) = stale_state(notes_cell) {
         return stale;
@@ -277,7 +266,7 @@ fn stale_state(cell: Option<&CachedTopic>) -> Option<BriefingSourceState> {
         TopicFreshness::Stale { since_ms } => Some(BriefingSourceState::Unknown {
             cause: since_ms.map_or_else(
                 || "topic_stale".into(),
-                |since| format!("topic_stale_since:{since}"),
+                |since| serde_json::json!({"code": "topic_stale", "since_ms": since}).to_string(),
             ),
         }),
     }
@@ -293,15 +282,19 @@ fn source_state<T>(knowledge: &Knowledge<T>) -> BriefingSourceState {
             cause: match why {
                 Pending::NotObservedYet => "topic_not_observed".into(),
                 Pending::HelperStarting => "helper_starting".into(),
-                Pending::Reading { since_ms } => format!("reading_since:{since_ms}"),
+                Pending::Reading { since_ms } => {
+                    serde_json::json!({"code": "reading_since", "since_ms": since_ms}).to_string()
+                }
                 Pending::Transcription {
                     completed,
                     pending,
                     failed,
                     queued,
-                } => format!(
-                    "transcription_completed:{completed}_pending:{pending}_failed:{failed}_queued:{queued}"
-                ),
+                } => serde_json::json!({
+                    "code": "transcription", "completed": completed,
+                    "pending": pending, "failed": failed, "queued": queued,
+                })
+                .to_string(),
                 Pending::DaemonStarting => "daemon_starting".into(),
             },
         },
@@ -401,7 +394,7 @@ fn next_event(
 }
 
 /// The next meeting with what its calendar series says of the earlier one:
-/// its note, and the tasks Hoy shows as «Pendiente de la última vez». A
+/// its note, and the tasks Today shows as «Pendiente de la última vez». A
 /// series read for another meeting, or none yet, is unknown; the hub's
 /// «no earlier meeting» is a fact. The title match stays the earlier note
 /// when the series has none or cannot be read.
@@ -641,6 +634,63 @@ mod tests {
     }
 
     #[test]
+    fn causes_keep_facts_instead_of_using_the_shell_renderer()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let now = 1_790_593_200_000_i64;
+        let (mut snapshot, mut topics) = agenda_fixture(now, now, now + 86_400_000, false)?;
+        let detail = crate::presentation::read_issue(
+            "read_calendars_count",
+            serde_json::json!({"count": 2, "total": 3}),
+        );
+        if let Some(notes) = snapshot.notes.as_mut() {
+            notes.index = Some(Box::new(crate::NotesIndexSnapshot {
+                state: crate::NotesIndexState::Failed,
+                more: false,
+                detail: Some(detail.clone()),
+            }));
+        }
+        topics.observe_at(
+            TopicFrame {
+                epoch: "briefing-second".into(),
+                revision: 3,
+                data: TopicData::Notes(Knowledge::Present {
+                    value: orbit_core::topics::notes::Value::default(),
+                    as_of_ms: None,
+                }),
+            },
+            Some(now),
+        );
+        topics.observe(TopicFrame {
+            epoch: "briefing-second".into(),
+            revision: 2,
+            data: TopicData::Recording(Knowledge::Unknown {
+                why: Pending::Transcription {
+                    completed: 2,
+                    pending: 1,
+                    failed: 0,
+                    queued: true,
+                },
+            }),
+        });
+        let input = FeatureInput::new(&snapshot, &topics).with_copy(crate::PresentationCopy {
+            render: |_| "Rendered by the shell".into(),
+        });
+        let view = project(&input).ok_or("briefing view")?;
+        let sources = view.sources.ok_or("sources")?;
+        assert_eq!(sources.notes, BriefingSourceState::Absent { cause: detail });
+        let BriefingSourceState::Unknown { cause } = sources.recording else {
+            return Err("expected pending transcription".into());
+        };
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&cause)?,
+            serde_json::json!({
+                "code": "transcription", "completed": 2, "pending": 1, "failed": 0, "queued": true,
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
     fn other_week_is_unknown_with_window_dates() -> Result<(), Box<dyn std::error::Error>> {
         let now = 1_790_593_200_000_i64;
         let start = now + 7 * 86_400_000;
@@ -650,7 +700,9 @@ mod tests {
         assert!(
             matches!(view.sources.as_ref().map(|sources| &sources.agenda),
             Some(BriefingSourceState::Unknown { cause })
-                if cause.contains(&start.to_string()) && cause.contains(&end.to_string()))
+                if serde_json::from_str::<serde_json::Value>(cause).is_ok_and(|v|
+                    v["code"] == "agenda_window_excludes_today"
+                    && v["window_start_ms"] == start && v["window_end_ms"] == end))
         );
         assert!(view.next.is_none());
         assert_eq!(view.summary.meetings_today, 0);
@@ -956,7 +1008,7 @@ mod tests {
         Ok(())
     }
 
-    /// Hoy carries the observation id; app-core resolves all the data the
+    /// Today carries the observation id; app-core resolves all the data the
     /// daemon needs to link it, including a detached occurrence and its guests.
     #[test]
     fn briefing_and_calendar_record_the_same_occurrence() -> Result<(), Box<dyn std::error::Error>>

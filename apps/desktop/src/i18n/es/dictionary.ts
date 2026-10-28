@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 export const dictionary = {
   dictionary: {
@@ -23,7 +24,9 @@ export const dictionary = {
     several:
       "Una reunión o una serie puede usar varios diccionarios a la vez. Las palabras se añaden al corregirlas en una transcripción: pulsa una palabra y elige «Corregir».",
     words: (count: number) =>
-      count === 1 ? "1 palabra" : `${numberFormat().format(count)} palabras`,
+      pluralRules().select(count) === "one"
+        ? "1 palabra"
+        : `${numberFormat().format(count)} palabras`,
     seeAll: (count: number) => `Ver las ${numberFormat().format(count)} palabras`,
     removeEntry: "Quitar",
     remove: (term: string) => `Quitar ${term}`,

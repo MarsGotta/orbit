@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { getLocale } from "../locale";
 /** What the chat says about copying, retrying, listening and editing an answer. */
@@ -23,7 +24,7 @@ const base = {
     deletes: (paths?: number) =>
       paths === undefined
         ? "Borra archivos. No se puede deshacer."
-        : `Borra ${numberFormat().format(paths)} ${paths === 1 ? "archivo" : "archivos"}. No se puede deshacer.`,
+        : `Borra ${numberFormat().format(paths)} ${pluralRules().select(paths) === "one" ? "archivo" : "archivos"}. No se puede deshacer.`,
     deletesOneAtATime: "Un comando que borra solo se permite de uno en uno.",
     copyConversation: "Copiar conversación",
     conversationPartial: (copied: number, total: number) =>

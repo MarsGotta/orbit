@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 export const dictionary = {
   dictionary: {
@@ -22,7 +23,8 @@ export const dictionary = {
     // Above the cards: several per meeting, and how words get in.
     several:
       "A meeting or series can use several dictionaries. Add words by clicking a word in a transcript and choosing “Correct”.",
-    words: (count: number) => (count === 1 ? "1 word" : `${numberFormat().format(count)} words`),
+    words: (count: number) =>
+      pluralRules().select(count) === "one" ? "1 word" : `${numberFormat().format(count)} words`,
     seeAll: (count: number) => `View ${numberFormat().format(count)} words`,
     removeEntry: "Remove",
     remove: (term: string) => `Remove ${term}`,

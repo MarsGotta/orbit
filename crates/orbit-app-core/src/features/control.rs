@@ -333,7 +333,7 @@ mod topic_tests {
         })
     }
 
-    /// Ajustes shows each folder with whether it opens, an unreadable list
+    /// Settings shows each folder with whether it opens, an unreadable list
     /// with its cause, and an unreported one as unknown, never as empty.
     #[test]
     fn the_folders_reach_ajustes_in_their_three_values() {

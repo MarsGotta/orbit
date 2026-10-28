@@ -14,7 +14,7 @@ import {
   summary,
 } from "./test-assistants";
 
-// The Asistente with several assistants (annex 1, changes 1 and 2): the
+// The Assistant with several assistants (annex 1, changes 1 and 2): the
 // column starts with «Tus asistentes», «+ Nueva» asks with whom, each
 // assistant opens its own conversation, and the header lives in the top bar.
 

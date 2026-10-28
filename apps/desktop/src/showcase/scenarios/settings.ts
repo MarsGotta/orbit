@@ -2,7 +2,7 @@ import { ARES, PHOBOS, withAgent } from "../data/assistants";
 import type { Scenario, Step, Views } from "../scenario";
 import { privacyStopped } from "./edit";
 
-/** Opens a section from Ajustes' index. */
+/** Opens a section from Settings' index. */
 const open = (label: string): Step => ({
   click: `role=navigation[name="Secciones de ajustes"] >> role=button[name=/^${label}/]`,
 });

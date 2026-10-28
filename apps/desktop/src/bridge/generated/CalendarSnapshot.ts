@@ -13,7 +13,7 @@ import type { WriteOutcome } from "./WriteOutcome";
 export type CalendarSnapshot = { authorization: CalendarAuthorizationSnapshot, 
 /**
  * Every calendar on the Mac, from its last listing; empty until the
- * helper has listed them (Ajustes says «desconocido» then).
+ * helper has listed them (Settings says «desconocido» then).
  */
 calendars: Array<CalendarItemSnapshot>, 
 /**

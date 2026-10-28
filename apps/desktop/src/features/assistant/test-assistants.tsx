@@ -1,6 +1,6 @@
 // What the tests of several assistants share: Deimos, Phobos and Ares as the
 // annex invents them, a snapshot with them, and the window's slots (its top
-// bar and its list column) for the Asistente to fill.
+// bar and its list column) for the Assistant to fill.
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { AppCommand } from "../../bridge/generated";
@@ -113,7 +113,7 @@ export function assistantSnapshot(
   } as unknown as AppSnapshot;
 }
 
-/** The window's top bar start and list column, where the Asistente draws its header and list. */
+/** The window's top bar start and list column, where the Assistant draws its header and list. */
 function Hosts() {
   const slots = useShellSlots();
   return (

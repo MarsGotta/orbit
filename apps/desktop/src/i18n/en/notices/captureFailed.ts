@@ -1,3 +1,4 @@
+import { pluralRules } from "../../locale";
 import { numberFormat } from "../../locale";
 import type { Entries, NoticeData } from "./types";
 
@@ -27,7 +28,9 @@ function cause(data: NoticeData): string {
 
 function fragments(count: unknown): string | null {
   if (typeof count !== "number" || count <= 0) return null;
-  return count === 1 ? "1 fragment" : `${numberFormat().format(count)} fragments`;
+  return pluralRules().select(count) === "one"
+    ? "1 fragment"
+    : `${numberFormat().format(count)} fragments`;
 }
 
 /** What was kept of a recording, and what to do while the meeting goes on. */
@@ -60,7 +63,10 @@ function lostFilesText(data: NoticeData): string {
     missing > 0 ? `${numberFormat().format(missing)} missing` : null,
     unfinished > 0 ? `${numberFormat().format(unfinished)} partially written` : null,
   ].filter((part) => part !== null);
-  const files = lost === 1 ? "1 audio file" : `${numberFormat().format(lost)} audio files`;
+  const files =
+    pluralRules().select(lost) === "one"
+      ? "1 audio file"
+      : `${numberFormat().format(lost)} audio files`;
   const which = parts.length > 0 ? ` (${parts.join(", ")})` : "";
   return `At startup, Orbit couldn’t recover ${files} from this Mac${which}; it recovered ${numberFormat().format(count(data.recovered))}.`;
 }

@@ -57,7 +57,7 @@ function Live({ onRecord, send, snapshot }: Omit<SidebarProps, "view">) {
 
 /**
  * The sidebar, 224 px, in every view: Orbit, what is going on (or «Grabar
- * reunión»), the four sections by name, Ajustes and the person.
+ * reunión»), the four sections by name, Settings and the person.
  */
 export function Sidebar(props: SidebarProps) {
   const es = useCopy();

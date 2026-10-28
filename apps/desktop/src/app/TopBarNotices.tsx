@@ -12,7 +12,7 @@ export interface NoticeActions {
   onPair: () => void;
 }
 
-/** The button that fixes it: a section of Ajustes, an order, or pairing. */
+/** The button that fixes it: a section of Settings, an order, or pairing. */
 function Fix({ fix, actions }: { fix: NoticeFix; actions: NoticeActions }) {
   const [pending, setPending] = useState(false);
   if (fix.kind === "route")

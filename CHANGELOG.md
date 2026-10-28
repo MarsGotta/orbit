@@ -15,6 +15,9 @@ English and Spanish; labels quoted below may use either language.
   local reply vocabulary. Re-arm a pending question when the language changes
   without extending its deadline; keep Spanish wording and meeting content.
   Use English for remaining internal daemon and calendar diagnostics.
+- Render briefing causes from codes and numeric facts in the selected interface
+  language. Use locale plural rules for counted text, keep catalogue keys in
+  English, and reject inline copy inside nested Markdown render callbacks.
 
 - The Mac menu bar, application menus, notifications and the Rust side's
   copy follow the interface language and update when it changes.

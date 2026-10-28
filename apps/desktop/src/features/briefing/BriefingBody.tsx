@@ -85,7 +85,7 @@ function AgendaUnknown({
       return (
         <p className={`${styles.card} ${styles.notice}`} role="alert">
           {es.briefing.agendaFailed}
-          <small>{status.cause}</small>
+          <small>{es.briefingCause(status.cause)}</small>
         </p>
       );
   }

@@ -1,11 +1,12 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 import { mmss } from "../../time-format";
 
-// Reuniones: the list of meetings and the transcript of one. Each meeting
+// Meetings: the list of meetings and the transcript of one. Each meeting
 // has a note; «Notas» names the vault that comes later (decided 2026-10-22).
 const count = (value: number, one: string, many: string) =>
-  `${numberFormat().format(value)} ${value === 1 ? one : many}`;
+  `${numberFormat().format(value)} ${pluralRules().select(value) === "one" ? one : many}`;
 
 /** «Bruno», «Bruno y Celia», «Bruno, Celia y Dora». */
 export function listOf(items: string[]): string {
@@ -101,9 +102,9 @@ export const notes = {
     // A completed pass that kept spans of the live draft where the new text
     // lost them or looped: not a failure, the better of the two was used.
     keptDraft: (spans: number) =>
-      `The live transcript was better in ${numberFormat().format(spans)} ${spans === 1 ? "span" : "spans"}, so it was kept there.`,
+      `The live transcript was better in ${numberFormat().format(spans)} ${pluralRules().select(spans) === "one" ? "span" : "spans"}, so it was kept there.`,
     unmatchedSpeakerNames: (value: number) =>
-      `${numberFormat().format(value)} ${value === 1 ? "name belonged to a voice no longer present and wasn’t assigned" : "names belonged to voices no longer present and weren’t assigned"} to other voices.`,
+      `${numberFormat().format(value)} ${pluralRules().select(value) === "one" ? "name belonged to a voice no longer present and wasn’t assigned" : "names belonged to voices no longer present and weren’t assigned"} to other voices.`,
     // The harness reads the transcript from this line on (scripts/e2e-mac/checks.py).
     transcriptHelp:
       "Click a name to change the speaker. Hover over a word and click to correct it. The correction is saved in this meeting’s dictionaries.",
@@ -147,7 +148,9 @@ export const notes = {
     wherePut: (name: string) => `Where should “${name}” go?`,
     onlyThisTurn: (at: string) => `Only this turn (${at})`,
     allSpeakerTurns: (turns: number, name: string) =>
-      turns === 1 ? `All turns by ${name}` : `All ${numberFormat().format(turns)} turns by ${name}`,
+      pluralRules().select(turns) === "one"
+        ? `All turns by ${name}`
+        : `All ${numberFormat().format(turns)} turns by ${name}`,
     back: "Back",
     applySpeaker: "Apply",
     renamed: (turns: number) => `Changed in ${count(turns, "turn", "turns")}.`,
@@ -157,7 +160,7 @@ export const notes = {
     pressToCorrect: "Click to correct",
     correct: (word: string) => `Correct “${word}”`,
     timesHere: (times: number) =>
-      times === 1
+      pluralRules().select(times) === "one"
         ? "Appears once in this meeting."
         : `Appears ${numberFormat().format(times)} times in this meeting.`,
     shouldSay: "Should say",

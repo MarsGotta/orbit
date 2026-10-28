@@ -2,7 +2,7 @@
 //!
 //! Granting Calendarios in macOS is the whole decision. So
 //! the app has nothing to choose, confirm or share: its agenda shows every
-//! calendar on the Mac, Ajustes shows the permission and how many calendars
+//! calendar on the Mac, Settings shows the permission and how many calendars
 //! there are, and when Deimos cannot read the agenda the app names which of
 //! the real conditions is missing — the permission, the pairing, a reachable
 //! Mac — the same ones the bridge enforces.
@@ -350,7 +350,7 @@ fn the_agenda_shows_every_calendar_and_offers_nothing_to_choose() {
     assert_eq!(snapshot.calendar.events.len(), 1);
 }
 
-/// Ajustes shows the permission and how many calendars there are, from the
+/// Settings shows the permission and how many calendars there are, from the
 /// data — and an unknown count is unknown, never «0».
 #[test]
 fn settings_show_the_permission_and_the_count_from_the_data() {

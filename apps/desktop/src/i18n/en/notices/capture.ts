@@ -1,3 +1,4 @@
+import { pluralRules } from "../../locale";
 import { numberFormat } from "../../locale";
 import { macPermissions } from "../permissions";
 import { systemPrivacy, worded, type Entries, NoticeData } from "./types";
@@ -49,7 +50,7 @@ export const capture = {
       if (data.fragments === 0) {
         const tries =
           typeof data.attempt === "number" && data.attempt > 0
-            ? ` after ${numberFormat().format(data.attempt)} ${data.attempt === 1 ? "attempt" : "attempts"}`
+            ? ` after ${numberFormat().format(data.attempt)} ${pluralRules().select(data.attempt) === "one" ? "attempt" : "attempts"}`
             : "";
         return `Recording was interrupted at startup (${cutCause(data)}) and couldn’t resume${tries}. Nothing was recorded. Start another recording if the meeting is continuing.`;
       }

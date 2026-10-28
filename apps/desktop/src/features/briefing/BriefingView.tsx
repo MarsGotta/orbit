@@ -27,7 +27,7 @@ function greetingForHour(hour: number): string {
 }
 
 /**
- * Hoy: a column of 860 px with the day, the next meeting (or the one being
+ * Today: a column of 860 px with the day, the next meeting (or the one being
  * recorded) and the day's agenda. What is still on its way is drawn as it
  * will arrive; nothing is left blank.
  */

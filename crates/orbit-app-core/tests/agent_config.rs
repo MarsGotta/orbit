@@ -1,4 +1,4 @@
-//! Ajustes › Agentes at the app boundary: each call goes from the
+//! Settings › Agents at the app boundary: each call goes from the
 //! app through the in-process daemon to its hub route, with the device's
 //! credential, and the hub's answer or refusal comes back whole. The hub is a
 //! loopback fixture; every name and value is invented.

@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { listOf } from "./notes";
 import { macPermissions } from "./permissions";
@@ -39,7 +40,7 @@ const base = {
   code: "Código de emparejamiento",
   codeHelp: "Sirve una sola vez y caduca a los 5 minutos.",
   codeDigits: (count: number) =>
-    `Tiene ${numberFormat().format(count)} ${count === 1 ? "cifra" : "cifras"}; deben ser 6.`,
+    `Tiene ${numberFormat().format(count)} ${pluralRules().select(count) === "one" ? "cifra" : "cifras"}; deben ser 6.`,
   deviceName: "Nombre de este Mac",
   pairFailed: "No se pudo emparejar",
   pairFailedHint:

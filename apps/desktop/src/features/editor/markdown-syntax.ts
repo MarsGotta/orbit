@@ -2,8 +2,8 @@ import type { MarkdownConfig } from "@lezer/markdown";
 
 /**
  * The three inline marks Orbit's notes add to GitHub's Markdown, as the
- * Markdown parser's extensions: `==resaltado==`, `[[Título de una nota]]` and
- * `@Nombre Apellido`. They only name ranges of the text; nothing typed is
+ * Markdown parser's extensions: `==highlight==`, `[[Note title]]` and
+ * `@First Last`. They only name ranges of the text; nothing typed is
  * rewritten.
  */
 
@@ -46,7 +46,7 @@ export const Highlight: MarkdownConfig = {
 /** The longest title a link names: a note's title is one line. */
 const MAX_LINK_TITLE = 200;
 
-/** `[[Título]]`: a link to another note by its title, on one line. */
+/** `[[Title]]`: a link to another note by its title, on one line. */
 export const WikiLink: MarkdownConfig = {
   defineNodes: ["WikiLink", "WikiLinkMark"],
   parseInline: [
@@ -73,7 +73,7 @@ export const WikiLink: MarkdownConfig = {
 };
 
 /**
- * `@Nombre Apellido`: a person, by up to three words that start with a
+ * `@First Last`: a person, by up to three words that start with a
  * capital (a name and two surnames). An `@` inside a word, as in an email
  * address, is not a mention.
  */

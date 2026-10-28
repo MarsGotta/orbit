@@ -9,7 +9,7 @@ fn export_vault_contract() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 app_type! {
-    /// Ajustes › Agentes: one call to the hub and what came of it. The app
+    /// Settings › Agents: one call to the hub and what came of it. The app
     /// keeps nothing of it; the screen holds what it shows.
     pub struct AgentAnswer {
         pub call: AgentCall,

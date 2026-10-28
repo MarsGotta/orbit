@@ -243,7 +243,7 @@ pub enum RecordingCommand {
         #[serde(default)]
         #[ts(optional)]
         audio: Option<crate::MeetingAudio>,
-        /// Stable identity of the occurrence selected in Hoy or Calendario.
+        /// Stable identity of the occurrence selected in Today or Calendar.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         event: Option<crate::MeetingEventReference>,

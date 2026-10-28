@@ -21,8 +21,8 @@ const marks = () =>
   ] as const;
 
 /**
- * The bar over a selection: negrita, cursiva, código, enlazar a una nota,
- * resaltar and «Preguntar a {principal}». Each mark goes around the text
+ * The bar over a selection: bold, italic, code, link to a note,
+ * highlight and «Preguntar a {principal}». Each mark goes around the text
  * chosen, or comes off it when it is already there.
  */
 export function FormatBar({

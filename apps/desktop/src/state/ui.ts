@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type ViewId = "briefing" | "calendar" | "notes" | "vault" | "assistant" | "settings";
 
-/** The sections of Ajustes, each with its own route: `#/settings/{section}`. */
+/** The sections of Settings, each with its own route: `#/settings/{section}`. */
 export type SettingsSection =
   "general" | "privacidad" | "grabacion" | "asistentes" | "reuniones" | "notas" | "ia";
 
@@ -16,6 +16,20 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   "notas",
 ];
 
+/** Catalogue keys use English; existing section URLs remain stable. */
+export function settingsSectionKey(section: SettingsSection) {
+  const keys = {
+    general: "general",
+    privacidad: "privacy",
+    grabacion: "recording",
+    asistentes: "assistants",
+    reuniones: "meetings",
+    notas: "notes",
+    ia: "ai",
+  } as const;
+  return keys[section];
+}
+
 /** Routes of sections that were renamed, kept so an old link still opens its section. */
 const RENAMED_SECTIONS: Readonly<Record<string, SettingsSection>> = { asistente: "asistentes" };
 
@@ -28,12 +42,12 @@ const VIEWS: readonly ViewId[] = [
   "settings",
 ];
 
-/** The route of a view; Ajustes without a section opens General. */
+/** The route of a view; Settings without a section opens General. */
 export function routeFor(view: ViewId): string {
   return `#/${view}`;
 }
 
-/** The route of one section of Ajustes, where a notice that it fixes leads. */
+/** The route of one section of Settings, where a notice that it fixes leads. */
 export function settingsRoute(section: SettingsSection): string {
   return `#/settings/${section}`;
 }
@@ -45,8 +59,8 @@ interface Route {
 
 /**
  * The view and the section a route names. Its first part is the view
- * (`#/notes/<id>` is Reuniones with a note open); an unknown view is Hoy and
- * an unknown section of Ajustes is General.
+ * (`#/notes/<id>` is Meetings with a note open); an unknown view is Today and
+ * an unknown section of Settings is General.
  */
 export function parseRoute(hash: string): Route {
   const [first = "", second = ""] = hash.replace(/^#\/?/, "").split("/");

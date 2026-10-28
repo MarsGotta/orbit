@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 // The note of a meeting. Each step says where it stands and, when it failed,
 // what to do; the hub's codes and numbers stay in the log.
@@ -6,7 +7,7 @@ import { listOf } from "./notes";
 const left = (value: number) =>
   value === 0
     ? "All done"
-    : value === 1
+    : pluralRules().select(value) === "one"
       ? "1 task left"
       : `${numberFormat().format(value)} tasks left`;
 
@@ -34,7 +35,7 @@ const base = {
         ...(dictionaries === 0
           ? []
           : [
-              dictionaries === 1
+              pluralRules().select(dictionaries) === "one"
                 ? "1 dictionary"
                 : `${numberFormat().format(dictionaries)} dictionaries`,
             ]),

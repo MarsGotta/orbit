@@ -55,7 +55,7 @@ impl Default for TrayState {
 struct UpdateOffer {
     version: String,
     /// False while something stops the install (a recording, a call):
-    /// the item stays, disabled, as Ajustes says why.
+    /// the item stays, disabled, as Settings says why.
     installable: bool,
 }
 

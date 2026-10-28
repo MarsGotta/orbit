@@ -162,9 +162,12 @@ export function VaultHome({
       <header className={styles.heading}>
         <h1>{name}</h1>
         <p>
-          {catalog.notes_count} {inlineCopy.notesAnd} {catalog.sources_count} {inlineCopy.sourcesIn}{" "}
-          {configuration.kind === "folder" ? configuration.path : inlineCopy.sync} {inlineCopy.okf}{" "}
-          {catalog.okf_version || inlineCopy.noVersion}
+          {inlineCopy.vaultCounts(
+            catalog.notes_count,
+            catalog.sources_count,
+            configuration.kind === "folder" ? configuration.path : inlineCopy.sync,
+          )}{" "}
+          {inlineCopy.okf} {catalog.okf_version || inlineCopy.noVersion}
         </p>
         <p className={styles.muted}>{copy.readOnly}</p>
       </header>

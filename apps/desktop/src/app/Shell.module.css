@@ -23,7 +23,7 @@
   flex-direction: column;
 }
 
-/* The 272 px list of Reuniones and Asistente, the window's full height. */
+/* The 272 px list of Meetings and Assistant, the window's full height. */
 .listColumn {
   width: var(--o-w-list);
   height: 100%;

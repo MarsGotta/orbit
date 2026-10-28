@@ -7,7 +7,7 @@ import { hasSavedPairing } from "../bridge/hub-state";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { settingsRoute } from "../state/ui";
 
-/** What fixes a notice: a section of Ajustes, an order, or pairing again. */
+/** What fixes a notice: a section of Settings, an order, or pairing again. */
 export type NoticeFix =
   | { kind: "route"; label: string; route: string }
   | { kind: "command"; label: string; command: AppCommand; pending: string }

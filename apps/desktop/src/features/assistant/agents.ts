@@ -30,7 +30,7 @@ export function readsAloud(snapshot: AppView | null | undefined, agentId?: strin
 }
 
 /**
- * The name the Asistente view's texts use: the open conversation's agent;
+ * The name the Assistant view's texts use: the open conversation's agent;
  * before the agents are known, the hub's `assistant_name` (and «Deimos»
  * before that).
  */
@@ -39,7 +39,7 @@ export function conversationAgentName(snapshot?: AppView | null): string | undef
 }
 
 /**
- * The name every text outside the Asistente view uses: the primary agent,
+ * The name every text outside the Assistant view uses: the primary agent,
  * who answers the panel, «Preguntar» and «Oye…» without a name, whoever's
  * conversation was left open.
  */

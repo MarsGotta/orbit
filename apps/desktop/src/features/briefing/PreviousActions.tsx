@@ -45,7 +45,7 @@ function PendingBody({ actions, send }: { actions: BriefingPreviousActions; send
       ) : (
         <p className={styles.quiet}>
           {es.briefing.pendingFailed}
-          <small>{actions.cause}</small>
+          <small>{es.briefingCause(actions.cause)}</small>
         </p>
       );
     case "no_previous_meeting":
