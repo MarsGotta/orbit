@@ -77,7 +77,15 @@ def excluded(path: Path, work: Path, vendor: Path, hidden: list[Path]) -> bool:
 
 
 def walk(folder: Path, depth: int, scan: Scan, omitted: tuple[Path, ...], stop: Event) -> None:
-    with os.scandir(folder) as entries:
+    try:
+        listing = os.scandir(folder)
+    except PermissionError:
+        # The jail runs as the hub's user: a folder it can neither list nor
+        # enter exposes nothing. One it can enter could open a guessed name.
+        if os.access(folder, os.X_OK):
+            raise
+        return
+    with listing as entries:
         while scan.visited < MAX_SECRET_ENTRIES and not stop.is_set():
             entry = next(entries, None)
             if entry is None:

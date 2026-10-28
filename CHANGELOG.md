@@ -7,6 +7,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Secret discovery skips folders the hub's user can neither list nor enter,
+  such as database volumes owned by another user, instead of failing the
+  whole scan and refusing every official assistant. A folder that can be
+  entered but not listed still refuses, since its secrets could be opened by
+  name without being masked.
+
 ## [0.12.6] - 2026-10-27
 
 ### Added

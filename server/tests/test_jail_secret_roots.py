@@ -258,3 +258,36 @@ def test_scan_bounds_keep_partial_masks_and_report_once(
     notice = json.loads(lines[0])["message"]
     assert str(root) in notice and str(value) in notice and spanish in notice
     assert "límite" in notice and "ocult" in notice
+
+
+def test_folders_the_hub_cannot_open_are_skipped(environment, kernel_root, monkeypatch):
+    settings, agent, work, _, _, _, _ = fixture_paths(environment, kernel_root, monkeypatch)
+    root = kernel_root / "stacks"
+    closed = root / "pgdata"
+    closed.mkdir(parents=True)
+    (root / ".env").touch()
+    # A database volume owned by another user: the jail runs as the hub's
+    # user, so a folder it can neither list nor enter exposes nothing.
+    closed.chmod(0)
+    try:
+        args = prepared_arguments(configured(settings, root), agent, work)
+    finally:
+        closed.chmod(0o700)
+    assert str(root / ".env") in masks(args)
+
+
+def test_a_folder_entered_but_not_listed_refuses(environment, kernel_root, monkeypatch):
+    from orbit_hub.assistant.jail_secret_cache import SecretScanUnavailable
+
+    settings, agent, work, _, _, _, _ = fixture_paths(environment, kernel_root, monkeypatch)
+    root = kernel_root / "stacks"
+    hidden = root / "service"
+    hidden.mkdir(parents=True)
+    (hidden / ".env").touch()
+    # Its secrets open by a guessed name but cannot be found to mask them.
+    hidden.chmod(0o300)
+    try:
+        with pytest.raises(SecretScanUnavailable):
+            prepared_arguments(configured(settings, root), agent, work)
+    finally:
+        hidden.chmod(0o700)
