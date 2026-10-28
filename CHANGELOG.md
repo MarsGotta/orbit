@@ -7,6 +7,8 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.8] - 2026-10-28
+
 ### Fixed
 
 - Texts outside the «Asistente» view name the primary agent, who answers
