@@ -48,7 +48,8 @@ SKIPPED = {16: "skipped"}
 FOLLOWS = {
     7: {18: "unchecked"},
     # An interrupted capture ends the script before its audio/UI evidence.
-    20: {n: "unchecked" for n in ALL if n not in (10, 20)},
+    # «Oye Deimos» (7) and its panel (18) come before the input change.
+    20: {n: "unchecked" for n in ALL if n not in (7, 10, 18, 20)},
 }
 
 
@@ -843,7 +844,8 @@ def test_input_route_changes_are_exercised_during_the_same_recording(good):
     data = json.loads((directory / "report.json").read_text())
     assert statuses(results).get(20) == "pass"
     steps = [step["name"] for step in data["steps"]]
-    assert steps.index("first half of the script") < steps.index(
+    # After «Oye Deimos», whose listening the input change restarts.
+    assert steps.index("«Oye Deimos» and its answer in the panel") < steps.index(
         "change the default input during the meeting and restore it"
     )
     route = data["audio_route"]

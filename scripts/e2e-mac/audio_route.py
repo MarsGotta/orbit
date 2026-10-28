@@ -23,18 +23,12 @@ def switch_input(mac, name=None):
 
     current = mac.system.run_checked("SwitchAudioSource", "-c", "-t", "input").strip()
     if name is None:
-        inputs = mac.system.run_checked(
-            "SwitchAudioSource", "-a", "-t", "input"
-        ).splitlines()
+        inputs = mac.system.run_checked("SwitchAudioSource", "-a", "-t", "input").splitlines()
         others = [i.strip() for i in inputs if i.strip() and i.strip() != current]
         # The Mac's own microphone first («MacBook Pro Microphone», «Micrófono
         # del MacBook Pro»): another input can be a phone's, which Continuity
         # would wake.
-        own = [
-            i
-            for i in others
-            if any(word in i for word in ("MacBook", "Built-in", "integrado"))
-        ]
+        own = [i for i in others if any(word in i for word in ("MacBook", "Built-in", "integrado"))]
         name = next(iter(own or others), None)
     if not name or name == current:
         raise MacFailure("the route check needs a second input device")

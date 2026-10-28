@@ -570,8 +570,6 @@ class RealTest:
         with self.step("first half of the script"):
             self.mac.say("part1")
 
-        audio_route.exercise(self)
-
         panel = None
         with self.step("«Oye Deimos» and its answer in the panel", (7,), critical=False):
             try:
@@ -597,6 +595,10 @@ class RealTest:
                 )
         if panel is not None:
             drafts_panel.panel_holds_answer(self, panel, answered_at)
+
+        # After «Oye Deimos»: the input change restarts its listening, and a
+        # phrase said right after was revised and abandoned (run 20261028T131543Z).
+        audio_route.exercise(self)
 
         meeting_controls.second_half(self)
 
