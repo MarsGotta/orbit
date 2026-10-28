@@ -7,6 +7,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+## [0.12.9] - 2026-10-28
+
+### Fixed
+
+- The macOS build compiles again: the app's capability test builds Tauri's
+  test context instead of embedding the Info.plist a second time. 0.12.8
+  was tagged but never built for the Mac; 0.12.9 carries its fixes.
+
 ## [0.12.8] - 2026-10-28
 
 ### Fixed
