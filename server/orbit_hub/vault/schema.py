@@ -6,6 +6,7 @@ import yaml
 from yaml.tokens import AliasToken, AnchorToken, TagToken
 
 from .conformance import OKF_FIELDS
+from .diagnostics import SchemaProblem
 
 ROLES = ("person", "project", "meeting", "topic", "source", "journal", "note")
 FIELD_NAMES = ("stage", "start")
@@ -17,22 +18,30 @@ def frontmatter(text):
         return {}, text
     parts = re.split(r"^---\s*$", text, maxsplit=2, flags=re.MULTILINE)
     if len(parts) != 3:
-        raise ValueError("falta el cierre del frontmatter (línea 1)")
+        raise SchemaProblem(
+            "schema_frontmatter_unclosed", "frontmatter closing delimiter missing", line=1
+        )
     try:
         tokens = list(yaml.scan(parts[1]))
         if any(isinstance(t, (AliasToken, AnchorToken, TagToken)) for t in tokens):
-            raise ValueError("el frontmatter contiene alias, anclas o etiquetas YAML")
+            raise SchemaProblem(
+                "schema_yaml_unsafe", "frontmatter contains YAML aliases, anchors or tags"
+            )
         tree = yaml.compose(parts[1], Loader=yaml.BaseLoader)
         _unique_keys(tree)
         fields = yaml.load(parts[1], Loader=yaml.BaseLoader) or {}
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         line = mark.line + 1 if mark else 1
-        raise ValueError(f"YAML inválido en la línea {line}") from None
+        raise SchemaProblem("schema_yaml_invalid", "invalid YAML", line=line) from None
     except RecursionError:
-        raise ValueError("el frontmatter supera la profundidad YAML admitida") from None
+        raise SchemaProblem(
+            "schema_yaml_depth", "frontmatter exceeds supported YAML depth"
+        ) from None
     if not isinstance(fields, dict):
-        raise TypeError("el frontmatter debe ser un mapa de campos (línea 2)")
+        raise SchemaProblem(
+            "schema_frontmatter_mapping", "frontmatter must be a field mapping", line=2
+        )
     return fields, parts[2].lstrip("\r\n")
 
 
@@ -41,9 +50,13 @@ def _unique_keys(node):
         seen = set()
         for key, value in node.value:
             if not isinstance(key, yaml.ScalarNode):
-                raise TypeError(f"clave YAML no escalar en la línea {key.start_mark.line + 1}")
+                raise SchemaProblem(
+                    "schema_yaml_key_type", "non-scalar YAML key", line=key.start_mark.line + 1
+                )
             if key.value in seen:
-                raise ValueError(f"clave YAML duplicada en la línea {key.start_mark.line + 1}")
+                raise SchemaProblem(
+                    "schema_yaml_key_duplicate", "duplicate YAML key", line=key.start_mark.line + 1
+                )
             seen.add(key.value)
             _unique_keys(value)
     elif isinstance(node, yaml.SequenceNode):
@@ -59,6 +72,7 @@ def load(text=""):
         "types": DEFAULT_TYPES.copy(),
         "fields": {name: name for name in FIELD_NAMES},
         "warnings": [],
+        "diagnostics": [],
     }
     try:
         fields, schema["body"] = frontmatter(text)
@@ -72,29 +86,45 @@ def load(text=""):
             name: spec["folder"] for name, spec in types.items() if "folder" in spec
         }
     except (ValueError, TypeError, RecursionError) as exc:
-        message = str(exc)
-        location = _location(text, message)
-        schema["warnings"] = [f"SCHEMA.md: {message}{location}. Se usan los valores por defecto."]
+        problem = (
+            exc
+            if isinstance(exc, SchemaProblem)
+            else SchemaProblem("schema_yaml_depth", "schema exceeds supported YAML depth")
+        )
+        line = problem.line or _location(text, problem.field)
+        location = f" (line {line})" if line else ""
+        schema["warnings"] = [f"SCHEMA.md: {problem}{location}. Defaults are used."]
+        schema["diagnostics"] = [
+            {
+                "code": problem.code,
+                "field": problem.field,
+                "numbers": {"line": line} if line else {},
+                **({"value": problem.value} if problem.value is not None else {}),
+            }
+        ]
     return schema
 
 
-def _location(text, message):
-    if "línea" in message:
-        return ""
+def _location(text, field):
+    if not field:
+        return 0
     parts = re.split(r"^---\s*$", text, maxsplit=2, flags=re.MULTILINE)
     if len(parts) != 3:
-        return ""
+        return 0
     try:
         root = yaml.compose(parts[1], Loader=yaml.BaseLoader)
         locations = []
         _locations(root, "", locations)
-        matching = [(name, line) for name, line in locations if message.startswith(name + " ")]
+        matching = [
+            (name, line)
+            for name, line in locations
+            if field == name or field.startswith(name + ".")
+        ]
         if matching:
-            _, line = max(matching, key=lambda item: len(item[0]))
-            return f" (línea {line})"
+            return max(matching, key=lambda item: len(item[0]))[1]
     except (yaml.YAMLError, RecursionError):
         pass
-    return ""
+    return 0
 
 
 def _locations(node, prefix, result):
@@ -109,16 +139,26 @@ def _locations(node, prefix, result):
 
 def _types(types):
     if not isinstance(types, dict):
-        raise TypeError("types debe ser un mapa")
+        raise SchemaProblem("schema_types_mapping", "types must be a mapping", "types")
     for name, spec in types.items():
         if not isinstance(name, str) or not name.strip():
-            raise ValueError("types contiene un nombre vacío")
+            raise SchemaProblem("schema_type_name", "types contains an empty name", "types")
         if not isinstance(spec, dict):
-            raise TypeError(f"types.{name} debe ser un mapa con role")
+            raise SchemaProblem(
+                "schema_type_mapping", f"types.{name} must be a mapping with role", f"types.{name}"
+            )
         if spec.get("role") not in ROLES:
-            raise ValueError(f"types.{name}.role debe ser uno de {', '.join(ROLES)}")
+            raise SchemaProblem(
+                "schema_type_role",
+                f"types.{name}.role must be one of {', '.join(ROLES)}",
+                f"types.{name}.role",
+            )
         if set(spec) - {"role", "folder"}:
-            raise ValueError(f"types.{name} contiene campos distintos de role y folder")
+            raise SchemaProblem(
+                "schema_type_fields",
+                f"types.{name} contains fields other than role and folder",
+                f"types.{name}",
+            )
         if "folder" in spec:
             folder = spec["folder"]
             if (
@@ -128,24 +168,35 @@ def _types(types):
                 or "\\" in folder
                 or re.search(r"[\x00-\x1f]", folder)
             ):
-                raise ValueError(
-                    f"types.{name}.folder debe ser una carpeta relativa terminada en /"
+                raise SchemaProblem(
+                    "schema_type_folder",
+                    f"types.{name}.folder must be a relative folder ending in /",
+                    f"types.{name}.folder",
                 )
     folders = [spec["folder"] for spec in types.values() if "folder" in spec]
     if len(folders) != len(set(folders)):
-        raise ValueError("types contiene carpetas duplicadas")
+        raise SchemaProblem("schema_folders_duplicate", "types contains duplicate folders", "types")
 
 
 def _fields(fields):
     if not isinstance(fields, dict):
-        raise TypeError("fields debe ser un mapa")
+        raise SchemaProblem("schema_fields_mapping", "fields must be a mapping", "fields")
     for name, alias in fields.items():
         if name not in FIELD_NAMES:
-            raise ValueError(f"fields.{name} no es un campo de Orbit")
+            raise SchemaProblem(
+                "schema_field_unknown", f"fields.{name} is not an Orbit field", f"fields.{name}"
+            )
         if isinstance(alias, str) and alias in (*OKF_FIELDS, "okf_version"):
-            raise ValueError(f"fields.{name} no puede usar el campo de OKF {alias}")
+            raise SchemaProblem(
+                "schema_field_reserved",
+                f"fields.{name} cannot use the OKF field {alias}",
+                f"fields.{name}",
+                value=alias,
+            )
         if not isinstance(alias, str) or not alias.strip():
-            raise ValueError(f"fields.{name} debe ser un nombre de campo")
+            raise SchemaProblem(
+                "schema_field_name", f"fields.{name} must be a field name", f"fields.{name}"
+            )
 
 
 def properties(path, fields, schema):

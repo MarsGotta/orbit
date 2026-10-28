@@ -51,7 +51,7 @@ impl fmt::Display for UnsentFrames {
         let frames = if self.count == 1 { "trama" } else { "tramas" };
         write!(
             formatter,
-            "El hub no escribió {} {frames}: {}",
+            "The hub did not write {} {frames}: {}",
             self.count, self.cause
         )
     }
@@ -120,7 +120,7 @@ pub async fn run(
                 return Err(UnsentFrames {
                     count: unsent,
                     cause: result.err().map_or_else(
-                        || "el emisor cerró antes de completar el vaciado".to_owned(),
+                        || "The sender closed before completing the drain".to_owned(),
                         |error| error.to_string(),
                     ),
                 }
@@ -130,7 +130,7 @@ pub async fn run(
         }
         if let Err(error) = &result {
             events
-                .send(HubEvent::Problem(format!("Hub no disponible: {error}")))
+                .send(HubEvent::Problem(format!("Hub unavailable: {error}")))
                 .await?;
         }
         events.send(HubEvent::Disconnected).await?;
@@ -144,7 +144,7 @@ pub async fn run(
                 Some(_) => unsent = unsent.saturating_add(1),
                 None if unsent > 0 => return Err(UnsentFrames {
                     count: unsent,
-                    cause: "la conexión estaba esperando un reintento".to_owned(),
+                    cause: "The connection was waiting for a retry".to_owned(),
                 }.into()),
                 None => return Ok(()),
             }
@@ -172,12 +172,12 @@ fn unreached(error: &tokio_tungstenite::tungstenite::Error, origin: &str) -> Str
     use tokio_tungstenite::tungstenite::Error;
     match error {
         Error::Io(io) if io.kind() == std::io::ErrorKind::ConnectionRefused => {
-            format!("el hub en {origin} rechazó la conexión: nadie escucha en ese puerto")
+            format!("The hub at {origin} refused the connection: nothing is listening on that port")
         }
-        Error::Io(io) => format!("la red no llegó al hub en {origin}: {io}"),
-        Error::Tls(tls) => format!("la conexión TLS con el hub en {origin} falló: {tls}"),
+        Error::Io(io) => format!("The network could not reach the hub at {origin}: {io}"),
+        Error::Tls(tls) => format!("The TLS connection to the hub at {origin} failed: {tls}"),
         Error::Http(response) => format!(
-            "el hub en {origin} contestó {} al abrir el WebSocket",
+            "The hub at {origin} returned {} when opening the WebSocket",
             response.status().as_u16()
         ),
         other @ (Error::ConnectionClosed
@@ -189,14 +189,14 @@ fn unreached(error: &tokio_tungstenite::tungstenite::Error, origin: &str) -> Str
         | Error::AttackAttempt
         | Error::Url(_)
         | Error::HttpFormat(_)) => {
-            format!("el WebSocket con el hub en {origin} no se abrió: {other}")
+            format!("The WebSocket to the hub at {origin} did not open: {other}")
         }
     }
 }
 
 fn timed_out(origin: &str) -> String {
     format!(
-        "el hub en {origin} no completó la conexión en {} s",
+        "The hub at {origin} did not complete the connection within {} s",
         HUB_CONNECT_WAIT.as_secs()
     )
 }
@@ -228,24 +228,24 @@ async fn connect(
                     let body = Message::Pong(data);
                     tokio::time::timeout(Duration::from_secs(5), socket.send(body))
                         .await
-                        .context("Envío de Pong al hub agotó el plazo de 5 s")??;
+                        .context("Sending Pong to the hub exceeded the 5 s deadline")??;
                     watchdog.as_mut().reset(tokio::time::Instant::now() + Duration::from_secs(30));
                 },
                 Some(Ok(Message::Close(_))) | None => return Ok(()),
-                Some(Err(_)) => bail!("La conexión se interrumpió; no se repiten órdenes"),
+                Some(Err(_)) => bail!("The connection was interrupted; commands are not repeated"),
                 _ => {}
             },
             command = commands.recv() => match command {
                 Some(command) => send_command(&mut socket, events, &command, unsent).await?,
-                None => { socket.close(None).await.context("Cierre del socket del hub falló")?; return Ok(()); }
+                None => { socket.close(None).await.context("Closing the hub socket failed")?; return Ok(()); }
             },
             _ = ping.tick() => {
                 tokio::time::timeout(Duration::from_secs(5), socket.send(Message::Ping(Vec::new().into())))
                     .await
-                    .context("Envío de ping al hub agotó el plazo de 5 s")??;
+                    .context("Sending ping to the hub exceeded the 5 s deadline")??;
             },
             _ = watchdog.as_mut() => {
-                bail!("El servidor permaneció en silencio durante el plazo de vida (30 s)");
+                bail!("The server remained silent for the liveness deadline (30 s)");
             }
         }
     }
@@ -266,15 +266,12 @@ fn upgrade_request(
     String,
 )> {
     let mut url = validate_hub_url(
-        settings
-            .hub_url
-            .as_deref()
-            .context("Dispositivo sin emparejar")?,
+        settings.hub_url.as_deref().context("Device not paired")?,
         development,
     )?;
     let scheme = if url.scheme() == "https" { "wss" } else { "ws" };
     url.set_scheme(scheme)
-        .map_err(|_| anyhow::anyhow!("Esquema no válido"))?;
+        .map_err(|_| anyhow::anyhow!("Invalid scheme"))?;
     url.set_path("/v1/ws");
     let mut request = url.as_str().into_client_request()?;
     request.headers_mut().insert(
@@ -313,7 +310,7 @@ async fn open(
             if matches!(response.status().as_u16(), 401 | 403) =>
         {
             events.send(HubEvent::Revoked).await?;
-            bail!("Credencial rechazada; vuelve a emparejar el dispositivo");
+            bail!("Credential rejected; pair the device again");
         }
         Ok(Err(error)) => bail!("{}", unreached(&error, origin)),
     }
@@ -327,7 +324,7 @@ async fn relay_frame(text: &str, events: &Events) -> Result<()> {
         Ok(value) => value,
         Err(error) => {
             bail!(
-                "El hub envió JSON inválido: versión local {HUB_PROTOCOL}, versión del hub ilegible ({error})"
+                "The hub sent invalid JSON: local version {HUB_PROTOCOL}, unreadable hub version ({error})"
             );
         }
     };
@@ -343,18 +340,16 @@ async fn relay_frame(text: &str, events: &Events) -> Result<()> {
             events.send(HubEvent::Decoded(Box::new(decoded))).await?;
         }
         Err(HubDecodeError::Envelope(HubEnvelopeError::UnsupportedVersion { received })) => {
-            bail!(
-                "Versión de hub incompatible: versión local {HUB_PROTOCOL}, versión del hub {received}"
-            );
+            bail!("Incompatible hub version: local version {HUB_PROTOCOL}, hub version {received}");
         }
         Err(HubDecodeError::Envelope(HubEnvelopeError::MissingOrInvalidVersion)) => {
             bail!(
-                "Versión de hub incompatible: versión local {HUB_PROTOCOL}, versión del hub ausente o ilegible"
+                "Incompatible hub version: local version {HUB_PROTOCOL}, hub version absent or unreadable"
             );
         }
         Err(HubDecodeError::Envelope(HubEnvelopeError::NotObject)) => {
             bail!(
-                "La trama del hub no es un objeto JSON: versión local {HUB_PROTOCOL}, versión del hub desconocida"
+                "The hub frame is not a JSON object: local version {HUB_PROTOCOL}, hub version unknown"
             );
         }
         Err(HubDecodeError::Event(reason)) => {
@@ -387,7 +382,7 @@ async fn send_command(
     if body.len() > MAX_OUTGOING_FRAME_BYTES {
         events
             .send(HubEvent::Problem(format!(
-                "Trama de {} bytes supera el límite del hub ({} bytes): el turno no se envía",
+                "Frame of {} bytes exceeds the hub limit ({} bytes): the turn is not sent",
                 body.len(),
                 MAX_OUTGOING_FRAME_BYTES,
             )))
@@ -415,7 +410,7 @@ async fn write_frame(socket: &mut Socket, body: String) -> Result<()> {
     let body = Message::Text(body.into());
     let sent = tokio::time::timeout(Duration::from_secs(5), socket.send(body))
         .await
-        .context("Envío al hub agotó el plazo de 5 s")
+        .context("Sending to the hub exceeded the 5 s deadline")
         .and_then(|outcome| outcome.map_err(Into::into));
     if let Err(error) = sent {
         return Err(UnsentFrames {
@@ -443,7 +438,7 @@ fn oversize_refusal(frame: &Value, size: usize) -> Result<Option<Value>> {
         return Ok(None);
     };
     let summary: DeviceReplySummary = serde_json::from_value(serde_json::to_value(params)?)
-        .context("device.reply.params fuera de contrato")?;
+        .context("device.reply.params violates the contract")?;
     if summary.refusal.is_some() {
         return Ok(None);
     }
@@ -597,10 +592,10 @@ mod watchdog_tests {
         for (frame, cause) in [
             (
                 r#"{"v":2,"event":"ready","data":{"device_id":"synthetic"}}"#,
-                "Versión de hub incompatible",
+                "Incompatible hub version",
             ),
-            ("{broken", "JSON inválido"),
-            ("[]", "no es un objeto JSON"),
+            ("{broken", "invalid JSON"),
+            ("[]", "is not a JSON object"),
         ] {
             let listener = TcpListener::bind("127.0.0.1:0").await?;
             let address = listener.local_addr()?;
@@ -619,9 +614,9 @@ mod watchdog_tests {
                 bail!("hub failure produced no visible cause: {event:?}");
             };
             assert!(message.contains(cause), "{message}");
-            assert!(message.contains("versión local 1"), "{message}");
-            if cause == "Versión de hub incompatible" {
-                assert!(message.contains("versión del hub 2"), "{message}");
+            assert!(message.contains("local version 1"), "{message}");
+            if cause == "Incompatible hub version" {
+                assert!(message.contains("hub version 2"), "{message}");
             }
             let (_, event) = tokio::time::timeout(Duration::from_secs(3), harness.events.recv())
                 .await?
@@ -963,7 +958,7 @@ mod hub_unreached_tests {
             origin,
         );
         assert!(
-            refused.contains("rechazó la conexión") && refused.contains(origin),
+            refused.contains("refused the connection") && refused.contains(origin),
             "{refused}"
         );
         assert!(!refused.contains("TLS"), "{refused}");

@@ -10,7 +10,7 @@ from .errors import render
 from .private_route import json_response
 
 RESULT_PROTOCOL = "orbit_device_bridge_result_v1"
-_DO_NOT_REPEAT = "No repitas la acción; revisa su efecto en el Mac."
+_DO_NOT_REPEAT = "Do not repeat the action; check its effect on the Mac."
 
 
 def publish_failed() -> dict:
@@ -18,15 +18,17 @@ def publish_failed() -> dict:
     return {
         "outcome": "failed",
         "code": "connection_failed",
-        "notice": "El Mac no recibió la petición de acción.",
-        "next_step": "Comprueba la conexión de Orbit antes de preparar otra acción.",
+        "notice": "The Mac did not receive the action request.",
+        "next_step": "Check the Orbit connection before preparing another action.",
     }
 
 
 def reply_timeout(deadline_ms: int) -> dict:
     """The Mac did not confirm the action within its deadline."""
-    expected = "respuesta de perform_action"
-    notice = f"El Mac no confirmó la acción en {deadline_ms} ms; el resultado es incierto."
+    expected = "perform_action response"
+    notice = (
+        f"The Mac did not confirm the action within {deadline_ms} ms; the outcome is uncertain."
+    )
     return {
         "outcome": "unknown",
         "code": "device_reply_timeout",
@@ -47,7 +49,7 @@ def receipt_lost() -> dict:
     return {
         "outcome": "unknown",
         "code": "receipt_lost",
-        "notice": "La respuesta se perdió después de enviar la acción.",
+        "notice": "The response was lost after sending the action.",
         "next_step": _DO_NOT_REPEAT,
     }
 
@@ -65,10 +67,10 @@ def rendered_action(payload: dict) -> dict:
         code = None
         payload.pop("code", None)
     fallback = {
-        "failed": "La acción falló",
-        "unknown": "No se confirmó el resultado; comprueba su efecto en el Mac",
-        "expired": "La operación caducó",
-        "rejected": "La acción fue rechazada",
+        "failed": "The action failed",
+        "unknown": "Outcome unconfirmed; check its effect on the Mac",
+        "expired": "The operation expired",
+        "rejected": "The action was refused",
     }[payload["outcome"]]
     notice = payload.get("notice")
     message = notice if isinstance(notice, str) and notice else fallback
@@ -83,15 +85,15 @@ def action_outcome(answer: dict) -> dict:
                 "outcome": "unknown",
                 "code": refusal["code"],
                 "refusal": refusal,
-                "notice": "El Mac no pudo confirmar el resultado de la acción.",
-                "next_step": "No repitas la acción; consulta su resultado y revisa su efecto en el Mac.",
+                "notice": "The Mac could not confirm the action outcome.",
+                "next_step": "Do not repeat the action; read its outcome and check its effect on the Mac.",
             }
         return {
             "outcome": "failed",
             "code": refusal["code"],
             "refusal": refusal,
-            "notice": "El Mac no completó la acción.",
-            "next_step": "Consulta la causa antes de preparar otra acción.",
+            "notice": "The Mac did not complete the action.",
+            "next_step": "Check the cause before preparing another action.",
         }
     result = answer.get("result")
     receipt = result.get("receipt") if isinstance(result, dict) else None
@@ -100,7 +102,7 @@ def action_outcome(answer: dict) -> dict:
             "outcome": "unknown",
             "result": result,
             "code": "invalid_action_receipt",
-            "notice": "El Mac devolvió un recibo de acción no válido.",
+            "notice": "The Mac returned an invalid action receipt.",
             "next_step": _DO_NOT_REPEAT,
         }
     state = receipt.get("state")
@@ -110,8 +112,8 @@ def action_outcome(answer: dict) -> dict:
     return {
         "outcome": "failed",
         "code": code if isinstance(code, str) else "action_failed",
-        "notice": "El Mac no pudo ejecutar la acción.",
-        "next_step": "Revisa Orbit y prepara otra acción sólo si no llegó a enviarse.",
+        "notice": "The Mac could not execute the action.",
+        "next_step": "Check Orbit and prepare another action only if it was never sent.",
         "receipt": receipt,
         "result": result,
     }
@@ -120,27 +122,21 @@ def action_outcome(answer: dict) -> dict:
 def failure(exc):
     status, code, numbers, detail = exc.status, exc.code, exc.numbers, exc.detail
     message = {
-        "unauthorized": "Acceso no autorizado",
-        "invalid_request": "Solicitud fuera de contrato",
-        "no_answer": "El Mac no respondió dentro del plazo",
-        "device_unavailable": "El Mac no está conectado",
-        "agent_not_found": "Este hub no tiene ese agente",
-    }.get(code, "No se pudo completar la petición")
+        "unauthorized": "Unauthorized access",
+        "invalid_request": "Request violates the contract",
+        "no_answer": "The Mac did not respond within the deadline",
+        "device_unavailable": "The Mac is not connected",
+        "agent_not_found": "This hub does not have that agent",
+    }.get(code, "Could not complete the request")
     if code == "agent_access_disabled" and numbers is not None:
         message = disabled_message(str(numbers.get("agent_id")), str(numbers.get("group")))
     if code == "skill_not_enabled" and numbers is not None:
-        enabled = str(numbers.get("enabled")).replace(",", ", ") or "ninguna"
-        message = (
-            f"El agente «{numbers.get('agent_id')}» no tiene activada ninguna skill llamada "
-            f"«{numbers.get('name')}»; las activadas son: {enabled}"
-        )
+        enabled = str(numbers.get("enabled")).replace(",", ", ") or "none"
+        message = f"Agent «{numbers.get('agent_id')}» has no enabled skill named «{numbers.get('name')}»; enabled skills: {enabled}"
     if code == "skills_not_in_hub" and numbers is not None:
-        message = (
-            f"El agente «{numbers.get('agent_id')}» es de tipo {numbers.get('kind')}: sus skills "
-            "son las de su perfil de Hermes, no las guarda Orbit"
-        )
+        message = f"Agent «{numbers.get('agent_id')}» es de tipo {numbers.get('kind')}: its skills come from its Hermes profile, not Orbit storage"
     if detail is not None:
-        message = f"El parámetro {detail['field']} debe ser {detail['expected']}."
+        message = f"Parameter {detail['field']} must be {detail['expected']}."
     payload = render(
         code,
         message,

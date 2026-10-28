@@ -31,9 +31,8 @@ impl Runtime {
         }
         if let Some(ticket) = self.computer.work.panicked() {
             self.supervision.panicked(Actor::ComputerControl);
-            let failure = anyhow::anyhow!(
-                "El trabajo del motor de control del Mac falló; se puede volver a pedir"
-            );
+            let failure =
+                anyhow::anyhow!("The Mac control engine job failed; it can be requested again");
             if let Err(error) = self.computer_event(&ticket, Err(failure)).await {
                 self.say_failure(orbit_core::notice::NoticeCode::WorkFailed, &error);
             }

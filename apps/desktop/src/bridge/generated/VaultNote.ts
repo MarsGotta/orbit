@@ -3,8 +3,9 @@ import type { VaultActivity } from "./VaultActivity";
 import type { VaultCitation } from "./VaultCitation";
 import type { VaultConformance } from "./VaultConformance";
 import type { VaultDependency } from "./VaultDependency";
+import type { VaultDiagnostic } from "./VaultDiagnostic";
 import type { VaultLink } from "./VaultLink";
 import type { VaultQuery } from "./VaultQuery";
 import type { VaultTask } from "./VaultTask";
 
-export type VaultNote = { path: string, type: string, role: string, properties: Record<string, unknown>, schema_warnings: Array<string>, conformance: VaultConformance, dependency_tasks: Array<VaultTask>, frontmatter: Record<string, unknown>, body: string, outlinks: Array<VaultLink>, synthesized: boolean, raw: string, citations: Array<VaultCitation>, tasks: Array<VaultTask>, dependencies: Array<VaultDependency>, queries: Array<VaultQuery>, history: Array<VaultActivity>, history_next_page: number | null, next_page: number | null, };
+export type VaultNote = { path: string, type: string, role: string, properties: Record<string, unknown>, schema_warnings: Array<string>, schema_diagnostics?: Array<VaultDiagnostic>, conformance: VaultConformance, dependency_tasks: Array<VaultTask>, frontmatter: Record<string, unknown>, body: string, outlinks: Array<VaultLink>, synthesized: boolean, raw: string, citations: Array<VaultCitation>, tasks: Array<VaultTask>, dependencies: Array<VaultDependency>, queries: Array<VaultQuery>, history: Array<VaultActivity>, history_next_page: number | null, next_page: number | null, };

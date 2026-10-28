@@ -134,13 +134,13 @@ impl Runtime {
         self.source_progress(
             &operation_id,
             SourceStage::Listing,
-            "Consultando ventanas autorizadas del Mac…",
+            "Reading authorized Mac windows…",
         );
         if let Err(error) = self.helper.try_send(command) {
             self.source_progress(
                 &operation_id,
                 SourceStage::Failed,
-                "El Mac está ocupado; no se enumeraron ventanas.",
+                "The Mac is busy; windows were not enumerated.",
             );
             return Err(match error {
                 tokio::sync::mpsc::error::TrySendError::Full(_) => {
@@ -204,13 +204,13 @@ impl Runtime {
         .and_then(|command| {
             self.helper
                 .try_send(command)
-                .context("El Mac está ocupado; captura no enviada")
+                .context("The Mac is busy; capture not sent")
         });
         if let Err(error) = result {
             self.source_progress(
                 &intent.id,
                 SourceStage::Failed,
-                "La captura no se envió. Vuelve a seleccionar si quieres otro intento.",
+                "The capture was not sent. Select again for another attempt.",
             );
             return Err(error);
         }
@@ -218,7 +218,7 @@ impl Runtime {
             .sources
             .reply
             .start_external(self.state.generation(), self.turn.op.clone(), ())
-            .context("La espera del helper ya tiene una operación")?;
+            .context("The helper wait already has an operation")?;
         self.sources.operation = Some(Operation {
             id: intent.id.clone(),
             command_id,
@@ -244,17 +244,17 @@ impl Runtime {
             .is_none_or(|deadline| Instant::now() >= deadline)
         {
             self.state.views.source_inventory = None;
-            bail!("La selección caducó; vuelve a listar y elige una ventana");
+            bail!("The selection expired; list windows again and choose one");
         }
         let inventory = self
             .state
             .views
             .source_inventory
             .as_ref()
-            .context("Primero lista y elige una ventana")?;
+            .context("List windows and choose one first")?;
         if format == SourceFormat::SelectedText && !inventory.selected_text_available {
             bail!(
-                "Texto seleccionado no disponible: revisa Accesibilidad localmente y vuelve a listar. No se usará imagen ni portapapeles como alternativa."
+                "Selected text unavailable: check Accessibility locally and list again. Neither an image nor the clipboard will be used as a fallback."
             );
         }
         Ok(inventory.select(token)?)
@@ -316,7 +316,7 @@ impl Runtime {
     pub(super) async fn cancel_sources(&mut self) -> Result<()> {
         self.cancel_sources_with_cause(
             "cancelled_no_replay",
-            "La lectura se canceló localmente; no se repetirá la captura.",
+            "The read was cancelled locally; the capture will not be repeated.",
         )
         .await
     }
@@ -371,7 +371,7 @@ impl Runtime {
             self.source_progress(
                 &operation_id,
                 SourceStage::Cancelled,
-                "Selección retirada; vuelve a listar explícitamente para elegir otra ventana.",
+                "Selection withdrawn; explicitly list windows again to choose another.",
             );
         }
         self.cancel_sources_volatile();
@@ -402,7 +402,7 @@ impl Runtime {
                 self.source_progress(
                     &operation_id,
                     SourceStage::Cancelled,
-                    "El inventario caducó; vuelve a listar y elegir una ventana.",
+                    "The inventory expired; list windows again and choose one.",
                 );
             }
         }
@@ -412,7 +412,7 @@ impl Runtime {
             .as_ref()
             .is_some_and(|operation| operation.deadline.expired())
         {
-            let operation = self.sources.operation.take().context("Operación ausente")?;
+            let operation = self.sources.operation.take().context("Operation missing")?;
             self.sources.reply.cancel();
             self.close_source_operation(
                 &operation,
@@ -443,12 +443,12 @@ fn capture_plan(format: SourceFormat) -> (&'static str, DeadlineKind, &'static s
         SourceFormat::Png => (
             "screenshot",
             NATIVE_TIMEOUT,
-            "Capturando la ventana elegida una sola vez…",
+            "Capturing the chosen window once…",
         ),
         SourceFormat::SelectedText => (
             "selected_text",
             TEXT_TIMEOUT,
-            "Leyendo una selección verificable de la ventana elegida, sin portapapeles…",
+            "Reading a verifiable selection from the chosen window, without the clipboard…",
         ),
     }
 }

@@ -96,7 +96,7 @@ def test_the_document_and_the_notes_prompt_say_a_part_is_missing(environment):
     assert document["transcript"]["missing_audio"] == [
         {"track": "mic_local", "at_ms": 2000, "duration_ms": 1000, "chunks": 1}
     ]
-    assert "falta audio" in SYSTEM.lower()
+    assert "missing audio" in SYSTEM.lower()
 
 
 @pytest.mark.parametrize(

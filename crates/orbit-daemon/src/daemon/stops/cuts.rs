@@ -135,7 +135,7 @@ impl Runtime {
         self.contain_coded(
             StopCause::HelperCaptureStop,
             code,
-            &format!("El Mac cortó la captura ({code})."),
+            &format!("The Mac cut capture ({code})."),
         )
         .await;
     }

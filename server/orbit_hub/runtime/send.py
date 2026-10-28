@@ -19,12 +19,9 @@ from ..storage import SESSION_MESSAGES_PAGE_LIMIT
 from ..turns import TurnState, advance, can_start_turn
 from .work import TurnWork
 
-_UNKNOWN_OUTCOME = (
-    "El resultado del turno anterior es incierto; abre una sesión nueva "
-    "(session.new) o espera la reconciliación"
-)
+_UNKNOWN_OUTCOME = "The previous turn's outcome is uncertain; open a new session (session.new) or wait for reconciliation"
 # What a voice note's turn tells the agent, and never shows the user.
-_READ_ALOUD = "[Orbit leerá tu respuesta en voz alta: contesta solo con texto, sin generar audio]"
+_READ_ALOUD = "[Orbit will read your response aloud: reply in text only, without generating audio]"
 
 
 class TurnSender:
@@ -86,7 +83,7 @@ class TurnSender:
         the conversation's binding there, opened or reopened."""
         runtime = self.runtime
         if not runtime.store.devices.is_active(runtime.device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         session_id = params.session_id
         session = (
             None if session_id is None else runtime.store.chat.session(runtime.device, session_id)
@@ -109,7 +106,7 @@ class TurnSender:
             agent_id, agent.name, connection.create_session, round(runtime.now() * 1000)
         )
         if runtime.revoked or not runtime.store.devices.is_active(runtime.device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         session_id = runtime.store.chat.create_session(
             runtime.device,
             agent_id,
@@ -145,8 +142,7 @@ class TurnSender:
             owner_name = agents.by_id[owner].name if owner in agents.by_id else owner
             raise HubError(
                 "agent_mismatch",
-                f"Esta conversación es de {owner_name} («{owner}»), no de «{params.agent_id}»; "
-                "abre una conversación nueva para hablar con otro agente",
+                f"This conversation belongs to {owner_name} («{owner}»), not «{params.agent_id}»; open a new conversation to speak with another agent",
                 numbers={"session_agent_id": owner, "agent_id": params.agent_id},
             )
         # A conversation whose agent has left the configuration.
@@ -158,10 +154,10 @@ class TurnSender:
         runtime = self.runtime
         async with runtime.conversations.committing(session_id):
             if runtime.revoked or not runtime.store.devices.is_active(runtime.device):
-                raise HubError("revoked", "Dispositivo revocado")
+                raise HubError("revoked", "Device revoked")
             if runtime.closed:
                 raise HubError(
-                    "session_resume_closed", "Se cerró la sesión de Orbit; no se envió el mensaje"
+                    "session_resume_closed", "The Orbit session closed; the message was not sent"
                 )
             if (
                 runtime.connections.get(agent_id) is not connection
@@ -171,8 +167,7 @@ class TurnSender:
             ):
                 raise HubError(
                     "session_resume_connection_lost",
-                    f"Se perdió la conexión con {runtime.agent_name(agent_id)} antes de enviar "
-                    "el mensaje; no se envió",
+                    f"The connection was lost with {runtime.agent_name(agent_id)} before sending the message; the message was not sent",
                 )
             runtime.expire_stale_interrupt(session_id)
             state = self._startable(session_id)
@@ -190,7 +185,7 @@ class TurnSender:
                 raise HubError("turn_outcome_unknown", _UNKNOWN_OUTCOME)
             return state
         if not can_start_turn(state):
-            raise HubError("session_busy", "Espera o interrumpe el turno en curso")
+            raise HubError("session_busy", "Wait or interrupt the current turn")
         return state
 
     async def _commit_turn(self, params, request_id, session_id, agent_id, state, meeting) -> str:
@@ -236,8 +231,7 @@ class TurnSender:
                 session_id,
                 request_id,
                 "warning",
-                f"La respuesta anterior de {runtime.agent_name(agent_id)} no llegó: se cortó y "
-                "el hub se ha reiniciado desde entonces",
+                f"The previous response from {runtime.agent_name(agent_id)} did not arrive: it was cut and the hub has restarted since then",
             )
         return upstream_text
 
@@ -279,7 +273,7 @@ class TurnSender:
                 await runtime.changed()
             raise HubError(
                 "attachment_unreadable",
-                "No se pudieron preparar los adjuntos del mensaje para el agente; no se envió",
+                "Could not prepare message attachments for the agent; the message was not sent",
                 numbers={"cause": "render_failed"},
             ) from exc
         return (
@@ -310,8 +304,7 @@ class TurnSender:
         if turn is None:
             raise HubError(
                 "handover_no_question",
-                "La conversación no tiene ninguna pregunta sin respuesta que pasar; "
-                "escribe la pregunta",
+                "This conversation has no unanswered question to hand over; write the question",
                 numbers={"messages": page["total"]},
             )
         return turn

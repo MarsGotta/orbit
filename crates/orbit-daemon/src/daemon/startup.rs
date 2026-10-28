@@ -12,22 +12,20 @@ pub(super) use stop_store::StopStore;
 
 #[derive(Debug, thiserror::Error)]
 pub(super) enum StartupError {
-    #[error("Recuperación sin paso: último paso {step}, {elapsed_ms} ms transcurridos")]
+    #[error("Recovery has no step: last step {step}, {elapsed_ms} ms elapsed")]
     MissingRecoveryStep { step: &'static str, elapsed_ms: u64 },
     #[error(
-        "Arranque interrumpido por {signal} durante la recuperación: paso {step}, {elapsed_ms} ms transcurridos"
+        "Startup interrupted by {signal} during recovery: step {step}, {elapsed_ms} ms elapsed"
     )]
     Interrupted {
         signal: &'static str,
         step: &'static str,
         elapsed_ms: u64,
     },
-    #[error(
-        "El servidor IPC terminó durante la recuperación: paso {step}, {elapsed_ms} ms transcurridos"
-    )]
+    #[error("The IPC server stopped during recovery: step {step}, {elapsed_ms} ms elapsed")]
     IpcEndedDuringRecovery { step: &'static str, elapsed_ms: u64 },
     #[error(
-        "El servidor IPC falló durante la recuperación: paso {step}, {elapsed_ms} ms transcurridos; causa: {source:#}"
+        "The IPC server failed during recovery: step {step}, {elapsed_ms} ms elapsed; cause: {source:#}"
     )]
     IpcFailedDuringRecovery {
         step: &'static str,
@@ -35,30 +33,28 @@ pub(super) enum StartupError {
         source: anyhow::Error,
     },
     #[error(
-        "El trabajador IPC terminó durante la recuperación: paso {step}, {elapsed_ms} ms transcurridos; causa: {source}"
+        "The IPC worker stopped during recovery: step {step}, {elapsed_ms} ms elapsed; cause: {source}"
     )]
     IpcTaskFailedDuringRecovery {
         step: &'static str,
         elapsed_ms: u64,
         source: tokio::task::JoinError,
     },
-    #[error("El socket IPC no se abrió tras {elapsed_ms} ms: {source:#}")]
+    #[error("The IPC socket did not open after {elapsed_ms} ms: {source:#}")]
     IpcBind {
         elapsed_ms: u64,
         source: anyhow::Error,
     },
-    #[error("El socket IPC no se abrió tras {elapsed_ms} ms: el servidor terminó antes de bind")]
+    #[error("The IPC socket did not open after {elapsed_ms} ms: the server stopped before bind")]
     IpcEndedBeforeBind { elapsed_ms: u64 },
-    #[error("El socket IPC no se abrió tras {elapsed_ms} ms: terminó el trabajador: {source}")]
+    #[error("The IPC socket did not open after {elapsed_ms} ms: the worker stopped: {source}")]
     IpcTaskEndedBeforeBind {
         elapsed_ms: u64,
         source: tokio::task::JoinError,
     },
-    #[error("El actor de almacenamiento se detuvo antes de admitir la parada de privacidad")]
+    #[error("The storage actor stopped before admitting the privacy stop")]
     StopWriterStopped,
-    #[error(
-        "El candado de la cola de paradas de privacidad quedó envenenado; la parada no se admitió"
-    )]
+    #[error("The privacy stop queue lock was poisoned; the stop was not admitted")]
     StopWriterLockPoisoned,
 }
 
@@ -188,11 +184,7 @@ pub(super) async fn recover(
     };
     let worker = spawn_store_recovery(store, progress_tx.clone(), worker_done);
     let (store, report) = service
-        .serve_future(async {
-            worker
-                .await
-                .context("Terminó el trabajador de recuperación")?
-        })
+        .serve_future(async { worker.await.context("The recovery worker stopped")? })
         .await?;
     say_store_recovery(&mut service.state, &report);
     let (store, written) = save_report_snapshot(
@@ -206,7 +198,7 @@ pub(super) async fn recover(
                 Ok(store)
             })
             .await
-            .context("Terminó el guardado final")?
+            .context("The final save finished")?
         },
     )
     .await?;

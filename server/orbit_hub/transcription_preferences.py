@@ -112,17 +112,13 @@ class Transcriber:
                 Registry(self.preferences.store).read()["providers"].get(choice["provider_id"])
             )
             if provider is None:
-                raise HubError(
-                    "ai_provider_missing", "El proveedor de esta transcripción ya no existe"
-                )
+                raise HubError("ai_provider_missing", "The transcription provider no longer exists")
             return transcriber({**provider, "model": choice["model"]}, self.configuration)
         if model == "whisper":
             return self.whisper
         key = self.preferences.read()["api_key"]
         if not key:
-            raise HubError(
-                "transcription_key_missing", "Configura la clave de OpenRouter en Ajustes"
-            )
+            raise HubError("transcription_key_missing", "Set the OpenRouter key in Settings")
         return OpenRouterTranscriber(key, self.configuration)
 
     async def transcribe(
@@ -186,21 +182,21 @@ def mount(app, transcriber, identity, bounded_body, executor):
             selection = Selection.model_validate_json(await bounded_body(request, 25 * 1024))
         except ValidationError:
             raise HubError(
-                "invalid_transcription_setting", "Modelo o clave de transcripción no válidos"
+                "invalid_transcription_setting", "Invalid transcription model or key"
             ) from None
         async with lock:
             return await apply(selection, device)
 
     async def apply(selection, device):
         if not preferences.store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         # Serialize validation+save so preserving a key cannot overwrite a
         # replacement another paired Mac just saved.
         previous = await in_store(executor, preferences.read)
         key = selection.api_key or previous["api_key"]
         if selection.model == "mai" or selection.api_key:
             if not key:
-                raise HubError("transcription_key_missing", "Introduce la clave de OpenRouter")
+                raise HubError("transcription_key_missing", "Enter the OpenRouter key")
             # Validation sends only 250 ms of silence. Its 30 s provider
             # budget ends well before the Mac's 90 s settings request budget.
             await OpenRouterTranscriber(key, transcriber.configuration, timeout=30).transcribe(
@@ -208,7 +204,7 @@ def mount(app, transcriber, identity, bounded_body, executor):
             )
         # Validation may outlive revocation. A revoked device cannot save.
         if not preferences.store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         await in_store(executor, preferences.save, selection.model, key)
         return await in_store(executor, preferences.public)
 
@@ -223,7 +219,7 @@ async def final_pass_model(request):
         if len(body) > 256:
             raise HubError(
                 "too_large",
-                "La elección de modelo es demasiado grande",
+                "The model choice is too large",
                 numbers={"bytes": len(body), "max_bytes": 256},
             )
     if not body:
@@ -235,5 +231,5 @@ async def final_pass_model(request):
         return payload["model"]
     except (ValueError, TypeError):
         raise HubError(
-            "invalid_transcription_setting", "Elige Whisper o MAI para transcribir"
+            "invalid_transcription_setting", "Choose Whisper or MAI for transcription"
         ) from None

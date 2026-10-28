@@ -184,7 +184,7 @@ async def test_uncertain_remote_action_keeps_its_retirement_cause_for_deimos(tmp
                 {
                     "code": "outcome_unknown",
                     "operation_id": operation_id,
-                    "detail": "Cambió el dispositivo; el control anterior se retiró.",
+                    "detail": "The device changed; previous control was withdrawn.",
                     "retry": {"kind": "check_outcome"},
                 }
             )
@@ -199,8 +199,8 @@ async def test_uncertain_remote_action_keeps_its_retirement_cause_for_deimos(tmp
     assert result.is_error, body
     assert "outcome_unknown" in body
     assert operation_id in body
-    assert "Cambió el dispositivo" in body
-    assert "Todo está parado" not in body
+    assert "The device changed" in body
+    assert "Everything is stopped" not in body
 
 
 async def test_look_without_parameters_inventories_then_captures_without_parameters(tmp_path):

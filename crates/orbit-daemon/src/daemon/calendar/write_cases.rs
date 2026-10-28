@@ -384,7 +384,7 @@ async fn a_refusal_comes_back_by_name_with_its_numbers() -> Result<()> {
         })
     );
     assert!(
-        outcome.detail.contains("otra persona"),
+        outcome.detail.contains("someone else"),
         "{}",
         outcome.detail
     );
@@ -482,7 +482,7 @@ async fn a_lost_answer_is_outcome_unknown_and_never_sent_twice() -> Result<()> {
         })
     );
     assert!(
-        outcome.detail.contains("no lo repite"),
+        outcome.detail.contains("does not repeat it"),
         "{}",
         outcome.detail
     );
@@ -516,7 +516,7 @@ async fn the_helpers_own_unknown_outcome_keeps_its_cause() -> Result<()> {
     let command = next_command(&mut receiver).await?;
     runtime
         .native_event(json!({"event":"response","id":command["id"],"ok":false,
-            "error":{"code":"calendar_write_outcome_unknown","message":"plazo",
+            "error":{"code":"calendar_write_outcome_unknown","message":"deadline",
                 "detail":{"cause":"write_deadline"}}}))
         .await?;
     let outcome = write(&runtime, "slow")?;

@@ -78,8 +78,7 @@ impl Writer {
             let newest = self.pending_problems.len() == 1;
             let message = if newest && self.overflowed_problems > 0 {
                 format!(
-                    "{oldest} Además, {} aviso(s) de almacenamiento anteriores no cupieron \
-                     en la cola de {MAX_PENDING_PROBLEMS} y se descartaron.",
+                    "{oldest} Also, {} earlier storage notice(s) did not fit in the queue of {MAX_PENDING_PROBLEMS} and were dropped.",
                     self.overflowed_problems
                 )
             } else {
@@ -145,7 +144,7 @@ impl Writer {
             }
             Err(error) => {
                 let message = format!(
-                    "Audio pendiente en memoria: {owed} fragmentos. No cierres Orbit; se reintentará guardar localmente. {error}"
+                    "Audio pending in memory: {owed} chunks. Keep Orbit open; local saving will be retried. {error}"
                 );
                 push_completion(
                     &self.completions,

@@ -41,9 +41,9 @@ impl LocalClient {
     async fn stopped(&self) -> anyhow::Error {
         match self.ended().await {
             DaemonEnded::Closed => anyhow::anyhow!("orbit_closing"),
-            DaemonEnded::Failed(cause) => anyhow::anyhow!("El servicio de Orbit terminó: {cause}"),
+            DaemonEnded::Failed(cause) => anyhow::anyhow!("The Orbit service stopped: {cause}"),
             DaemonEnded::Vanished => {
-                anyhow::anyhow!("El hilo del servicio de Orbit terminó sin resultado (un pánico)")
+                anyhow::anyhow!("The Orbit service thread ended without a result (a panic)")
             }
         }
     }
@@ -84,7 +84,7 @@ impl LocalClient {
         .await
         .with_context(|| {
             format!(
-                "El daemon no confirmó en {} ms; no se repite la orden ni la lectura",
+                "The daemon did not confirm within {} ms; neither command nor read is repeated",
                 wait.as_millis()
             )
         })?
@@ -110,7 +110,7 @@ impl LocalClient {
                         response
                             .error
                             .as_deref()
-                            .unwrap_or("Operación rechazada sin causa")
+                            .unwrap_or("Operation refused without a cause")
                     );
                 }
                 Ok(response)
@@ -120,7 +120,7 @@ impl LocalClient {
             | Reply::Vault(_)
             | Reply::Agent(_)
             | Reply::Attachment(_) => {
-                bail!("El daemon entregó otra clase de respuesta a una orden")
+                bail!("The daemon delivered another response kind to a command")
             }
         }
     }
@@ -132,19 +132,19 @@ impl LocalClient {
                     return Err(refusal.into());
                 }
                 if !response.ok {
-                    bail!("El daemon rechazó la lectura sin causa tipada");
+                    bail!("The daemon refused the read without a typed cause");
                 }
                 Ok(response)
             }
             // During recovery the actor answers a read with its typed refusal.
             Reply::Command(response) => match response.refusal {
                 Some(refusal) => Err(refusal.into()),
-                None => bail!("El daemon entregó una orden en lugar de la lectura"),
+                None => bail!("The daemon delivered a command instead of the read"),
             },
-            Reply::VoiceNoteAudio(_) => bail!("El daemon entregó audio en lugar de la lectura"),
-            Reply::Vault(_) => bail!("El daemon entregó un vault en lugar de la lectura"),
-            Reply::Agent(_) => bail!("El daemon entregó un agente en lugar de la lectura"),
-            Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar de la lectura"),
+            Reply::VoiceNoteAudio(_) => bail!("The daemon delivered audio instead of the read"),
+            Reply::Vault(_) => bail!("The daemon delivered a vault instead of the read"),
+            Reply::Agent(_) => bail!("The daemon delivered an agent instead of the read"),
+            Reply::Attachment(_) => bail!("The daemon delivered an attachment instead of the read"),
         }
     }
 
@@ -163,21 +163,21 @@ impl LocalClient {
                         response
                             .error
                             .as_deref()
-                            .unwrap_or("Audio rechazado sin causa")
+                            .unwrap_or("Audio refused without a cause")
                     );
                 }
                 response
                     .audio
-                    .context("El daemon no entregó el audio solicitado")
+                    .context("The daemon did not deliver the requested audio")
             }
             Reply::Command(response) => match response.refusal {
                 Some(refusal) => Err(refusal.into()),
-                None => bail!("El daemon entregó una orden en lugar del audio"),
+                None => bail!("The daemon delivered a command instead of audio"),
             },
-            Reply::Topics(_) => bail!("El daemon entregó una lectura en lugar del audio"),
-            Reply::Vault(_) => bail!("El daemon entregó un vault en lugar de la lectura"),
-            Reply::Agent(_) => bail!("El daemon entregó un agente en lugar del audio"),
-            Reply::Attachment(_) => bail!("El daemon entregó un adjunto en lugar del audio"),
+            Reply::Topics(_) => bail!("The daemon delivered a read instead of audio"),
+            Reply::Vault(_) => bail!("The daemon delivered a vault instead of the read"),
+            Reply::Agent(_) => bail!("The daemon delivered an agent instead of audio"),
+            Reply::Attachment(_) => bail!("The daemon delivered an attachment instead of audio"),
         }
     }
 
@@ -194,13 +194,13 @@ impl LocalClient {
             // During recovery the actor answers any call with its refusal.
             Reply::Command(response) => match response.refusal {
                 Some(refusal) => Err(refusal.into()),
-                None => bail!("El daemon entregó una orden en lugar del agente"),
+                None => bail!("The daemon delivered a command instead of an agent"),
             },
             Reply::Topics(_)
             | Reply::VoiceNoteAudio(_)
             | Reply::Attachment(_)
             | Reply::Vault(_) => {
-                bail!("El daemon entregó otra clase de respuesta al agente")
+                bail!("The daemon delivered another response kind for the agent")
             }
         }
     }
@@ -214,9 +214,9 @@ impl LocalClient {
             Reply::Vault(response) => Ok(response.outcome),
             Reply::Command(response) => match response.refusal {
                 Some(refusal) => Err(refusal.into()),
-                None => bail!("El daemon rechazó la lectura del vault sin causa"),
+                None => bail!("The daemon refused the vault read without a cause"),
             },
-            _ => bail!("El daemon entregó otra clase de respuesta al vault"),
+            _ => bail!("The daemon delivered another response kind for the vault"),
         }
     }
 
@@ -237,17 +237,17 @@ impl LocalClient {
                         response
                             .error
                             .as_deref()
-                            .unwrap_or("Adjunto rechazado sin causa")
+                            .unwrap_or("Attachment refused without a cause")
                     );
                 }
                 Ok(response)
             }
             Reply::Command(response) => match response.refusal {
                 Some(refusal) => Err(refusal.into()),
-                None => bail!("El daemon entregó una orden en lugar del adjunto"),
+                None => bail!("The daemon delivered a command instead of an attachment"),
             },
             Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Vault(_) | Reply::Agent(_) => {
-                bail!("El daemon entregó otra clase de respuesta en lugar del adjunto")
+                bail!("The daemon delivered another response kind instead of an attachment")
             }
         }
     }
@@ -256,6 +256,6 @@ impl LocalClient {
         self.attachment(Command::AttachmentFetch { attachment_id })
             .await?
             .content
-            .context("El daemon no entregó el adjunto")
+            .context("The daemon did not deliver the attachment")
     }
 }

@@ -49,12 +49,12 @@ impl VoiceBuffer {
     /// longer than a turn may be.
     pub(super) fn check(&self, frame: &TrackFrame<'_>, epoch: Option<&str>) -> Result<()> {
         if !self.pcm.is_empty() && self.capture_epoch_id.as_deref() != epoch {
-            bail!("La época del productor cambió durante el turno de voz");
+            bail!("The producer epoch changed during the voice turn");
         }
         if self.sample_rate != 0
             && (self.sample_rate != frame.rate || self.channels != frame.channels)
         {
-            bail!("El micrófono cambió de formato durante el turno");
+            bail!("The microphone format changed during the turn");
         }
         if self
             .native_sequence
@@ -67,13 +67,13 @@ impl VoiceBuffer {
                 .last_monotonic_ns
                 .is_some_and(|previous| frame.monotonic_ns < previous)
         {
-            bail!("El turno de voz contiene una discontinuidad");
+            bail!("The voice turn contains a discontinuity");
         }
         if self.pcm.len() + frame.pcm.len() > frame.rate as usize * 2 * 60 {
-            bail!("El turno de voz alcanzó el límite de 60 segundos");
+            bail!("The voice turn reached the 60-second limit");
         }
         if self.pcm.len() + frame.pcm.len() > MAX_CHUNK_BYTES - 44 {
-            bail!("El turno de voz alcanzó el límite de almacenamiento cifrado de 8 MiB");
+            bail!("The voice turn reached the 8 MiB encrypted storage limit");
         }
         Ok(())
     }

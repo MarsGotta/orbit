@@ -394,4 +394,4 @@ def test_missing_bwrap_fails_closed_through_chat(official, monkeypatch):
             pass
     error = frame["data"]
     assert error["code"] == "agent_adapter_missing"
-    assert "bubblewrap" in error["message"] and "instala" in error["message"].lower()
+    assert "bubblewrap" in error["message"] and "install" in error["message"].lower()

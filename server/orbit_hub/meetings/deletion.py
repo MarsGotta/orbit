@@ -62,7 +62,7 @@ def refuse_if_deleted(db, device: str, recording: str) -> None:
     if deleted(db, device, recording):
         raise HubError(
             "recording_deleted",
-            "La grabación se borró; no admite nada más",
+            "The recording was deleted; it accepts nothing else",
             http_status=409,
         )
 

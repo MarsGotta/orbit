@@ -1,3 +1,4 @@
+import { getCopy } from "../i18n";
 import { describe, expect, it } from "vitest";
 import type { Notice } from "../bridge/generated/Notice";
 import type { NoticeCode } from "../bridge/generated/NoticeCode";
@@ -60,13 +61,13 @@ describe("the interceptor shows each class as the table says", () => {
 });
 
 describe("a code the catalogue does not know", () => {
-  it("is the generic failure with the op's code, and is reported", () => {
+  it("names the unknown code in generic copy and is reported", () => {
     for (const code of ["unknown", "code_from_the_future"]) {
       const { messages, report } = receive([], {
         kind: "notice",
         notice: notice(code, OP, { cause: "Hola Alina", count: 2 }),
       });
-      expect(only(messages)?.text).toBe(genericFailure(OP));
+      expect(only(messages)?.text).toBe(getCopy().errors.unknownCode(code));
       expect(report).toEqual({
         op: OP,
         code,
@@ -84,7 +85,7 @@ describe("a code the catalogue does not know", () => {
     });
     const message = messages[0];
     expect(message?.op.length).toBeGreaterThanOrEqual(8);
-    expect(message?.text).toBe(genericFailure(message?.op ?? ""));
+    expect(message?.text).toBe(getCopy().errors.unknownCode("code_from_the_future"));
     expect(report?.op).toBe(message?.op);
   });
 });

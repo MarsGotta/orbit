@@ -69,7 +69,7 @@ impl Runtime {
             ],
         );
         let cause = format!(
-            "retired_stop_capacity_exhausted: {pending} paradas selectivas pendientes; máximo {MAX_RETIRED_STOPS}. Se pide una parada completa al Mac."
+            "retired_stop_capacity_exhausted: {pending} selective stops pending; maximum {MAX_RETIRED_STOPS}. A full stop is requested from the Mac."
         );
         self.contain_coded(
             orbit_core::privacy_stop::StopCause::HelperIntegrityFailure,

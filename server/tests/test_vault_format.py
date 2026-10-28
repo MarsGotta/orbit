@@ -109,7 +109,7 @@ async def test_custom_roles_folders_fields_and_unknown_type(vault):
 @pytest.mark.parametrize(
     "schema,location",
     [
-        ("---\ntypes: [\n---\nText", "línea 3"),
+        ("---\ntypes: [\n---\nText", "line 3"),
         ("---\ntypes:\n  client: {role: potato}\n---\nText", "types.client.role"),
         ("---\nfields: {start: []}\n---\nText", "fields.start"),
         (
@@ -190,7 +190,7 @@ done
         "relation": "after",
     } in note["dependencies"]
     assert [t["id"] for t in note["queries"][0]["tasks"]] == ["plant"]
-    assert note["queries"][0]["warnings"] == ["Esta línea de la consulta no se aplica: sort by due"]
+    assert note["queries"][0]["warnings"] == ["This query line is not applied: sort by due"]
     assert [t["id"] for t in note["queries"][1]["tasks"]] == ["prep"]
 
 
@@ -257,3 +257,20 @@ async def test_tasks_after_metadata_and_completed_due_dates(vault):
     assert tasks[0]["due"] == "2026-11-01"
     note = await read(client, "read", path="garden.md")
     assert not any(edge["relation"] == "after" for edge in note["dependencies"])
+
+
+async def test_schema_and_query_warnings_carry_codes_without_removing_legacy_text(vault):
+    client, root = vault
+    put(root, "SCHEMA.md", "---\ntypes: wrong\n---\n")
+    put(root, "Tasks.md", "```tasks\nunsupported filter\n```\n")
+    catalog = await read(client, "catalog")
+    schema = catalog["schema"]
+    assert schema["warnings"] == ["SCHEMA.md: types must be a mapping (line 2). Defaults are used."]
+    assert schema["diagnostics"] == [
+        {"code": "schema_types_mapping", "field": "types", "numbers": {"line": 2}}
+    ]
+    note = await read(client, "read", path="Tasks.md")
+    assert note["queries"][0]["warnings"] == ["This query line is not applied: unsupported filter"]
+    assert note["queries"][0]["diagnostics"] == [
+        {"code": "query_line_unsupported", "field": "unsupported filter", "numbers": {}}
+    ]

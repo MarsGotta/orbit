@@ -39,8 +39,8 @@ pub(super) fn refuse_order(
                 .push_back(core::DictionaryFailure {
                     target: request.target(),
                     code: code.into(),
-                    detail: "No se confirmó el cambio: la sesión del hub se cerró".into(),
-                    numbers: BTreeMap::new(),
+                    detail: "Change unconfirmed: the hub session closed".into(),
+                    numbers,
                 });
             while library.dictionary_failures.len() > MAX_KEPT_REFUSALS {
                 library.dictionary_failures.pop_front();

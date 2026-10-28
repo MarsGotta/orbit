@@ -72,7 +72,7 @@ class SkillEntry:
 def invalid(name: str, rule: str, message: str, **numbers: int) -> HubError:
     return HubError(
         "skill_invalid",
-        f"La skill «{name}» no cumple el estándar SKILL.md: {message}",
+        f"Skill «{name}» does not meet the SKILL.md standard: {message}",
         http_status=422,
         numbers={"name": name, "rule": rule, **numbers},
     )
@@ -85,7 +85,7 @@ def check_name(name: str, *, shown: str | None = None) -> None:
         raise invalid(
             shown,
             "name_too_long",
-            f"el nombre tiene {len(name)} caracteres; máximo {MAX_NAME_CHARS}",
+            f"the name has {len(name)} characters; maximum {MAX_NAME_CHARS}",
             characters=len(name),
             max_characters=MAX_NAME_CHARS,
         )
@@ -93,12 +93,14 @@ def check_name(name: str, *, shown: str | None = None) -> None:
         raise invalid(
             shown,
             "name_characters",
-            "el nombre sólo admite minúsculas a-z, dígitos y guiones",
+            "the name allows only lowercase a-z, digits and hyphens",
         )
     if name.startswith("-") or name.endswith("-"):
-        raise invalid(shown, "name_hyphen_edge", "el nombre no puede empezar ni acabar en guion")
+        raise invalid(shown, "name_hyphen_edge", "the name cannot start or end with a hyphen")
     if "--" in name:
-        raise invalid(shown, "name_consecutive_hyphens", "el nombre no admite dos guiones seguidos")
+        raise invalid(
+            shown, "name_consecutive_hyphens", "the name cannot contain consecutive hyphens"
+        )
 
 
 def size_refusal(name: str, content: str) -> HubError | None:
@@ -107,7 +109,7 @@ def size_refusal(name: str, content: str) -> HubError | None:
         return None
     return HubError(
         "skill_too_large",
-        f"La skill «{name}» ocupa {size} bytes; máximo {MAX_SKILL_BYTES}",
+        f"Skill «{name}» ocupa {size} bytes; maximum {MAX_SKILL_BYTES}",
         http_status=413,
         numbers={"name": name, "bytes": size, "max_bytes": MAX_SKILL_BYTES},
     )
@@ -122,27 +124,33 @@ def parse(name: str, content: str) -> Skill:
     try:
         fields = yaml.safe_load(frontmatter)
     except yaml.YAMLError:
-        raise invalid(name, "frontmatter_yaml", "la cabecera entre --- no es YAML válido") from None
+        raise invalid(
+            name, "frontmatter_yaml", "the header between --- lines is not valid YAML"
+        ) from None
     if not isinstance(fields, dict):
-        raise invalid(name, "frontmatter_yaml", "la cabecera entre --- no es un mapa YAML")
+        raise invalid(
+            name, "frontmatter_yaml", "the header between --- lines is not a YAML mapping"
+        )
     declared = fields.get("name")
     if not isinstance(declared, str) or not declared.strip():
-        raise invalid(name, "name_missing", "falta el campo name en la cabecera")
+        raise invalid(name, "name_missing", "the name field is missing from the header")
     check_name(declared, shown=name)
     if declared != name:
         raise invalid(
             name,
             "name_mismatch",
-            f"la cabecera dice name: {declared}, y la skill se llama {name}",
+            f"the header says name: {declared}, and the skill is named {name}",
         )
     description = fields.get("description")
     if not isinstance(description, str) or not description.strip():
-        raise invalid(name, "description_missing", "falta el campo description en la cabecera")
+        raise invalid(
+            name, "description_missing", "the description field is missing from the header"
+        )
     if len(description) > MAX_DESCRIPTION_CHARS:
         raise invalid(
             name,
             "description_too_long",
-            f"la descripción tiene {len(description)} caracteres; máximo {MAX_DESCRIPTION_CHARS}",
+            f"the description has {len(description)} characters; maximum {MAX_DESCRIPTION_CHARS}",
             characters=len(description),
             max_characters=MAX_DESCRIPTION_CHARS,
         )
@@ -153,8 +161,8 @@ def _split(content: str, name: str) -> tuple[str, str]:
     """The frontmatter's text and the body after it."""
     lines = content.removeprefix("\ufeff").split("\n")
     if not lines or lines[0].rstrip("\r ") != "---":
-        raise invalid(name, "frontmatter_missing", "el archivo debe empezar con una línea ---")
+        raise invalid(name, "frontmatter_missing", "the file must start with a --- line")
     for index, line in enumerate(lines[1:], 1):
         if line.rstrip("\r ") == "---":
             return "\n".join(lines[1:index]), "\n".join(lines[index + 1 :])
-    raise invalid(name, "frontmatter_unclosed", "falta la línea --- que cierra la cabecera")
+    raise invalid(name, "frontmatter_unclosed", "the closing --- header line is missing")

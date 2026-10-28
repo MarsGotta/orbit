@@ -122,9 +122,9 @@ impl Runtime {
     /// «Silenciar» or «Reactivar micrófono»: the order goes to the helper;
     /// the state changes when its answer confirms it (`mute_response`).
     pub(in crate::daemon) async fn mute_microphone(&mut self, muted: bool) -> Result<()> {
-        let holder = self.mute_holder().context(
-            "No hay ninguna grabación ni llamada con el micrófono abierto que silenciar",
-        )?;
+        let holder = self
+            .mute_holder()
+            .context("No recording or call has an open microphone to mute")?;
         let listening = match &holder {
             Holder::Meeting(_) => self
                 .state
@@ -142,10 +142,12 @@ impl Runtime {
                 .is_some_and(|call| call.phase != CallPhase::Starting),
         };
         if !listening {
-            anyhow::bail!("El micrófono aún no graba: espera a que empiece para silenciarlo");
+            anyhow::bail!(
+                "The microphone is not recording yet: wait for it to start before muting"
+            );
         }
         if matches!(holder, Holder::Meeting(_)) && self.state.durable.voice.voice_active {
-            anyhow::bail!("Termina la nota de voz antes de silenciar el micrófono");
+            anyhow::bail!("Finish the voice note before muting the microphone");
         }
         if self.audio.lifecycle.mute.order.is_some() {
             return Err(Refusal::Busy {
@@ -170,7 +172,7 @@ impl Runtime {
             .audio
             .mic_stream
             .clone()
-            .context("El micrófono no tiene ningún flujo abierto")?;
+            .context("The microphone has no open stream")?;
         let command =
             crate::native::command("audio_mute", json!({"stream_id": stream, "muted": muted}))?;
         let id = NativeCommandHeader::from_value(&command)?.id.to_owned();

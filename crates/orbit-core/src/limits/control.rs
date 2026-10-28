@@ -12,14 +12,14 @@ pub const MAX_ACTION_RECEIPT_BYTES: usize = 32 * 1024;
 /// The caller supplies the fact to check; this makes no I/O or retry decision.
 pub fn bounded_action_receipt(value: &impl Serialize) -> Result<serde_json::Value, String> {
     let bytes = serde_json::to_vec(value)
-        .map_err(|_| "No se pudo serializar el recibo de acción".to_owned())?;
+        .map_err(|_| "Could not serialize the action receipt".to_owned())?;
     if bytes.len() > MAX_ACTION_RECEIPT_BYTES {
         return Err(format!(
-            "Recibo de acción de {} bytes; máximo {MAX_ACTION_RECEIPT_BYTES}",
+            "Action receipt is {} bytes; maximum {MAX_ACTION_RECEIPT_BYTES}",
             bytes.len()
         ));
     }
-    serde_json::from_slice(&bytes).map_err(|_| "No se pudo leer el recibo de acción".to_owned())
+    serde_json::from_slice(&bytes).map_err(|_| "Could not read the action receipt".to_owned())
 }
 // A JSON action has its own 16,384-byte contract, independent of the hub's
 // request envelope. The hub-only bounds live in contracts/constants.json.

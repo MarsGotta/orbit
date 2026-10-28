@@ -24,7 +24,7 @@ from .urls import LOOPBACK_HOSTS
 def bearer(headers) -> str:
     value = headers.get("authorization", "")
     if not value.startswith("Bearer "):
-        raise HubError("unauthorized", "Credencial de dispositivo requerida")
+        raise HubError("unauthorized", "Device credential required")
     return value[7:]
 
 
@@ -57,7 +57,7 @@ async def bounded_body(request: Request, maximum: int, resource: str = "hub_requ
             )
         body.extend(piece)
     if not body:
-        raise HubError("invalid_payload", "Carga vacía")
+        raise HubError("invalid_payload", "Empty payload")
     return bytes(body)
 
 
@@ -71,7 +71,7 @@ def validate_wav(body: bytes) -> None:
             if expected == 0 or len(audio.readframes(audio.getnframes())) != expected:
                 raise ValueError("Truncated WAV")
     except (wave.Error, EOFError, ValueError) as exc:
-        raise HubError("invalid_audio", "Se requiere WAV PCM de 16 bits válido") from exc
+        raise HubError("invalid_audio", "Valid 16-bit PCM WAV required") from exc
 
 
 def install(app, settings: Settings, store) -> None:
@@ -79,12 +79,18 @@ def install(app, settings: Settings, store) -> None:
 
     @app.exception_handler(HubError)
     async def hub_error(_request, exc):
-        return http_response(exc.code, exc.message, exc.http_status, numbers=exc.numbers)
+        return http_response(
+            exc.code,
+            exc.message,
+            exc.http_status,
+            numbers=exc.numbers,
+            payload=exc.display_metadata(),
+        )
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request, _exc):
         # Pydantic's default errors echo submitted values (including pairing codes).
-        return http_response("invalid_request", "Solicitud fuera de contrato", 422)
+        return http_response("invalid_request", "Request violates the contract", 422)
 
     @app.middleware("http")
     async def boundary(request, call_next):
@@ -92,10 +98,10 @@ def install(app, settings: Settings, store) -> None:
         # every HTTP error body gets the op of its request.
         op = bind_op(request.headers.get("x-orbit-op"))
         if not allowed_transport(request.scope, settings):
-            return http_response("tls_required", "Se requiere HTTPS", 403, payload={"op": op})
+            return http_response("tls_required", "HTTPS required", 403, payload={"op": op})
         if request.headers.get("origin"):
             return http_response(
-                "origin_forbidden", "API exclusiva del cliente Orbit", 403, payload={"op": op}
+                "origin_forbidden", "API exclusive to the Orbit client", 403, payload={"op": op}
             )
         try:
             response = await call_next(request)
@@ -123,7 +129,7 @@ def unforeseen(request, failure: Exception, store, op: str):
         )
     report("internal_error", "internal_error", route=route, status=500)
     return http_response(
-        "internal_error", "Error del servidor; conserva la copia local", 500, payload={"op": op}
+        "internal_error", "Server error; keep the local copy", 500, payload={"op": op}
     )
 
 
@@ -148,6 +154,6 @@ async def with_op(response, op: str):
         if not isinstance(message, str):
             message = code
         if "message" not in existing and "notice" not in existing:
-            message = "Solicitud fuera de contrato"
+            message = "Request violates the contract"
         payload = render(code, message, payload=existing)
     return JSONResponse({**payload, "op": op}, status_code=response.status_code, headers=headers)

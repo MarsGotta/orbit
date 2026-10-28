@@ -81,7 +81,7 @@ def advance(state: TurnState, target: TurnState) -> TurnState:
     if target not in TRANSITIONS[state]:
         raise HubError(
             "invalid_turn_transition",
-            f"Transición de turno no permitida: {state.value} a {target.value}",
+            f"Turn transition not allowed: {state.value} a {target.value}",
         )
     return target
 

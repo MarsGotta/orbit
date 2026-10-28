@@ -3,7 +3,7 @@ import type { NoteLibraryRefusalSnapshot } from "../bridge/generated/NoteLibrary
 
 /** The hub's refusal of an order, as what the user can do about it. */
 export function refusalText(refusal: NoteLibraryRefusalSnapshot): string {
-  return getCopy().library.refused(refusal.code);
+  return getCopy().library.refused(refusal.code, refusal.numbers);
 }
 
 /** The refusals of one series' assignment, newest last. */

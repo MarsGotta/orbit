@@ -933,7 +933,7 @@ async fn local_actor_end_retains_failure_and_a_lost_owner_is_not_a_clean_quit() 
             .await
             .unwrap_err()
             .to_string()
-            .contains("pánico")
+            .contains("panic")
     );
 }
 
@@ -1085,7 +1085,7 @@ fn a_mismatched_answer_names_both_versions_and_ids() {
     assert_eq!(
         message,
         format!(
-            "Respuesta IPC no válida: versión {} (esperada {PROTOCOL_VERSION}), identificador «{}» (esperado «{}»)",
+            "Invalid IPC response: version {} (expected {PROTOCOL_VERSION}), identifier «{}» (expected «{}»)",
             PROTOCOL_VERSION + 1,
             id(8),
             id(7)
@@ -1098,5 +1098,5 @@ fn a_mismatched_answer_names_both_versions_and_ids() {
     let message = validate_response(&request, &answer)
         .unwrap_err()
         .to_string();
-    assert!(message.contains("identificador «» (esperado"), "{message}");
+    assert!(message.contains("identifier «» (expected"), "{message}");
 }

@@ -82,7 +82,7 @@ def recording_of(value: str, field: str = "recording_id") -> str:
     except ValueError:
         raise HubError(
             "invalid_parameters",
-            f"Identificador de grabación no válido en {field}",
+            f"Invalid recording identifier in {field}",
             numbers={"field": field},
         ) from None
 
@@ -92,7 +92,7 @@ def series_of(value: str | None) -> str:
     if value is None:
         raise HubError(
             "invalid_parameters",
-            "Falta calendar_item_id, la serie del calendario",
+            "calendar_item_id missing: the calendar series",
             numbers={"field": "calendar_item_id"},
         )
     try:
@@ -100,7 +100,7 @@ def series_of(value: str | None) -> str:
     except SeriesKeyError as error:
         raise HubError(
             "invalid_parameters",
-            f"calendar_item_id no válido: {error.reason}",
+            f"Invalid calendar_item_id: {error.reason}",
             numbers={"field": "calendar_item_id", **error.numbers},
         ) from None
 
@@ -112,7 +112,7 @@ def digest_of(value: str | None) -> str | None:
     if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
         raise HubError(
             "invalid_parameters",
-            "title_digest no válido: es el SHA-256 en hexadecimal del título",
+            "Invalid title_digest: expected the title SHA-256 in hexadecimal",
             numbers={"field": "title_digest", "chars": len(value), "expected_chars": 64},
         )
     return value
@@ -128,7 +128,7 @@ def integer(value: str | None, field: str, *, default: int, minimum: int, maximu
     if number is None or not minimum <= number <= maximum:
         raise HubError(
             "invalid_parameters",
-            f"{field} fuera de rango: entre {minimum} y {maximum}",
+            f"{field} outside range: between {minimum} y {maximum}",
             numbers={"field": field, "min": minimum, "max": maximum},
         )
     return number
@@ -155,7 +155,7 @@ class _Routes:
 
     async def body_of(self, request: Request, model, maximum: int):
         return parse(
-            await self.bounded_body(request, maximum), model, "invalid_parameters", "Petición"
+            await self.bounded_body(request, maximum), model, "invalid_parameters", "Request"
         )
 
     async def read(self, function):
@@ -257,7 +257,7 @@ def _mount_listing(app, routes: _Routes):
         if before_ms is None:
             raise HubError(
                 "invalid_parameters",
-                "Falta before_ms, el inicio de la reunión siguiente",
+                "before_ms missing: the next meeting's start",
                 numbers={"field": "before_ms"},
             )
         before = integer(before_ms, "before_ms", default=None, minimum=1, maximum=2**63 - 1)

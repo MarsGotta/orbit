@@ -25,7 +25,7 @@ def device_for(db, recording: str, fallback: str) -> str:
     if len(rows) > 1:
         raise HubError(
             "recording_id_ambiguous",
-            "Hay dos grabaciones con el mismo identificador en distintos Mac",
+            "Two recordings have the same identifier on different Macs",
             http_status=409,
             numbers={"matches_at_least": len(rows)},
         )

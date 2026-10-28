@@ -164,7 +164,7 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
         with pytest.raises(HubError) as error:
             await connection.resume_session("race")
         assert error.value.code == "session_resume_race"
-        assert "vuelve a intentarlo" in error.value.message
+        assert "try again" in error.value.message
         with pytest.raises(HubError) as error:
             await connection.resume_session("too-long")
         assert error.value.code == "session_resume_too_large"
@@ -178,7 +178,7 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
         with pytest.raises(HubError) as error:
             await connection.resume_session("unreadable")
         assert error.value.code == "session_resume_history_unreadable"
-        assert "historial" in error.value.message
+        assert "history" in error.value.message
         with pytest.raises(HubError) as error:
             await connection.resume_session("unsupported")
         assert error.value.code == "session_resume_unsupported"

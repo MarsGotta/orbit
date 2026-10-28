@@ -54,7 +54,7 @@ impl Runtime {
                     self.contain(
                         StopCause::VerticalMaintenanceFailed,
                         &format!(
-                            "Fallo en el mantenimiento de Orbit, no de la captura: {error}. No se corta nada."
+                            "Orbit maintenance failed, independently of capture: {error}. Nothing is cut."
                         ),
                     ),
                 )
@@ -74,7 +74,7 @@ impl Runtime {
                     "maintain_capture.contain",
                     self.contain(
                         StopCause::CaptureMaintenanceFailed,
-                        &format!("Fallo en el mantenimiento de la captura: {error}."),
+                        &format!("Capture maintenance failed: {error}."),
                     ),
                 )
                 .await;
@@ -95,7 +95,7 @@ impl Runtime {
                     self.contain(
                         StopCause::VerticalMaintenanceFailed,
                         &format!(
-                            "Fallo al guardar el estado o la cola de subida de Orbit: {error}. No se corta nada."
+                            "Failed to save Orbit state or upload queue: {error}. Nothing is cut."
                         ),
                     ),
                 )

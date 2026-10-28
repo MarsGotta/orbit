@@ -83,39 +83,39 @@ pub fn retirement(
         return Retirement::Unrelated;
     };
     if candidate == current {
-        return Retirement::Keep("app actual");
+        return Retirement::Keep("current app");
     }
     if bundle_kind == BundleKind::Installed && candidate.parent() != Some(user_applications) {
         return Retirement::Unrelated;
     }
     if !ready {
-        return Retirement::Keep("arranque sin confirmar");
+        return Retirement::Keep("unconfirmed start");
     }
     let Some(listing) = listing.filter(|listing| !listing.trim().is_empty()) else {
-        return Retirement::Keep("listado de procesos desconocido");
+        return Retirement::Keep("unknown process listing");
     };
     // The former install.sh parked_running rule: exact app/helper paths.
     // An unreadable or malformed census is unknown, never evidence of closure.
     let mut running = false;
     for line in listing.lines().filter(|line| !line.trim().is_empty()) {
         let Some((pid, rest)) = line.trim().split_once(char::is_whitespace) else {
-            return Retirement::Keep("listado de procesos desconocido");
+            return Retirement::Keep("unknown process listing");
         };
         let Some((parent, executable)) = rest.trim_start().split_once(char::is_whitespace) else {
-            return Retirement::Keep("listado de procesos desconocido");
+            return Retirement::Keep("unknown process listing");
         };
         if pid.parse::<u32>().is_err()
             || parent.parse::<u32>().is_err()
             || executable.trim().is_empty()
         {
-            return Retirement::Keep("listado de procesos desconocido");
+            return Retirement::Keep("unknown process listing");
         }
         running |= [Member::App, Member::Helper].into_iter().any(|member| {
             member_path(candidate, member).as_deref() == Some(Path::new(executable.trim()))
         });
     }
     if running {
-        Retirement::Keep("copia en marcha")
+        Retirement::Keep("running copy")
     } else {
         Retirement::Remove
     }
@@ -202,12 +202,12 @@ mod tests {
         for candidate in [&parked, &old, &user.join(format!("{PARKED_PREFIX}older"))] {
             assert_eq!(
                 retirement(candidate, &current, user, false, Some(idle)),
-                Retirement::Keep("arranque sin confirmar")
+                Retirement::Keep("unconfirmed start")
             );
             for listing in [None, Some(""), Some("malformed")] {
                 assert_eq!(
                     retirement(candidate, &current, user, true, listing),
-                    Retirement::Keep("listado de procesos desconocido")
+                    Retirement::Keep("unknown process listing")
                 );
             }
             assert_eq!(
@@ -224,13 +224,13 @@ mod tests {
                 );
                 assert_eq!(
                     retirement(candidate, &current, user, true, Some(&listing)),
-                    Retirement::Keep("copia en marcha")
+                    Retirement::Keep("running copy")
                 );
             }
         }
         assert_eq!(
             retirement(&current, &current, user, true, Some(idle)),
-            Retirement::Keep("app actual")
+            Retirement::Keep("current app")
         );
         for directory in [system, user] {
             for name in [

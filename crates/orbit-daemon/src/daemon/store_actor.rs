@@ -58,11 +58,11 @@ mod admission_tests {
     #[test]
     fn a_full_queue_and_a_stopped_writer_have_distinct_causes() {
         let full = admission_error(mpsc::TrySendError::Full(()));
-        assert!(full.to_string().contains("8192 operaciones"));
-        assert!(full.to_string().contains("llena"));
+        assert!(full.to_string().contains("8192 operations"));
+        assert!(full.to_string().contains("full"));
         let stopped = admission_error(mpsc::TrySendError::Disconnected(()));
-        assert!(stopped.to_string().contains("desconectó"));
-        assert!(!stopped.to_string().contains("llena"));
+        assert!(stopped.to_string().contains("disconnected"));
+        assert!(!stopped.to_string().contains("full"));
     }
 }
 const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(250);
@@ -273,7 +273,7 @@ impl StoreActor {
         let sender = self
             .sender
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("El actor de almacenamiento se detuvo"))?;
+            .ok_or_else(|| anyhow::anyhow!("The storage actor stopped"))?;
         sender.try_send(operation).map_err(admission_error)
     }
 
@@ -475,7 +475,7 @@ mod pending_problem_tests {
             .map(|message| message.as_str())
             .unwrap_or_default();
         assert!(
-            last.contains(&format!("Además, {dropped} aviso(s)")),
+            last.contains(&format!("Also, {dropped} earlier storage notice(s)")),
             "the dropped count must arrive in the newest notice, the one the \
              daemon's single slot keeps: {last}"
         );

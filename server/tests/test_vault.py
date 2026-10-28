@@ -83,7 +83,7 @@ async def test_failed_validation_preserves_settings_and_names_cause(vault_client
     )
     assert response.status_code == 400
     assert response.json()["code"] == "vault_folder_missing"
-    assert "carpeta" in response.json()["message"]
+    assert "folder" in response.json()["message"]
     assert (await client.get("/v1/vault/config")).json()["path"] == str(root)
 
 
@@ -230,3 +230,27 @@ async def test_configuration_rejects_control_characters_in_folder_paths_in_place
     assert response.status_code == 400, response.text
     assert response.json()["code"] == "vault_path_refused"
     assert (await client.get("/v1/vault/config")).json()["path"] == str(root)
+
+
+async def test_refusal_keeps_readable_english_for_a_mac_without_the_code(vault_client):
+    client, root, _ = vault_client
+    await connect(client, root)
+    response = await client.put(
+        "/v1/vault/config", json={"kind": "folder", "path": str(root / "missing")}
+    )
+    body = response.json()
+    assert body["code"] == "vault_folder_missing"
+    assert body["message"] == "The vault folder does not exist on the hub."
+    assert body["refusal"]["code"] == body["code"]
+    assert response.status_code == 400
+
+
+async def test_invalid_vault_request_carries_field_rule_and_page_ceiling(vault_client):
+    client, _, _ = vault_client
+    response = await client.post("/v1/vault/read", json={"operation": "list", "page": 0})
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "vault_invalid_request"
+    assert body["message_fields"] == {"field": "page", "rule": "greater_than_equal"}
+    assert body["refusal"]["max_page_size"] == 100
+    assert body["message"] == "Field «page» is below the minimum. Pages allow 1 to 100 entries."

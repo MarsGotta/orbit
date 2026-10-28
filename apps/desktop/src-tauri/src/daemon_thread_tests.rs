@@ -82,7 +82,7 @@ async fn a_second_start_is_refused_with_its_cause() -> Result<(), Box<dyn Error>
     };
     let refusal = refusal.to_string();
     assert!(
-        refusal.contains("Ya hay un servicio Orbit activo o no se puede bloquear este directorio")
+        refusal.contains("An Orbit service is already active or this directory cannot be locked")
             && refusal.contains(&paths.root.join("daemon.lock").display().to_string()),
         "{refusal}"
     );
@@ -92,8 +92,7 @@ async fn a_second_start_is_refused_with_its_cause() -> Result<(), Box<dyn Error>
     let second = EmbeddedDaemon::spawn(paths.clone(), Launch::development())?;
     match tokio::time::timeout(FIXTURE_GUARD, second.ended()).await? {
         Ended::Failed(cause) => assert!(
-            cause
-                .contains("Ya hay un servicio Orbit activo o no se puede bloquear este directorio"),
+            cause.contains("An Orbit service is already active or this directory cannot be locked"),
             "{cause}"
         ),
         other => return Err(format!("the second daemon ended as {other:?}").into()),

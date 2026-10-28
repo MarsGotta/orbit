@@ -142,17 +142,17 @@ impl Paths {
                 let [qualifier, organization, application] =
                     orbit_core::orbit_bundle::DATA_DIRECTORY;
                 directories::ProjectDirs::from(qualifier, organization, application)
-                    .context("No se pudo localizar el directorio de usuario")?
+                    .context("Could not locate the user directory")?
                     .data_local_dir()
                     .to_owned()
             }
         };
         if !root.is_absolute() {
-            bail!("--data-dir debe ser una ruta absoluta");
+            bail!("--data-dir must be an absolute path");
         }
         let socket = root.join("orbit.sock");
         if socket.as_os_str().len() > 100 {
-            bail!("La ruta de datos es demasiado larga para el socket local (máximo 100 bytes)");
+            bail!("The data path is too long for the local socket (maximum 100 bytes)");
         }
         Ok(Self {
             settings: root.join("config.toml"),
@@ -166,11 +166,11 @@ impl Paths {
         fs::create_dir_all(&self.root)?;
         let metadata = fs::symlink_metadata(&self.root)?;
         if metadata.file_type().is_symlink() {
-            bail!("El directorio de datos no puede ser un enlace simbólico");
+            bail!("The data directory cannot be a symbolic link");
         }
         use std::os::unix::fs::MetadataExt;
         if metadata.uid() != rustix::process::geteuid().as_raw() {
-            bail!("El directorio de datos pertenece a otro usuario");
+            bail!("The data directory belongs to another user");
         }
         fs::set_permissions(&self.root, fs::Permissions::from_mode(0o700))?;
         Ok(())
@@ -184,9 +184,9 @@ impl Paths {
     pub fn load_settings(&self) -> Result<Settings> {
         let mut settings = if self.settings.exists() {
             let settings: Settings = toml::from_str(&fs::read_to_string(&self.settings)?)
-                .context("config.toml no es válido; los datos almacenados no se han alterado")?;
+                .context("config.toml is invalid; stored data was not changed")?;
             if settings.version != 1 {
-                bail!("Versión de configuración no compatible");
+                bail!("Unsupported configuration version");
             }
             settings
         } else {
@@ -229,7 +229,7 @@ impl Paths {
 }
 
 pub fn atomic_private_write(path: &std::path::Path, bytes: &[u8]) -> Result<()> {
-    let parent = path.parent().context("Ruta sin directorio padre")?;
+    let parent = path.parent().context("Path has no parent directory")?;
     let temp = parent.join(format!(".orbit-{}.tmp", uuid::Uuid::new_v4()));
     let mut file = fs::OpenOptions::new()
         .create_new(true)

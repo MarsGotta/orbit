@@ -38,7 +38,7 @@ fn absent(refusal: Refusal) -> Knowledge<Page<Value>> {
 fn storage(error: impl std::fmt::Display) -> Refusal {
     Refusal::StorageFailed {
         operation: Operation::Storage,
-        cause: Some(format!("No se pudo leer la grabación en este Mac: {error}").into()),
+        cause: Some(format!("Could not read the recording on this Mac: {error}").into()),
     }
 }
 

@@ -23,7 +23,7 @@ impl Subscription {
 pub async fn request(paths: &Paths, command: Command) -> Result<Response> {
     tokio::time::timeout(Duration::from_secs(10), request_inner(paths, command))
         .await
-        .context("El daemon no respondió dentro del plazo; no se repite la orden")?
+        .context("The daemon did not respond within the deadline; the command is not repeated")?
 }
 
 pub async fn request_command(paths: &Paths, command: Command) -> Result<Response> {
@@ -56,7 +56,7 @@ pub async fn request_command_as(
         let bytes = read_frame(BufReader::new(stream)).await?;
         let response: Response = serde_json::from_slice(&bytes)?;
         check_answer(
-            "Respuesta IPC",
+            "IPC response",
             &request,
             response.v,
             &response.id,
@@ -68,13 +68,13 @@ pub async fn request_command_as(
             }
             bail!(
                 "{}",
-                response.error.as_deref().unwrap_or("Operación rechazada")
+                response.error.as_deref().unwrap_or("Operation refused")
             );
         }
         Ok(response)
     })
     .await
-    .context("El daemon no respondió dentro del plazo; no se repite la orden")?
+    .context("The daemon did not respond within the deadline; the command is not repeated")?
 }
 
 pub async fn voice_note_audio(paths: &Paths, message_id: String) -> Result<VoiceNoteAudio> {
@@ -83,7 +83,7 @@ pub async fn voice_note_audio(paths: &Paths, message_id: String) -> Result<Voice
         voice_note_audio_inner(paths, message_id),
     )
     .await
-    .context("El daemon no respondió dentro del plazo; no se repite la lectura")?
+    .context("The daemon did not respond within the deadline; the read is not repeated")?
 }
 
 pub async fn subscribe_topics(
@@ -110,7 +110,7 @@ pub async fn subscribe_topics(
         Ok((response, subscription))
     })
     .await
-    .context("El daemon no abrió la suscripción de temas dentro del plazo")?
+    .context("The daemon did not open the topic subscription within the deadline")?
 }
 
 /// A keyed read may cross a slow hub page. Ten seconds bounds this IPC
@@ -134,14 +134,14 @@ pub async fn read_topic(paths: &Paths, read: ReadRequest) -> Result<TopicRespons
         decode_topic_response(&request, &bytes)
     })
     .await
-    .context("El daemon no completó la lectura dentro del plazo")?
+    .context("The daemon did not complete the read within the deadline")?
 }
 
 fn decode_topic_response(request: &Request, bytes: &[u8]) -> Result<TopicResponse> {
     let response: TopicResponse =
-        serde_json::from_slice(bytes).context("Respuesta IPC de temas no válida")?;
+        serde_json::from_slice(bytes).context("Invalid topic IPC response")?;
     check_answer(
-        "Respuesta IPC de temas",
+        "IPC response de temas",
         request,
         response.v,
         &response.id,
@@ -151,7 +151,7 @@ fn decode_topic_response(request: &Request, bytes: &[u8]) -> Result<TopicRespons
         if let Some(refusal) = response.refusal {
             return Err(refusal.into());
         }
-        bail!("El daemon rechazó la orden de temas sin causa tipada");
+        bail!("The daemon refused the topic command without a typed cause");
     }
     Ok(response)
 }
@@ -189,7 +189,7 @@ async fn voice_note_audio_inner(paths: &Paths, message_id: String) -> Result<Voi
     .await?;
     let response: VoiceNoteAudioResponse = serde_json::from_slice(&bytes)?;
     check_answer(
-        "Respuesta IPC",
+        "IPC response",
         &request,
         response.v,
         &response.id,
@@ -201,25 +201,25 @@ async fn voice_note_audio_inner(paths: &Paths, message_id: String) -> Result<Voi
         }
         bail!(
             "{}",
-            response.error.as_deref().unwrap_or("Operación rechazada")
+            response.error.as_deref().unwrap_or("Operation refused")
         );
     }
-    response.audio.context("Respuesta de nota de voz no válida")
+    response.audio.context("Invalid voice note response")
 }
 
 async fn connect(paths: &Paths) -> Result<UnixStream> {
     let stream = UnixStream::connect(&paths.socket)
         .await
-        .context("El servicio de Orbit no está activo. Abre Orbit.app")?;
+        .context("The Orbit service is not active. Open Orbit.app")?;
     if stream.peer_cred()?.uid() != rustix::process::geteuid().as_raw() {
-        bail!("El servicio IPC pertenece a otro usuario; no se ha enviado la orden");
+        bail!("The IPC service belongs to another user; the command was not sent");
     }
     Ok(stream)
 }
 
 pub(super) fn validate_response(request: &Request, response: &Response) -> Result<()> {
     check_answer(
-        "Respuesta IPC",
+        "IPC response",
         request,
         response.v,
         &response.id,
@@ -231,7 +231,7 @@ pub(super) fn validate_response(request: &Request, response: &Response) -> Resul
         }
         bail!(
             "{}",
-            response.error.as_deref().unwrap_or("Operación rechazada")
+            response.error.as_deref().unwrap_or("Operation refused")
         );
     }
     Ok(())
@@ -263,7 +263,7 @@ fn check_answer(
     // this message to the size of its frame.
     let received: String = id.chars().take(128).collect();
     bail!(
-        "{what} no válida: versión {v} (esperada {PROTOCOL_VERSION}), identificador «{received}» (esperado «{}»)",
+        "Invalid {what}: version {v} (expected {PROTOCOL_VERSION}), identifier «{received}» (expected «{}»)",
         request.id
     );
 }

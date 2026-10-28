@@ -168,6 +168,8 @@ pub struct ItemData {
     pub steps: Option<Vec<ItemStep>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cause: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cause_code: Option<String>,
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ItemStep {

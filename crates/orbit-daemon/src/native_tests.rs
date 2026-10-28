@@ -144,7 +144,7 @@ fn unpaired_response_is_reported_once_per_id_within_its_own_ceiling() {
 fn unsupported_native_command_reports_its_name_instead_of_making_a_frame() {
     let observed = format!("{:?}", command("unsupported_fixture", json!({})));
     assert!(
-        observed.contains("Orden nativa unsupported_fixture inválida"),
+        observed.contains("Invalid native command unsupported_fixture"),
         "{observed}"
     );
 }

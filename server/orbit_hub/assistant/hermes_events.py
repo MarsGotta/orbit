@@ -94,7 +94,7 @@ class HermesEvents:
             # cannot be allowed to falsely retire every live session.
             await self.on_event(
                 UnreadableUpdate(
-                    session_id, "Hermes envió un payload que no es un objeto JSON; se ignoró"
+                    session_id, "Hermes sent a payload that is not a JSON object; ignored"
                 )
             )
             return
@@ -159,7 +159,7 @@ class HermesEvents:
         if not isinstance(request_id := payload.get("request_id"), str):
             return
         description = str(
-            payload.get("description") or payload.get("command") or "Hermes solicita autorización"
+            payload.get("description") or payload.get("command") or "Hermes requests authorization"
         )
         command = payload.get("command")
         await self.on_event(
@@ -177,7 +177,7 @@ class HermesEvents:
     async def _clarify_request(self, session_id: str, kind: str, payload: dict) -> None:
         if not isinstance(request_id := payload.get("request_id"), str):
             return
-        question = str(payload.get("question") or "Responde a las preguntas de Hermes")
+        question = str(payload.get("question") or "Answer the Hermes questions")
         await self.on_event(
             ClarificationRequested(
                 session_id,

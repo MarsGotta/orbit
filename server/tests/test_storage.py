@@ -14,7 +14,7 @@ def test_pairing_single_use_expiry_and_revocation(environment):
     code = store.devices.create_code(1000)
     paired = store.devices.pair(code, "synthetic-name", 1001)
     assert store.devices.authenticate(paired["token"]) == paired["device_id"]
-    with pytest.raises(HubError, match="Código"):
+    with pytest.raises(HubError, match="code"):
         store.devices.pair(code, "duplicate", 1001)
     with pytest.raises(HubError):
         store.devices.pair(store.devices.create_code(1000, 30), "expired", 1031)

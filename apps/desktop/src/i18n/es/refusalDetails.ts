@@ -129,10 +129,10 @@ function receivedType(value: unknown): string {
 }
 
 export function helperRefused(refusal: Refusal): string {
-  return (
-    helperMessages[refusal.helper_code as HelperCode] ??
-    "El helper rechazó la lectura por una causa que esta versión no reconoce."
-  );
+  const code = String(refusal.helper_code);
+  return Object.hasOwn(helperMessages, code)
+    ? helperMessages[code as HelperCode]
+    : `El helper rechazó la lectura por una causa que esta versión no reconoce (código ${code}).`;
 }
 
 export function helperReplyInvalid(refusal: Refusal): string {

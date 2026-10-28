@@ -9,7 +9,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use orbit_core::{CapturePhase, Event, protocol::MeetingAudio};
 use tokio::sync::mpsc;
 
-const TIMEOUT_CAUSE: &str = "El Mac no confirmó la parada de audio en 3000 ms (plazo: 3000 ms sin respuesta del Mac, 15000 ms en total).";
+const TIMEOUT_CAUSE: &str = "The Mac did not confirm the audio stop within 3000 ms (deadline: 3000 ms without a Mac response, 15000 ms total).";
 
 async fn next_command(receiver: &mut mpsc::Receiver<Value>, name: &str) -> Result<Value> {
     loop {

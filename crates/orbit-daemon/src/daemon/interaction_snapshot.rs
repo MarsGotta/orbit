@@ -41,21 +41,21 @@ pub(super) fn recovered_approval(
     let request_id = question.request_id.as_str();
     if request_id.is_empty() || request_id.len() > 160 {
         bail!(
-            "Snapshot de interacción con request_id de {} bytes; se admiten 1 a 160",
+            "Interaction snapshot has a request_id of {} bytes; allowed range is 1 to 160",
             request_id.len()
         );
     }
     if question.state != "pending" || !matches!(question.kind.as_str(), "approval" | "clarify") {
-        bail!("Snapshot de interacción incompatible");
+        bail!("Incompatible interaction snapshot");
     }
     let description = question
         .description
         .as_deref()
         .or(question.question.as_deref())
-        .context("Snapshot de interacción sin descripción o pregunta")?;
+        .context("Interaction snapshot has no description or question")?;
     if description.len() > 16_000 {
         bail!(
-            "Pregunta pendiente de {} bytes; se admiten 16000",
+            "Pending question is {} bytes; 16000 allowed",
             description.len()
         );
     }
@@ -95,7 +95,7 @@ impl Runtime {
         }
         let sessions = &snapshot.sessions;
         if sessions.len() > 128 {
-            bail!("Snapshot con {} sesiones; se admiten 128", sessions.len());
+            bail!("Snapshot has {} sessions; 128 allowed", sessions.len());
         }
         let Some(selected) = self.state.session_id().clone() else {
             self.assistant.snapshot_revision = Some(revision);
@@ -157,7 +157,7 @@ impl Runtime {
         let pending = &session.pending;
         if pending.len() > 128 {
             bail!(
-                "Snapshot con {} interacciones pendientes; se admiten 128",
+                "Snapshot has {} pending interactions; 128 allowed",
                 pending.len()
             );
         }
@@ -166,8 +166,8 @@ impl Runtime {
             let turn_id = session
                 .turn_id
                 .as_deref()
-                .context("Turno activo sin identidad")?;
-            uuid::Uuid::parse_str(turn_id).context("Identidad de turno incompatible")?;
+                .context("Active turn has no identity")?;
+            uuid::Uuid::parse_str(turn_id).context("Incompatible turn identity")?;
             next.durable.assistant.active_request = Some(turn_id.into());
             if let Some(turn) = &session.turn {
                 next.durable.assistant.turn = Some(recovered_turn(turn, turn_id)?);
@@ -251,7 +251,7 @@ impl Runtime {
 /// The observed turn has the selected identity and the existing text ceilings.
 fn recovered_turn(turn: &orbit_core::Turn, turn_id: &str) -> Result<orbit_core::Turn> {
     if turn.user.id != turn_id {
-        bail!("Snapshot de turno con user.id distinto de turn_id");
+        bail!("Turn snapshot user.id differs from turn_id");
     }
     for (field, text, max_bytes) in [
         (
@@ -267,7 +267,7 @@ fn recovered_turn(turn: &orbit_core::Turn, turn_id: &str) -> Result<orbit_core::
     ] {
         if text.len() > max_bytes {
             bail!(
-                "Snapshot {field} de {} bytes; se admiten {max_bytes}",
+                "Snapshot {field} is {} bytes; {max_bytes} allowed",
                 text.len()
             );
         }

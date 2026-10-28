@@ -34,17 +34,15 @@ class SeriesKeyError(ValueError):
 def valid_series_key(value: str) -> str:
     """The key itself, or a refusal naming its cause: empty, too long or with a control."""
     if not isinstance(value, str) or not value:
-        raise SeriesKeyError("empty", "la clave de la serie está vacía")
+        raise SeriesKeyError("empty", "the series key is empty")
     size = len(value.encode("utf-8"))
     if size > MAX_SERIES_KEY_BYTES:
         raise SeriesKeyError(
             "too_long",
-            f"la clave de la serie ocupa {size} bytes y el máximo es {MAX_SERIES_KEY_BYTES}",
+            f"the series key is {size} bytes and the maximum is {MAX_SERIES_KEY_BYTES}",
             bytes=size,
             max_bytes=MAX_SERIES_KEY_BYTES,
         )
     if any(ord(character) < 32 or ord(character) == 127 for character in value):
-        raise SeriesKeyError(
-            "control_character", "la clave de la serie lleva caracteres de control"
-        )
+        raise SeriesKeyError("control_character", "the series key contains control characters")
     return value

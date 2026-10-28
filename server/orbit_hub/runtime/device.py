@@ -94,13 +94,13 @@ class DeviceRuntime:
         agent = self.agents.by_id.get(agent_id)
         if agent is not None:
             return agent.name
-        return "El asistente" if starts else "el asistente"
+        return "The assistant" if starts else "the assistant"
 
     def _device_name(self) -> str:
         for row in self.store.devices.active():
             if row["id"] == self.device:
                 return row["name"].replace("\r", " ").replace("\n", " ")
-        raise HubError("revoked", "Dispositivo revocado")
+        raise HubError("revoked", "Device revoked")
 
     # The device's Macs ------------------------------------------------------
 
@@ -191,7 +191,7 @@ class DeviceRuntime:
                         "error",
                         {
                             "code": "slow_client",
-                            "message": "Cliente atrasado; recupera el historial",
+                            "message": "Client fell behind; recover history",
                         },
                     )
                 )
@@ -259,17 +259,20 @@ class DeviceRuntime:
         self.require_live(params.session_id)
         turn_id = self.turn_ids.get(params.session_id)
         if not turn_id or params.turn_id != turn_id:
-            raise HubError("stale_turn", "El control no pertenece al turno actual")
+            raise HubError("stale_turn", "The control does not belong to the current turn")
         if method == "chat.interrupt" and self.turn_state(params.session_id) in {
             TurnState.IDLE,
             TurnState.COMPLETED,
             TurnState.FAILED,
         }:
-            raise HubError("stale_turn", "El turno ya no está activo")
+            raise HubError("stale_turn", "The turn is no longer active")
         if method == "approval.respond":
             pending = self.pending.get(params.request_id)
             if params.approved or pending is None or pending[:2] != (params.session_id, "approval"):
-                raise HubError("interaction_not_found", "Denegación ajena, desconocida o caducada")
+                raise HubError(
+                    "interaction_not_found",
+                    "Denial belongs to another session, is unknown or has expired",
+                )
         request = getattr(params, "request_id", "")
         return target_key(method, params.session_id, turn_id, request), turn_id
 
@@ -324,8 +327,7 @@ class DeviceRuntime:
         ):
             raise HubError(
                 "session_disconnected",
-                "La sesión no está conectada con el asistente; se intentará reanudar la "
-                "conversación al enviar otro mensaje si el turno anterior está cerrado",
+                "The session is not connected to the assistant; sending another message will attempt to resume if the previous turn is closed",
             )
         return binding, connection
 

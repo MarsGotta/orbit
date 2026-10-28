@@ -25,6 +25,9 @@ import { notes } from "./notes";
 import { assistantCopy } from "./assistant";
 import { chatActionsCopy } from "./chatActions";
 import { attachmentsCopy } from "./attachments";
+import { toolFailureText } from "./notices/toolFailure";
+import { vaultWarningText } from "./vaultWarnings";
+import { vaultRefusalText } from "./vaultRefusals";
 import { errors } from "./errors";
 
 import { noteScreenCopy } from "./noteScreen";
@@ -64,6 +67,9 @@ export function spanish(assistantName = "Deimos") {
       noticesForAssistant,
       globalShortcuts,
       failures,
+      vaultRefusalText,
+      vaultWarningText,
+      toolFailureText,
     },
     ...agents,
     ...dictionary,

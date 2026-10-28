@@ -54,12 +54,13 @@ function SyncFields({
 }
 
 function useConnection({ configuration, port, onSaved }: Props) {
+  useCopy();
   const [draft, setDraft] = useState<VaultConnection>({
     ...configuration,
     kind: configuration.kind || "folder",
   });
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const save = async (disconnect = false) => {
     setBusy(true);
     setError(null);
@@ -91,12 +92,12 @@ function useConnection({ configuration, port, onSaved }: Props) {
       );
       if (result.outcome === "config") onSaved(result.configuration);
     } catch (error: unknown) {
-      setError(message(error));
+      setError(error);
     } finally {
       setBusy(false);
     }
   };
-  return { draft, setDraft, busy, error, save };
+  return { draft, setDraft, busy, error: error === null ? null : message(error), save };
 }
 
 export function ConnectionCard(props: Props) {

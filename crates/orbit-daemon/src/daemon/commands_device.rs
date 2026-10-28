@@ -70,7 +70,7 @@ impl Runtime {
     pub(super) async fn shutdown_command(&mut self) -> Result<()> {
         self.close_for_exit(
             orbit_core::privacy_stop::StopCause::Shutdown,
-            "Orbit se está cerrando a petición del servicio.",
+            "Orbit is closing at the service's request.",
         )
         .await;
         self.retry_seals()?;
@@ -79,7 +79,7 @@ impl Runtime {
         let pending = self.has_any_pending();
         if !pending.is_empty() {
             bail!(
-                "Orbit no sale todavía: queda pendiente de guardar {}; la captura ya está cortada y lo recibido se conserva",
+                "Orbit has not exited: {} still needs saving; capture is already cut and received audio is retained",
                 pending.join(", ")
             );
         }
@@ -111,7 +111,7 @@ impl Runtime {
             .any(|permission| permission == crate::permissions::CALENDARS)
         {
             if request != [crate::permissions::CALENDARS] {
-                bail!("Solicita el permiso de calendario por separado de los demás permisos");
+                bail!("Request calendar permission separately from other permissions");
             }
             self.calendar_command(
                 orbit_core::calendar_control::CalendarCommand::RequestPermission,

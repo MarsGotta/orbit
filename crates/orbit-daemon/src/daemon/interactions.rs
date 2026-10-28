@@ -268,7 +268,7 @@ impl Runtime {
             bail!("Conecta y reactiva Orbit antes de responder");
         }
         if self.assistant.interaction_response.is_some() {
-            bail!("La respuesta anterior aún no está confirmada; no se reenvía");
+            bail!("The previous response is still unconfirmed; it is not resent");
         }
         let turn = self
             .state
@@ -276,23 +276,23 @@ impl Runtime {
             .assistant
             .active_request
             .as_deref()
-            .context("El turno pendiente necesita reconciliarse con el hub")?;
+            .context("The pending turn needs reconciliation with the hub")?;
         let session_id = self
             .state
             .session_id()
             .clone()
-            .context("Respuesta sin sesión seleccionada")?;
+            .context("Response has no selected session")?;
         #[derive(Deserialize)]
         struct ResponseIdentity {
             request_id: String,
         }
         let request = serde_json::from_value::<ResponseIdentity>(params.clone())
-            .context("Respuesta sin identidad")?
+            .context("Response has no identity")?
             .request_id;
         if method == "approval.respond" {
             params
                 .as_object_mut()
-                .context("Respuesta sin objeto de parámetros")?
+                .context("Response has no parameters object")?
                 .insert("turn_id".into(), json!(turn));
         }
         let command_id = id();

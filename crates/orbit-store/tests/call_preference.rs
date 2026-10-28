@@ -76,6 +76,6 @@ fn a_row_too_large_to_be_the_preference_says_its_bytes_and_the_limit()
     };
     let text = error.to_string();
     assert!(text.contains("10000 bytes"), "{text}");
-    assert!(text.contains("máximo"), "{text}");
+    assert!(text.contains("maximum"), "{text}");
     Ok(())
 }

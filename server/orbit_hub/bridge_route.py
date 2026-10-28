@@ -256,7 +256,7 @@ class BridgeService:
         except ValidationError as error:
             first = error.errors(include_input=False, include_context=False)[0]
             field = ".".join(str(part) for part in first["loc"])
-            expected = "objeto" if first["type"] == "dict_type" else "campo válido del sobre"
+            expected = "objeto" if first["type"] == "dict_type" else "valid envelope field"
             raise BridgeError(
                 400, "invalid_request", detail={"field": field, "expected": expected}
             ) from None
@@ -330,7 +330,7 @@ class BridgeService:
                     {
                         "protocol": RESULT_PROTOCOL,
                         "state": "refused",
-                        "notice": "Orbit no pudo entregar la captura (capture_missing).",
+                        "notice": "Orbit could not deliver the capture (capture_missing).",
                         "code": "capture_missing",
                     },
                 )
@@ -501,7 +501,7 @@ def mount(app, service, transport_allowed):
         if reply.status >= 400:
             payload = render(
                 payload.get("code"),
-                payload.get("notice", "El Mac devolvió una negativa tipada."),
+                payload.get("notice", "The Mac returned a typed refusal."),
                 payload=payload,
             )
         return json_response(payload, reply.status)

@@ -78,7 +78,7 @@ class TemplateDraft(Strict):
     @classmethod
     def visible_name(cls, value: str) -> str:
         if not value.strip():
-            raise ValueError("el nombre está en blanco")
+            raise ValueError("the name is blank")
         return value
 
 
@@ -94,7 +94,7 @@ class UnlinkRequest(Strict):
 def not_found(template_id: str) -> HubError:
     return HubError(
         "note_template_not_found",
-        f"No existe la plantilla «{template_id}»",
+        f"Template not found: «{template_id}»",
         numbers={"template_id": template_id},
     )
 
@@ -102,8 +102,7 @@ def not_found(template_id: str) -> HubError:
 def builtin_refusal(template_id: str) -> HubError:
     return HubError(
         "note_template_builtin",
-        f"La plantilla «{template_id}» es de Orbit y no se cambia ni se borra: guarda los "
-        "cambios como una plantilla propia con forked_from",
+        f"Template «{template_id}» belongs to Orbit and cannot be changed or deleted: save the changes as your own template with forked_from",
         http_status=409,
         numbers={"template_id": template_id},
     )
@@ -196,8 +195,7 @@ class TemplateRepository:
         if existing is None and len(others) >= MAX_CUSTOM_TEMPLATES:
             raise HubError(
                 "note_templates_full",
-                f"Ya hay {len(others)} plantillas propias y el máximo es "
-                f"{MAX_CUSTOM_TEMPLATES}: borra una antes de crear otra",
+                f"There are already {len(others)} custom templates and the maximum is {MAX_CUSTOM_TEMPLATES}: delete one before creating another",
                 http_status=409,
                 numbers={"templates": len(others), "max_templates": MAX_CUSTOM_TEMPLATES},
             )
@@ -206,8 +204,7 @@ class TemplateRepository:
         if size > MAX_TEMPLATE_LISTING_BYTES:
             raise HubError(
                 "note_templates_too_large",
-                f"Con esta plantilla la lista ocuparía {size} bytes y el máximo es "
-                f"{MAX_TEMPLATE_LISTING_BYTES}: acorta sus instrucciones o borra otra",
+                f"With this template the list would be {size} bytes and the maximum is {MAX_TEMPLATE_LISTING_BYTES}: acorta sus instrucciones o borra otra",
                 http_status=413,
                 numbers={"bytes": size, "max_bytes": MAX_TEMPLATE_LISTING_BYTES},
             )
@@ -277,8 +274,7 @@ class TemplateRepository:
         if count >= MAX_TEMPLATE_LINKS:
             raise HubError(
                 "note_template_links_full",
-                f"Ya hay {count} series con plantilla asignada y el máximo es "
-                f"{MAX_TEMPLATE_LINKS}: quita una antes de asignar otra",
+                f"There are already {count} series with assigned templates and the maximum is {MAX_TEMPLATE_LINKS}: remove one before assigning another",
                 http_status=409,
                 numbers={"links": count, "max_links": MAX_TEMPLATE_LINKS},
             )

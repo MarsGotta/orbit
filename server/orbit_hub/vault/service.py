@@ -118,7 +118,7 @@ class Vault:
         if not self.read_slots.acquire(blocking=False):
             raise refusal(
                 "vault_busy",
-                f"El hub ya está leyendo {MAX_READS} peticiones del vault; espera a que terminen.",
+                f"The hub is already reading {MAX_READS} vault requests; wait for them to finish.",
                 429,
                 in_flight=MAX_READS,
                 max=MAX_READS,
@@ -132,7 +132,7 @@ class Vault:
         config = self.configuration()
         if config is None:
             raise refusal(
-                "vault_not_connected", "Conecta una carpeta del hub o Fast Note Sync en Notas.", 409
+                "vault_not_connected", "Connect a hub folder or Fast Note Sync in Notes.", 409
             )
         remote = connector(config)
         try:
@@ -187,7 +187,7 @@ class Vault:
                 [{"path": link["path"], "kind": "note"} for link in note["outlinks"]], request
             )
         if request.operation == "backlinks" and request.path not in paths:
-            raise refusal("vault_note_missing", "La nota no existe en el vault.", 404)
+            raise refusal("vault_note_missing", "The note does not exist in the vault.", 404)
         return page(self._scan(reader, entries, paths, request), request)
 
     @staticmethod
@@ -213,7 +213,7 @@ class Vault:
     @staticmethod
     def _note(reader, entries, paths, request):
         if request.path not in paths:
-            raise refusal("vault_note_missing", "La nota no existe en el vault.", 404)
+            raise refusal("vault_note_missing", "The note does not exist in the vault.", 404)
         built = index.build(reader, entries)
         note = built["documents"][request.path]
         history = [
@@ -273,7 +273,7 @@ class Vault:
             if scanned > MAX_SCAN_BYTES:
                 raise refusal(
                     "vault_scan_bytes",
-                    f"La búsqueda supera {MAX_SCAN_BYTES} bytes leídos; acota la carpeta.",
+                    f"The search exceeds {MAX_SCAN_BYTES} bytes read; narrow the folder.",
                     bytes=scanned,
                     max_bytes=MAX_SCAN_BYTES,
                 )

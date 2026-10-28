@@ -148,7 +148,7 @@ def valid_name(name: str) -> str:
     ):
         raise HubError(
             "invalid_attachment",
-            f"El nombre del adjunto no vale: 1 a {MAX_NAME_CHARS} caracteres, sin control ni «/»",
+            f"The attachment name is invalid: 1 to {MAX_NAME_CHARS} characters, without control characters or «/»",
             numbers={"field": "name", "characters": len(name), "max_characters": MAX_NAME_CHARS},
         )
     return name
@@ -175,8 +175,7 @@ def classify(name: str, data: bytes) -> tuple[str, str]:
             return KIND_TEXT, "text/plain"
     raise HubError(
         "attachment_type_unsupported",
-        f"«{name}» es {_seen_type(data)}: ningún agente lo lee. Se pueden adjuntar imágenes "
-        "PNG, JPEG, GIF o WebP, PDF y ficheros de texto",
+        f"«{name}» is {_seen_type(data)}: no agent can read it. You can attach PNG, JPEG, GIF or WebP images, PDFs and text files",
         http_status=415,
         numbers={"name": name, "mime": _seen_type(data)},
     )
@@ -231,7 +230,7 @@ def pdf_pages(name: str, data: bytes) -> tuple[str, ...]:
             raise HubError(
                 "attachment_unreadable",
                 f"«{name}» "
-                + ("está protegido con contraseña" if locked else "no es un PDF que se pueda leer"),
+                + ("it is password protected" if locked else "it is not a readable PDF"),
                 http_status=422,
                 numbers={"name": name, "cause": "pdf_locked" if locked else "pdf_damaged"},
             ) from None
@@ -298,7 +297,7 @@ def _png(buffer, width: int, height: int, stride: int, channels: int) -> bytes:
 def pdf_text(page_texts: tuple[str, ...]) -> str:
     """A PDF's text as the agent reads it: each page under its number."""
     return "\n\n".join(
-        f"--- página {number} ---\n{text}" for number, text in enumerate(page_texts, 1)
+        f"--- page {number} ---\n{text}" for number, text in enumerate(page_texts, 1)
     )
 
 
@@ -330,8 +329,7 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
         return "", []
     lines = [
         (
-            f"[Adjuntos de este mensaje: {len(attachments)}. Cada uno se lee con la "
-            "herramienta orbit_attachment de Orbit y su id]"
+            f"[Attachments in this message: {len(attachments)}. Read each with the Orbit orbit_attachment tool and its ID]"
         )
     ]
     carried: list[TurnImage] = []
@@ -346,31 +344,25 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
                 carried.append(
                     TurnImage(attachment.id, attachment.name, attachment.mime, attachment.body)
                 )
-                said = "va como imagen en este mensaje."
+                said = "is included as an image in this message."
             else:
                 # orbit_attachment hands such an agent a note in its place
                 # (`assistant/openai.py`): there is nowhere it could look.
-                said = "este agente no admite imágenes: no puede verla, ni con orbit_attachment."
-            lines.append(f"{head}imagen {attachment.mime}{tail}{said}")
+                said = "this agent does not support images: it cannot view it, including with orbit_attachment."
+            lines.append(f"{head}image {attachment.mime}{tail}{said}")
         elif attachment.kind == KIND_PDF:
             pages = attachment.page_texts or ()
             whole = pdf_text(pages)
             shown = whole[:budget]
             budget -= len(shown)
             if whole and not shown:
-                said = (
-                    f"su texto no va en este mensaje, que ya lleva los {MAX_TURN_PDF_CHARS} "
-                    f"caracteres de PDF que caben; léelo con orbit_attachment"
-                )
+                said = f"its text is not in this message, which already contains the {MAX_TURN_PDF_CHARS} PDF characters that fit; read it with orbit_attachment"
             elif len(shown) < len(whole):
-                said = (
-                    f"su texto va abajo hasta el carácter {len(shown)} de {len(whole)}; el "
-                    f"resto, con orbit_attachment y after_index {len(shown)}"
-                )
+                said = f"its text follows up to character {len(shown)} de {len(whole)}; read the rest with orbit_attachment and after_index {len(shown)}"
             else:
-                said = "su texto va abajo"
+                said = "its text follows below"
             if shown:
-                texts.append(f"[Texto de «{attachment.name}»]\n{shown}")
+                texts.append(f"[Text of «{attachment.name}»]\n{shown}")
             empty = [index for index, text in enumerate(pages) if len(text) < MIN_PAGE_TEXT_CHARS]
             if empty and images and page_images > 0:
                 chosen = empty[:page_images]
@@ -379,29 +371,31 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
                     carried.append(
                         TurnImage(
                             attachment.id,
-                            f"{attachment.name} · página {index + 1}",
+                            f"{attachment.name} · page {index + 1}",
                             "image/png",
                             png,
                         )
                     )
                 said += "; " + _pages_said(chosen, len(empty))
             elif empty:
-                said += f"; las páginas casi sin texto ({len(empty)}) no van como imagen"
-            lines.append(f"{head}PDF de {_pages(len(pages))}{tail}{said}.")
+                said += f"; pages with almost no text ({len(empty)}) are not included as images"
+            lines.append(f"{head}PDF of {_pages(len(pages))}{tail}{said}.")
         else:
-            lines.append(f"{head}texto{tail}léelo con orbit_attachment cuando lo necesites.")
+            lines.append(f"{head}texto{tail}read it with orbit_attachment when needed.")
     return "\n".join([*lines, *texts]), carried
 
 
 def _pages(count: int) -> str:
-    return "1 página" if count == 1 else f"{count} páginas"
+    return "1 page" if count == 1 else f"{count} pages"
 
 
 def _pages_said(chosen: list[int], empty: int) -> str:
     numbers = ", ".join(str(index + 1) for index in chosen)
-    said = f"las páginas casi sin texto ({numbers}) van como imagen"
+    said = f"pages with almost no text ({numbers}) are included as images"
     if empty > len(chosen):
-        said += f"; otras {empty - len(chosen)} no, por el techo de {MAX_PDF_PAGE_IMAGES}"
+        said += (
+            f"; otras {empty - len(chosen)} omitted, due to the ceiling of {MAX_PDF_PAGE_IMAGES}"
+        )
     return said
 
 
@@ -466,15 +460,14 @@ class AttachmentRepository:
         if len(ids) > MAX_MESSAGE_ATTACHMENTS:
             raise HubError(
                 "attachments_too_many",
-                f"Este mensaje lleva {len(ids)} adjuntos; el techo es "
-                f"{MAX_MESSAGE_ATTACHMENTS} por mensaje",
+                f"This message has {len(ids)} attachments; the ceiling is {MAX_MESSAGE_ATTACHMENTS} per message",
                 numbers={"files": len(ids), "max_files": MAX_MESSAGE_ATTACHMENTS},
             )
         if len(set(ids)) != len(ids):
             repeated = next(attachment for attachment in ids if ids.count(attachment) > 1)
             raise HubError(
                 "invalid_attachment",
-                "El mensaje nombra dos veces el mismo adjunto",
+                "The message names the same attachment twice",
                 numbers={"field": "attachments", "attachment_id": repeated},
             )
         store = self.store
@@ -489,8 +482,7 @@ class AttachmentRepository:
                 if row is None or row["message_id"] is not None:
                     raise HubError(
                         "attachment_not_found",
-                        "Un adjunto del mensaje ya no está en el hub (caducó tras una hora sin "
-                        "enviarse o ya se envió); vuelve a adjuntarlo",
+                        "A message attachment is no longer on the hub (it expired after an hour without sending or was already sent); attach it again",
                         http_status=404,
                         numbers={"attachment_id": attachment_id},
                     )
@@ -499,8 +491,7 @@ class AttachmentRepository:
             if total > MAX_MESSAGE_ATTACHMENT_BYTES:
                 raise HubError(
                     "attachments_too_large",
-                    f"Los {len(ids)} adjuntos del mensaje suman {_size(total)}; el techo es "
-                    f"{_size(MAX_MESSAGE_ATTACHMENT_BYTES)} por mensaje",
+                    f"The {len(ids)} message attachments total {_size(total)}; the ceiling is {_size(MAX_MESSAGE_ATTACHMENT_BYTES)} per message",
                     http_status=413,
                     numbers={
                         "ceiling": "message",
@@ -518,10 +509,7 @@ class AttachmentRepository:
                 if held + total > MAX_SESSION_ATTACHMENT_BYTES:
                     raise HubError(
                         "attachments_too_large",
-                        f"Esta conversación ya guarda {_size(held)} de adjuntos y este mensaje "
-                        f"añade {_size(total)}; el techo es "
-                        f"{_size(MAX_SESSION_ATTACHMENT_BYTES)} por conversación. Abre una "
-                        "conversación nueva para adjuntar más",
+                        f"This conversation already stores {_size(held)} of attachments and this message adds {_size(total)}; the ceiling is {_size(MAX_SESSION_ATTACHMENT_BYTES)} per conversation. Open a new conversation to attach more",
                         http_status=413,
                         numbers={
                             "ceiling": "session",
@@ -564,7 +552,7 @@ class AttachmentRepository:
         if found is None:
             raise HubError(
                 "attachment_not_found",
-                "Ese adjunto no está en el hub",
+                "That attachment is not on the hub",
                 http_status=404,
                 numbers={"attachment_id": attachment_id},
             )
@@ -584,7 +572,7 @@ class AttachmentRepository:
             if bound != 1:
                 raise HubError(
                     "attachment_not_found",
-                    "Un adjunto del mensaje ya se envió con otro; vuelve a adjuntarlo",
+                    "A message attachment was already sent with another message; attach it again",
                     http_status=404,
                     numbers={"attachment_id": attachment_id},
                 )
@@ -619,7 +607,7 @@ def _expire(db, now_ms: int) -> None:
 def too_large_file(name: str, size: int) -> HubError:
     return HubError(
         "attachments_too_large",
-        f"«{name}» pesa {_size(size)}; el techo es {_size(MAX_ATTACHMENT_BYTES)} por fichero",
+        f"«{name}» pesa {_size(size)}; the ceiling is {_size(MAX_ATTACHMENT_BYTES)} per file",
         http_status=413,
         numbers={
             "ceiling": "file",

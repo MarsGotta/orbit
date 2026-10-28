@@ -272,7 +272,7 @@ async fn an_engine_that_connects_while_the_helper_captures_fails_nothing() -> Re
     let generation = h.runtime.state.generation();
     let ticket = h.runtime.begin_computer(
         ComputerStage::Connecting,
-        "Conectando al motor CUA local; no se inicia ningún navegador.",
+        "Connecting to the local CUA engine; no browser is started.",
         generation,
         |_| tokio::spawn(std::future::pending()),
     )?;

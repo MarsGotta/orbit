@@ -265,7 +265,7 @@ async def test_english_on_a_finished_meeting_repeats_every_group_and_writes_the_
     assert [turn["text"] for turn in after] == [f"{ENGLISH} {ENGLISH}"] * 2
     # The note again, in English, and the user's edits set aside.
     assert len(model.calls) == 2
-    assert "Escribes en inglés" in model.calls[-1]["messages"][0]["content"]
+    assert "Write in English" in model.calls[-1]["messages"][0]["content"]
     assert ENGLISH in model.calls[-1]["messages"][1]["content"]
     assert note["superseded_available"] is True
     assert note["edited"] == {"sections": False}
@@ -422,7 +422,7 @@ async def test_renaming_names_the_meeting_everywhere_and_leaves_the_written_note
     assert document["note"]["note"] == written["note"]
     # The next note is asked with the user's name.
     assert len(model.calls) == 2
-    assert "Título previsto: Presupuesto 2027" in model.calls[-1]["messages"][1]["content"]
+    assert "Expected title: Presupuesto 2027" in model.calls[-1]["messages"][1]["content"]
     # An empty title gives the meeting back its own.
     assert reset.json() == {"title": TITLE}
     assert back["title"] == TITLE

@@ -34,7 +34,7 @@ impl Runtime {
         let stream_id = NativeAudioFrameRef::from_value(event)?.stream_id.to_owned();
         event
             .as_object_mut()
-            .context("Evento audio sin objeto")?
+            .context("Audio event has no object")?
             .insert("capture_epoch_id".into(), Value::String(stream_id));
         let turn_action = self.prepare_call_frame(event, received_at_ms).await?;
         let ingested = self.capture.buffer.ingest_observed(event, received_at_ms)?;
@@ -113,7 +113,7 @@ impl Runtime {
                         self.note_bound_track_gap(gap.source)?;
                     } else if !self.state.privacy_stopped() {
                         bail!(
-                            "La fuente de audio notificó una discontinuidad sin grabación activa"
+                            "The audio source reported a discontinuity without an active recording"
                         );
                     }
                 }

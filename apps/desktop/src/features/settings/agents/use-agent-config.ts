@@ -26,12 +26,6 @@ type Result =
   | { kind: "done" }
   | { kind: "error"; text: string };
 
-function thrownText(error: unknown): string {
-  if (typeof error === "object" && error !== null && "message" in error)
-    return String(error.message);
-  return String(error);
-}
-
 async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
   try {
     const { outcome } = await agent(call);
@@ -52,8 +46,8 @@ async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
       case "failed":
         return { kind: "error", text: getCopy().extras.agentFailureText(outcome.refusal) };
     }
-  } catch (error: unknown) {
-    return { kind: "error", text: thrownText(error) };
+  } catch {
+    return { kind: "error", text: getCopy().extras.agentFailureText({ code: "transport" }) };
   }
 }
 

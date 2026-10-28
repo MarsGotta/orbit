@@ -57,7 +57,7 @@ impl AgentHub {
         let route = call.route();
         let mut url = self.base.clone();
         url.path_segments_mut()
-            .map_err(|()| internal("la URL del hub no admite rutas"))?
+            .map_err(|()| internal("The hub URL cannot contain paths"))?
             .pop_if_empty()
             // Each segment is percent-encoded: a name is never a path.
             .extend(&route.segments);
@@ -68,7 +68,7 @@ impl AgentHub {
             HubMethod::Delete => reqwest::Method::DELETE,
         };
         let mut request = crate::hub::request(method, url, Some(&self.token), &self.op)
-            .map_err(|_| internal("no se pudo preparar el cliente HTTP"))?;
+            .map_err(|_| internal("Could not prepare the HTTP client"))?;
         if let Some(body) = &route.body {
             request = request.json(body);
         }

@@ -41,6 +41,6 @@ def parse(body: bytes, model, code: str, what: str):
         return model.model_validate(json.loads(body or b"{}"))
     except ValueError as failure:
         if not isinstance(failure, ValidationError):
-            raise HubError(code, f"{what} no válida: el cuerpo no es JSON") from None
+            raise HubError(code, f"{what} invalid: the body is not JSON") from None
         field, reason, numbers = refusal(failure)
-        raise HubError(code, f"{what} no válida: {field} ({reason})", numbers=numbers) from None
+        raise HubError(code, f"{what} invalid: {field} ({reason})", numbers=numbers) from None

@@ -15,7 +15,7 @@ const MAX_SPEECH_CLIP_BYTES: usize = orbit_core::limits::MAX_SPEECH_CLIP_BYTES;
 /// The hub could not give the voice of the agent asked for. True of any
 /// kind of agent: the hub names the cause in its own refusal.
 #[derive(Debug, thiserror::Error)]
-#[error("La voz de {agent_name} no está disponible; contesta por texto")]
+#[error("Voice for {agent_name} is unavailable; reply in text")]
 pub struct SpeechUnavailable {
     pub agent_name: String,
 }
@@ -43,10 +43,10 @@ pub async fn play(
     op: orbit_core::notice::Op,
 ) -> Result<()> {
     if text.is_empty() || text.len() > 32 * 1024 {
-        bail!("La respuesta supera el límite de voz; el texto sigue disponible");
+        bail!("The response exceeds the speech limit; the text remains available");
     }
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub no configurado")?,
+        settings.hub_url.as_deref().context("Hub not configured")?,
         development,
     )?;
     let response = hub::request(
@@ -97,8 +97,8 @@ async fn speech_refusal(
             agent_name: agent_name(settings, agent_id),
         }
         .into(),
-        Some(code) => anyhow!("Voz no disponible ({status}, {code}); el texto se conserva"),
-        None => anyhow!("Voz no disponible ({status}); el texto se conserva"),
+        Some(code) => anyhow!("Speech unavailable ({status}, {code}); the text is retained"),
+        None => anyhow!("Speech unavailable ({status}); the text is retained"),
     }
 }
 
@@ -123,14 +123,14 @@ fn clip_kind(response: &reqwest::Response) -> Result<(String, String)> {
         .and_then(|header| header.to_str().ok())
         .map(str::to_owned);
     if kind != "clip" {
-        bail!("Formato de voz no compatible; no se reprodujo audio");
+        bail!("Unsupported speech format; no audio was played");
     }
     if content_type.is_empty() || content_type.len() > 128 {
-        bail!("El hub no declaró el tipo del clip de voz");
+        bail!("The hub did not declare the speech clip type");
     }
-    let provider = provider.context("El hub no declaró el origen del clip de voz")?;
+    let provider = provider.context("The hub did not declare the speech clip origin")?;
     if provider.is_empty() || provider.len() > 128 {
-        bail!("El hub declaró un origen de voz no válido");
+        bail!("The hub declared an invalid speech origin");
     }
     Ok((content_type, provider))
 }
@@ -142,12 +142,12 @@ async fn read_clip(response: reqwest::Response) -> Result<Vec<u8>> {
     while let Some(bytes) = stream.next().await {
         let bytes = bytes?;
         if bytes.len() > MAX_SPEECH_CLIP_BYTES.saturating_sub(audio.len()) {
-            bail!("El clip de voz supera el límite de 4 MiB");
+            bail!("The speech clip exceeds the 4 MiB limit");
         }
         audio.extend_from_slice(&bytes);
     }
     if audio.is_empty() {
-        bail!("El hub entregó un clip de voz vacío");
+        bail!("The hub delivered an empty speech clip");
     }
     Ok(audio)
 }

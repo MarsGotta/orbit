@@ -7,6 +7,8 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+- Render hub and daemon refusals from codes and facts in English or Spanish; keep English compatibility messages for older Macs.
+
 ### Changed
 
 - The Mac menu bar, application menus, notifications and the Rust side's

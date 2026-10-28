@@ -167,14 +167,14 @@ pub enum FinishCause {
 /// Why an answer was refused, with what it named.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CallRefusal {
-    #[error("Todo está parado: Orbit no graba llamadas hasta que lo reactives")]
+    #[error("Everything is stopped: Orbit will not record calls until rearmed")]
     PrivacyStopped,
     #[error(
-        "El aviso de llamada {call_id} ya no está: la llamada terminó o ya se respondió. No se empezó a grabar."
+        "Call notice {call_id} is gone: the call ended or was already answered. Recording did not start."
     )]
     OfferGone { call_id: String },
     #[error(
-        "La grabación {recording_id} no la empezó una llamada, o ya terminó: no hay cuenta atrás que cancelar."
+        "Recording {recording_id} was not started by a call, or has ended: there is no countdown to cancel."
     )]
     NotOwned { recording_id: String },
 }

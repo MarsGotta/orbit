@@ -47,13 +47,13 @@ async def test_create_edit_reorder_and_delete_a_custom_template(environment):
 
         reordered = await client.put(
             "/v1/note-templates/comite",
-            json=draft(name="Comité", sections=("Riesgos", "Estado", "Próximos pasos")),
+            json=draft(name="Comité", sections=("Riesgos", "Estado", "Next steps")),
             headers=headers,
         )
         assert reordered.status_code == 200, reordered.text
         one = await listed_template(client, headers, "comite")
         assert one["name"] == "Comité"
-        assert [s["name"] for s in one["sections"]] == ["Riesgos", "Estado", "Próximos pasos"]
+        assert [s["name"] for s in one["sections"]] == ["Riesgos", "Estado", "Next steps"]
 
         deleted = await client.delete("/v1/note-templates/comite", headers=headers)
         assert deleted.status_code == 200
@@ -265,7 +265,7 @@ async def test_the_assigned_template_writes_the_note_unless_one_is_chosen(bench)
     assert written["note"]["template_source"] == "series"
     assert [s["name"] for s in written["note"]["sections"]] == ["Estado", "Riesgos"]
     prompt = bench.model.calls[0]["messages"][1]["content"]
-    assert "Plantilla: Comité" in prompt
+    assert "Template: Comité" in prompt
 
     manual = bench.worker.repository.document(bench.owner, chosen)
     assert manual["state"] == "ready", manual["error"]

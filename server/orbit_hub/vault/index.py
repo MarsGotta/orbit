@@ -20,7 +20,8 @@ def build(reader, entries):
         if scanned > MAX_SCAN_BYTES:
             raise refusal(
                 "vault_scan_bytes",
-                f"El índice supera {MAX_SCAN_BYTES} bytes leídos por recorrido.",
+                f"The index exceeds {MAX_SCAN_BYTES} bytes read per scan.",
+                message_code="vault_index_scan_bytes",
                 bytes=scanned,
                 max_bytes=MAX_SCAN_BYTES,
             )

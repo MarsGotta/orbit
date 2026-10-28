@@ -8,7 +8,7 @@ use orbit_core::refusal::HubSessionField;
 
 #[derive(Debug, thiserror::Error)]
 #[error(
-    "La sesión {position} de las {rows} filas de la página del hub tiene un {field} de {bytes} bytes; se admiten de 1 a {max_bytes}"
+    "Session {position} of {rows} rows on the hub page: {field} is {bytes} bytes; allowed range is 1 to {max_bytes}"
 )]
 pub(crate) struct HubSessionInvalidRow {
     pub position: u64,
@@ -19,7 +19,7 @@ pub(crate) struct HubSessionInvalidRow {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("El cursor de la lista de {rows} sesiones no coincide con su última fila")]
+#[error("The cursor for the list of {rows} sessions does not match its last row")]
 pub(crate) struct HubSessionsCursorMismatch {
     pub rows: u64,
 }
@@ -119,7 +119,7 @@ pub struct HubMessages {
 /// The hub refused a read with a status: its HTTP status and, when it said
 /// one, the size and ceiling of what did not fit.
 #[derive(Debug, thiserror::Error)]
-#[error("La lectura al hub devolvió HTTP {status}")]
+#[error("The hub read returned HTTP {status}")]
 pub(crate) struct HubReadStatus {
     pub status: u16,
     pub bytes: Option<u64>,
@@ -134,7 +134,7 @@ pub async fn sessions_page(
     op: &Op,
 ) -> Result<HubSessions> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Falta el hub")?,
+        settings.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/sessions")?;
@@ -154,12 +154,12 @@ pub async fn session_messages_page(
     op: &Op,
 ) -> Result<HubMessages> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Falta el hub")?,
+        settings.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/sessions/")?;
     url.path_segments_mut()
-        .map_err(|()| anyhow::anyhow!("URL del hub sin ruta"))?
+        .map_err(|()| anyhow::anyhow!("Hub URL has no path"))?
         .pop_if_empty()
         .extend([session_id, "messages"]);
     if let Some(before) = before {
@@ -222,8 +222,7 @@ mod session_list_tests {
         };
         assert_eq!(
             error.to_string(),
-            "La sesión 2 de las 2 filas de la página del hub tiene un id de 0 bytes; se \
-             admiten de 1 a 121"
+            "Session 2 of 2 rows on the hub page: id is 0 bytes; allowed range is 1 to 121"
         );
         Ok(())
     }

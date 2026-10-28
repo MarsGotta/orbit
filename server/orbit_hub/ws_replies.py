@@ -25,7 +25,7 @@ def device_reply(socket: Socket, frame, request_id) -> None:
         socket.queue.put_nowait(
             error_event(
                 "invalid_request",
-                "El campo request_id debe ser texto de 1 a 160 caracteres.",
+                "The request_id field must be text of 1 to 160 characters.",
                 request_id,
                 numbers={"field": "request_id", "expected": "texto de 1 a 160 caracteres"},
             )
@@ -54,7 +54,7 @@ def _refuse_reply(socket: Socket, raw_id: str, request_id) -> None:
                 "refusal": {
                     "code": "device_reply_invalid",
                     "field": "device.reply",
-                    "expected": "un resultado o una negativa tipada",
+                    "expected": "a result or a typed refusal",
                     "retry": {
                         "kind": "check_outcome"
                         if claimed.capability == "perform_action"
@@ -67,8 +67,8 @@ def _refuse_reply(socket: Socket, raw_id: str, request_id) -> None:
     socket.queue.put_nowait(
         error_event(
             "invalid_request",
-            "La respuesta del Mac no cumple el sobre device.reply.",
+            "The Mac response violates the device.reply envelope.",
             request_id,
-            numbers={"field": "device.reply", "expected": "un resultado o una negativa tipada"},
+            numbers={"field": "device.reply", "expected": "a result or a typed refusal"},
         )
     )

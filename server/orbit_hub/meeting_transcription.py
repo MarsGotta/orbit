@@ -168,7 +168,7 @@ class MeetingTranscriber:
         url = self.url
         sent = language or self.configuration.language
         if not audio or len(audio) > MAX_AUDIO_BYTES:
-            raise HubError("transcription_failed", "Audio de reunión fuera de límites")
+            raise HubError("transcription_failed", "Meeting audio outside bounds")
         # Off the event loop: a whole group is read and searched (~0.1 s for
         # 20 s of 48 kHz stereo).
         trimmed = audio if final else await asyncio.to_thread(trim_digital_silence, audio)
@@ -206,7 +206,7 @@ class MeetingTranscriber:
                 if final and text.strip() and not words:
                     raise HubError(
                         "transcription_words_missing",
-                        "Whisper no devolvió tiempos por palabra",
+                        "Whisper did not return word timestamps",
                         numbers={"words": 0, "characters": len(text)},
                     )
                 # Whisper names its language in words ("english"): the

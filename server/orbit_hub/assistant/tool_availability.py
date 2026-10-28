@@ -9,28 +9,42 @@ NAMES = {"claude-code": "Claude (claude-code)", "codex": "Codex (codex)"}
 
 
 class ToolUnavailable(ValueError):
-    def __init__(self, path: Path, cause: str, agent_id: str, service: str):
+    def __init__(
+        self,
+        path: Path,
+        cause: str,
+        agent_id: str,
+        service: str,
+        cause_code: str = "adapter_unavailable",
+    ):
         self.path, self.cause = str(path), cause
+        self.cause_code = cause_code
         super().__init__(f"agent {agent_id!r}: {service} command {path}: {cause}")
 
 
-def missing(service: str, path: str, cause: str) -> HubError:
+def missing(
+    service: str, path: str, cause: str, cause_code: str = "adapter_unavailable"
+) -> HubError:
     return HubError(
         "agent_adapter_missing",
-        f"{NAMES.get(service, service)} no está disponible en tu hub: {path} ({cause}); "
-        "publica de nuevo el hub para instalarlo",
+        f"{NAMES.get(service, service)} is unavailable on your hub: {path} ({cause}); publish the hub again to install it",
         http_status=409,
-        numbers={"service": service, "path": path, "cause": cause},
+        numbers={"service": service, "path": path, "cause": cause, "cause_code": cause_code},
     )
 
 
 def launch_failure(service: str, path: str, error: OSError) -> HubError:
     cause = {
-        errno.ENOENT: "no existe el ejecutable o su intérprete en esta plataforma",
-        errno.ENOEXEC: "el binario no se puede ejecutar en esta plataforma",
-        errno.EACCES: "no tiene permiso de ejecución",
-    }.get(error.errno, f"el sistema rechazó el arranque (errno {error.errno})")
-    return missing(service, path, cause)
+        errno.ENOENT: "the executable or its interpreter does not exist on this platform",
+        errno.ENOEXEC: "the binary cannot be executed on this platform",
+        errno.EACCES: "does not have execute permission",
+    }.get(error.errno, f"the system refused startup (errno {error.errno})")
+    code = {
+        errno.ENOENT: "adapter_missing",
+        errno.ENOEXEC: "adapter_format",
+        errno.EACCES: "adapter_permission",
+    }.get(error.errno, "adapter_launch_failed")
+    return missing(service, path, cause, code)
 
 
 def validate_linux_executable(service, path):

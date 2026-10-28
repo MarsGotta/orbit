@@ -142,7 +142,7 @@ export function refusals(note: OpenNoteSnapshot, library?: NoteLibrarySnapshot |
         getCopy().noteScreen.seriesRefused(refusal.code) ??
         (refusal.code.startsWith("dictionar")
           ? getCopy().dictionary.refused(refusal.code, "", refusal.numbers ?? {})
-          : getCopy().library.refused(refusal.code)),
+          : getCopy().library.refused(refusal.code, refusal.numbers)),
     ),
     ...dictionaries.map((failure) =>
       getCopy().dictionary.refused(failure.code, failure.detail, failure.numbers),

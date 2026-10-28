@@ -22,7 +22,7 @@ def refuse_busy(lock):
     if lock.locked():
         raise HubError(
             "ai_settings_busy",
-            "Ya hay una comprobación de IA en curso; espera a que termine",
+            "An AI check is already in progress; wait for it to finish",
             http_status=429,
             numbers={"in_flight": 1},
         )
@@ -37,12 +37,12 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
         except ValidationError:
             raise HubError(
                 "ai_settings_invalid",
-                "Revisa el nombre, la URL, los modelos y la clave del proveedor",
+                "Check the provider name, URL, models and key",
             ) from None
 
     def active(device):
         if not registry.store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
 
     @app.get("/v1/settings/ai")
     async def read(request: Request):
@@ -57,11 +57,11 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
             "hub",
             "operator",
         ):
-            raise HubError("ai_provider_invalid", "Identificador de proveedor no válido")
+            raise HubError("ai_provider_invalid", "Invalid provider identifier")
         if (provider.kind == "openrouter") != (provider_id == "openrouter"):
             raise HubError("ai_provider_invalid", "OpenRouter usa su propio registro de proveedor")
         if provider.kind == "openrouter" and provider.base_url != OPENROUTER_URL:
-            raise HubError("ai_provider_invalid", "La URL de OpenRouter no se puede cambiar")
+            raise HubError("ai_provider_invalid", "The OpenRouter URL cannot be changed")
         refuse_busy(lock)
         async with lock:
             active(device)
@@ -70,7 +70,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
             if provider_id not in records and len(records) >= MAX_PROVIDERS:
                 raise HubError(
                     "ai_providers_full",
-                    f"Hay {len(records)} proveedores; el máximo es {MAX_PROVIDERS}",
+                    f"There are {len(records)} providers; the maximum is {MAX_PROVIDERS}",
                     numbers={"count": len(records), "max_count": MAX_PROVIDERS},
                 )
             previous_provider = records.get(provider_id, {})
@@ -83,7 +83,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
             )
             key = provider.api_key or kept
             if provider.kind == "openrouter" and not key:
-                raise HubError("ai_key_missing", "Introduce la clave de OpenRouter")
+                raise HubError("ai_key_missing", "Enter the OpenRouter key")
             detected = await discover(provider, key)
             models = (
                 [m.model_dump() for m in provider.models]
@@ -94,7 +94,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
                 m["id"] for m in detected
             }:
                 raise HubError(
-                    "ai_models_invalid", "Corrige sólo los modelos que devolvió el proveedor"
+                    "ai_models_invalid", "Correct only the models returned by the provider"
                 )
             active(device)
             await in_store(executor, registry.save_provider, provider_id, provider, models, key)

@@ -61,7 +61,7 @@ impl Runtime {
         // nothing to file it under. This is the pairing, not a second consent.
         if authority.device_id.is_empty() {
             bail!(
-                "El control guarda cada recibo a nombre del Mac emparejado, y este Mac no está emparejado con el hub"
+                "Control records every receipt under the paired Mac, and this Mac is not paired with the hub"
             );
         }
         Ok(authority)

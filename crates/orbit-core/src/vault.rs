@@ -152,6 +152,9 @@ wire! {
         #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
         pub properties: BTreeMap<String, serde_json::Value>,
         pub schema_warnings: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub schema_diagnostics: Option<Vec<VaultDiagnostic>>,
         pub conformance: VaultConformance,
         pub dependency_tasks: Vec<VaultTask>,
         #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
@@ -187,8 +190,14 @@ wire! {
         Catalog { catalog: VaultCatalog },
         Tasks { tasks: VaultTaskPage },
         Refused { code: String, message: String,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[cfg_attr(feature = "ts", ts(optional))]
+            message_code: Option<String>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            #[cfg_attr(feature = "ts", ts(optional))]
+            message_fields: Option<BTreeMap<String, String>>,
             #[cfg_attr(feature = "ts", ts(type = "Record<string, number>"))]
-            numbers: BTreeMap<String, u64> },
+            numbers: BTreeMap<String, i64> },
         Failed {
             #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
             refusal: crate::refusal::Refusal },

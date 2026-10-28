@@ -75,16 +75,10 @@ def handover_turn(
         used += len(line) + 1
     lines.reverse()
     left_out = total - len(lines)
-    head = (
-        f"[Orbit · Te pasan la conversación que tenía con {from_name}: lo hablado hasta "
-        "ahora, del mensaje más antiguo al más reciente"
-    )
+    head = f"[Orbit · You are taking over the conversation with {from_name}: the discussion so far, from oldest to newest message"
     if left_out:
-        head += (
-            f". {left_out} mensajes anteriores no van: pasan del tope de "
-            f"{MAX_HANDOVER_CHARS} caracteres"
-        )
-    body = "\n".join([head + "]", *lines, "[Fin de la conversación. Sigue tú con la pregunta:]"])
+        head += f". {left_out} earlier messages are omitted: they exceed the ceiling of {MAX_HANDOVER_CHARS} characters"
+    body = "\n".join([head + "]", *lines, "[End of conversation. Continue with the question:]"])
     return MeetingTurn(text=f"{body}\n{question}", visible=question)
 
 

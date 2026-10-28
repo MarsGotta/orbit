@@ -16,28 +16,30 @@ pub(super) enum RetirePhase {
 pub(super) fn computer_reason(change: AuthorityChange) -> &'static str {
     match change {
         AuthorityChange::UserStop | AuthorityChange::Revoked => {
-            "Todo está parado: conexión, observaciones y autorización de control revocadas."
+            "Everything is stopped: connection, observations and control authority revoked."
         }
         AuthorityChange::Closing => {
-            "Orbit se está cerrando: conexión, observaciones y autorización de control retiradas."
+            "Orbit is closing: connection, observations and control authority withdrawn."
         }
         AuthorityChange::Rearm => {
-            "Orbit se reactivó: el control requiere una conexión y observación nuevas."
+            "Orbit rearmed: control requires a new connection and observation."
         }
         AuthorityChange::RearmWithoutStop => {
-            "La autoridad local se renovó sin parada; el control requiere observación nueva."
+            "Local authority renewed without a stop; control requires a new observation."
         }
-        AuthorityChange::Interrupt => "Control interrumpido; no se repetirá un intento incierto.",
-        AuthorityChange::HubLink => "Cambió el enlace con el hub; el control anterior se retiró.",
+        AuthorityChange::Interrupt => {
+            "Control interrupted; an uncertain attempt will not be repeated."
+        }
+        AuthorityChange::HubLink => "The hub link changed; previous control was withdrawn.",
         AuthorityChange::HubTransportReady => {
-            "Llegó un transporte nuevo del hub; el control anterior se retiró."
+            "A new hub transport arrived; previous control was withdrawn."
         }
-        AuthorityChange::HubLinkOffline => {
-            "El enlace del hub quedó sin conexión; el control se retiró."
+        AuthorityChange::HubLinkOffline => "The hub link went offline; control was withdrawn.",
+        AuthorityChange::HubDisconnected => "The hub disconnected; control was withdrawn.",
+        AuthorityChange::Conversation => {
+            "The conversation changed; previous control was withdrawn."
         }
-        AuthorityChange::HubDisconnected => "El hub se desconectó; el control se retiró.",
-        AuthorityChange::Conversation => "Cambió la conversación; su control anterior se retiró.",
-        AuthorityChange::Device => "Cambió el dispositivo; el control anterior se retiró.",
+        AuthorityChange::Device => "The device changed; previous control was withdrawn.",
     }
 }
 
@@ -185,7 +187,7 @@ impl Runtime {
         if slot == Sources && change == AuthorityChange::Conversation {
             self.cancel_sources_with_cause(
                 "conversation_changed",
-                "La conversación cambió; la respuesta anterior no se aceptará.",
+                "The conversation changed; the previous response will not be accepted.",
             )
             .await?;
         }
@@ -372,29 +374,26 @@ mod authority_cause_tests {
     #[test]
     fn each_computer_authority_retirement_names_its_actual_cause() {
         for (change, cause) in [
-            (AuthorityChange::UserStop, "Todo está parado"),
-            (AuthorityChange::Revoked, "Todo está parado"),
-            (AuthorityChange::Closing, "Orbit se está cerrando"),
-            (AuthorityChange::Rearm, "Orbit se reactivó"),
-            (AuthorityChange::RearmWithoutStop, "sin parada"),
-            (AuthorityChange::Interrupt, "Control interrumpido"),
-            (AuthorityChange::HubLink, "enlace con el hub"),
-            (
-                AuthorityChange::HubTransportReady,
-                "transporte nuevo del hub",
-            ),
-            (
-                AuthorityChange::HubLinkOffline,
-                "enlace del hub quedó sin conexión",
-            ),
-            (AuthorityChange::HubDisconnected, "hub se desconectó"),
-            (AuthorityChange::Conversation, "Cambió la conversación"),
-            (AuthorityChange::Device, "Cambió el dispositivo"),
+            (AuthorityChange::UserStop, "Everything is stopped"),
+            (AuthorityChange::Revoked, "Everything is stopped"),
+            (AuthorityChange::Closing, "Orbit is closing"),
+            (AuthorityChange::Rearm, "Orbit rearmed"),
+            (AuthorityChange::RearmWithoutStop, "without a stop"),
+            (AuthorityChange::Interrupt, "Control interrupted"),
+            (AuthorityChange::HubLink, "hub link"),
+            (AuthorityChange::HubTransportReady, "new hub transport"),
+            (AuthorityChange::HubLinkOffline, "hub link went offline"),
+            (AuthorityChange::HubDisconnected, "hub disconnected"),
+            (AuthorityChange::Conversation, "The conversation changed"),
+            (AuthorityChange::Device, "The device changed"),
         ] {
             let text = computer_reason(change);
             assert!(text.contains(cause), "{change:?}: {text}");
             if !matches!(change, AuthorityChange::UserStop | AuthorityChange::Revoked) {
-                assert!(!text.contains("Todo está parado"), "{change:?}: {text}");
+                assert!(
+                    !text.contains("Everything is stopped"),
+                    "{change:?}: {text}"
+                );
             }
         }
     }

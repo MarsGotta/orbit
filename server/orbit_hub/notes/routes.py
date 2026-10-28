@@ -29,7 +29,7 @@ def mount(app, worker, identity, bounded_body, store_executor, now, recording_ch
         try:
             return canonical_uuid(value)
         except ValueError:
-            raise HubError("invalid_note_request", "Identificador de grabación no válido") from None
+            raise HubError("invalid_note_request", "Invalid recording identifier") from None
 
     async def recording_device(request, recording):
         caller = identity(request)
@@ -42,7 +42,7 @@ def mount(app, worker, identity, bounded_body, store_executor, now, recording_ch
 
     async def parsed(request: Request, model):
         body = await bounded_body(request, MAX_REQUEST_BYTES)
-        return parse(body, model, "invalid_note_request", "Petición de nota")
+        return parse(body, model, "invalid_note_request", "Note request")
 
     @app.post("/v1/recordings/{recording_id}/note")
     async def request_note(recording_id: str, request: Request):
@@ -80,8 +80,7 @@ def template_id_of(value: str) -> str:
     if len(value) > MAX_TEMPLATE_ID_CHARS or re.fullmatch(TEMPLATE_ID_PATTERN, value) is None:
         raise HubError(
             "invalid_note_template",
-            f"Identificador de plantilla no válido: minúsculas, cifras, «-» o «_», hasta "
-            f"{MAX_TEMPLATE_ID_CHARS} caracteres",
+            f"Invalid template identifier: lowercase letters, digits, «-» or «_», up to {MAX_TEMPLATE_ID_CHARS} caracteres",
             numbers={"field": "id", "max": MAX_TEMPLATE_ID_CHARS},
         )
     return value

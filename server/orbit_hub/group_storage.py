@@ -176,12 +176,12 @@ class GroupRepository:
                 (device, group_id),
             ).fetchone()
             if current is None:
-                raise HubError("group_not_found", "Grupo no disponible")
+                raise HubError("group_not_found", "Group unavailable")
             if current["state"] == "completed":
                 return
             if current["state"] != "running" or current["attempts"] != job["attempts"] + 1:
                 raise HubError(
-                    "stale_group_attempt", "Resultado de un intento de transcripción obsoleto"
+                    "stale_group_attempt", "Result belongs to a stale transcription attempt"
                 )
             self.store.ensure_capacity(len(encoded) + 1024)
             db.execute(
@@ -258,7 +258,7 @@ class GroupRepository:
                 (device, recording),
             ).fetchone()
         if not rows and row is None:
-            raise HubError("recording_not_found", "Grabación no disponible para este dispositivo")
+            raise HubError("recording_not_found", "Recording unavailable to this device")
         manifest = (
             json.loads(self.store.decrypt(row["body"], f"manifest:{device}:{recording}"))
             if row

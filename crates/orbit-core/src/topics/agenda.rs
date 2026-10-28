@@ -140,7 +140,7 @@ mod tests {
             panic!("EventKit unavailable must have a refusal");
         };
         assert_eq!(refusal, Refusal::CalendarBackendUnavailable);
-        assert!(!refusal.to_string().contains("Orbit.app no está en marcha"));
+        assert!(!refusal.to_string().contains("Orbit.app is not running"));
         assert!(matches!(
             access(CalendarAuthorization::Denied, false),
             Knowledge::Absent {

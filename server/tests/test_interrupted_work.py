@@ -78,7 +78,7 @@ async def test_a_conversation_a_hub_restart_cut_takes_the_next_message(environme
     ]
     assert said["id"] == turn and said["data"]["session_id"] == session
     assert said["data"]["text"] == (
-        "La respuesta anterior de Lyra no llegó: se cortó y el hub se ha reiniciado desde entonces"
+        "The previous response from Lyra did not arrive: it was cut and the hub has restarted since then"
     )
 
 

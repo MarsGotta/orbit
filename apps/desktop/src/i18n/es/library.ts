@@ -55,7 +55,15 @@ export const library = {
     dragSection: (name: string) => `Mover «${name}»: arrástrala o usa las flechas arriba y abajo`,
     builtinHint: "Es de Orbit: si la cambias, se guarda una copia tuya.",
     noRoom: "Ya tienes el máximo de plantillas propias: borra una para crear otra.",
-    refused: (code: string) => libraryCodes[code] ?? "El hub no aceptó el cambio.",
+    refused: (code: string, numbers: Record<string, number> = {}) => {
+      const text = Object.hasOwn(libraryCodes, code)
+        ? libraryCodes[code]
+        : `El hub no aceptó el cambio (${code}).`;
+      const facts = Object.entries(numbers)
+        .map(([key, value]) => `${key}: ${numberFormat().format(value)}`)
+        .join(", ");
+      return `${text}${facts ? ` (${facts})` : ""}`;
+    },
     // The event panel and the note header.
     noteTemplate: "Plantilla de la nota",
     noteTemplateHint: "Se usa en las notas de esta reunión y de toda la serie.",

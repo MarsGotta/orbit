@@ -110,7 +110,7 @@ impl Runtime {
                 }
                 capture_lane::UploadReport::Problem(error) => {
                     let text = format!(
-                        "Fallo al guardar el estado o la cola de subida de Orbit: {error}. No se corta nada."
+                        "Failed to save Orbit state or upload queue: {error}. Nothing is cut."
                     );
                     self.contain(StopCause::VerticalMaintenanceFailed, &text)
                         .await;

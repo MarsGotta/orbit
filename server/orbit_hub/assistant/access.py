@@ -68,10 +68,7 @@ def default_groups() -> dict[str, bool]:
 
 
 def disabled_message(agent_id: str, group: str) -> str:
-    return (
-        f"El agente «{agent_id}» tiene desactivado el acceso «{group}» en Ajustes › Agentes: "
-        "no puede usar esa herramienta"
-    )
+    return f"Agent «{agent_id}» has access disabled for «{group}» in Settings › Assistants: it cannot use that tool"
 
 
 class AgentAccess:

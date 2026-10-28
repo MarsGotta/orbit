@@ -243,11 +243,11 @@ impl Runtime {
         let private = self
             .reader
             .pending_private_notes()
-            .context("No se pudieron leer las notas privadas pendientes")?;
+            .context("Could not read pending private notes")?;
         let waiting = self
             .reader
             .note_orders()
-            .context("No se pudieron leer los cambios de las notas pendientes")?;
+            .context("Could not read pending note changes")?;
         let outbox = &mut self.notes.outbox;
         outbox.private = private.into_iter().collect();
         outbox.orders.clear();
@@ -334,7 +334,7 @@ impl Runtime {
             .store_actor
             .run(move |store| Ok(store.queue_note_order(&target, order, now_ms)?))
             .await
-            .context("No se pudo guardar el cambio en este Mac")?;
+            .context("Could not save the change on this Mac")?;
         let notes = &mut self.notes;
         let orders = notes.outbox.orders.entry(lane.clone()).or_default();
         orders.retain(|kept| kept.target != queued.target);
@@ -363,7 +363,7 @@ impl Runtime {
         self.store_actor
             .run(move |store| Ok(store.save_private_notes(&pending, now_ms)?))
             .await
-            .context("No se pudieron guardar las notas privadas")?;
+            .context("Could not save private notes")?;
         // They go with the next turn of the outbox, at once.
         let outbox = &mut self.notes.outbox;
         outbox.private.insert(recording_id.clone());

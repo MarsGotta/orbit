@@ -19,7 +19,8 @@ function useFormat({
   const [linkStyle, setLinkStyle] = useState(configuration.link_style);
   const model = configuration.maintenance_model;
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState<{ saved: true } | { error: string } | null>(null);
+  // A failure is kept as it came and written in the current language.
+  const [feedback, setFeedback] = useState<{ saved: true } | { failure: unknown } | null>(null);
   const save = async () => {
     setBusy(true);
     setFeedback(null);
@@ -34,7 +35,7 @@ function useFormat({
         setFeedback({ saved: true });
       }
     } catch (error: unknown) {
-      setFeedback({ error: message(error) });
+      setFeedback({ failure: error });
     } finally {
       setBusy(false);
     }
@@ -86,7 +87,11 @@ export function FormatSettings({
           {busy ? inlineCopy.checking : inlineCopy.save}
         </Button>
         <span role="status">
-          {feedback === null ? "" : "saved" in feedback ? inlineCopy.saved : feedback.error}
+          {feedback === null
+            ? ""
+            : "saved" in feedback
+              ? inlineCopy.saved
+              : message(feedback.failure)}
         </span>
       </div>
     </>

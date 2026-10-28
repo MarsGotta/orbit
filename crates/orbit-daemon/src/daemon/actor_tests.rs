@@ -207,7 +207,7 @@ async fn unknown_hub_events_preserve_the_live_state() -> Result<()> {
         assert_eq!(
             diagnostic_fields(directory.path(), "hub_event_unrecognized")?,
             vec![json!({"name":"future.event", "daemon_protocol":"1",
-                "hub_protocol":protocol.map_or("sin anunciar".into(), |value| value.to_string())})]
+                "hub_protocol":protocol.map_or("unannounced".into(), |value| value.to_string())})]
         );
     }
     Ok(())
@@ -3392,5 +3392,38 @@ async fn a_storage_the_mac_cannot_read_does_not_cost_the_link() -> Result<()> {
         .await?;
     assert_eq!(runtime.state.connection(), Connection::Online);
     assert_eq!(storage_notices(&runtime), 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn capture_failure_logs_are_english_while_notices_keep_their_codes() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _receiver) = fixture(directory.path())?;
+    runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
+    runtime
+        .apply(Event::StartMeeting {
+            id: "language-fixture".into(),
+            title: "Garden review".into(),
+            audio: orbit_core::protocol::MeetingAudio::MicrophoneOnly,
+        })
+        .await?;
+    runtime
+        .handle_native_event(json!({"event":"helper_disconnected"}))
+        .await;
+    let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
+    let entries: Vec<serde_json::Value> = log
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<std::result::Result<_, _>>()?;
+    let contained = entries
+        .iter()
+        .find(|entry| entry["event"] == "stop_contained")
+        .context("the helper failure did not reach the log")?;
+    assert_eq!(
+        contained["fields"]["reason"],
+        "The Orbit native helper on this Mac was lost."
+    );
+    assert_eq!(contained["fields"]["cause"], "helper_lost");
+    assert!(said::mentions(&runtime.state, "helper_lost"));
     Ok(())
 }

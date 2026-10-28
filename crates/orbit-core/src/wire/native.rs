@@ -402,21 +402,21 @@ impl NativeCommand {
     /// fields are errors, so no caller can silently replace its name or ID.
     pub fn from_parts(id: String, command: &str, fields: Value) -> Result<Self, String> {
         if id.is_empty() {
-            return Err("El ID de la orden nativa está vacío".into());
+            return Err("The native command ID is empty".into());
         }
         let Value::Object(mut fields) = fields else {
-            return Err("Los campos de la orden nativa deben ser un objeto JSON".into());
+            return Err("Native command fields must be a JSON object".into());
         };
         for reserved in ["v", "id", "command"] {
             if fields.contains_key(reserved) {
-                return Err(format!("Campo reservado en la orden nativa: {reserved}"));
+                return Err(format!("Reserved field in native command: {reserved}"));
             }
         }
         fields.insert("v".into(), Value::from(NATIVE_PROTOCOL));
         fields.insert("id".into(), Value::from(id));
         fields.insert("command".into(), Value::from(command));
         serde_json::from_value(Value::Object(fields))
-            .map_err(|error| format!("Orden nativa {command} inválida: {error}"))
+            .map_err(|error| format!("Invalid native command {command}: {error}"))
     }
 
     pub fn names() -> &'static [&'static str] {

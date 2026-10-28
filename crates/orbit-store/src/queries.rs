@@ -141,7 +141,7 @@ impl Store {
                             row,
                             6,
                             MAX_METADATA_BYTES + OVERHEAD,
-                            "El manifiesto de audio guardado",
+                            "The stored audio manifest",
                         )?,
                     ))
                 },
@@ -186,7 +186,7 @@ impl Store {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "El trabajo guardado")?,
+                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "The stored job")?,
             ))
         })?;
         let mut page_bytes = 0;
@@ -232,7 +232,7 @@ impl Store {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "El trabajo guardado")?,
+                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "The stored job")?,
             ))
         })?;
         let mut page_bytes = 0;
@@ -306,7 +306,7 @@ impl Store {
                     row,
                     1,
                     MAX_METADATA_BYTES + OVERHEAD,
-                    "El manifiesto de audio guardado",
+                    "The stored audio manifest",
                 )?,
             ))
         })?;
@@ -390,7 +390,7 @@ impl Store {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
-                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "El trabajo guardado")?,
+                bounded_blob(row, 2, MAX_PAYLOAD_BYTES + OVERHEAD, "The stored job")?,
             ))
         })?;
         let mut page_bytes = 0;

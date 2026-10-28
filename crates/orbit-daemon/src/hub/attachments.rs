@@ -58,7 +58,7 @@ pub async fn upload_capture(
             }
             return Err(refusal.into());
         }
-        bail!("El hub rechazó la captura (HTTP {status})")
+        bail!("The hub rejected the capture (HTTP {status})")
     }
     Ok(sha256)
 }
@@ -165,7 +165,7 @@ pub async fn upload_attachment(
         attachment: orbit_core::attachments::Attachment,
     }
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Falta el hub")?,
+        settings.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let sha256 = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(&bytes));
@@ -186,7 +186,7 @@ pub async fn upload_attachment(
         return Err(attachment_refusal(response).await);
     }
     let uploaded: Uploaded = serde_json::from_value(bounded_json(response).await?)
-        .context("Respuesta del adjunto fuera de contrato")?;
+        .context("Attachment response violates the contract")?;
     Ok(uploaded.attachment)
 }
 
@@ -206,7 +206,7 @@ pub async fn attachment_from_capture(
         attachment: orbit_core::attachments::Attachment,
     }
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Falta el hub")?,
+        settings.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let response = request(
@@ -223,7 +223,7 @@ pub async fn attachment_from_capture(
         return Err(attachment_refusal(response).await);
     }
     let kept: Kept = serde_json::from_value(bounded_json(response).await?)
-        .context("Respuesta del adjunto fuera de contrato")?;
+        .context("Attachment response violates the contract")?;
     Ok(kept.attachment)
 }
 
@@ -237,12 +237,12 @@ pub async fn fetch_attachment(
     op: &Op,
 ) -> Result<orbit_core::protocol::AttachmentContent> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Falta el hub")?,
+        settings.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/attachments/")?;
     url.path_segments_mut()
-        .map_err(|()| anyhow::anyhow!("URL del hub sin ruta"))?
+        .map_err(|()| anyhow::anyhow!("Hub URL has no path"))?
         .pop_if_empty()
         .push(attachment_id);
     let response = request(reqwest::Method::GET, url, Some(token), op)?

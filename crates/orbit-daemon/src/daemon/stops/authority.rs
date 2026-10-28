@@ -54,21 +54,21 @@ impl Runtime {
                     Ok(Ok(Err(error))) => self.hub_drain_failed(
                         interrupted_turn,
                         &match hub::unsent_count(&error) {
-                            Some(_) => format!("el socket falló: {error}"),
+                            Some(_) => format!("the socket failed: {error}"),
                             None => {
-                                format!("el socket falló: {error}; {HUB_FRAMES_UNCOUNTED}")
+                                format!("the socket failed: {error}; {HUB_FRAMES_UNCOUNTED}")
                             }
                         },
                     ),
                     Ok(Err(error)) => self.hub_drain_failed(
                         interrupted_turn,
-                        &format!("la tarea terminó: {error}; {HUB_FRAMES_UNCOUNTED}"),
+                        &format!("the task ended: {error}; {HUB_FRAMES_UNCOUNTED}"),
                     ),
                     Err(_) => {
                         task.abort();
                         self.hub_drain_failed(
                             interrupted_turn,
-                            &format!("el vaciado agotó 5 s; {HUB_FRAMES_UNCOUNTED}"),
+                            &format!("drain exceeded 5 s; {HUB_FRAMES_UNCOUNTED}"),
                         );
                     }
                 }

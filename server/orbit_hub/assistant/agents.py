@@ -78,9 +78,7 @@ class Agent:
         if self.speech is None or unavailable:
             raise HubError(
                 "speech_not_configured",
-                f"{self.name} («{self.id}») no tiene {'escucha' if listening else 'voz'}: "
-                f"el asistente de tipo {self.kind} no tiene "
-                f"{'dictado configurado' if listening else 'voz para leer en voz alta'}",
+                f"{self.name} («{self.id}») does not have {('listening' if listening else 'speech')}: the assistant of type {self.kind} does not have {('configured dictation' if listening else 'a voice for reading aloud')}",
                 http_status=503,
                 numbers={"agent_id": self.id},
             )
@@ -224,7 +222,7 @@ class Agents:
             ids = list(self.by_id)
             raise HubError(
                 "agent_not_found",
-                f"Este hub no tiene el agente «{agent_id}»; tiene: {', '.join(ids)}",
+                f"This hub does not have agent «{agent_id}»; it has: {', '.join(ids)}",
                 # Comma-joined: a refusal's numbers stay integers, strings or
                 # booleans, and the Mac's reader of a refusal drops an array.
                 numbers={"agent_id": agent_id, "agent_ids": ",".join(ids)},
@@ -325,7 +323,7 @@ class Agents:
         if (taken := self.name_taken(profile.name, other_than)) is not None:
             raise HubError(
                 "agent_name_taken",
-                "Ya tienes otro asistente que se llama así",
+                "You already have another assistant with that name",
                 http_status=409,
                 numbers={"field": "name", "agent_id": taken.id},
             )
@@ -338,7 +336,7 @@ class Agents:
         if not primary and agent.id == self.primary_id:
             raise HubError(
                 "agent_primary_required",
-                f"{agent.name} es el asistente principal: elige otro como principal para cambiarlo",
+                f"{agent.name} is the primary assistant: choose another as primary to change it",
                 http_status=409,
                 numbers={"agent_id": agent.id},
             )
@@ -354,21 +352,21 @@ class Agents:
         if service not in self.tools:
             raise HubError(
                 "agent_adapter_missing",
-                f"Este hub no ofrece {SERVICE_NAMES.get(service, service)}; publica de nuevo el hub",
+                f"This hub does not offer {SERVICE_NAMES.get(service, service)}; publish the hub again",
                 http_status=409,
                 numbers={"service": service},
             )
         if len(self.by_id) >= MAX_AGENTS:
             raise HubError(
                 "too_many_agents",
-                f"Este hub ya tiene {len(self.by_id)} asistentes; máximo {MAX_AGENTS}",
+                f"This hub already has {len(self.by_id)} assistants; maximum {MAX_AGENTS}",
                 http_status=409,
                 numbers={"count": len(self.by_id), "max": MAX_AGENTS},
             )
         self.check_profile(profile, None)
         agent_id = self._new_id(service)
         if self.build is None:
-            raise HubError("agent_add_unsupported", "Este hub no puede añadir asistentes")
+            raise HubError("agent_add_unsupported", "This hub cannot add assistants")
         try:
             agent = self.build(
                 AgentConfiguration(agent_id, profile.name, service, self.tools[service])
@@ -376,7 +374,12 @@ class Agents:
         except ValueError as exc:
             path = self.tools[service].command[0]
             cause = exc.cause if isinstance(exc, ToolUnavailable) else str(exc)
-            raise missing(service, path, cause) from None
+            raise missing(
+                service,
+                path,
+                cause,
+                exc.cause_code if isinstance(exc, ToolUnavailable) else "adapter_unavailable",
+            ) from None
         self._roster().add(Added(agent_id, service), profile, now_ms)
         self.by_id[agent_id] = agent
         self.added.add(agent_id)
@@ -393,7 +396,7 @@ class Agents:
         if agent.id not in self.added:
             raise HubError(
                 "agent_not_removable",
-                f"{agent.name} lo da la configuración de tu hub: solo quien lo gestiona puede quitarlo",
+                f"{agent.name} is supplied by your hub configuration: only whoever runs it can remove this assistant",
                 http_status=403,
                 numbers={"agent_id": agent.id},
             )
@@ -479,5 +482,5 @@ class Agents:
 
     def _roster(self) -> Roster:
         if self.roster is None:
-            raise HubError("agent_add_unsupported", "Este hub no guarda perfiles de asistentes")
+            raise HubError("agent_add_unsupported", "This hub does not store assistant profiles")
         return self.roster

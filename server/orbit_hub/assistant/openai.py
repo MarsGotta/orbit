@@ -95,7 +95,7 @@ for _sdk in ("openai", "anthropic"):
 
 # Sent as the bearer of an OpenAI-compatible server that needs no key (a local
 # Ollama or vLLM): the OpenAI SDK refuses to start without one.
-NO_API_KEY = "orbit-sin-clave"
+NO_API_KEY = "orbit-no-key"
 
 # The conversation the model receives before the current turn, in characters
 # of the messages' text. What it protects: the model's context window, which
@@ -175,11 +175,10 @@ def image_refusal(
     if error.status_code not in _IMAGE_REFUSAL_STATUSES or _CONTEXT_WORDS.search(str(error.body)):
         return None
     names = ", ".join(f"«{image.name}»" for image in images)
-    what = f"la imagen {names}" if len(images) == 1 else f"las imágenes del mensaje ({names})"
+    what = f"the image {names}" if len(images) == 1 else f"message images ({names})"
     return HubError(
         "attachment_refused",
-        f"El proveedor del asistente ({provider_url(settings)}) no aceptó {what} "
-        f"(HTTP {error.status_code}); el modelo no leyó el mensaje",
+        f"The assistant provider ({provider_url(settings)}) did not accept {what} (HTTP {error.status_code}); the model did not read the message",
         numbers={
             "name": ", ".join(image.name for image in images),
             "provider_status": error.status_code,
@@ -192,13 +191,13 @@ def _timeout_failure(error: ModelTimeoutError, url: str) -> HubError:
         milliseconds = round(MODEL_CONNECT_TIMEOUT_SECONDS * 1000)
         return HubError(
             "assistant_connect_timeout",
-            f"El proveedor del asistente ({url}) no aceptó la conexión en {milliseconds} ms",
+            f"The assistant provider ({url}) did not accept the connection within {milliseconds} ms",
             numbers={"connect_timeout_ms": milliseconds},
         )
     milliseconds = round(MODEL_READ_TIMEOUT_SECONDS * 1000)
     return HubError(
         "assistant_timeout",
-        f"El proveedor del asistente ({url}) dejó de contestar durante {milliseconds} ms",
+        f"The assistant provider ({url}) stopped responding for {milliseconds} ms",
         numbers={"timeout_ms": milliseconds},
     )
 
@@ -207,34 +206,32 @@ def _connection_failure(error: ModelConnectionError, url: str) -> HubError:
     if error.phase in {"connect", "pool"}:
         return HubError(
             "assistant_unreachable",
-            f"No se pudo conectar con el proveedor del asistente ({url}); "
-            f"plazo de conexión de {MODEL_CONNECT_TIMEOUT_SECONDS * 1000} ms",
+            f"Could not connect to the assistant provider ({url}); connection deadline {MODEL_CONNECT_TIMEOUT_SECONDS * 1000} ms",
             numbers={"connect_timeout_ms": MODEL_CONNECT_TIMEOUT_SECONDS * 1000},
         )
     return HubError(
         "assistant_connection_lost",
-        f"Se cortó la conexión con el proveedor del asistente ({url}) antes de terminar "
-        "la respuesta",
+        f"The assistant provider connection was cut ({url}) before finishing the response",
     )
 
 
 def _rate_limited(error: BaseException, url: str) -> HubError:
     numbers: dict[str, int] = {"provider_status": 429}
-    message = f"El proveedor del asistente ({url}) limitó las peticiones (HTTP 429)"
+    message = f"The assistant provider ({url}) rate limited requests (HTTP 429)"
     if isinstance(error, ModelAPIError) and error.retry_after is not None:
         numbers["retry_after_ms"] = round(error.retry_after * 1000)
         message += f"; pide esperar {numbers['retry_after_ms']} ms"
     else:
-        message += "; no dijo cuánto esperar"
+        message += "; it did not say how long to wait"
     return HubError("assistant_rate_limited", message, numbers=numbers)
 
 
 def _context_exceeded(detail: str, history_chars: int) -> HubError:
     numbers = {"history_chars": history_chars, "max_history_chars": HISTORY_MAX_CHARS}
-    message = f"El modelo no admite tanto contexto ({history_chars} caracteres de historial"
+    message = f"The model does not support that much context ({history_chars} history characters"
     if (tokens := _CONTEXT_NUMBERS.search(detail)) is not None:
         numbers["max_tokens"], numbers["tokens"] = int(tokens[1]), int(tokens[2])
-        message += f"; {tokens[2]} tokens de un máximo de {tokens[1]}"
+        message += f"; {tokens[2]} tokens out of a maximum of {tokens[1]}"
     return HubError("assistant_context_exceeded", message + ")", numbers=numbers)
 
 
@@ -244,8 +241,7 @@ def _provider_failure(error: BaseException, url: str, history_chars: int) -> Hub
     if status in {401, 403}:
         return HubError(
             "assistant_unauthorized",
-            f"El proveedor del asistente ({url}) rechazó la clave (HTTP {status}); "
-            "revisa api_key_file",
+            f"The assistant provider ({url}) rejected the key (HTTP {status}); revisa api_key_file",
             numbers={"provider_status": status},
         )
     if isinstance(error, ModelRateLimitError) or status == 429:
@@ -258,17 +254,17 @@ def _provider_failure(error: BaseException, url: str, history_chars: int) -> Hub
     if status is not None:
         return HubError(
             "assistant_http_error",
-            f"El proveedor del asistente ({url}) devolvió HTTP {status}",
+            f"The assistant provider ({url}) returned HTTP {status}",
             numbers={"provider_status": status},
         )
     if isinstance(error, ModelAPIError):
         return HubError(
             "assistant_provider_error",
-            f"El proveedor del asistente ({url}) falló sin decir por qué",
+            f"The assistant provider ({url}) failed without giving a cause",
         )
     return HubError(
         "assistant_failed",
-        "El asistente falló antes de terminar la respuesta; no se repetirá",
+        "The assistant failed before finishing the response; it will not be repeated",
     )
 
 
@@ -283,8 +279,7 @@ def describe_failure(
     if isinstance(error, UsageLimitExceeded):
         return HubError(
             "assistant_turn_too_long",
-            f"El asistente hizo {MAX_MODEL_REQUESTS_PER_TURN} peticiones al modelo en este "
-            "turno sin terminar; se detuvo",
+            f"The assistant made {MAX_MODEL_REQUESTS_PER_TURN} model requests in this turn without finishing; it was stopped",
             numbers={"max_requests": MAX_MODEL_REQUESTS_PER_TURN},
         )
     if isinstance(error, ModelTimeoutError):
@@ -320,9 +315,7 @@ class _Session:
                 ModelRequest(
                     parts=[
                         UserPromptPart(
-                            f"[Orbit · se dejaron fuera los {self.left_out} mensajes más antiguos "
-                            "de esta conversación: el modelo recibe como mucho "
-                            f"{HISTORY_MAX_CHARS} caracteres de historial]"
+                            f"[Orbit · omitted the {self.left_out} oldest messages of this conversation: the model receives at most {HISTORY_MAX_CHARS} history characters]"
                         )
                     ]
                 )
@@ -346,9 +339,7 @@ def _prompt(text: str, images: list[ImageBlock]) -> tuple[str | list[str | Binar
         [
             text,
             *(
-                f"[Orbit · la imagen «{image.name}» (adjunto {image.attachment_id}) iba "
-                "en este mensaje y no se vuelve a enviar; para verla otra vez, "
-                "orbit_attachment con ese id]"
+                f"[Orbit · image «{image.name}» (adjunto {image.attachment_id}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
                 for image in images
             ),
         ]
@@ -414,13 +405,13 @@ class OpenAIConnection:
     def _session(self, session_id: str) -> _Session:
         session = self._sessions.get(session_id)
         if session is None or session_id not in self.live_sessions:
-            raise HubError("session_runtime_not_found", "La sesión ya no está activa")
+            raise HubError("session_runtime_not_found", "The session is no longer active")
         return session
 
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
         session = self._session(session_id)
         if session.turn is not None and not session.turn.done():
-            raise HubError("session_busy", "Espera o interrumpe el turno en curso")
+            raise HubError("session_busy", "Wait or interrupt the current turn")
         text = "".join(block.text for block in blocks if isinstance(block, TextBlock))
         # The runtime sends images only when `capabilities.images` says so.
         images = [block for block in blocks if isinstance(block, ImageBlock)]
@@ -507,9 +498,7 @@ class OpenAIConnection:
                 StatusNotice(
                     session_id,
                     "warning",
-                    f"El asistente no recibe los {session.left_out} mensajes más antiguos "
-                    f"de esta conversación: su historial llega a {HISTORY_MAX_CHARS} "
-                    "caracteres como mucho",
+                    f"The assistant does not receive the {session.left_out} oldest messages of this conversation: its history reaches {HISTORY_MAX_CHARS} characters at most",
                 )
             )
         return history, history_chars
@@ -525,12 +514,12 @@ class OpenAIConnection:
         # It never asks: Orbit's tools carry their own consent (the macOS
         # permissions), so no request of this agent is ever pending. One that
         # asked would offer `once` (approve) and `deny` (refuse).
-        raise HubError("interaction_not_found", "Este asistente no pide autorizaciones")
+        raise HubError("interaction_not_found", "This assistant does not request authorizations")
 
     async def respond_clarification(
         self, session_id: str, request_id: str, answer: str, question_id: str | None
     ) -> ClarificationReceipt:
-        raise HubError("interaction_not_found", "Este asistente no pide aclaraciones")
+        raise HubError("interaction_not_found", "This assistant does not request clarifications")
 
     async def turn_stopped(self, session_id: str) -> bool:
         session = self._sessions.get(session_id)

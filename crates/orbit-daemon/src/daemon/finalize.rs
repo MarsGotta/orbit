@@ -45,7 +45,7 @@ impl Runtime {
         if let Some(job) = &job
             && (job.kind != "recording_finalize" || job.payload["recording_id"] != recording_id)
         {
-            bail!("El cierre durable no corresponde a esta grabación");
+            bail!("The durable closure does not match this recording");
         }
         Ok(job)
     }
@@ -125,7 +125,7 @@ impl Runtime {
             .capture
             .interruption
             .as_ref()
-            .context("Cierre interrumpido sin causa tipada")?;
+            .context("Interrupted closure has no typed cause")?;
         job.payload["interruption"] = serde_json::to_value(interruption)?;
         Ok(Some(job))
     }
@@ -323,7 +323,7 @@ impl Runtime {
                 summary.total_frames = summary
                     .total_frames
                     .checked_add(chunk.metadata.frames)
-                    .context("Contador de audio fuera de límites")?;
+                    .context("Audio counter outside bounds")?;
             }
             cursor = page.last().map(|chunk| chunk.metadata.id.clone());
         }
@@ -344,7 +344,7 @@ pub(super) fn declare_refused_chunks(
 ) -> Result<()> {
     let tracks = manifest["tracks"]
         .as_array_mut()
-        .context("Cierre sin resumen de pistas")?;
+        .context("Closure has no track summary")?;
     for track in tracks.iter_mut() {
         let name = track["track"].as_str().unwrap_or_default().to_owned();
         let mut missing: Vec<u64> = refused

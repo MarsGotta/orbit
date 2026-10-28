@@ -143,7 +143,7 @@ impl Runtime {
             view.stage = ComputerStage::Completed;
             view.request_id = operation_id;
             view.observation = Some(receipt);
-            view.detail = "El motor devolvió un recibo del único intento; el efecto se comprueba con una observación nueva.".into();
+            view.detail = "The engine returned a receipt for the single attempt; its effect is checked through a new observation.".into();
         }
         Ok(())
     }
@@ -239,26 +239,26 @@ impl Runtime {
             for c in cleanups {
                 let reason_str = match c.reason {
                     orbit_core::topics::control::EngineCleanupReason::OrphanedFromDaemon => {
-                        "huérfano de su daemon"
+                        "orphaned from its daemon"
                     }
                 };
                 let outcome = match c.outcome {
                     orbit_core::topics::control::EngineCleanupOutcome::Stopped => {
-                        "se confirmó detenido".to_owned()
+                        "confirmed stopped".to_owned()
                     }
                     orbit_core::topics::control::EngineCleanupOutcome::Survived => {
-                        "sobrevivió a SIGKILL".to_owned()
+                        "survived SIGKILL".to_owned()
                     }
                     orbit_core::topics::control::EngineCleanupOutcome::SignalFailed => {
                         format!(
-                            "falló SIGKILL: {}",
-                            c.failure.as_deref().unwrap_or("causa no comunicada")
+                            "SIGKILL failed: {}",
+                            c.failure.as_deref().unwrap_or("cause not reported")
                         )
                     }
                     orbit_core::topics::control::EngineCleanupOutcome::Unconfirmed => {
                         format!(
-                            "no se pudo confirmar la parada: {}",
-                            c.failure.as_deref().unwrap_or("causa no comunicada")
+                            "could not confirm stop: {}",
+                            c.failure.as_deref().unwrap_or("cause not reported")
                         )
                     }
                 };
@@ -278,7 +278,7 @@ impl Runtime {
             view.connection_epoch = Some(service.client().connection_epoch().into());
             view.stage = ComputerStage::Ready;
             view.observation = Some(data);
-            view.detail = "Observación recibida, no autorización de input. Los snapshots caducan en 15 segundos desde el inicio de lectura.".into();
+            view.detail = "Observation received, not input authority. Snapshots expire 15 seconds after the read starts.".into();
         }
         self.computer.service = Some(service);
     }

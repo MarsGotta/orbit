@@ -34,13 +34,15 @@ class OperationRepository:
                 "SELECT 1 FROM safety_operations WHERE device_id=? AND operation_id=?",
                 (device, operation_id),
             ).fetchone():
-                raise HubError("operation_conflict", "El ID ya pertenece a un control de seguridad")
+                raise HubError("operation_conflict", "The ID already belongs to a safety control")
             existing = db.execute(
                 "SELECT * FROM operations WHERE device_id=? AND id=?", (device, operation_id)
             ).fetchone()
             if existing:
                 if existing["fingerprint"] != fingerprint:
-                    raise HubError("operation_conflict", "El ID ya pertenece a otra operación")
+                    raise HubError(
+                        "operation_conflict", "The ID already belongs to another operation"
+                    )
                 if existing["response"]:
                     return json.loads(
                         self.store.decrypt(
@@ -48,7 +50,8 @@ class OperationRepository:
                         )
                     )
                 raise HubError(
-                    "outcome_unknown", "Operación ya recibida; no se repetirá automáticamente"
+                    "outcome_unknown",
+                    "Operation already received; it will not be repeated automatically",
                 )
             self.store.ensure_capacity(OPERATION_RECEIPT_RESERVE_BYTES)
             db.execute(

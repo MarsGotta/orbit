@@ -12,11 +12,13 @@ class Folder:
     def __init__(self, configuration):
         self.root = configuration.path
         if any(ord(character) < 32 for character in self.root):
-            raise refusal("vault_path_refused", "La ruta del vault contiene caracteres de control.")
-        if not os.path.isabs(self.root):
             raise refusal(
-                "vault_folder_absolute", "Indica una ruta absoluta a una carpeta del hub."
+                "vault_path_refused",
+                "The vault path contains control characters.",
+                message_code="vault_path_controls",
             )
+        if not os.path.isabs(self.root):
+            raise refusal("vault_folder_absolute", "Enter an absolute path to a folder on the hub.")
 
     def close(self):
         pass
@@ -31,7 +33,9 @@ class Folder:
             ):
                 if part in {".", ".."}:
                     raise refusal(
-                        "vault_path_refused", "La carpeta no admite componentes «.» ni «..»."
+                        "vault_path_refused",
+                        "The folder cannot contain “.” or “..” components.",
+                        message_code="vault_path_components",
                     )
                 next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
                 os.close(fd)
@@ -39,16 +43,18 @@ class Folder:
             yield fd
         except FileNotFoundError:
             raise refusal(
-                "vault_folder_missing", "La carpeta del vault no existe en el hub."
+                "vault_folder_missing", "The vault folder does not exist on the hub."
             ) from None
         except PermissionError:
             raise refusal(
-                "vault_folder_permission", "El hub no tiene permiso para leer la carpeta del vault."
+                "vault_folder_permission",
+                "The hub does not have permission to read the vault folder.",
             ) from None
         except OSError:
             raise refusal(
                 "vault_path_refused",
-                "La carpeta o nota no se puede abrir sin seguir enlaces simbólicos.",
+                "The folder or note cannot be opened without following symbolic links.",
+                message_code="vault_path_symlink",
             ) from None
         finally:
             os.close(fd)
@@ -68,7 +74,7 @@ class Folder:
                 if visited[0] > MAX_SCAN_ENTRIES:
                     raise refusal(
                         "vault_scan_limit",
-                        f"El recorrido supera {MAX_SCAN_ENTRIES} entradas.",
+                        f"The scan exceeds {MAX_SCAN_ENTRIES} entries.",
                         entries=visited[0],
                         max_entries=MAX_SCAN_ENTRIES,
                     )
@@ -80,7 +86,7 @@ class Folder:
                     if len(path.split("/")) > MAX_FOLDER_DEPTH:
                         raise refusal(
                             "vault_depth_limit",
-                            f"El vault supera {MAX_FOLDER_DEPTH} niveles de carpetas.",
+                            f"The vault exceeds {MAX_FOLDER_DEPTH} folder levels.",
                             max_depth=MAX_FOLDER_DEPTH,
                         )
                     try:
@@ -90,7 +96,7 @@ class Folder:
                     except OSError:
                         raise refusal(
                             "vault_folder_changed",
-                            "Una carpeta cambió o no se puede leer; vuelve a buscar.",
+                            "A folder changed or cannot be read; search again.",
                         ) from None
                     try:
                         self._walk(child, path + "/", entries, visited)
@@ -120,12 +126,16 @@ class Folder:
             try:
                 note = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
             except FileNotFoundError:
-                raise refusal("vault_note_missing", "La nota no existe en el vault.", 404) from None
+                raise refusal(
+                    "vault_note_missing", "The note does not exist in the vault.", 404
+                ) from None
             try:
                 info = os.fstat(note)
                 if not stat.S_ISREG(info.st_mode):
                     raise refusal(
-                        "vault_path_refused", "La nota debe ser un archivo normal del vault."
+                        "vault_path_refused",
+                        "The note must be a regular file in the vault.",
+                        message_code="vault_path_regular_file",
                     )
                 if info.st_size > MAX_NOTE_BYTES:
                     self._too_large(info.st_size)
@@ -135,7 +145,7 @@ class Folder:
                     self._too_large(len(data))
                 return data.decode("utf-8")
             except UnicodeError:
-                raise refusal("vault_encoding", "La nota no está codificada en UTF-8.") from None
+                raise refusal("vault_encoding", "The note is not encoded as UTF-8.") from None
             finally:
                 os.close(note)
 
@@ -143,7 +153,7 @@ class Folder:
     def _too_large(size):
         raise refusal(
             "vault_note_too_large",
-            f"La nota ocupa {size} bytes; el máximo es {MAX_NOTE_BYTES}.",
+            f"The note is {size} bytes; the maximum is {MAX_NOTE_BYTES}.",
             413,
             bytes=size,
             max_bytes=MAX_NOTE_BYTES,

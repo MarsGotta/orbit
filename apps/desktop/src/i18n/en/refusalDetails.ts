@@ -126,10 +126,10 @@ function receivedType(value: unknown): string {
 }
 
 export function helperRefused(refusal: Refusal): string {
-  return (
-    helperMessages[refusal.helper_code as HelperCode] ??
-    "The helper rejected the read for a cause this version doesn’t recognize."
-  );
+  const code = String(refusal.helper_code);
+  return Object.hasOwn(helperMessages, code)
+    ? helperMessages[code as HelperCode]
+    : `The helper refused the read for a cause this version does not recognise (code ${code}).`;
 }
 
 export function helperReplyInvalid(refusal: Refusal): string {

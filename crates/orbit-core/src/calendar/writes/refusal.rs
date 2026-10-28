@@ -289,45 +289,45 @@ impl CalendarWriteRefusal {
                 calendar_item_id,
                 occurrence_start_ms,
             } => format!(
-                "El evento {calendar_item_id} no tiene ninguna ocurrencia que empiece en {occurrence_start_ms} (ms Unix) en este Mac: se movió o se borró fuera de Orbit. No se cambió nada; la agenda se vuelve a leer."
+                "Event {calendar_item_id} has no occurrence starting at {occurrence_start_ms} (Unix ms) on this Mac: it was moved or deleted outside Orbit. Nothing changed; the calendar is reread."
             ),
             Self::NotEditable {
                 reason: CalendarNotEditable::CalendarReadOnly,
                 calendar_id,
             } => format!(
-                "El calendario {calendar_id} es de sólo lectura en macOS (una suscripción, los cumpleaños o un calendario compartido sin permiso de escritura). No se cambió nada."
+                "Calendar {calendar_id} is read only in macOS (a subscription, birthdays or a shared calendar without write access). Nothing changed."
             ),
             Self::NotEditable {
                 reason: CalendarNotEditable::OrganizedBySomeoneElse,
                 calendar_id,
             } => format!(
-                "Este evento del calendario {calendar_id} lo organizó otra persona: sólo quien lo organizó puede moverlo o cambiarlo. No se cambió nada."
+                "This event in calendar {calendar_id} was organized by someone else: only the organizer can move or change it. Nothing changed."
             ),
             Self::InvalidChange(change) => change.notice(),
             Self::PermissionDenied { authorization } => format!(
-                "macOS no da a Orbit acceso completo a Calendarios (estado de EventKit: {}). Concédelo en Ajustes del Sistema > Privacidad y seguridad > Calendarios. No se cambió nada.",
+                "macOS does not grant Orbit full Calendar access (EventKit status: {}). Grant it in System Settings > Privacy & Security > Calendars. Nothing changed.",
                 serde_json::to_value(authorization)
                     .ok()
                     .and_then(|value| value.as_str().map(str::to_owned))
-                    .unwrap_or_else(|| "desconocido".into())
+                    .unwrap_or_else(|| "unknown".into())
             ),
             Self::SaveFailed {
                 error_domain,
                 error_code,
             } => format!(
-                "EventKit rechazó el cambio (error {error_domain} {error_code}). No se cambió nada."
+                "EventKit refused the change (error {error_domain} {error_code}). Nothing changed."
             ),
             Self::OutcomeUnknown { cause } => format!(
-                "No se sabe si el cambio llegó al calendario ({cause}): su respuesta se perdió. Orbit vuelve a leer la agenda y no lo repite."
+                "Whether the change reached the calendar is unknown ({cause}): its response was lost. Orbit rereads the calendar and does not repeat it."
             ),
             Self::NotWritten { cause } if cause == "calendar_helper_read_only" => {
-                "El helper de este Mac anuncia la capacidad `calendar_read_only`: lee el calendario pero no escribe en él. Actualiza Orbit en este Mac. No se cambió nada.".into()
+                "This Mac's helper advertises `calendar_read_only`: it reads the calendar but cannot write it. Update Orbit on this Mac. Nothing changed.".into()
             }
             Self::NotWritten { cause } => {
-                format!("El cambio no se hizo ({cause}); el calendario sigue como estaba.")
+                format!("The change was not made ({cause}); the calendar is unchanged.")
             }
             Self::QueueFull { unfinished, limit } => format!(
-                "Hay {unfinished} cambios del calendario esperando o en curso, el máximo que Orbit sigue a la vez ({limit}); éste no se envió. El calendario sigue como estaba."
+                "There are {unfinished} calendar changes waiting or in progress, the maximum Orbit tracks concurrently ({limit}); this one was not sent. The calendar is unchanged."
             ),
         }
     }
@@ -352,35 +352,37 @@ impl CalendarInvalidChange {
             )
         };
         let what = match self.problem {
-            CalendarChangeProblem::Empty => format!("«{field}» está vacío"),
+            CalendarChangeProblem::Empty => format!("«{field}» is empty"),
             CalendarChangeProblem::TooLarge => numbers(&format!("«{field}» es demasiado largo")),
-            CalendarChangeProblem::TooMany => {
-                numbers(&format!("«{field}» tiene demasiados elementos"))
-            }
+            CalendarChangeProblem::TooMany => numbers(&format!("«{field}» has too many items")),
             CalendarChangeProblem::EndBeforeStart => format!(
-                "el fin ({}) es anterior al inicio ({})",
+                "the end ({}) precedes the start ({})",
                 self.end_ms.unwrap_or_default(),
                 self.start_ms.unwrap_or_default()
             ),
             CalendarChangeProblem::InvalidDate => {
-                numbers(&format!("«{field}» no es una fecha válida"))
+                numbers(&format!("«{field}» is not a valid date"))
             }
             CalendarChangeProblem::InvalidIdentifier => {
-                format!("«{field}» no es un identificador válido")
+                format!("«{field}» is not a valid identifier")
             }
-            CalendarChangeProblem::InvalidValue => numbers(&format!("«{field}» no es válido")),
-            CalendarChangeProblem::UnknownCalendar => "ese calendario no existe en este Mac".into(),
+            CalendarChangeProblem::InvalidValue => numbers(&format!("«{field}» is invalid")),
+            CalendarChangeProblem::UnknownCalendar => {
+                "that calendar does not exist on this Mac".into()
+            }
             CalendarChangeProblem::NoDefaultCalendar => {
-                "macOS no tiene un calendario por defecto para eventos nuevos".into()
+                "macOS has no default calendar for new events".into()
             }
-            CalendarChangeProblem::UnknownTimeZone => "macOS no conoce esa zona horaria".into(),
-            CalendarChangeProblem::InvalidUrl => "la URL no es válida".into(),
+            CalendarChangeProblem::UnknownTimeZone => {
+                "macOS does not recognize that time zone".into()
+            }
+            CalendarChangeProblem::InvalidUrl => "the URL is invalid".into(),
             CalendarChangeProblem::RecurrenceNeedsFutureSpan => {
-                "cambiar la repetición afecta a este evento y a los siguientes, no sólo a este"
+                "changing recurrence affects this event and following events, not only this one"
                     .into()
             }
-            CalendarChangeProblem::NothingToChange => "el cambio no modifica nada".into(),
+            CalendarChangeProblem::NothingToChange => "the change modifies nothing".into(),
         };
-        format!("No se guardó el evento: {what}. No se cambió nada.")
+        format!("The event was not saved: {what}. Nothing changed.")
     }
 }

@@ -316,7 +316,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
         "{:?}",
         h.runtime.state.durable.notice
     );
-    assert!(said::told(&h.runtime).contains("capacidad 1"));
+    assert!(said::told(&h.runtime).contains("capacity 1"));
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     h.runtime
@@ -326,7 +326,7 @@ async fn engine_refusal_reports_full_and_retired_hub() -> Result<()> {
     h.runtime.assistant.bridge_requests.put(ask);
     h.runtime.refuse_remote_engine_action("fixture", None).await;
     assert!(
-        said::told(&h.runtime).contains("cancelación de red"),
+        said::told(&h.runtime).contains("network cancellation"),
         "{:?}",
         h.runtime.state.durable.notice
     );
@@ -687,7 +687,7 @@ async fn close_keeps_granted_engine_off_during_maintenance() -> Result<()> {
     runtime
         .close_for_exit(
             orbit_core::privacy_stop::StopCause::ListenerStopped,
-            "Orbit se está cerrando.",
+            "Orbit is closing.",
         )
         .await;
 
@@ -1022,7 +1022,7 @@ async fn an_engine_failure_leaves_its_cause_and_a_report_line() -> Result<()> {
         .find(|line| line.contains("engine_failed"))
         .context("daemon.log says nothing about the engine failure")?;
     let max = orbit_core::limits::MAX_ACTION_RECEIPT_BYTES.to_string();
-    assert!(line.contains("Recibo de acción de"), "{line}");
+    assert!(line.contains("Action receipt is"), "{line}");
     assert!(line.contains(&max), "{line}");
     assert!(line.contains("op-engine-0001"), "{line}");
     assert!(line.contains("whole-window-read"), "{line}");

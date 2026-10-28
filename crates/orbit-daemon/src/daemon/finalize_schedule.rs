@@ -9,11 +9,11 @@ impl Runtime {
         };
         let recording_id = job.payload["recording_id"]
             .as_str()
-            .context("Manifiesto sin recording_id")?
+            .context("Manifest has no recording_id")?
             .to_owned();
-        let token = self.link.token.clone().context("Sin credencial")?;
+        let token = self.link.token.clone().context("No credential")?;
         let base = crate::config::validate_hub_url(
-            self.settings.hub_url.as_deref().context("Sin hub")?,
+            self.settings.hub_url.as_deref().context("No hub")?,
             self.development,
         )?;
         let refused = self.refused_chunks_of(&recording_id)?;
@@ -115,7 +115,7 @@ impl Runtime {
                             || receipt["finalized"] != true
                             || receipt["recording_id"] != recording_id
                         {
-                            bail!("Recibo de finalización no válido");
+                            bail!("Invalid finalization receipt");
                         }
                         Ok(())
                     }
@@ -131,14 +131,14 @@ impl Runtime {
                     .await;
                 })
             })
-            .context("No se pudo reservar el cierre de grabación")?;
+            .context("Could not reserve recording closure")?;
         Ok(())
     }
 
     pub(super) fn finalize_is_ready(&mut self, job: &Job) -> Result<bool> {
         let recording = job.payload["recording_id"]
             .as_str()
-            .context("Cierre sin identidad")?;
+            .context("Closure has no identity")?;
         if self
             .capture
             .pending_seals
@@ -152,14 +152,14 @@ impl Runtime {
         }
         let expected = job.payload["manifest"]["tracks"]
             .as_array()
-            .context("Cierre sin resumen de pistas")?
+            .context("Closure has no track summary")?
             .iter()
             .try_fold(0u64, |total, track| {
                 total
                     .checked_add(
                         track["chunk_count"]
                             .as_u64()
-                            .context("Resumen de pista sin fragmentos")?,
+                            .context("Track summary has no chunks")?,
                     )
                     .context("Contador de fragmentos agotado")
             })?;

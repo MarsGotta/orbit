@@ -35,10 +35,11 @@ def reserve(
         if normal or exact:
             row = normal or exact
             if row["fingerprint"] != fingerprint:
-                raise HubError("operation_conflict", "El ID ya pertenece a otra operación")
+                raise HubError("operation_conflict", "The ID already belongs to another operation")
             if not row["response"]:
                 raise HubError(
-                    "outcome_unknown", "Control ya recibido; no se repetirá automáticamente"
+                    "outcome_unknown",
+                    "Control already received; it will not be repeated automatically",
                 )
             context = (
                 f"operation:{device}:{operation_id}" if normal else f"safety:{device}:{target}"
@@ -51,7 +52,8 @@ def reserve(
         if existing:
             if not existing["response"]:
                 raise HubError(
-                    "outcome_unknown", "Control ya solicitado para este turno; no se repetirá"
+                    "outcome_unknown",
+                    "Control already requested for this turn; it will not be repeated",
                 )
             response = json.loads(store.decrypt(existing["response"], f"safety:{device}:{target}"))
             if response.get("data", {}).get("status") == "error":
@@ -80,7 +82,7 @@ def reserve(
         if count >= MAX_SAFETY_TARGETS:
             raise HubError(
                 "safety_capacity",
-                "Demasiados controles activos; la revocación local sigue disponible",
+                "Too many active controls; local revocation remains available",
             )
         # Content quota is deliberately not consulted. Payloads are fixed-size
         # metadata/receipts; physical ENOSPC remains a separate deployment limit.
@@ -94,7 +96,7 @@ def reserve(
 def finish(store, device: str, target: str, response: dict) -> None:
     encoded = json.dumps(response).encode()
     if len(encoded) > MAX_SAFETY_RECEIPT_BYTES:
-        raise HubError("safety_receipt_invalid", "Recibo de control fuera de contrato")
+        raise HubError("safety_receipt_invalid", "Control receipt violates the contract")
     with store.transaction() as db:
         db.execute(
             "UPDATE safety_operations SET response=? WHERE device_id=? AND target=? AND response IS NULL",

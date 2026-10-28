@@ -10,9 +10,7 @@ pub(in crate::daemon) struct DestinationInvalid(pub(in crate::daemon) &'static s
 
 /// The reserve of unsealed audio is full: what did not fit is a declared gap.
 #[derive(Debug, thiserror::Error)]
-#[error(
-    "Se agotó la reserva de audio; los fragmentos anteriores siguen pendientes y la pérdida adicional está declarada"
-)]
+#[error("Audio reserve exhausted; previous chunks remain pending and additional loss is declared")]
 pub(in crate::daemon) struct ReserveExhausted;
 
 fn io_cause(kind: ErrorKind) -> &'static str {

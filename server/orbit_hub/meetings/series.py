@@ -141,8 +141,7 @@ def use_for_series(
         if series is None:
             raise HubError(
                 "meeting_series_missing",
-                "La reunión no tiene serie de calendario: no se guardó ni la plantilla "
-                "ni el diccionario",
+                "The meeting has no calendar series: neither template nor dictionary was saved",
                 http_status=409,
             )
         templates.link_in(db, device, series["calendar_item_id"], template_id, now)

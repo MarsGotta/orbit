@@ -98,28 +98,30 @@ def test_the_prompt_carries_template_private_notes_event_and_transcript():
     inputs = NoteInputs(
         owner_name="Alina",
         private_notes="- Ojo con el **presupuesto**",
-        event=EventContext(title="Comité", attendees=[{"name": "Lucía"}, {"email": "a@b.es"}]),
+        event=EventContext(
+            title="Comité", attendees=[{"name": "Lucía"}, {"email": "ada@example.test"}]
+        ),
     )
     system, user = note_messages(GENERAL, inputs, [Line(0, "Alina", "Hola")], 120 * 60_000)
-    assert "Alina" in system["content"] and "español" in system["content"]
+    assert "Alina" in system["content"] and "Spanish" in system["content"]
     text = user["content"]
     for expected in (
-        "Título previsto: Comité",
-        "Invitados: Lucía, a@b.es",
-        "Duración: 120 minutos",
+        "Expected title: Comité",
+        "Attendees: Lucía, ada@example.test",
+        "Duration: 120 minutes",
         "s1 → Resumen",
         "s4 → Próximos pasos",
-        "Notas privadas de Alina",
+        "Private notes by Alina",
         "Ojo con el **presupuesto**",
         "[00:00:00] Alina: Hola",
-        "entre 6 y 15 viñetas",
+        "between 6 and 15 bullets",
     ):
         assert expected in text
 
 
 @pytest.mark.parametrize(
     ("language", "named"),
-    [("en", "inglés (English)"), ("fr", "francés (Français)"), ("es", "español")],
+    [("en", "English"), ("fr", "French (Français)"), ("es", "Spanish")],
 )
 def test_the_language_is_the_last_thing_the_model_reads(language, named):
     """On the real model (2026-10-18): a meeting changed to English got
@@ -135,8 +137,8 @@ def test_the_language_is_the_last_thing_the_model_reads(language, named):
     ]
     for _system, user in requests:
         last = user["content"].rsplit("\n\n## ", 1)[-1]
-        assert last.startswith("Idioma\n"), last
-        assert f"Escribe toda la nota en {named}" in last, last
+        assert last.startswith("Language\n"), last
+        assert f"Write the entire note in {named}" in last, last
 
 
 def answer(**changes):

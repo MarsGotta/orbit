@@ -17,15 +17,14 @@ impl Runtime {
             } else if capture {
                 self.contain(
                     StopCause::CaptureEventFailed,
-                    &format!("Fallo al tratar un evento de captura del Mac ({about}): {error}."),
+                    &format!("Failed to handle a Mac capture event ({about}): {error}."),
                 )
                 .await;
             } else {
                 self.contain(
                     StopCause::NativeEventFailed,
                     &format!(
-                        "Fallo al tratar un evento del Mac que no es de la captura ({about}): \
-                         {error}. No se corta nada."
+                        "Failed to handle a Mac event unrelated to capture ({about}): {error}. Nothing is cut."
                     ),
                 )
                 .await;
@@ -98,11 +97,11 @@ impl Runtime {
             {
                 value.to_owned()
             } else {
-                "sin nombre".to_owned()
+                "unnamed".to_owned()
             }
         };
         let Ok(header) = NativeEventHeader::from_value(event) else {
-            return "sin nombre".into();
+            return "unnamed".into();
         };
         match header.event {
             "response" => {
@@ -114,8 +113,8 @@ impl Runtime {
                             .and_then(Value::as_str)
                             .or_else(|| self.capture_response_command(response.id))
                     })
-                    .map_or_else(|| "una orden desconocida".to_owned(), code);
-                format!("respuesta a {answered}")
+                    .map_or_else(|| "an unknown command".to_owned(), code);
+                format!("response to {answered}")
             }
             other => code(other),
         }

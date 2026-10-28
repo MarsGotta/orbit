@@ -207,7 +207,7 @@ impl Lanes {
         let oldest = self.parked.front()?;
         let owed_for = now.saturating_duration_since(oldest.failed_at).as_millis();
         Some(format!(
-            "{} fragmento(s) de audio siguen sin guardar desde hace {owed_for} ms; se reintentan cada {} s",
+            "{} audio chunk(s) remain unsaved for {owed_for} ms; retried every {} s",
             self.owed_seals(),
             SEAL_RETRY_DELAY.as_secs()
         ))
@@ -219,7 +219,7 @@ impl Lanes {
 /// numbers. The same text goes to the daemon as a `StoreProblem`, so whoever
 /// asked and whoever reads the notice see one cause.
 pub(super) fn refusal(error: &impl std::fmt::Display, lanes: &Lanes) -> String {
-    let cause = format!("No se pudo guardar el estado local: {error}");
+    let cause = format!("Could not save local state: {error}");
     match lanes.owed_audio(Instant::now()) {
         Some(owed) => format!("{cause}. {owed}."),
         None => cause,

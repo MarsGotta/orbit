@@ -33,7 +33,7 @@ impl Runtime {
                     json!({"source":source,"stream_id":stream,"application_pid":pid,"capture_scope":"application"})
                 }
                 Some(orbit_core::protocol::MeetingAudio::MicrophoneOnly) | None => {
-                    bail!("La pista remota necesita un ámbito de captura")
+                    bail!("The remote track requires a capture scope")
                 }
             }
         } else {
@@ -93,7 +93,7 @@ impl Runtime {
                     // breaks the `contain → effect → native_send →
                     // contain` future-size recursion.
                     let message = format!(
-                        "El helper no aceptó la orden {name} en 500 ms; el canal sigue presente, pero esa orden no se entregó."
+                        "The helper did not accept command {name} within 500 ms; the channel is still present, but that command was not delivered."
                     );
                     let cause = if name == "privacy_stop" {
                         orbit_core::privacy_stop::StopCause::PrivacyStopUndelivered
@@ -107,7 +107,7 @@ impl Runtime {
                     // Non-critical command: additive notice, capture keeps
                     // going. Mirrors how a saturated hub command degrades.
                     let message = format!(
-                        "El helper no confirmó {other} en 500 ms; la orden se descarta sin detener la captura"
+                        "The helper did not confirm {other} within 500 ms; the command is discarded without stopping capture"
                     );
                     self.say(
                         Notice::new(NoticeCode::HelperCommandUnconfirmed)
@@ -129,7 +129,7 @@ impl Runtime {
         let interrupt =
             HubMethod::deserialize(&frame).is_ok_and(|header| header.method == "chat.interrupt");
         if self.state.privacy_stopped() && !(stop_window && interrupt) {
-            bail!("Todo está parado");
+            bail!("Everything is stopped");
         }
         let result = self.send_frame(Ok(frame));
         if result.delivered_to_queue() {

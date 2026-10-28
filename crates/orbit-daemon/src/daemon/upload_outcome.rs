@@ -119,7 +119,7 @@ pub(super) async fn put_chunk(put: ChunkPut, op: &orbit_core::notice::Op) -> Res
     let response = crate::retry::check_response(request.body(bytes).send().await?).await?;
     let ack = crate::hub::bounded_json(response).await?;
     if ack["durable"] != true || ack["sha256"] != receipt.sha256 || ack["chunk_id"] != metadata.id {
-        bail!("El servidor no confirmó un recibo durable válido");
+        bail!("The server did not confirm a valid durable receipt");
     }
     Ok(())
 }

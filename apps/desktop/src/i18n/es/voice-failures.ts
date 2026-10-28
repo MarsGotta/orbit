@@ -79,13 +79,17 @@ export function voiceFailureText(failure: VoiceFailure): string {
   // wire/stored name kept for compatibility with 0.9.0
   if (failure.code === "voice_transcription_interrupted_by_mars")
     return "Interrumpiste la transcripción.";
-  const cause = transcriptionRefusals[failure.code];
+  const cause = Object.hasOwn(transcriptionRefusals, failure.code)
+    ? transcriptionRefusals[failure.code]
+    : undefined;
   if (cause) return `${cause} La nota sigue guardada en el Mac: reinténtalo.`;
-  const stopped = STOPPED_BEFORE_TRANSCRIPTION[failure.code];
+  const stopped = Object.hasOwn(STOPPED_BEFORE_TRANSCRIPTION, failure.code)
+    ? STOPPED_BEFORE_TRANSCRIPTION[failure.code]
+    : undefined;
   if (stopped) return stopped;
   if (providerRefusedAudio(failure))
     return "El servicio de transcripción no aceptó este audio. Escúchala y, si hace falta, dilo otra vez o descártala.";
-  return "No se pudo transcribir. La nota sigue guardada en el Mac: reinténtalo o descártala.";
+  return `No se pudo transcribir (${failure.code}). La nota sigue guardada en el Mac: reinténtalo o descártala.`;
 }
 
 /** The codes and numbers behind a failed note, for whoever looks closer. */

@@ -306,13 +306,13 @@ fn dictionary_failure(target: String, outcome: Outcome) -> Option<core::Dictiona
             let code = code.unwrap_or_else(|| "dictionary_refused".into());
             let detail = if status == 0 {
                 match code.as_str() {
-                    "not_paired" => "Orbit no está emparejado con el hub".into(),
-                    "privacy_stopped" => "La parada de privacidad está activada".into(),
-                    "hub_unreachable" => "El hub no está conectado".into(),
-                    _ => "El cambio del diccionario no se envió al hub".into(),
+                    "not_paired" => "Orbit is not paired with the hub".into(),
+                    "privacy_stopped" => "Privacy stop is active".into(),
+                    "hub_unreachable" => "The hub is not connected".into(),
+                    _ => "The dictionary change was not sent to the hub".into(),
                 }
             } else {
-                format!("El hub rechazó el cambio del diccionario (HTTP {status})")
+                format!("The hub rejected the dictionary change (HTTP {status})")
             };
             Some(core::DictionaryFailure {
                 target,
@@ -324,7 +324,7 @@ fn dictionary_failure(target: String, outcome: Outcome) -> Option<core::Dictiona
         Outcome::Unreachable { cause } => Some(core::DictionaryFailure {
             target,
             code: "hub_unreachable".into(),
-            detail: format!("No se confirmó el cambio del diccionario: {cause}"),
+            detail: format!("The dictionary change was not confirmed: {cause}"),
             numbers: BTreeMap::new(),
         }),
     }

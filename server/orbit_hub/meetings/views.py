@@ -44,7 +44,7 @@ def title(manifest: dict, started_at_ms: int) -> str:
     if isinstance(named, str) and named.strip():
         return named.strip()[:MAX_RECORDING_TITLE_CHARACTERS]
     date = datetime.fromtimestamp(started_at_ms / 1000, tz=UTC).strftime("%d/%m/%Y %H:%M")
-    return f"Reunión del {date}"
+    return f"Meeting on {date}"
 
 
 def named(store, db, device: str, recording: str, own: str) -> str:
@@ -60,7 +60,7 @@ def open_title(notes, db, device: str, recording: str, started: int | None) -> s
         if planned.strip():
             return planned.strip()[:MAX_RECORDING_TITLE_CHARACTERS]
     if started is None:
-        return "Reunión en curso"
+        return "Meeting in progress"
     return title({}, started)
 
 
@@ -450,7 +450,7 @@ def turns_page(transcript: turns.Transcript, offset: int) -> dict:
     if offset > total:
         raise HubError(
             "invalid_parameters",
-            f"offset fuera de rango: {offset}, la grabación tiene {total} turnos",
+            f"offset outside range: {offset}, the recording has {total} turnos",
             numbers={"field": "offset", "actual": offset, "max": total},
         )
     page, used = [], 0

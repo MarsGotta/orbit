@@ -59,7 +59,7 @@ impl Runtime {
         primary: bool,
     ) -> Result<()> {
         if self.capture.buffer.voice.is_some() || self.assistant.voice_task.active().is_some() {
-            bail!("Termina o interrumpe el turno actual antes de enviar otro mensaje");
+            bail!("Finish or interrupt the current turn before sending another message");
         }
         // The message's files against the hub's ceilings, before any
         // frame leaves; a 0.9.0 hub takes none.
@@ -110,11 +110,11 @@ impl Runtime {
             .is_none()
         {
             bail!(
-                "Este hub no pasa conversaciones a otro asistente: actualízalo para seguir con otro"
+                "This hub cannot hand conversations to another assistant: update it to continue with another"
             );
         }
         if self.capture.buffer.voice.is_some() || self.assistant.voice_task.active().is_some() {
-            bail!("Termina o interrumpe el turno actual antes de seguir con otro asistente");
+            bail!("Finish or interrupt the current turn before continuing with another assistant");
         }
         self.ensure_known_agent(Some(&agent_id))?;
         self.ensure_conversation_can_change()?;
@@ -149,16 +149,16 @@ impl Runtime {
             .assistant
             .pending_approval
             .as_ref()
-            .context("No hay ninguna aprobación pendiente")?;
+            .context("No approval is pending")?;
         if approval.clarification {
-            bail!("Este turno necesita una respuesta escrita");
+            bail!("This turn requires a written response");
         }
         let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"approved":approved});
         if let Some(choice) = choice {
             // `approved:false` is what reaches the hub's safety
             // ledger: a choice never says the opposite of it.
             if (choice == "deny") == approved {
-                bail!("La opción «{choice}» contradice approved={approved}; sólo «deny» rechaza");
+                bail!("Choice «{choice}» contradicts approved={approved}; only «deny» rejects");
             }
             let offered = if approval.choices.is_empty() {
                 vec!["once".to_owned(), "deny".to_owned()]
@@ -167,7 +167,7 @@ impl Runtime {
             };
             if !offered.contains(&choice) {
                 bail!(
-                    "El agente no ofrece «{choice}»; ofrece {}: {}",
+                    "The agent does not offer «{choice}»; it offers {}: {}",
                     offered.len(),
                     offered.join(", ")
                 );
@@ -190,9 +190,9 @@ impl Runtime {
             .assistant
             .pending_approval
             .as_ref()
-            .context("No hay ninguna aclaración pendiente")?;
+            .context("No clarification is pending")?;
         if !approval.clarification {
-            bail!("Este turno necesita permitir o rechazar");
+            bail!("This turn requires allow or deny");
         }
         let mut params = json!({"session_id":self.state.session_id(),"request_id":approval.request_id,"answer":answer});
         if let Some(question_id) = question_id {
@@ -202,7 +202,7 @@ impl Runtime {
                 .any(|question| question.qid == question_id)
             {
                 bail!(
-                    "La pregunta «{question_id}» no está pendiente; quedan {}",
+                    "Question «{question_id}» is not pending; {} remain",
                     approval.questions.len()
                 );
             }

@@ -9,7 +9,7 @@ use orbit_core::{CallPhase, CallState, Event};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub(super) const TOKEN: &str = "synthetic-not-a-credential-voice";
-const SPEECH_NOTICE: &str = "La voz de Deimos no está disponible; contesta por texto";
+const SPEECH_NOTICE: &str = "Voice for Deimos is unavailable; reply in text";
 
 pub(super) fn frame(stream: &str, frames: usize) -> Value {
     json!({"event":"audio", "source":"mic_local", "stream_id":stream,
@@ -487,7 +487,7 @@ async fn speech_unavailable_names_the_configured_assistant() -> Result<()> {
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "La voz de Atlas no está disponible; contesta por texto"
+        "Voice for Atlas is unavailable; reply in text"
     );
     Ok(())
 }
@@ -528,7 +528,7 @@ async fn speech_unavailable_names_the_agent_asked_for() -> Result<()> {
     .unwrap_err();
     assert_eq!(
         error.to_string(),
-        "La voz de Atlas no está disponible; contesta por texto"
+        "Voice for Atlas is unavailable; reply in text"
     );
     Ok(())
 }

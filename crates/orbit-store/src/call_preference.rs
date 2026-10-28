@@ -20,7 +20,7 @@ impl Store {
             &self.connection,
             "call_preference_v1",
             MAX_BYTES + OVERHEAD,
-            "La preferencia «Al detectar una llamada» guardada",
+            "The stored video call preference",
         )?;
         let Some(bytes) = bytes else {
             return Ok(None);

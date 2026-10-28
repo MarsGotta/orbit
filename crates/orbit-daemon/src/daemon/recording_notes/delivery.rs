@@ -58,7 +58,7 @@ impl Runtime {
                     .store_actor
                     .run(move |store| Ok(store.confirm_private_notes(&id, &sent.markdown)?))
                     .await
-                    .context("No se pudo apuntar que el hub tiene las notas privadas")?;
+                    .context("Could not record that the hub has the private notes")?;
                 self.notes.outbox.private_delivered(&recording, confirmed);
             }
             Outcome::Refused { status, code, .. } => {
@@ -105,7 +105,7 @@ impl Runtime {
         self.store_actor
             .run(move |store| Ok(store.remove_note_order(&lane_key, &target, sequence)?))
             .await
-            .context("No se pudo apuntar en este Mac que el hub respondió al cambio")?;
+            .context("Could not record on this Mac that the hub answered the change")?;
         let outbox = &mut self.notes.outbox;
         outbox.succeeded(&key);
         // A newer order that replaced this one meanwhile keeps its place.

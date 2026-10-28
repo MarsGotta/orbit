@@ -76,7 +76,7 @@ impl Runtime {
             Ok(preference) => Ok(preference.unwrap_or_default()),
             Err(error) => {
                 let cause = format!(
-                    "No se pudo leer la preferencia «Al detectar una llamada» ({error}); Orbit avisa sin grabar hasta que la elijas de nuevo."
+                    "Could not read the video call preference ({error}); Orbit will notify without recording until it is chosen again."
                 );
                 self.say_failure(NoticeCode::CallPreferenceUnreadable, &error);
                 Err(cause)
@@ -89,7 +89,7 @@ impl Runtime {
         self.store_actor
             .run(move |store| Ok(store.save_call_preference(preference)?))
             .await
-            .context("No se pudo guardar la preferencia «Al detectar una llamada»")?;
+            .context("Could not save the video call preference")?;
         self.calls.preference = Some(Ok(preference));
         Ok(())
     }
@@ -263,7 +263,7 @@ impl Runtime {
                     .detector
                     .apply(CallInput::StartFailed { call_id }, &facts);
                 Err(error.context(format!(
-                    "No se pudo empezar a grabar la llamada en {}",
+                    "Could not start recording the call in {}",
                     app.name
                 )))
             }

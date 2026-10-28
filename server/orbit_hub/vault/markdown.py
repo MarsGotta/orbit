@@ -3,6 +3,7 @@
 import re
 
 from .conformance import check
+from .diagnostics import SchemaProblem
 from .method import file_name
 from .models import MAX_NOTE_BYTES, refusal
 from .paths import resolve
@@ -15,7 +16,7 @@ def document(path, text, paths, schema=None, people=()):
     if size > MAX_NOTE_BYTES:
         raise refusal(
             "vault_note_too_large",
-            f"La nota ocupa {size} bytes; el máximo es {MAX_NOTE_BYTES}.",
+            f"The note is {size} bytes; the maximum is {MAX_NOTE_BYTES}.",
             413,
             bytes=size,
             max_bytes=MAX_NOTE_BYTES,
@@ -25,8 +26,20 @@ def document(path, text, paths, schema=None, people=()):
         fields, body = frontmatter(text)
     except (ValueError, TypeError) as exc:
         if path != "SCHEMA.md":
+            problem = (
+                exc
+                if isinstance(exc, SchemaProblem)
+                else SchemaProblem(
+                    "schema_frontmatter_mapping", "frontmatter must be a field mapping"
+                )
+            )
+            line = f" (line {problem.line})" if problem.line else ""
             raise refusal(
-                "vault_frontmatter_invalid", f"El frontmatter YAML de la nota: {exc}."
+                "vault_frontmatter_invalid",
+                f"The note YAML frontmatter: {problem}{line}.",
+                message_code=problem.code,
+                message_fields={"field": problem.field},
+                **({"line": problem.line} if problem.line else {}),
             ) from None
         fields, body = {}, schema["body"] or text
     kind, role, values = properties(path, fields, schema)
@@ -35,6 +48,7 @@ def document(path, text, paths, schema=None, people=()):
         "role": role,
         "properties": values,
         "schema_warnings": schema["warnings"],
+        "schema_diagnostics": schema["diagnostics"],
         "conformance": check(
             fields, path=path, has_frontmatter=text.startswith(("---\n", "---\r\n"))
         ),

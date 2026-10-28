@@ -273,7 +273,7 @@ async fn failed_seal_preserves_close_and_seals_once_after_destination_recovers()
     let Err(failure) = runtime.complete_audio_drain().await else {
         bail!("the invalid destination should have prevented the seal")
     };
-    assert!(failure.to_string().contains("directorio"), "{failure}");
+    assert!(failure.to_string().contains("directory"), "{failure}");
     assert_eq!(runtime.audio.lifecycle.meeting.recording_end, Some(true));
     assert_eq!(
         runtime.state.notice_code(),
@@ -1193,7 +1193,7 @@ async fn helper_lost_after_retry_notice_seals_audio_on_next_tick() -> Result<()>
     );
     // The cause, with its 500 ms, is in daemon.log under the same op.
     let told = said::told(&runtime);
-    assert!(told.contains("se desconectó"), "{told}");
+    assert!(told.contains("disconnected"), "{told}");
     assert!(told.contains("500 ms"), "{told}");
     runtime.run_maintenance().await;
     settle_seal_receipts(&mut runtime).await?;

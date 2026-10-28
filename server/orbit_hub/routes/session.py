@@ -41,7 +41,7 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
         try:
             payload = PairRequest.model_validate_json(await bounded_body(request, 2048))
         except ValidationError as exc:
-            raise HubError("invalid_request", "Solicitud de emparejado no válida") from exc
+            raise HubError("invalid_request", "Invalid pairing request") from exc
         return store.devices.pair(payload.code, payload.name, timestamp)
 
     @app.get("/v1/sessions")
@@ -53,7 +53,7 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
             try:
                 canonical_uuid(before)
             except ValueError as exc:
-                raise HubError("invalid_request", "Cursor de sesiones no válido") from exc
+                raise HubError("invalid_request", "Invalid session cursor") from exc
         page, total, next_cursor = store.chat.sessions_after(
             None, before or None, bounded_limit(limit, SESSION_LIST_LIMIT, "sesiones")
         )
@@ -99,7 +99,7 @@ def admit_pair_attempt(pair_attempts: dict, peer: str, timestamp: float) -> None
     if attempts >= 10:
         raise HubError(
             "rate_limited",
-            "Demasiados intentos; espera un minuto",
+            "Too many attempts; wait one minute",
             numbers={
                 "attempts": attempts,
                 "max_attempts": 10,
@@ -113,7 +113,7 @@ def admit_pair_attempt(pair_attempts: dict, peer: str, timestamp: float) -> None
         next_expiration = min(started_at for started_at, _ in pair_attempts.values())
         raise HubError(
             "rate_limited",
-            "Límite de emparejado alcanzado",
+            "Pairing limit reached",
             numbers={
                 "peers": len(pair_attempts),
                 "max_peers": 4096,
@@ -133,7 +133,7 @@ def bounded_limit(limit: int | None, maximum: int, what: str) -> int:
     if not 1 <= limit <= maximum:
         raise HubError(
             "invalid_request",
-            f"El límite de {what} va de 1 a {maximum}",
+            f"The limit of {what} va de 1 a {maximum}",
             numbers={"limit": limit, "max": maximum},
         )
     return limit

@@ -32,26 +32,24 @@ def check(fields, *, path="", has_frontmatter=None):
         if present and path != "index.md":
             issues.append(
                 issue(
-                    "frontmatter", "reserved_frontmatter", "este archivo no debe llevar frontmatter"
+                    "frontmatter", "reserved_frontmatter", "this file must not contain frontmatter"
                 )
             )
         return {"conformant": not issues, "issues": issues}
     kind = fields.get("type")
     if not isinstance(kind, str) or not kind.strip():
-        issues.append(issue("type", "invalid_type", "falta un tipo de concepto no vacío"))
+        issues.append(issue("type", "invalid_type", "a non-empty concept type is missing"))
     for name in ("title", "description", "resource"):
         if name in fields and not isinstance(fields[name], str):
-            issues.append(issue(name, f"invalid_{name}", "debe ser texto"))
+            issues.append(issue(name, f"invalid_{name}", "must be text"))
     if "tags" in fields and (
         not isinstance(fields["tags"], list)
         or any(not isinstance(tag, str) for tag in fields["tags"])
     ):
-        issues.append(issue("tags", "invalid_tags", "debe ser una lista de textos"))
+        issues.append(issue("tags", "invalid_tags", "must be a list of strings"))
     if "sources" in fields and not _sources(fields["sources"]):
         issues.append(
-            issue(
-                "sources", "invalid_sources", "debe ser una lista de fuentes con resource no vacío"
-            )
+            issue("sources", "invalid_sources", "must be a list of sources with non-empty resource")
         )
     if "status" in fields and fields["status"] not in ("draft", "stable", "deprecated"):
         issues.append(
@@ -71,7 +69,7 @@ def check(fields, *, path="", has_frontmatter=None):
                 issue(
                     "verified",
                     "invalid_verified",
-                    "debe ser una lista de revisiones o una revisión con by y at",
+                    "must be a list of revisions or one revision with by and at",
                 )
             )
         else:
@@ -82,7 +80,7 @@ def check(fields, *, path="", has_frontmatter=None):
             issue(
                 "stale_after",
                 "invalid_stale_after",
-                "debe ser una fecha y hora ISO 8601 con zona UTC explícita (Z o ±HH:MM)",
+                "must be an ISO 8601 date and time with explicit UTC offset (Z or ±HH:MM)",
             )
         )
     return {"conformant": not issues, "issues": issues}
@@ -99,7 +97,7 @@ def timestamp(value):
 
 def _event(event, field, code):
     if not isinstance(event, dict):
-        return [issue(field, code, "debe ser un mapa con by y at")]
+        return [issue(field, code, "must be a mapping with by and at")]
     issues = []
     actor = event.get("by")
     if not isinstance(actor, str) or not re.fullmatch(
@@ -109,7 +107,7 @@ def _event(event, field, code):
             issue(
                 field + ".by",
                 code,
-                "debe identificar al autor como productor/versión, human:id o process:id",
+                "must identify the author as producer/version, human:id or process:id",
             )
         )
     if not timestamp(event.get("at")):
@@ -117,7 +115,7 @@ def _event(event, field, code):
             issue(
                 field + ".at",
                 code,
-                "debe ser una fecha y hora ISO 8601 con zona UTC explícita (Z o ±HH:MM)",
+                "must be an ISO 8601 date and time with explicit UTC offset (Z or ±HH:MM)",
             )
         )
     return issues

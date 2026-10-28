@@ -108,7 +108,10 @@ it("shows unsupported Tasks query lines in the block while rendering the underst
               {
                 ...query,
                 lines: ["not done", "sort by due"],
-                warnings: ["Esta línea de la consulta no se aplica: sort by due"],
+                warnings: ["UNTRUSTED QUERY WARNING"],
+                diagnostics: [
+                  { code: "query_line_unsupported", field: "sort by due", numbers: {} },
+                ],
               },
             ],
           },
@@ -130,7 +133,7 @@ it("shows a malformed schema notice on the home page without hiding notes", asyn
   window.location.hash = "#/vault";
   const fixture = fixturePort();
   const warning =
-    "SCHEMA.md: types.client.role no es válido (línea 3). Se usan los valores por defecto.";
+    "SCHEMA.md: types.client.role debe ser un nombre de campo (línea 3). Se usan los valores por defecto.";
   render(
     <VaultView
       port={async (call) => {
@@ -140,7 +143,13 @@ it("shows a malformed schema notice on the home page without hiding notes", asyn
               ...result,
               catalog: {
                 ...result.catalog,
-                schema: { ...result.catalog.schema, warnings: [warning] },
+                schema: {
+                  ...result.catalog.schema,
+                  warnings: ["UNTRUSTED SCHEMA WARNING"],
+                  diagnostics: [
+                    { code: "schema_field_name", field: "types.client.role", numbers: { line: 3 } },
+                  ],
+                },
               },
             }
           : result;

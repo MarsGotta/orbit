@@ -122,7 +122,7 @@ impl CaptureBuffer {
 /// A new voice turn, refused while the previous one is still finishing.
 pub fn begin_voice(voice: &mut Option<VoiceBuffer>) -> Result<()> {
     if voice.is_some() {
-        bail!("El turno de voz anterior aún está finalizando");
+        bail!("The previous voice turn is still finalizing");
     }
     *voice = Some(VoiceBuffer::new());
     Ok(())
@@ -154,12 +154,12 @@ pub fn ingest(
     now_ms: i64,
     record: bool,
 ) -> Result<IngestedAudio> {
-    let decoded =
-        NativeAudioFrameRef::from_value(frame).context("Evento audio con campo o tipo inválido")?;
+    let decoded = NativeAudioFrameRef::from_value(frame)
+        .context("Audio event has an invalid field or type")?;
     let source = match decoded.source {
         "mic_local" => "mic_local",
         "remote_app" => "remote_app",
-        _ => bail!("Pista de audio no válida"),
+        _ => bail!("Invalid audio track"),
     };
     let stream = Some(decoded.stream_id)
         .filter(|s| !s.is_empty() && s.len() <= 128)
@@ -172,7 +172,7 @@ pub fn ingest(
         || frames == 0
         || frames > u64::from(rate)
     {
-        bail!("Formato de audio fuera de límites");
+        bail!("Audio format outside bounds");
     }
     let pcm = frame_pcm_decoded(&decoded)?;
     let epoch = frame_epoch(decoded.capture_epoch_id)?;
@@ -226,8 +226,8 @@ pub fn ingest(
 
 /// Decode a single observed mono/stereo frame with hard bounds before base64 allocation.
 pub fn frame_pcm(frame: &Value) -> Result<Vec<u8>> {
-    let decoded =
-        NativeAudioFrameRef::from_value(frame).context("Evento audio con campo o tipo inválido")?;
+    let decoded = NativeAudioFrameRef::from_value(frame)
+        .context("Audio event has an invalid field or type")?;
     frame_pcm_decoded(&decoded)
 }
 
@@ -239,12 +239,12 @@ fn frame_pcm_decoded(frame: &NativeAudioFrameRef<'_>) -> Result<Vec<u8>> {
         || frames == 0
         || frames > rate
     {
-        bail!("Formato de audio fuera de límites");
+        bail!("Audio format outside bounds");
     }
     let expected_bytes = usize::try_from(frames)? * usize::from(frame.channels) * 2;
     let encoded = frame.pcm_s16le_base64;
     if encoded.len() > expected_bytes.div_ceil(3) * 4 {
-        bail!("PCM codificado fuera de límites");
+        bail!("Encoded PCM outside bounds");
     }
     let pcm = STANDARD.decode(encoded)?;
     if pcm.len() != expected_bytes {
@@ -261,7 +261,7 @@ pub(crate) fn validate_epoch_id(epoch: &str) -> Result<()> {
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || b"-_.:".contains(&byte))
     {
-        bail!("Identidad de época de captura no válida");
+        bail!("Invalid capture epoch identity");
     }
     Ok(())
 }

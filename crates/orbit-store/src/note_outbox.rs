@@ -63,7 +63,7 @@ impl Store {
             .query_row(
                 "SELECT length(payload),payload FROM note_outbox WHERE lane=?1 AND target=?2",
                 params![lane, target],
-                |row| bounded_blob(row, 1, MAX_PAYLOAD_BYTES + OVERHEAD, "Una orden de la nota"),
+                |row| bounded_blob(row, 1, MAX_PAYLOAD_BYTES + OVERHEAD, "A note command"),
             )
             .optional()?;
         let order = match older {
@@ -110,7 +110,7 @@ impl Store {
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, i64>(2)?,
-                    bounded_blob(row, 4, MAX_PAYLOAD_BYTES + OVERHEAD, "Una orden de la nota")?,
+                    bounded_blob(row, 4, MAX_PAYLOAD_BYTES + OVERHEAD, "A note command")?,
                 ))
             })?
             .collect::<rusqlite::Result<Vec<_>>>()?;

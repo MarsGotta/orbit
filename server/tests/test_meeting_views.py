@@ -422,8 +422,8 @@ async def test_c4_finalizing_a_meeting_asks_for_its_note_and_the_worker_writes_i
 
     assert [call["purpose"] for call in model.calls] == ["note"]
     system, user = (message["content"] for message in model.calls[0]["messages"])
-    assert f"Título previsto: {TITLE}" in user
-    assert "notas privadas de Alina" in system
+    assert f"Expected title: {TITLE}" in user
+    assert "Alina's private notes" in system
     assert "Alina: Abrimos el comité. Hablamos del presupuesto." in user
     assert note["template_id"] is None and note["note"]["template_source"] == "default"
     # A voice call is not a meeting: no note, and not in the meetings list.
@@ -480,7 +480,7 @@ async def test_c4_the_event_in_the_manifest_reaches_the_note_and_picks_the_serie
         note = await ready_note(http, paired, recording)
     assert note["note"]["template_id"] == "one_on_one"
     assert note["note"]["template_source"] == "series"
-    assert "Invitados: Lucía" in model.calls[0]["messages"][1]["content"]
+    assert "Attendees: Lucía" in model.calls[0]["messages"][1]["content"]
 
 
 async def test_c4_post_note_writes_it_again_with_another_template(hub):

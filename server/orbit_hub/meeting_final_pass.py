@@ -118,7 +118,7 @@ class FinalPassRepository:
             if closed is None:
                 raise HubError(
                     "recording_still_open",
-                    "La grabación todavía está abierta",
+                    "The recording is still open",
                 )
             total = db.execute(
                 "SELECT count(*) FROM transcription_groups WHERE device_id=? AND recording=?",
@@ -132,14 +132,14 @@ class FinalPassRepository:
             if unreadable:
                 raise HubError(
                     "meeting_audio_unreadable",
-                    f"El hub no puede leer el audio de {unreadable} de {total} grupos",
+                    f"The hub cannot read the audio for {unreadable} de {total} grupos",
                     http_status=409,
                     numbers={"groups": unreadable, "total": total},
                 )
             if not configured:
                 raise HubError(
                     "diarization_not_configured",
-                    "La separación de voces no está disponible en el hub",
+                    "Voice separation is unavailable on the hub",
                     http_status=409,
                 )
             return (
@@ -332,7 +332,7 @@ def _in_track_time(words, offset, window_ms):
         if not 0 <= word["start_ms"] <= word["end_ms"] <= window_ms:
             raise HubError(
                 "transcription_word_out_of_range",
-                "Tiempo de palabra fuera de su ventana",
+                "Word timestamp outside its window",
                 numbers={
                     "start_ms": word["start_ms"],
                     "end_ms": word["end_ms"],
@@ -446,9 +446,7 @@ class FinalPassWorker:
         """Both tracks, then the voices, persisted together."""
         job = run.job
         if self.configuration is None:
-            raise HubError(
-                "diarization_not_configured", "Falta la configuración local de separación"
-            )
+            raise HubError("diarization_not_configured", "Local separation configuration missing")
         run.existing = await self.run(self.repository.voices, job)
         if job.get("refresh_voices"):
             run.existing = None
@@ -478,7 +476,7 @@ class FinalPassWorker:
         if not run.result["audio_ms"]:
             raise HubError(
                 "final_audio_empty",
-                "La grabación no tiene audio legible",
+                "The recording has no readable audio",
                 numbers={"audio_ms": 0},
             )
         await self.run(self.repository.complete, job, run.result)

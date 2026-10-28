@@ -296,12 +296,11 @@ class NoteRepository:
                 (device, recording),
             ).fetchone()
             if row is None or row["note"] is None:
-                raise HubError("note_not_ready", "La nota todavía no está escrita")
+                raise HubError("note_not_ready", "The note has not been written yet")
             if row["revision"] != request.base_revision:
                 raise HubError(
                     "note_revision_changed",
-                    f"La nota cambió: revisión {row['revision']}, la edición partía de "
-                    f"{request.base_revision}",
+                    f"The note changed: revision {row['revision']}, the edit started from {request.base_revision}",
                 )
             current = NoteEdits.model_validate(self._open("edits", row, device, recording) or {})
             merged = NoteEdits(
@@ -325,9 +324,7 @@ class NoteRepository:
                 (device, recording),
             ).fetchone()
         if row is None:
-            raise HubError(
-                "note_not_requested", "Nadie ha pedido todavía la nota de esta grabación"
-            )
+            raise HubError("note_not_requested", "Nobody has requested this recording's note yet")
         inputs = self._open("inputs", row, device, recording) or {}
         return {
             "recording_id": recording,

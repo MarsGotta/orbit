@@ -26,7 +26,7 @@ impl Store {
             &self.connection,
             KEY,
             MAX_BYTES + OVERHEAD,
-            "Las carpetas del asistente guardadas",
+            "The stored assistant folders",
         )?
         else {
             return Ok(Vec::new());

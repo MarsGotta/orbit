@@ -33,11 +33,11 @@ class OpenRouterTranscriber:
 
     async def transcribe(self, audio, language=None, *, final=False, prompt="", terms=()):
         if not audio:
-            raise HubError("transcription_audio_empty", "El audio de transcripción está vacío")
+            raise HubError("transcription_audio_empty", "Transcription audio is empty")
         if len(audio) > MAX_AUDIO_BYTES:
             raise HubError(
                 "too_large",
-                f"El audio ocupa {len(audio)} bytes; el máximo es {MAX_AUDIO_BYTES}",
+                f"The audio is {len(audio)} bytes; the maximum is {MAX_AUDIO_BYTES}",
                 numbers={"resource": "audio", "bytes": len(audio), "max_bytes": MAX_AUDIO_BYTES},
             )
         language = language or self.configuration.language
@@ -76,7 +76,7 @@ class OpenRouterTranscriber:
                 if final and text.strip() and not words:
                     raise HubError(
                         "transcription_words_missing",
-                        "MAI no devolvió tiempos por palabra",
+                        "MAI did not return word timestamps",
                         numbers={"words": 0, "characters": len(text)},
                     )
                 return Transcription(text, language_from(result.get("language"), language), words)
@@ -92,13 +92,13 @@ def refusal(error, timeout=REQUEST_TIMEOUT_SECONDS):
     if isinstance(error, httpx.HTTPStatusError):
         status = error.response.status_code
         causes = {
-            400: ("transcription_audio_refused", "MAI no aceptó la solicitud de audio"),
-            401: ("transcription_key_invalid", "La clave de OpenRouter no es válida"),
-            403: ("transcription_key_forbidden", "La clave de OpenRouter no tiene acceso a MAI"),
-            402: ("transcription_quota_exhausted", "Se ha agotado el saldo de OpenRouter"),
+            400: ("transcription_audio_refused", "MAI did not accept the audio request"),
+            401: ("transcription_key_invalid", "The OpenRouter key is invalid"),
+            403: ("transcription_key_forbidden", "The OpenRouter key has no MAI access"),
+            402: ("transcription_quota_exhausted", "OpenRouter credit exhausted"),
             429: (
                 "transcription_rate_limited",
-                "OpenRouter ha limitado las solicitudes; reinténtalo",
+                "OpenRouter rate limited requests; try again",
             ),
         }
         if status in causes:

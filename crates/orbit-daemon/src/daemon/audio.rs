@@ -145,7 +145,7 @@ impl Runtime {
             return busy(orbit_core::refusal::Operation::AudioDrain);
         }
         if matches!(event, Event::VoiceStart) && self.meeting_microphone_muted() {
-            anyhow::bail!("El micrófono está silenciado: reactívalo para dictar una nota de voz");
+            anyhow::bail!("The microphone is muted: unmute it to dictate a voice note");
         }
         if matches!(event, Event::VoiceStart)
             && (self.assistant.voice_turn_running() || self.capture.voice_capturing())

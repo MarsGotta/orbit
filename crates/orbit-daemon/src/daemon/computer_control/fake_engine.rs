@@ -219,7 +219,7 @@ pub(super) fn realistic_tool(index: usize) -> Value {
             format!("parameter_{field}"),
             json!({
                 "type": "string",
-                "title": format!("Parámetro {field}"),
+                "title": format!("Parameter {field}"),
                 "description": format!(
                     "Argumento {field} de la herramienta {index}, descrito por el motor con el \
                      detalle que necesita quien la llama para no adivinar su forma ni su unidad."

@@ -1452,8 +1452,8 @@ async fn second_signal_cancels_a_close_waiting_on_the_writer() -> Result<()> {
         NoticeCode::ClosedWithPendingWork
     ));
     let logged = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
-    assert!(logged.contains("segunda señal SIGTERM"), "{logged}");
-    assert!(!logged.contains("tras 10 s"), "{logged}");
+    assert!(logged.contains("second signal SIGTERM"), "{logged}");
+    assert!(!logged.contains("after 10 s"), "{logged}");
     let _ = release.send(());
     Ok(())
 }
@@ -1472,8 +1472,8 @@ async fn repeated_snapshot_failures_keep_the_stop_and_recovery_notice() -> Resul
         runtime
             .work_event(WorkResult::Store(StoreWork::StoreProblem {
                 message: format!(
-                    "No se pudo guardar el estado local: disco sin respuesta. \
-                     1 fragmento de audio desde hace {} ms; se reintenta cada 5 s.",
+                    "Could not save local state: disco sin respuesta. \
+                     1 fragmento de audio remain unsaved for {} ms; se reintenta cada 5 s.",
                     retry * 250
                 ),
             }))
@@ -1682,7 +1682,7 @@ async fn a_store_problem_waits_for_room_and_is_delivered() -> Result<()> {
         bail!("expected the pending StoreProblem, got another event");
     };
     assert!(
-        message.starts_with("Audio pendiente en memoria: 1 fragmento"),
+        message.starts_with("Audio pending in memory: 1 chunks"),
         "the delivered notice must carry its cause and numbers: {message}"
     );
     Ok(())
@@ -1747,12 +1747,12 @@ impl Attempts {
         while let Ok(report) = reports.try_recv() {
             match report {
                 WorkResult::Store(crate::daemon::StoreWork::StoreProblem { message })
-                    if message.starts_with("Audio pendiente en memoria") =>
+                    if message.starts_with("Audio pending in memory") =>
                 {
                     self.seals += 1;
                 }
                 WorkResult::Store(crate::daemon::StoreWork::StoreProblem { message })
-                    if message.starts_with("No se pudo guardar el estado local") =>
+                    if message.starts_with("Could not save local state") =>
                 {
                     self.snapshots += 1;
                 }
@@ -1811,14 +1811,14 @@ async fn answer_within<T>(
 /// fragments are still in memory, and for how long, in milliseconds.
 fn parked_numbers(message: &str) -> Option<(u64, u64)> {
     let count = message
-        .split(" fragmento(s) de audio")
+        .split(" audio chunk(s)")
         .next()?
         .rsplit(' ')
         .next()?
         .parse()
         .ok()?;
     let since = message
-        .split("desde hace ")
+        .split("remain unsaved for ")
         .nth(1)?
         .split(" ms")
         .next()?
@@ -1913,7 +1913,7 @@ async fn a_snapshot_waiter_is_refused_with_the_parked_seals_counted() -> Result<
         .context("the disk refuses every write, yet the snapshot was reported saved")?
         .to_string();
     assert!(
-        refusal.starts_with("No se pudo guardar el estado local"),
+        refusal.starts_with("Could not save local state"),
         "the refusal must say what could not be saved: {refusal}"
     );
     assert!(

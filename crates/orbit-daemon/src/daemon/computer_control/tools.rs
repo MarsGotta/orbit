@@ -42,7 +42,7 @@ impl Runtime {
         self.begin_computer_view(
             ComputerStage::Executing,
             &format!(
-                "Ejecutando «{}» con el motor; un recibo perdido no se repite.",
+                "Executing «{}» with the engine; a lost receipt will not be repeated.",
                 call.tool
             ),
             authority.generation,

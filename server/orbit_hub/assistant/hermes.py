@@ -49,9 +49,9 @@ if TYPE_CHECKING:
 # What Hermes's `image.attach_bytes` refusals mean (tui_gateway/
 # prompt_attachments.py and methods_prompt.py, read 2026-10-22).
 HERMES_IMAGE_REFUSALS = {
-    4016: "no admite ese tipo de imagen",
-    4017: "no pudo decodificarla",
-    4018: "pasa de su techo de 25 MiB por imagen",
+    4016: "does not support that image type",
+    4017: "could not decode it",
+    4018: "exceeds its 25 MiB per-image ceiling",
 }
 
 
@@ -82,20 +82,19 @@ def _rpc_failure(method: str, error: dict) -> HubError:
         # decode, 4018 over its 25 MiB ceiling.
         return HubError(
             "attachment_refused",
-            f"Hermes no aceptó una imagen del mensaje (código {code})",
+            f"Hermes did not accept a message image (code {code})",
             numbers={"upstream_code": code},
         )
     if method in {"prompt.submit", "image.attach_bytes"} and code == 4001:
         return HubError(
             "session_runtime_not_found",
-            "Hermes no encontró la sesión activa (código 4001); "
-            "el mensaje no se aceptó y puedes volver a enviarlo tras reanudar",
+            "Hermes could not find the active session (code 4001); the message was not accepted and can be resent after resuming",
         )
     if method == "session.resume":
         refusal = _resume_failure(code, error.get("message"))
         if refusal is not None:
             return refusal
-    return HubError("upstream_rejected", f"Hermes rechazó la operación (código {code})")
+    return HubError("upstream_rejected", f"Hermes refused the operation (code {code})")
 
 
 def _resume_failure(code: object, reason: object) -> HubError | None:
@@ -103,18 +102,17 @@ def _resume_failure(code: object, reason: object) -> HubError | None:
     if code == -32601:
         return HubError(
             "session_resume_unsupported",
-            "Esta versión de Hermes no permite reanudar sesiones guardadas (código -32601)",
+            "This Hermes version cannot resume stored sessions (code -32601)",
         )
     if code == 4007 and reason == "session not found":
         return HubError(
             "session_resume_not_found",
-            "Hermes no conserva la conversación guardada (código 4007); "
-            "el historial local sigue disponible",
+            "Hermes no longer retains the stored conversation (code 4007); local history is still available",
         )
     if code == 4007 and reason == "session no longer live; retry resume":
         return HubError(
             "session_resume_race",
-            "Hermes cerró la sesión durante la reanudación (código 4007); vuelve a intentarlo",
+            "Hermes closed the session while resuming (code 4007); try again",
         )
     if code == 4130:
         numbers = (
@@ -125,28 +123,27 @@ def _resume_failure(code: object, reason: object) -> HubError | None:
         if numbers is not None:
             return HubError(
                 "session_resume_too_large",
-                f"Hermes no puede reanudar {numbers[1]} mensajes; "
-                f"límite {numbers[2]} (código 4130)",
+                f"Hermes cannot resume {numbers[1]} messages; limit {numbers[2]} (code 4130)",
             )
         return HubError(
             "session_resume_too_large",
-            "Hermes rechazó reanudar por tamaño (código 4130); no entregó cuenta y límite",
+            "Hermes refused to resume due to size (code 4130); no count or limit was supplied",
         )
     if code == 4009 and reason == "session disconnect interrupt settling":
         return HubError(
             "session_resume_busy",
-            "Hermes sigue cerrando el turno anterior (código 4009); espera",
+            "Hermes is still closing the previous turn (code 4009); wait",
         )
     if code == 5000 and isinstance(reason, str):
         if reason.startswith("Session storage is unavailable:"):
             return HubError(
                 "session_resume_storage_unavailable",
-                "Hermes no puede abrir su almacén de sesiones (código 5000)",
+                "Hermes cannot open its session store (code 5000)",
             )
         if reason.startswith(RESUME_HISTORY_ERROR_PREFIX):
             return HubError(
                 "session_resume_history_unreadable",
-                "Hermes no pudo leer el historial guardado (código 5000); no se envió el mensaje",
+                "Hermes could not read stored history (code 5000); the message was not sent",
             )
     return None
 
@@ -194,7 +191,7 @@ class HermesConnection:
         self, backend: HermesBackend | None, on_event: EventSink, device: str, device_name: str
     ):
         if not 1 <= len(device_name) <= 80 or any(ord(char) < 32 for char in device_name):
-            raise HubError("configuration", "Nombre de dispositivo no válido")
+            raise HubError("configuration", "Invalid device name")
         self.backend, self.on_event = backend, on_event
         self.device, self.device_name = device, device_name
         self.epoch = ""
@@ -236,7 +233,7 @@ class HermesConnection:
         except Exception as exc:
             report(event="hermes_connect_failed", code="upstream_unavailable")
             await self.close()
-            raise HubError("upstream_unavailable", "No se pudo conectar con Hermes") from exc
+            raise HubError("upstream_unavailable", "Could not connect to Hermes") from exc
 
     async def _read(self) -> None:
         # The connection outlives the request that opened it.
@@ -270,7 +267,7 @@ class HermesConnection:
                     future.set_exception(
                         HubError(
                             "outcome_unknown",
-                            "Conexión Hermes perdida; no se repetirá la operación",
+                            "Hermes connection lost; the operation will not be repeated",
                         )
                     )
             self._pending.clear()
@@ -283,9 +280,9 @@ class HermesConnection:
 
     async def rpc(self, method: str, params: dict) -> dict:
         if not self.connected:
-            raise HubError("upstream_unavailable", "Hermes no está conectado")
+            raise HubError("upstream_unavailable", "Hermes is not connected")
         if method not in RPC_METHODS:
-            raise HubError("method_forbidden", "Método Hermes fuera de contrato")
+            raise HubError("method_forbidden", "Hermes method violates the contract")
         request_id = str(uuid4())
         future = asyncio.get_running_loop().create_future()
         self._pending[request_id] = future
@@ -300,17 +297,16 @@ class HermesConnection:
                     self.live_sessions.discard(params.get("session_id"))
                 raise _rpc_failure(method, error)
             if not isinstance(result := frame.get("result"), dict):
-                raise HubError("upstream_protocol", "Respuesta Hermes no válida")
+                raise HubError("upstream_protocol", "Invalid Hermes response")
             return result
         except TimeoutError as exc:
             if method == "session.resume":
                 raise HubError(
                     "session_resume_timeout",
-                    f"Hermes no confirmó la reanudación; plazo de {RPC_TIMEOUT_SECONDS} segundos; "
-                    "no se envió el mensaje",
+                    f"Hermes did not confirm resuming; deadline {RPC_TIMEOUT_SECONDS} seconds; the message was not sent",
                 ) from exc
             raise HubError(
-                "outcome_unknown", "Hermes no confirmó la operación; no se repetirá"
+                "outcome_unknown", "Hermes did not confirm the operation; it will not be repeated"
             ) from exc
         finally:
             self._pending.pop(request_id, None)
@@ -327,7 +323,7 @@ class HermesConnection:
             },
         )
         if not result.get("session_id") or not result.get("stored_session_id"):
-            raise HubError("upstream_protocol", "Hermes omitió la identidad durable")
+            raise HubError("upstream_protocol", "Hermes omitted the durable identity")
         self.live_sessions.add(result["session_id"])
         return OpenedSession(result["session_id"], result["stored_session_id"])
 
@@ -349,15 +345,15 @@ class HermesConnection:
             if exc.code == "outcome_unknown":
                 raise HubError(
                     "session_resume_connection_lost",
-                    "Se perdió Hermes durante la reanudación; no se envió el mensaje",
+                    "Hermes was lost while resuming; the message was not sent",
                 ) from exc
             raise
         runtime_id = result.get("session_id")
         if not isinstance(runtime_id, str) or not runtime_id:
-            raise HubError("upstream_protocol", "Hermes omitió la sesión reanudada")
+            raise HubError("upstream_protocol", "Hermes omitted the resumed session")
         resumed = result.get("resumed") or result.get("stored_session_id") or stored_id
         if not isinstance(resumed, str) or not resumed:
-            raise HubError("upstream_protocol", "Hermes omitió la identidad guardada")
+            raise HubError("upstream_protocol", "Hermes omitted the stored identity")
         self.live_sessions.add(runtime_id)
         count = result.get("message_count")
         hydrating = result.get("hydrating")
@@ -405,18 +401,17 @@ class HermesConnection:
             if exc.code != "attachment_refused":
                 raise
             code = (exc.numbers or {}).get("upstream_code")
-            cause = HERMES_IMAGE_REFUSALS.get(code, "la rechazó")
+            cause = HERMES_IMAGE_REFUSALS.get(code, "refused it")
             raise HubError(
                 "attachment_refused",
-                f"Hermes no aceptó la imagen «{block.name}» (código {code}): {cause}; "
-                "el mensaje no se envió",
+                f"Hermes did not accept image «{block.name}» (code {code}): {cause}; the message was not sent",
                 numbers={"name": block.name, "upstream_code": code},
             ) from exc
         path = result.get("path")
         if result.get("attached") is not True or not isinstance(path, str) or not path:
             raise HubError(
                 "attachment_refused",
-                f"Hermes no confirmó la imagen «{block.name}»; el mensaje no se envió",
+                f"Hermes did not confirm image «{block.name}»; the message was not sent",
                 numbers={"name": block.name},
             )
         return path
@@ -436,7 +431,8 @@ class HermesConnection:
         resolved = result.get("resolved")
         if type(resolved) is not int or resolved not in {0, 1}:
             raise UnreadableReceipt(
-                "upstream_protocol", "Hermes no confirmó una aprobación individual; no se repetirá"
+                "upstream_protocol",
+                "Hermes did not confirm an individual approval; it will not be repeated",
             )
         return PermissionReceipt(applied=resolved == 1)
 
@@ -455,7 +451,8 @@ class HermesConnection:
             or not all(isinstance(item, str) and 1 <= len(item) <= 128 for item in remaining)
         ):
             raise UnreadableReceipt(
-                "upstream_protocol", "Hermes no confirmó la aclaración; no se repetirá"
+                "upstream_protocol",
+                "Hermes did not confirm the clarification; it will not be repeated",
             )
         return ClarificationReceipt(status, tuple(remaining))
 

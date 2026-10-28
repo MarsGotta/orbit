@@ -19,7 +19,12 @@ describe("assistants on a personal hub", () => {
       agentRefusalText({
         code: "agent_adapter_missing",
         status: 409,
-        numbers: { service: "codex", path: "/opt/example/bin/codex", cause: "no existe" },
+        numbers: {
+          service: "codex",
+          path: "/opt/example/bin/codex",
+          cause: "UNTRUSTED",
+          cause_code: "adapter_path_missing",
+        },
       }),
     ).toBe(
       "Codex no está disponible en tu hub: /opt/example/bin/codex (no existe). Publica de nuevo el hub para instalarlo.",

@@ -278,7 +278,8 @@ def test_an_adapter_that_cannot_start_is_refused_naming_the_service(environment,
     assert refused.value.numbers == {
         "service": "codex",
         "path": str(tmp_path / "missing-codex"),
-        "cause": "no existe",
+        "cause": "does not exist",
+        "cause_code": "adapter_path_missing",
     }
     assert list(registry.by_id) == ["deimos", "lyra"]
 
@@ -397,7 +398,7 @@ def test_a_conversation_is_handed_over_with_its_unanswered_question(
         rows = http.get("/v1/sessions", headers=auth(paired)).json()["sessions"]
         page = http.get(f"/v1/sessions/{new}/messages", headers=auth(paired)).json()
     [sent] = prompts(adapter)
-    assert "Te pasan la conversación que tenía con Lyra" in sent
+    assert "You are taking over the conversation with Lyra" in sent
     assert (
         "Usuario: ¿Cuántas habitaciones libres hay?\nLyra: Quedan doce en el hotel Brisa." in sent
     )
@@ -433,8 +434,8 @@ def test_a_handover_keeps_the_newest_messages_within_its_ceiling(environment, tm
     assert sum(len(line) + 1 for line in carried) <= MAX_HANDOVER_CHARS
     # The newest are kept, and the rest are counted, with the ceiling.
     assert carried[-1].startswith("Lyra: 0079")
-    assert f"{300 - len(carried)} mensajes anteriores no van" in turn.text
-    assert f"tope de {MAX_HANDOVER_CHARS} caracteres" in turn.text
+    assert f"{300 - len(carried)} earlier messages are omitted" in turn.text
+    assert f"ceiling of {MAX_HANDOVER_CHARS} characters" in turn.text
     assert turn.visible == "¿Seguimos?"
 
 

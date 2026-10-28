@@ -127,7 +127,9 @@ def test_unconfirmed_interrupt_records_outcome_unknown_and_new_uuid_is_admitted(
         session, turn = submit(ws)
         connection = adapter.connections[0]
         connection.interrupt_errors = [
-            HubError("outcome_unknown", "Hermes no confirmó la operación; no se repetirá")
+            HubError(
+                "outcome_unknown", "Hermes did not confirm the operation; it will not be repeated"
+            )
         ]
         first = interrupt(ws, session, turn)
         assert first["data"]["code"] == "outcome_unknown"

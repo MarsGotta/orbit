@@ -134,8 +134,7 @@ class TurnEvents:
             data = {
                 "session_id": session_id,
                 "code": "outcome_unknown",
-                "message": f"Se perdió la conexión con {runtime.agent_name(agent_id)}; "
-                "consulta el historial antes de continuar",
+                "message": f"The connection was lost with {runtime.agent_name(agent_id)}; check the history before continuing",
             }
             await runtime.publish(emit("error", data, runtime.turn_ids.get(session_id)))
         runtime.forget_requests(lost)
@@ -189,8 +188,7 @@ class TurnEvents:
             data = {
                 "session_id": session_id,
                 "code": "upstream_turn_failed",
-                "message": f"{runtime.agent_name(agent_id, starts=True)} terminó el turno "
-                "sin una respuesta final; no se repetirá",
+                "message": f"{runtime.agent_name(agent_id, starts=True)} finished the turn without a final response; it will not be repeated",
             }
         else:
             data = render(
@@ -234,8 +232,7 @@ class TurnEvents:
                     session_id,
                     turn_id,
                     "warning",
-                    f"{runtime.agent_name(agent_id, starts=True)} notificó un error; el turno "
-                    "no está confirmado como finalizado",
+                    f"{runtime.agent_name(agent_id, starts=True)} reported an error; the turn is not confirmed finished",
                 )
         except HubError:
             if runtime.turn_ids.get(session_id) == turn_id:
@@ -243,8 +240,7 @@ class TurnEvents:
                     session_id,
                     turn_id,
                     "warning",
-                    f"No se pudo comprobar el turno con {runtime.agent_name(agent_id)}; puedes "
-                    "interrumpir o abrir una sesión nueva",
+                    f"Could not check the turn with {runtime.agent_name(agent_id)}; you can interrupt or open a new session",
                 )
         except Exception:  # noqa: BLE001 - a background task's failure is reported, never lost
             report(
@@ -319,16 +315,12 @@ class TurnEvents:
         if (connection := runtime.connections.get(agent_id)) is not None:
             connection.live_sessions.discard(key[1])
         count_text = (
-            f"({count} mensajes en el último tramo)"
-            if count is not None
-            else "durante la reanudación"
+            f"({count} messages in the last segment)" if count is not None else "while resuming"
         )
         data = {
             "session_id": session_id,
             "code": "session_resume_history_unreadable",
-            "message": f"{runtime.agent_name(agent_id, starts=True)} no pudo leer el historial "
-            f"guardado {count_text}; este turno falló y no se repetirá. Puedes enviar un mensaje "
-            "nuevo para volver a reanudar",
+            "message": f"{runtime.agent_name(agent_id, starts=True)} could not read stored history {count_text}; this turn failed and will not be repeated. You can send a new message to resume again",
         }
         await runtime.publish(emit("error", data, turn_id))
 

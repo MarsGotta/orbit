@@ -151,7 +151,7 @@ impl Runtime {
         if let Some(event) = &event {
             event
                 .check()
-                .context("No se empezó a grabar: el evento enlazado no es válido")?;
+                .context("Recording did not start: the linked event is invalid")?;
         }
         let recording_id = id();
         self.apply(Event::StartMeeting {
@@ -200,7 +200,7 @@ impl Runtime {
                 .collect::<Vec<_>>()
                 .join(", ");
             bail!(
-                "El hub no tiene el agente «{agent_id}»; tiene {} ({known})",
+                "The hub has no agent named «{agent_id}»; it has {} ({known})",
                 roster.agents().len()
             );
         }
@@ -235,7 +235,7 @@ impl Runtime {
         };
         self.paths
             .save_settings(&settings)
-            .context("No se pudo guardar «Enviar informes de errores anónimos»")?;
+            .context("Could not save anonymous error reporting preference")?;
         self.settings = settings;
         self.error_reports.set_enabled(enabled);
         Ok(())
@@ -309,5 +309,5 @@ impl Runtime {
 /// An order sent to a domain that does not serve it: `command` routes each
 /// group to its own domain, so only a routing mistake gets here.
 fn misrouted() -> anyhow::Error {
-    anyhow::anyhow!("Esta orden no es de esta parte de Orbit")
+    anyhow::anyhow!("This command does not belong to this part of Orbit")
 }

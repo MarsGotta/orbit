@@ -26,7 +26,7 @@ def describe(registry, function):
                 return (
                     "operator",
                     legacy,
-                    "Modelo de Notas guardado por el operador; el trabajo del hub aún no se ejecuta.",
+                    "Notes model saved by the operator; the hub job does not run yet.",
                 )
         if settings.processing is not None:
             return (
@@ -67,12 +67,12 @@ def describe(registry, function):
 
 
 def unconfigured():
-    return "operator", "Sin modelo configurado", "No hay un modelo del operador para esta función."
+    return "operator", "No model configured", "No operator model is configured for this function."
 
 
 def hermes_destination(settings, material):
     host = urlsplit(settings.hermes_url).netloc
-    return f"El {material} se envía a Hermes en {host}; su configuración determina si sale a otro proveedor."
+    return f"The {material} is sent to Hermes at {host}; its configuration determines whether data goes to another provider."
 
 
 def speech(settings, agent):

@@ -137,7 +137,7 @@ impl Store {
             &self.connection,
             "snapshot",
             MAX_PAYLOAD_BYTES + OVERHEAD,
-            "La instantánea guardada",
+            "The stored snapshot",
         )?;
         payload
             .map(|payload| {
@@ -262,7 +262,7 @@ impl Store {
                     row,
                     0,
                     MAX_PAYLOAD_BYTES + OVERHEAD,
-                    "El contenido cifrado guardado",
+                    "The stored encrypted content",
                 )
             })
             .optional()?)

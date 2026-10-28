@@ -49,7 +49,7 @@ async def dispatch(socket: Socket, frame, params, request_id, safety_target) -> 
             )
             response = error_event(
                 "outcome_unknown",
-                "No se pudo completar el control; no se repetirá",
+                "Could not complete control; it will not be repeated",
                 request_id,
                 status="error",
             )

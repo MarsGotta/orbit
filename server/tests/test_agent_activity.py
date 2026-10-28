@@ -8,7 +8,8 @@ import pytest
 from support_review_regressions import reviewed as reviewed  # noqa: PLC0414
 from support_review_regressions import runtime_fixture
 
-from orbit_hub.assistant.activity import MAX_ITEM_LABEL_CHARS, ORBIT_TOOLS, tool_label
+from orbit_hub.assistant.activity import MAX_ITEM_LABEL_CHARS, ORBIT_TOOLS, public_item, tool_label
+from orbit_hub.assistant.backend import ActivityItem
 from orbit_hub.protocol import ApprovalParams, ClarifyParams, HubError, SendParams
 
 
@@ -348,3 +349,18 @@ async def test_a_clarification_with_several_questions_answers_each_by_its_id(rev
     [pending] = runtime.snapshot()["sessions"][0]["pending"]
     assert [question["qid"] for question in pending["questions"]] == ["hora"]
     await runtime.close()
+
+
+def test_fixed_tool_failure_adds_a_code_and_keeps_english_for_an_older_mac():
+    event = ActivityItem(
+        "session",
+        "tool",
+        "tool",
+        "failed",
+        tool="sample_tool",
+        cause="The tool failed",
+        cause_code="tool_failed",
+    )
+    item = public_item(event)
+    assert item["cause_code"] == "tool_failed"
+    assert item["cause"] == "The tool failed"

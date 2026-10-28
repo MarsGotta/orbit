@@ -31,13 +31,13 @@ async def request(client, method, path, **kwargs):
         if response.status_code in (401, 403):
             raise refusal(
                 "ai_key_invalid",
-                "El proveedor rechazó la clave",
+                "The provider rejected the key",
                 provider_status=response.status_code,
             )
         if response.status_code in (402, 429) or response.status_code >= 500:
             raise refusal(
                 "ai_provider_http_error",
-                f"El proveedor devolvió HTTP {response.status_code}; comprueba su saldo, cuota o disponibilidad",
+                f"The provider returned HTTP {response.status_code}; comprueba su saldo, cuota o disponibilidad",
                 provider_status=response.status_code,
             )
         body = bytearray()
@@ -46,7 +46,7 @@ async def request(client, method, path, **kwargs):
             if len(body) > MAX_DISCOVERY_BYTES:
                 raise refusal(
                     "ai_response_too_large",
-                    "La respuesta del proveedor supera el límite",
+                    "The provider response exceeds the limit",
                     bytes=len(body),
                     max_bytes=MAX_DISCOVERY_BYTES,
                 )
@@ -70,16 +70,16 @@ async def discover(provider, key):
     except (TimeoutError, httpx.TimeoutException):
         raise refusal(
             "ai_provider_timeout",
-            f"El proveedor no terminó la comprobación en {int(PROBE_TIMEOUT_SECONDS * 1000)} ms",
+            f"The provider did not finish verification within {int(PROBE_TIMEOUT_SECONDS * 1000)} ms",
             timeout_ms=int(PROBE_TIMEOUT_SECONDS * 1000),
         ) from None
     except httpx.HTTPError:
         raise refusal(
-            "ai_provider_unreachable", "No se pudo conectar con el proveedor; comprueba su URL"
+            "ai_provider_unreachable", "Could not connect to the provider; check its URL"
         ) from None
     except (ValueError, TypeError, KeyError, AttributeError, IndexError):
         raise refusal(
-            "ai_invalid_catalog", "El proveedor devolvió un catálogo de modelos no válido"
+            "ai_invalid_catalog", "The provider returned an invalid model catalogue"
         ) from None
 
 
@@ -87,7 +87,9 @@ async def catalog(client, kind):
     status, body, _ = await request(client, "GET", "models")
     if status != 200:
         raise refusal(
-            "ai_provider_http_error", f"El catálogo devolvió HTTP {status}", provider_status=status
+            "ai_provider_http_error",
+            f"The catalogue returned HTTP {status}",
+            provider_status=status,
         )
     entries = json.loads(body)["data"]
     maximum = MAX_LOCAL_MODELS if kind == "local" else MAX_CLOUD_MODELS
@@ -96,7 +98,7 @@ async def catalog(client, kind):
     if not 1 <= len(entries) <= maximum:
         raise refusal(
             "ai_catalog_size",
-            f"El catálogo tiene {len(entries)} modelos; debe tener entre 1 y {maximum}",
+            f"The catalogue has {len(entries)} models; it must have between 1 and {maximum}",
             count=len(entries),
             max_count=maximum,
         )

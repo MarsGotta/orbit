@@ -257,7 +257,7 @@ async fn a_failed_stopped_audio_flush_does_not_skip_the_rest_of_the_turn() -> Re
         .err()
         .context("the failed flush must still reach the containment table")?;
     assert!(
-        format!("{error:#}").contains("La ruta de fragmentos no es un directorio privado"),
+        format!("{error:#}").contains("The chunk path is not a private directory"),
         "the refusal must keep its cause: {error:#}"
     );
     assert_eq!(

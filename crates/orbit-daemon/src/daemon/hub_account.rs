@@ -81,7 +81,7 @@ impl Runtime {
         device_name: String,
     ) -> Result<()> {
         if code.is_empty() || code.len() > MAX_PAIR_CODE_BYTES {
-            bail!("Código no válido");
+            bail!("Invalid code");
         }
         let device_name = normalized_device_name(&device_name)?;
         let hub_url = crate::config::validate_hub_url(&hub_url, self.development)?.to_string();
@@ -120,13 +120,13 @@ impl Runtime {
     ) -> Result<()> {
         if session_id.is_empty() || session_id.len() > MAX_SESSION_ID_BYTES {
             bail!(
-                "Identificador de sesión de {} bytes; se admiten entre 1 y {MAX_SESSION_ID_BYTES} bytes",
+                "Session identifier is {} bytes; allowed range is 1 to {MAX_SESSION_ID_BYTES} bytes",
                 session_id.len()
             );
         }
         if session_id.chars().any(char::is_control) {
             bail!(
-                "Identificador de sesión de {} bytes con carácter de control; máximo {MAX_SESSION_ID_BYTES} bytes",
+                "Session identifier is {} bytes and contains a control character; maximum {MAX_SESSION_ID_BYTES} bytes",
                 session_id.len()
             );
         }
@@ -166,7 +166,7 @@ fn normalized_device_name(raw: &str) -> Result<String> {
         || name.chars().count() > MAX_DEVICE_NAME_CHARS
         || name.chars().any(char::is_control)
     {
-        bail!("Nombre de dispositivo no válido");
+        bail!("Invalid device name");
     }
     Ok(name.to_owned())
 }

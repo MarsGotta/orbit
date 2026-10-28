@@ -78,7 +78,7 @@ fn unsaved_interruption_cause() -> orbit_core::RecordingInterruption {
 
 /// Said when the hub task ended without an unsent-frames error, which is the
 /// only one that carries a count.
-const HUB_FRAMES_UNCOUNTED: &str = "recuento de tramas no disponible";
+const HUB_FRAMES_UNCOUNTED: &str = "frame count unavailable";
 
 // A retry occupies at most one quarter of the actor's one-second tick. It
 // protects IPC and the other verticals from a writer held in fsync; it is not

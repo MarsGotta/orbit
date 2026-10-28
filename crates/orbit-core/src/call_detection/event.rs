@@ -51,14 +51,14 @@ pub struct LinkedEvent {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LinkedEventRefusal {
     #[error(
-        "El identificador del evento tiene {bytes} bytes; debe tener entre 1 y {max_bytes}, sin caracteres de control"
+        "The event identifier has {bytes} bytes; it must have between 1 and {max_bytes}, without control characters"
     )]
     Identifier { bytes: usize, max_bytes: usize },
-    #[error("La fecha {field} del evento ({value} ms) no es una fecha válida")]
+    #[error("Event date {field} ({value} ms) is not a valid date")]
     Time { field: &'static str, value: i64 },
-    #[error("El evento termina ({ends_at_ms} ms) antes de empezar ({starts_at_ms} ms)")]
+    #[error("The event ends ({ends_at_ms} ms) before it starts ({starts_at_ms} ms)")]
     EndsBeforeStart { starts_at_ms: i64, ends_at_ms: i64 },
-    #[error("El {field} del evento tiene {bytes} bytes; el máximo es {max_bytes}")]
+    #[error("Event {field} has {bytes} bytes; the maximum is {max_bytes}")]
     TooLong {
         field: &'static str,
         bytes: usize,
@@ -131,7 +131,7 @@ impl LinkedEvent {
                 max_bytes,
             })
         };
-        if let Some(refusal) = too_long("título", &self.title, MAX_TITLE_BYTES) {
+        if let Some(refusal) = too_long("title", &self.title, MAX_TITLE_BYTES) {
             return Err(refusal);
         }
         for attendee in &self.attendees {

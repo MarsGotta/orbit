@@ -99,7 +99,7 @@ def walk(folder: Path, depth: int, scan: Scan, omitted: tuple[Path, ...], stop: 
                     if any(within(path, root) for root in omitted):
                         continue
                     if depth >= MAX_SECRET_DEPTH:
-                        scan.limits.add(f"profundidad {MAX_SECRET_DEPTH}")
+                        scan.limits.add(f"depth {MAX_SECRET_DEPTH}")
                     else:
                         walk(path, depth + 1, scan, omitted, stop)
                 elif any(fnmatchcase(entry.name, pattern) for pattern in SECRET_NAMES):
@@ -114,18 +114,14 @@ def walk(folder: Path, depth: int, scan: Scan, omitted: tuple[Path, ...], stop: 
                 # Deleted entries and Python 3.11 symlink loops carry no payload.
                 continue
         if scan.visited >= MAX_SECRET_ENTRIES:
-            scan.limits.add(f"entradas {scan.visited}/{MAX_SECRET_ENTRIES}")
+            scan.limits.add(f"entries {scan.visited}/{MAX_SECRET_ENTRIES}")
 
 
 def warn_incomplete(root: Path, scan: Scan) -> None:
     # The general log formatter deliberately drops free text and paths. This
     # operator notice explicitly carries only the configured root and counts,
     # never discovered filenames or payloads. JSON keeps each notice on one line.
-    message = (
-        f"Búsqueda de secretos incompleta en {root}: límite de {', '.join(sorted(scan.limits))}; "
-        f"se ocultan {len(scan.paths)} archivos encontrados tras visitar {scan.visited} entradas. "
-        "El asistente continúa; quedan rutas sin revisar."
-    )
+    message = f"Secret scan incomplete in {root}: limit of {', '.join(sorted(scan.limits))}; hiding {len(scan.paths)} files found after visiting {scan.visited} entries. The assistant continues; some paths remain unchecked."
     print(
         json.dumps(
             {"level": "WARNING", "event": "assistant_secret_scan_incomplete", "message": message},

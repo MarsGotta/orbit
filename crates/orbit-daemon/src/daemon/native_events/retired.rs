@@ -278,7 +278,7 @@ impl Runtime {
         );
         self.contain(
             orbit_core::privacy_stop::StopCause::HelperIntegrityFailure,
-            "El Mac confirmó un flujo distinto del arranque de llamada retirado; se corta la captura para cerrar cualquier flujo incierto.",
+            "The Mac confirmed a different stream from the retired call start; capture is cut to close any uncertain stream.",
         )
         .await;
         if !self.state.privacy_stopped() && self.audio.lifecycle.full_stop.is_none() {

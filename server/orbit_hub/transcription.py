@@ -82,13 +82,13 @@ class TranscriptionWorker:
         while not self.interactive.empty():
             request = self.interactive.get_nowait()
             if not request.result.done():
-                request.result.set_exception(HubError("shutting_down", "Servidor deteniéndose"))
+                request.result.set_exception(HubError("shutting_down", "Server shutting down"))
 
     async def transcribe(self, device: str, body: bytes) -> str:
         if self._task is not None and self._task.done():
             raise HubError(
                 "transcription_unavailable",
-                "Worker de transcripción detenido; conserva el audio",
+                "Transcription worker stopped; keep the audio",
                 http_status=503,
             )
         future = asyncio.get_running_loop().create_future()
@@ -96,16 +96,14 @@ class TranscriptionWorker:
             self.interactive.put_nowait(Utterance(device, body, future))
             self.prepare_signal.set()
         except asyncio.QueueFull as exc:
-            raise HubError(
-                "rate_limited", "Cola de transcripción llena; conserva el audio"
-            ) from exc
+            raise HubError("rate_limited", "Transcription queue full; keep the audio") from exc
         try:
             return await asyncio.wait_for(future, INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS)
         except TimeoutError as exc:
             timeout_ms = INTERACTIVE_TRANSCRIPTION_TIMEOUT_SECONDS * 1000
             raise HubError(
                 "transcription_timeout",
-                f"La transcripción tardó más de {timeout_ms} ms",
+                f"Transcription took longer than {timeout_ms} ms",
                 http_status=504,
                 numbers={"timeout_ms": timeout_ms},
             ) from exc
@@ -141,7 +139,7 @@ class TranscriptionWorker:
                     continue
                 try:
                     if not self.store.devices.is_active(request.device):
-                        raise HubError("revoked", "Dispositivo revocado")
+                        raise HubError("revoked", "Device revoked")
                     text = (
                         await self.meetings.interactive(self.speech, request.body)
                         if hasattr(self.meetings, "interactive")
@@ -160,7 +158,7 @@ class TranscriptionWorker:
                     )
                     if not request.result.done():
                         request.result.set_exception(
-                            HubError("transcription_failed", "Falló el adaptador de transcripción")
+                            HubError("transcription_failed", "The transcription adapter failed")
                         )
                 continue
             try:

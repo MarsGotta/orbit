@@ -23,7 +23,7 @@ pub async fn listen(
     paths.initialize()?;
     if paths.socket.exists() {
         if UnixStream::connect(&paths.socket).await.is_ok() {
-            bail!("Ya hay un servicio Orbit activo");
+            bail!("An Orbit service is already active");
         }
         remove_owned_socket(paths)?;
     }
@@ -158,7 +158,7 @@ pub(super) async fn handle_connection(
         .await?;
     let response = tokio::time::timeout(Duration::from_secs(10), receive)
         .await
-        .context("El actor no respondió dentro del plazo")??;
+        .context("The actor did not respond within the deadline")??;
     let response = budget::encode_reply(response)?;
     writer.write_all(&response).await?;
     if topic_subscription {
@@ -198,7 +198,7 @@ async fn stream_topics(
         tokio::select! {
             input = reader.fill_buf() => {
                 if input?.is_empty() { break Ok(()); }
-                break Err(anyhow::anyhow!("El suscriptor envió datos después de suscribirse"));
+                break Err(anyhow::anyhow!("The subscriber sent data after subscribing"));
             }
             Some(id) = notified.recv() => {
                 if let Some(receiver) = selected.get_mut(&id) {
@@ -335,7 +335,7 @@ async fn receive_request(
         read_frame_into(reader, MAX_IPC_LINE_BYTES, Resource::IpcRequest, &mut bytes),
     )
     .await
-    .context("La orden IPC no terminó dentro del plazo")?;
+    .context("The IPC command did not finish within the deadline")?;
     let request = match read {
         Ok(()) => decode_request(&bytes),
         Err(error) => match error.downcast_ref::<Refusal>() {

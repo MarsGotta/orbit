@@ -85,7 +85,7 @@ class Integration:
             milliseconds = round(START_CEILING_SECONDS * 1000)
             raise HubError(
                 "agent_start_timeout",
-                f"{name} no terminó de arrancar en {milliseconds} ms; no se envió el mensaje",
+                f"{name} did not finish starting within {milliseconds} ms; the message was not sent",
                 numbers={"agent_id": agent_id, "timeout_ms": milliseconds},
             ) from exc
         except HubError as exc:

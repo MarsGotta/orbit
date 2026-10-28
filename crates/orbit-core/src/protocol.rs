@@ -451,7 +451,7 @@ fn default_meeting_minutes() -> u16 {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum WireRefusal {
-    #[error("Orden IPC de {bytes} bytes; máximo {max_bytes} bytes")]
+    #[error("IPC command is {bytes} bytes; maximum {max_bytes} bytes")]
     Budget { bytes: usize, max_bytes: usize },
 }
 

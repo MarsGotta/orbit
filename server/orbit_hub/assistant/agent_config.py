@@ -104,7 +104,7 @@ def personality_refusal(text: str) -> HubError | None:
         return None
     return HubError(
         "personality_too_large",
-        f"La personalidad ocupa {size} bytes; máximo {MAX_PERSONALITY_BYTES}",
+        f"The personality is {size} bytes; maximum {MAX_PERSONALITY_BYTES}",
         http_status=413,
         numbers={"bytes": size, "max_bytes": MAX_PERSONALITY_BYTES},
     )
@@ -113,7 +113,7 @@ def personality_refusal(text: str) -> HubError | None:
 def too_many(count: int) -> HubError:
     return HubError(
         "too_many_skills",
-        f"El agente ya tiene {count} skills; máximo {MAX_SKILLS}. Borra alguna antes de crear otra",
+        f"The agent already has {count} skills; maximum {MAX_SKILLS}. Delete one before creating another",
         http_status=409,
         numbers={"count": count, "max": MAX_SKILLS},
     )
@@ -122,7 +122,7 @@ def too_many(count: int) -> HubError:
 def not_found(name: str) -> HubError:
     return HubError(
         "skill_not_found",
-        f"El agente no tiene ninguna skill llamada «{name}»",
+        f"The agent has no skill named «{name}»",
         http_status=404,
         numbers={"name": name},
     )

@@ -35,7 +35,7 @@ const MAX_NATIVE_AUDIO_CAUSE_BYTES: usize = 256;
 
 impl Runtime {
     pub(super) async fn on_native_ready(&mut self, event: &Value) -> Result<()> {
-        self.cancel_sources_with_cause("helper_restarted", "El helper se reinició antes de entregar la respuesta anterior; no se conoce aún la instancia nueva.").await?;
+        self.cancel_sources_with_cause("helper_restarted", "The helper restarted before delivering the previous response; its new instance is still unknown.").await?;
         // A request into the folders the old helper held has no answer.
         self.files_helper_restarted();
         self.end_helper_waits();
@@ -153,11 +153,10 @@ impl Runtime {
                     && detail.len() <= MAX_NATIVE_AUDIO_CAUSE_BYTES =>
             {
                 format!(
-                    "Orbit cortó el enlace con su helper nativo en este Mac porque el audio \
-                     llegaba mal formado ({detail})."
+                    "Orbit cut the link to its native helper on this Mac because audio was malformed ({detail})."
                 )
             }
-            Some(_) | None => "Se perdió el helper nativo de Orbit en este Mac.".to_owned(),
+            Some(_) | None => "The Orbit native helper on this Mac was lost.".to_owned(),
         };
         self.contain(orbit_core::privacy_stop::StopCause::HelperLost, &text)
             .await;

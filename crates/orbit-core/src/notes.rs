@@ -129,31 +129,31 @@ pub fn event_context(linked: &crate::call_detection::LinkedEvent) -> EventContex
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum NoteCommandError {
     #[error(
-        "Las notas privadas tienen {characters} caracteres; el máximo es {max_characters}. No se guardó nada."
+        "Private notes have {characters} characters; the maximum is {max_characters}. Nothing was saved."
     )]
     PrivateNotesTooLong {
         characters: usize,
         max_characters: usize,
     },
-    #[error("Identificador de grabación no válido")]
+    #[error("Invalid recording identifier")]
     InvalidRecording,
     #[error(
-        "El nombre del hablante tiene {characters} caracteres; debe tener entre 1 y {max_characters}"
+        "The speaker name has {characters} characters; it must have between 1 and {max_characters}"
     )]
     SpeakerName {
         characters: usize,
         max_characters: usize,
     },
     #[error(
-        "El título tiene {characters} caracteres; como mucho {max_characters}. No se cambió el nombre."
+        "The title has {characters} characters; maximum {max_characters}. The name was not changed."
     )]
     MeetingTitleTooLong {
         characters: usize,
         max_characters: usize,
     },
-    #[error("El título no puede tener saltos de línea ni caracteres de control")]
+    #[error("The title cannot contain line breaks or control characters")]
     MeetingTitleControl,
-    #[error("Idioma no válido: se espera un código de dos letras, como «es» o «en»")]
+    #[error("Invalid language: expected a two-letter code such as «es» or «en»")]
     MeetingLanguage,
 }
 

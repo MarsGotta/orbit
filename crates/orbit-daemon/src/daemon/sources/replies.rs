@@ -24,7 +24,7 @@ impl Runtime {
             .sources
             .operation
             .take()
-            .context("Operación de fuente ausente")?;
+            .context("Source operation missing")?;
         let settlement = self
             .sources
             .reply
@@ -135,7 +135,7 @@ impl Runtime {
         self.source_progress(
             &operation.id,
             SourceStage::Available,
-            "Elige una ventana y el formato para leerla una sola vez.",
+            "Choose a window and format for a single read.",
         );
         Ok(())
     }
@@ -157,7 +157,7 @@ impl Runtime {
         self.source_progress(
             &intent.id,
             SourceStage::Validated,
-            "Lectura validada en memoria; no se conserva en este Mac.",
+            "Read validated in memory; it is not retained on this Mac.",
         );
         Ok(())
     }

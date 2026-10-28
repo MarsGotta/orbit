@@ -52,7 +52,7 @@ class Registry:
         if len(body) > MAX_REGISTRY_BYTES:
             raise HubError(
                 "ai_registry_full",
-                f"La configuración ocupa {len(body)} bytes; el máximo es {MAX_REGISTRY_BYTES}",
+                f"The configuration is {len(body)} bytes; the maximum is {MAX_REGISTRY_BYTES}",
                 numbers={"bytes": len(body), "max_bytes": MAX_REGISTRY_BYTES},
             )
         sealed = self.store.encrypt(body, CONTEXT)
@@ -110,7 +110,7 @@ class Registry:
             return None
         provider = doc["providers"].get(choice["provider_id"])
         if provider is None:
-            raise HubError("ai_provider_missing", "El proveedor elegido ya no está configurado")
+            raise HubError("ai_provider_missing", "The selected provider is no longer configured")
         return {**provider, "model": choice["model"]}
 
     def save_provider(self, provider_id, provider, models, key):
@@ -135,12 +135,12 @@ class Registry:
             for m in provider["models"]
         ):
             raise HubError(
-                "ai_capability_missing", "El modelo no tiene la capacidad que necesita esta función"
+                "ai_capability_missing", "The model lacks the capability this function needs"
             )
 
     def choose(self, function, choice):
         if function not in FUNCTIONS:
-            raise HubError("ai_function_invalid", "La función de IA no existe")
+            raise HubError("ai_function_invalid", "The AI function does not exist")
         document = self.read()
         if choice.provider_id == "operator":
             document["functions"].pop(function, None)
@@ -151,7 +151,7 @@ class Registry:
                 else document["providers"].get(choice.provider_id)
             )
             if provider is None:
-                raise HubError("ai_provider_missing", "El proveedor elegido no existe")
+                raise HubError("ai_provider_missing", "The selected provider does not exist")
             self.check(function, choice.model, provider)
             document["functions"][function] = choice.model_dump()
         self.write(document)

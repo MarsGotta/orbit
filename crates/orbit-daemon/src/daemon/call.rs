@@ -254,7 +254,7 @@ impl Runtime {
         if self.audio.retired_call_starts.len() >= MAX_RETIRED_CALL_STARTS {
             let pending = self.audio.retired_call_starts.len();
             let cause = format!(
-                "retired_call_start_capacity_exhausted: {pending} arranques de llamada sin respuesta; máximo {MAX_RETIRED_CALL_STARTS}."
+                "retired_call_start_capacity_exhausted: {pending} unanswered call starts; maximum {MAX_RETIRED_CALL_STARTS}."
             );
             self.contain(
                 orbit_core::privacy_stop::StopCause::HelperIntegrityFailure,
@@ -264,16 +264,14 @@ impl Runtime {
             anyhow::bail!(cause);
         }
         let authorization = self.state.durable.voice.call.clone();
-        let authorization = authorization.context("Llamada sin autorización local")?;
+        let authorization = authorization.context("Call has no local authority")?;
         if self.audio.call.is_some()
             || self.audio.mic_stream.is_some()
             || self.audio.remote_stream.is_some()
             || self.capture.buffer.voice.is_some()
             || self.assistant.voice_task.active().is_some()
         {
-            bail!(
-                "La ruta de audio anterior aún está activa; finalízala antes de iniciar una llamada"
-            );
+            bail!("The previous audio path is still active; finish it before starting a call");
         }
         let epoch = id();
         self.capture

@@ -31,8 +31,15 @@ MAX_READS = 2
 MAX_FOLDER_DEPTH = 64
 
 
-def refusal(code, message, status=400, **numbers):
-    return HubError(code, message, http_status=status, numbers=numbers or None)
+def refusal(code, message, status=400, *, message_code=None, message_fields=None, **numbers):
+    return HubError(
+        code,
+        message,
+        http_status=status,
+        numbers=numbers or None,
+        message_code=message_code,
+        message_fields=message_fields,
+    )
 
 
 class Strict(BaseModel):
@@ -89,27 +96,28 @@ def parse(model, raw):
     except ValidationError as exc:
         error = exc.errors(include_input=False, include_context=False)[0]
         field = next(
-            (str(part) for part in error["loc"] if str(part) in model.model_fields), "solicitud"
+            (str(part) for part in error["loc"] if str(part) in model.model_fields), "request"
         )
         reasons = {
-            "missing": "falta un valor obligatorio",
-            "extra_forbidden": "incluye un campo desconocido",
-            "string_too_long": "supera la longitud admitida",
-            "literal_error": "no es una opción admitida",
-            "greater_than_equal": "es menor que el mínimo",
-            "less_than_equal": "supera el máximo",
+            "missing": "is missing a required value",
+            "extra_forbidden": "includes an unknown field",
+            "string_too_long": "exceeds the allowed length",
+            "literal_error": "is not an allowed option",
+            "greater_than_equal": "is below the minimum",
+            "less_than_equal": "exceeds the maximum",
         }
-        reason = reasons.get(error["type"], "no tiene el formato admitido")
+        reason = reasons.get(error["type"], "has an unsupported format")
         raise refusal(
             "vault_invalid_request",
-            f"El campo «{field}» {reason}. Las páginas admiten de 1 a {MAX_PAGE_SIZE} entradas.",
+            f"Field «{field}» {reason}. Pages allow 1 to {MAX_PAGE_SIZE} entries.",
+            message_fields={"field": field, "rule": error["type"]},
             max_page_size=MAX_PAGE_SIZE,
             max_page=MAX_SCAN_ENTRIES,
         ) from None
     except (ValueError, TypeError, RecursionError):
         raise refusal(
             "vault_invalid_request",
-            "Revisa los campos de Notas: página de 1 a 100 entradas y ruta relativa al vault.",
+            f"Check the Notes fields: 1 to {MAX_PAGE_SIZE} entries per page and a vault-relative path.",
             max_page_size=MAX_PAGE_SIZE,
             max_page=MAX_SCAN_ENTRIES,
         ) from None

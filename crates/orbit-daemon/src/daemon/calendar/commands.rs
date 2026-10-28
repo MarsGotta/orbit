@@ -30,7 +30,7 @@ impl Runtime {
         }
         request.validate()?;
         if !self.state.capabilities().native_helper() || !self.helper.calendar_backend_available() {
-            bail!("El lector de calendarios del Mac no está disponible ahora mismo");
+            bail!("The Mac calendar reader is currently unavailable");
         }
         let calendar = &mut self.calendar;
         match request {
@@ -39,7 +39,7 @@ impl Runtime {
             Request::RequestPermission => calendar.wanted_permission = true,
             Request::Read { window } => {
                 if self.state.privacy_stopped() {
-                    bail!("Todo está parado: Orbit no lee tu agenda hasta que lo reactives");
+                    bail!("Everything is stopped: Orbit will not read the calendar until rearmed");
                 }
                 // Remembered, so the agenda reappears by itself when the
                 // permission arrives or the calendar changes.

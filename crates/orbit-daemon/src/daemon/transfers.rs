@@ -86,7 +86,7 @@ impl Runtime {
                     })
                 },
             )
-            .context("No se pudo reservar el borrado del audio confirmado")?;
+            .context("Could not reserve deletion of confirmed audio")?;
         Ok(())
     }
 
@@ -161,7 +161,7 @@ impl Runtime {
         let stored_job = self
             .reader
             .get_job(&job_id)?
-            .context("Recibo sin trabajo local")?;
+            .context("Receipt has no local job")?;
         let settlement = settle(&stored_job, &result);
         if settlement.out_of_space {
             self.transfers.retry_gate.hold(HUB_FULL_RETRY, now);
@@ -177,7 +177,7 @@ impl Runtime {
         if settlement.succeeded && stored_job.kind == "recording_finalize" {
             let recording = stored_job.payload["recording_id"]
                 .as_str()
-                .context("Cierre sin identidad")?;
+                .context("Closure has no identity")?;
             // The hub has it whole and asks for its note itself;
             // the list reads it from there.
             self.notes.recording_uploaded(recording);
@@ -236,9 +236,11 @@ impl Runtime {
                 (),
                 move |ticket| {
                     tokio::spawn(async move {
-                        let result = receipt.wait().await.map(|_| ()).with_context(|| {
-                            format!("No se pudo guardar el resultado de subida {job_id}")
-                        });
+                        let result = receipt
+                            .wait()
+                            .await
+                            .map(|_| ())
+                            .with_context(|| format!("Could not save upload outcome {job_id}"));
                         // This send waits off the daemon loop, on a worker, so a
                         // slow actor cannot hold IPC. It only fails when the loop
                         // that owns the runtime is gone, and the settlement above
@@ -257,7 +259,7 @@ impl Runtime {
                     })
                 },
             )
-            .context("No se pudo reservar la espera del resultado de subida")?;
+            .context("Could not reserve the upload outcome wait")?;
         Ok(())
     }
 

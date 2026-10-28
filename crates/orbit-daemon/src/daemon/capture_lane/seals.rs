@@ -117,18 +117,15 @@ impl LaneCore {
     pub(in crate::daemon) fn validate_destinations(&self, store: &Path) -> Result<()> {
         let chunks = store.join("chunks");
         if !std::fs::symlink_metadata(&chunks)?.file_type().is_dir() {
-            return Err(
-                DestinationInvalid("La ruta de fragmentos no es un directorio privado").into(),
-            );
+            return Err(DestinationInvalid("The chunk path is not a private directory").into());
         }
         for segment in &self.seals {
             let destination = chunks.join(format!("{}.orbit", segment.metadata.id));
             match std::fs::symlink_metadata(destination) {
                 Ok(metadata) if !metadata.file_type().is_file() => {
-                    return Err(DestinationInvalid(
-                        "El destino del fragmento no es un archivo regular",
-                    )
-                    .into());
+                    return Err(
+                        DestinationInvalid("The chunk destination is not a regular file").into(),
+                    );
                 }
                 Ok(_) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}

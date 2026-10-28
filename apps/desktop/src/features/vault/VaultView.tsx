@@ -1,3 +1,4 @@
+import { VaultWarnings } from "./VaultWarnings";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
@@ -32,12 +33,13 @@ function RouteContent({
 }) {
   return (
     <>
-      {route.section !== "note" &&
-        catalog.schema.warnings.map((warning) => (
-          <p className={styles.content} role="alert" key={warning}>
-            {warning}
-          </p>
-        ))}
+      {route.section !== "note" && (
+        <VaultWarnings
+          className={styles.content}
+          warnings={catalog.schema.warnings}
+          diagnostics={catalog.schema.diagnostics}
+        />
+      )}
       {route.section === "home" && (
         <VaultHome catalog={catalog} configuration={configuration} port={port} />
       )}

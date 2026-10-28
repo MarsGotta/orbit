@@ -61,7 +61,7 @@ async def separate(
     configuration, audio_fd: int, duration_ms: int, *, max_speakers: int | None = None
 ) -> dict:
     if configuration is None:
-        raise HubError("diarization_not_configured", "Falta la configuración local de separación")
+        raise HubError("diarization_not_configured", "Local separation configuration missing")
     script = Path(__file__).with_name("diarization_process.py")
     try:
         process = await asyncio.create_subprocess_exec(
@@ -80,7 +80,7 @@ async def separate(
     except OSError as exc:
         raise HubError(
             "diarization_start_failed",
-            "No se pudo iniciar el separador",
+            "Could not start the separator",
             numbers={"errno": exc.errno or 0},
         ) from exc
     try:
@@ -90,14 +90,14 @@ async def separate(
             if len(output) > MAX_DIARIZATION_BYTES:
                 raise HubError(
                     "diarization_output_too_large",
-                    "Respuesta del separador excesiva",
+                    "Separator response too large",
                     numbers={"bytes": len(output), "max_bytes": MAX_DIARIZATION_BYTES},
                 )
         status = await process.wait()
         if status:
             raise HubError(
                 "diarization_process_failed",
-                "Falló el proceso de separación",
+                "The separation process failed",
                 numbers={"exit_status": status},
             )
         try:
@@ -105,7 +105,7 @@ async def separate(
         except (ValueError, TypeError, KeyError, OverflowError) as exc:
             raise HubError(
                 "diarization_invalid_response",
-                "Respuesta del separador no válida",
+                "Invalid separator response",
                 numbers={"bytes": len(output)},
             ) from exc
     finally:

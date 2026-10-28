@@ -179,7 +179,7 @@ impl AttachmentContext {
         } else if let Command::AttachmentSave { attachment_id } = command {
             self.save(&attachment_id).await.map(Answer::Saved)
         } else {
-            Err(anyhow::anyhow!("Orden de adjunto desconocida"))
+            Err(anyhow::anyhow!("Unknown attachment command"))
         };
         respond(request_id, outcome)
     }
@@ -275,7 +275,7 @@ impl AttachmentContext {
             // then uploads it here with its name and bytes.
             AttachmentSource::Window => {
                 return Err(anyhow::anyhow!(
-                    "La ventana se captura en el bucle del daemon, no aquí"
+                    "The window is captured in the daemon loop, not here"
                 ));
             }
         };
@@ -392,7 +392,7 @@ impl AttachmentContext {
         retire_saved(&self.folder, std::time::SystemTime::now());
         let directory = self.folder.join(attachment_id);
         write_private(&directory, &content.name, &content.bytes)
-            .with_context(|| format!("No se pudo escribir el adjunto en {}", directory.display()))
+            .with_context(|| format!("Could not write the attachment to {}", directory.display()))
     }
 }
 

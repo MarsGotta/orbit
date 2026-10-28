@@ -122,7 +122,7 @@ impl Runtime {
             stage: CalendarWriteStage::Queued,
             occurrence: None,
             refusal: None,
-            detail: "Esperando a que EventKit termine lo anterior.".into(),
+            detail: "Waiting for EventKit to finish the previous work.".into(),
         });
         self.calendar.write_queue.push_back((request_id, request));
         self.pump_calendar();
@@ -169,15 +169,15 @@ impl Runtime {
         }
         let mut detail = match (&stage, &refusal) {
             (_, Some(refusal)) => refusal.notice(),
-            (CalendarWriteStage::Deleted, None) => "Evento borrado del calendario del Mac.".into(),
-            _ => "Cambio guardado en el calendario del Mac.".into(),
+            (CalendarWriteStage::Deleted, None) => "Event deleted from the Mac calendar.".into(),
+            _ => "Change saved to the Mac calendar.".into(),
         };
         let bytes = occurrence.as_ref().map_or(0, |value| {
             serde_json::to_vec(value).map_or(usize::MAX, |json| json.len())
         });
         let occurrence = if bytes > MAX_WRITE_OCCURRENCE_BYTES {
             detail.push_str(&format!(
-                " El evento guardado ocupa {bytes} bytes, más de los {MAX_WRITE_OCCURRENCE_BYTES} que caben en este aviso; aparece en la agenda al releerla."
+                " The saved event is {bytes} bytes, exceeding the {MAX_WRITE_OCCURRENCE_BYTES} that fit this notice; it appears when the calendar is reread."
             ));
             None
         } else {
@@ -378,7 +378,7 @@ impl crate::daemon::calendar::CalendarHandle {
             .find(|write| write.request_id == request_id)
         {
             write.stage = CalendarWriteStage::Writing;
-            write.detail = "EventKit está aplicando el cambio.".into();
+            write.detail = "EventKit is applying the change.".into();
         }
     }
 }
@@ -405,13 +405,13 @@ impl crate::daemon::calendar::CalendarHandle {
         };
         let notice = match cause {
             Some("privacy_stopped") => {
-                "Todo está parado: Orbit no cambia el calendario hasta que lo reactives. No se cambió nada.".to_owned()
+                "Everything is stopped: Orbit will not change the calendar until rearmed. Nothing changed.".to_owned()
             }
             Some("calendar_backend_unavailable") => {
-                "El lector de calendarios del Mac no está disponible ahora mismo. No se cambió nada.".to_owned()
+                "The Mac calendar reader is currently unavailable. Nothing changed.".to_owned()
             }
             Some("calendar_write_request_reused") => format!(
-                "Ya hay una escritura con el identificador {request_id}; cada cambio necesita el suyo. No se cambió nada."
+                "A write with identifier {request_id} already exists; each change requires its own. Nothing changed."
             ),
             Some(_) | None => refusal.notice(),
         };

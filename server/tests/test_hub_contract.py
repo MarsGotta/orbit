@@ -109,7 +109,7 @@ def test_authenticated_routes_render_their_own_errors(route_client, method, path
 def test_boundary_preserves_existing_refusal_and_error_headers(route_client):
     original = {
         "code": "no_answer",
-        "message": "El Mac no respondió dentro del plazo",
+        "message": "The Mac did not respond within the deadline",
         "refusal": {
             "code": "timeout",
             "operation": "computer_action",

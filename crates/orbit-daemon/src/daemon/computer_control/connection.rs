@@ -248,14 +248,14 @@ impl Runtime {
         let daemon_executable = match &self.computer.daemon_executable {
             Some(path) => path.clone(),
             None => std::env::current_exe()
-                .context("No se pudo localizar el ejecutable del daemon para buscar CUA")?,
+                .context("Could not locate the daemon executable to find CUA")?,
         };
         #[cfg(not(test))]
         let daemon_executable = std::env::current_exe()
-            .context("No se pudo localizar el ejecutable del daemon para buscar CUA")?;
+            .context("Could not locate the daemon executable to find CUA")?;
         let daemon_executable = daemon_executable
             .canonicalize()
-            .context("No se pudo resolver el ejecutable del daemon para buscar CUA")?;
+            .context("Could not resolve the daemon executable to find CUA")?;
         let driver = crate::cua::resolve_driver_path("", &daemon_executable)?;
         Ok((driver, crate::cua::default_socket_path(&self.paths.root)))
     }
@@ -270,16 +270,16 @@ impl Runtime {
         let generation = self.state.generation();
         self.computer.require_computer_idle()?;
         if self.computer.service.is_some() {
-            bail!("Desconecta el control actual antes de abrir otra conexión");
+            bail!("Disconnect current control before opening another connection");
         }
         let (driver_path, socket_path) = self.engine_paths()?;
         if driver_path.as_os_str().len() > 4096 || socket_path.as_os_str().len() > 4096 {
-            bail!("La ruta del motor CUA empaquetado supera el límite de 4096 bytes");
+            bail!("The bundled CUA engine path exceeds the 4096-byte limit");
         }
         let events = self.work_events.clone();
         self.begin_computer(
             ComputerStage::Connecting,
-            "Conectando al motor CUA local; no se inicia ningún navegador.",
+            "Connecting to the local CUA engine; no browser is started.",
             generation,
             move |ticket| {
                 tokio::spawn(async move {
