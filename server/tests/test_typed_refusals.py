@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -113,8 +114,8 @@ def test_capture_capacity_counts_reach_the_mcp_reader():
     }
     rendered = _text(error_result(HubClientError("too_many", detail={"refusal": refusal})))
     assert "5" in rendered and "4" in rendered
-    assert "300" in rendered and "capturas" in rendered
-    assert "petición contiene más elementos" not in rendered
+    assert "300" in rendered and "screenshots" in rendered
+    assert "request contains more items" not in rendered
 
 
 def test_upstream_http_429_keeps_its_service_without_guessing_capture_capacity():
@@ -130,9 +131,9 @@ def test_upstream_http_429_keeps_its_service_without_guessing_capture_capacity()
         },
     )
     rendered = _text(error_result(error))
-    assert "Falló el servicio del que depende esa operación." in rendered
-    assert "servicio: hub" in rendered and "estado HTTP: 429" in rendered
-    assert "capturas" not in rendered and "subida" not in rendered
+    assert "The service this operation depends on failed." in rendered
+    assert "service: hub" in rendered and "status: 429" in rendered
+    assert "screenshots" not in rendered and "upload" not in rendered
 
 
 def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
@@ -214,7 +215,7 @@ def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
             "orbit_calendar",
             {"start_ms": 1789000000000, "end_ms": 1789086400000},
             {"code": "permission_denied", "permission": "calendar", "retry": {"kind": "after_fix"}},
-            ("agenda esté vacía", "Ajustes del Sistema"),
+            ("agenda is empty", "System Settings"),
         ),
         (
             "orbit_calendar",
@@ -224,7 +225,7 @@ def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
                 "permission": "calendar",
                 "retry": {"kind": "after_fix"},
             },
-            ("agenda esté vacía", "No es una negativa"),
+            ("agenda is empty", "This is not a denial"),
         ),
         (
             "orbit_windows",
@@ -234,7 +235,7 @@ def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
                 "permission": "screen_recording",
                 "retry": {"kind": "after_fix"},
             },
-            ("Grabación de pantalla", "Ajustes del Sistema"),
+            ("Screen Recording", "System Settings"),
         ),
     ],
 )
@@ -277,24 +278,24 @@ def test_typed_permission_reaches_the_actual_mcp_tool(
 @pytest.mark.parametrize(
     "permission, code, expected",
     [
-        ("calendar", "permission_denied", ("agenda esté vacía", "Ajustes del Sistema")),
-        ("calendar", "permission_unknown", ("agenda esté vacía", "No es una negativa")),
-        ("screen_recording", "permission_denied", ("Grabación de pantalla", "Ajustes del Sistema")),
-        ("accessibility", "permission_denied", ("Accesibilidad", "Ajustes del Sistema")),
-        ("accessibility", "permission_not_granted", ("Accesibilidad", "Ajustes del Sistema")),
+        ("calendar", "permission_denied", ("agenda is empty", "System Settings")),
+        ("calendar", "permission_unknown", ("agenda is empty", "This is not a denial")),
+        ("screen_recording", "permission_denied", ("Screen Recording", "System Settings")),
+        ("accessibility", "permission_denied", ("Accessibility", "System Settings")),
+        ("accessibility", "permission_not_granted", ("Accessibility", "System Settings")),
         (
             "screen_recording",
             "permission_not_granted",
-            ("Grabación de pantalla", "Ajustes del Sistema"),
+            ("Screen Recording", "System Settings"),
         ),
-        ("calendar", "permission_not_granted", ("Calendarios", "Ajustes del Sistema")),
-        ("screen_and_accessibility", "permission_denied", ("Accesibilidad", "Ajustes del Sistema")),
-        ("screen_recording", "permission_unknown", ("Grabación de pantalla", "No es una negativa")),
-        ("accessibility", "permission_unknown", ("Accesibilidad", "No es una negativa")),
+        ("calendar", "permission_not_granted", ("Calendars", "System Settings")),
+        ("screen_and_accessibility", "permission_denied", ("Accessibility", "System Settings")),
+        ("screen_recording", "permission_unknown", ("Screen Recording", "This is not a denial")),
+        ("accessibility", "permission_unknown", ("Accessibility", "This is not a denial")),
         (
             "screen_and_accessibility",
             "permission_unknown",
-            ("Grabación de pantalla", "Accesibilidad", "No es una negativa"),
+            ("Screen Recording", "Accessibility", "This is not a denial"),
         ),
     ],
 )
@@ -307,12 +308,12 @@ def test_typed_permission_from_mac_keeps_specific_guidance(permission, code, exp
 @pytest.mark.parametrize(
     "cause, expected",
     [
-        ("unsupported", "no admite"),
-        ("not_installed", "instalado"),
-        ("not_running", "en marcha"),
-        ("unhealthy", "responder"),
-        ("voice_processing_unsupported", "voz"),
-        ("initialization_failed", "arrancar"),
+        ("unsupported", "does not support"),
+        ("not_installed", "installed"),
+        ("not_running", "running"),
+        ("unhealthy", "responding"),
+        ("voice_processing_unsupported", "voice"),
+        ("initialization_failed", "start"),
     ],
 )
 def test_engine_cause_has_true_guidance_at_the_mcp_boundary(cause, expected):
@@ -322,7 +323,7 @@ def test_engine_cause_has_true_guidance_at_the_mcp_boundary(cause, expected):
     )
     assert expected in rendered, rendered
     if cause == "unsupported":
-        assert "lo está levantando" not in rendered
+        assert "starting it" not in rendered
 
 
 @pytest.mark.parametrize(
@@ -336,7 +337,7 @@ def test_a_malformed_typed_field_keeps_the_code_message(refusal):
     """Malformed optional fields use the code's message without raising."""
     rendered = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
     assert rendered, rendered
-    assert "no conoce el código" not in rendered, rendered
+    assert "does not recognize the code" not in rendered, rendered
 
 
 def test_device_reply_accepts_a_typed_refusal():
@@ -385,12 +386,12 @@ async def test_typed_refusal_crosses_the_private_route(bridged):
 @pytest.mark.parametrize(
     ("code", "fields", "expected"),
     [
-        ("work_in_flight", {"in_flight": 1, "max": 1}, ("en vuelo: 1", "máximo: 1")),
-        ("physical_work_finishing", {"in_flight": 1, "max": 1}, ("en vuelo: 1", "máximo: 1")),
+        ("work_in_flight", {"in_flight": 1, "max": 1}, ("in flight: 1", "maximum: 1")),
+        ("physical_work_finishing", {"in_flight": 1, "max": 1}, ("in flight: 1", "maximum: 1")),
         (
             "work_expired",
             {"operation": "lectura", "started_generation": 4, "current_generation": 5},
-            ("generación inicial: 4", "generación actual: 5"),
+            ("initial generation: 4", "current generation: 5"),
         ),
     ],
 )
@@ -398,14 +399,14 @@ def test_new_work_refusals_reach_deimos_with_numbers(code, fields, expected):
     refusal = {"code": code, "retry": {"kind": "check_outcome"}, **fields}
     spoken = _text(error_result(HubClientError(code, detail={"refusal": refusal})))
     assert all(part in spoken for part in expected), spoken
-    assert "El traductor no conoce" not in spoken
+    assert "The translator does not know" not in spoken
 
 
 def test_eventkit_unavailable_names_the_backend_in_deimos():
     message = _text(error_result(HubClientError("calendar_backend_unavailable", 403)))
     assert "EventKit" in message
-    assert "Orbit está abierto" not in message
-    assert "agenda esté vacía" in message
+    assert "Orbit is open" not in message
+    assert "agenda is empty" in message
 
 
 def test_invalid_row_names_rows_in_this_page_not_all_conversations():
@@ -419,8 +420,8 @@ def test_invalid_row_names_rows_in_this_page_not_all_conversations():
         "retry": {"kind": "after_fix"},
     }
     message = _text(error_result(HubClientError(refusal["code"], detail={"refusal": refusal})))
-    assert "filas de la página: 128" in message
-    assert "conversaciones totales" not in message
+    assert "rows on this page: 128" in message
+    assert "total" not in message
 
 
 def test_numbers_reach_deimos_without_a_generic_fallback():
@@ -433,9 +434,9 @@ def test_numbers_reach_deimos_without_a_generic_fallback():
     }
     message = _text(error_result(HubClientError("too_large", 403, {"refusal": refusal})))
     assert "120000" in message and "98304" in message and "calendar" in message
-    assert "Orbit rechazó la petición" not in message
+    assert "Orbit refused the request" not in message
     unknown = _text(error_result(HubClientError("future_code", 403)))
-    assert "future_code" in unknown and "Orbit rechazó la petición" not in unknown
+    assert "future_code" in unknown and "Orbit refused the request" not in unknown
 
 
 def test_empty_calendar_render_and_internal_error_keep_their_cause():
@@ -446,8 +447,8 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
         "system_timezone": "Europe/Madrid",
     }
     text = render(reading)
-    assert "0 eventos" in text
-    assert "tamaño" not in text
+    assert "0 events" in text
+    assert not re.search(r"\bsize\b", text)
     internal = _text(unexpected_result(None, 0))
     assert internal.startswith("internal_error:")
     assert "too_large" not in internal
@@ -458,36 +459,36 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
     [
         (
             {"code": "permission_denied", "permission": "accessibility"},
-            ("Accesibilidad", "Ajustes del Sistema"),
-            ("Grabación de pantalla",),
+            ("Accessibility", "System Settings"),
+            ("Screen Recording",),
         ),
         (
             {"code": "permission_denied", "permission": "screen_recording"},
-            ("Grabación de pantalla", "Ajustes del Sistema"),
+            ("Screen Recording", "System Settings"),
             (),
         ),
         (
             {"code": "permission_unknown", "permission": "accessibility"},
-            ("Accesibilidad", "No es una negativa", "helper"),
-            ("no concede",),
+            ("Accessibility", "This is not a denial", "helper"),
+            ("has not granted",),
         ),
         (
             {"code": "helper_not_running"},
             ("helper",),
-            ("segundos", "no concede", "acaba de arrancar"),
+            ("seconds", "has not granted", "just started"),
         ),
         (
             {"code": "recovering", "step": "snapshot", "elapsed_ms": 1234},
-            ("instantánea", "1234", "orden no se aplicó"),
+            ("snapshot", "1234", "command was not applied"),
             (),
         ),
-        ({"code": "work_in_flight", "in_flight": 1, "max": 1}, ("1",), ("recibo",)),
-        ({"code": "physical_work_finishing", "in_flight": 1, "max": 1}, ("1",), ("recibo",)),
-        ({"code": "busy", "operation": "chat"}, ("turno en curso", "interrúmpelo"), ()),
-        ({"code": "busy", "operation": "audio"}, ("nota de voz en el búfer", "termínala"), ()),
+        ({"code": "work_in_flight", "in_flight": 1, "max": 1}, ("1",), ("receipt",)),
+        ({"code": "physical_work_finishing", "in_flight": 1, "max": 1}, ("1",), ("receipt",)),
+        ({"code": "busy", "operation": "chat"}, ("turn is in progress", "interrupt it"), ()),
+        ({"code": "busy", "operation": "audio"}, ("voice note is buffered", "finish"), ()),
         (
             {"code": "busy", "operation": "voice_transcription"},
-            ("transcripción", "espera o interrúmpela"),
+            ("transcription", "wait or interrupt it"),
             (),
         ),
         (
@@ -503,8 +504,8 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
             ("pending-307", "Reunión pendiente", "61000", "2", "1"),
             (),
         ),
-        ({"code": "busy", "operation": "audio_session"}, ("Finaliza PTT",), ()),
-        ({"code": "busy", "operation": "audio_drain"}, ("drenándose",), ()),
+        ({"code": "busy", "operation": "audio_session"}, ("Finish PTT",), ()),
+        ({"code": "busy", "operation": "audio_drain"}, ("draining",), ()),
         (
             {"code": "engine_unavailable", "cause": "voice_processing_unsupported"},
             ("VoiceProcessing",),
@@ -516,7 +517,7 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
                 "parameter": "request",
                 "expected": {"kind": "open_recording"},
             },
-            ("Inicia otra grabación",),
+            ("Start another recording",),
             (),
         ),
         (
@@ -539,13 +540,13 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
         ),
         (
             {"code": "too_large", "resource": "ipc_response", "bytes": 123, "max_bytes": 100},
-            ("123", "100", "pudo haberse aplicado"),
+            ("123", "100", "may have been applied"),
             (),
         ),
         (
             {"code": "helper_refused", "helper_code": "selected_text_not_exposed"},
-            ("no expone", "no se sabe si hay texto seleccionado"),
-            ("no hay texto seleccionado",),
+            ("does not expose", "whether text is selected is unknown"),
+            ("no text is selected",),
         ),
     ],
 )
@@ -561,7 +562,7 @@ def test_refusal_recovery_words_live_at_the_mcp_boundary(refusal, words, absent_
 @pytest.mark.parametrize(
     "refusal, words",
     [
-        ({"code": "encode_failed", "resource": "calendar"}, ("codificar", "calendar")),
+        ({"code": "encode_failed", "resource": "calendar"}, ("encode", "calendar")),
         (
             {
                 "code": "helper_reply_invalid",
@@ -584,10 +585,10 @@ def test_refusal_recovery_words_live_at_the_mcp_boundary(refusal, words, absent_
         ),
         (
             {"code": "helper_refused", "helper_code": "selected_text_secure_field"},
-            ("campo protegido",),
+            ("protected field",),
         ),
         ({"code": "internal", "cause": {"kind": "native_command"}}, ("native_command",)),
-        ({"code": "protocol_version", "received": 7, "required": 1}, ("7", "1", "protocolo")),
+        ({"code": "protocol_version", "received": 7, "required": 1}, ("7", "1", "protocol")),
         ({"code": "hub_reply_invalid", "field": "body", "received_bytes": 4312}, ("4312", "body")),
         (
             {
@@ -599,7 +600,7 @@ def test_refusal_recovery_words_live_at_the_mcp_boundary(refusal, words, absent_
         ),
         (
             {"code": "calendar_read_limit", "cause": {"kind": "page", "max_bytes": 64000}},
-            ("64000", "calendario"),
+            ("64000", "calendar"),
         ),
         (
             {

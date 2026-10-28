@@ -5,4 +5,4 @@
  * messages page): the folded line of an answer after later turns and when
  * the conversation is opened again. The steps themselves are live only.
  */
-export type WorkSummary = { started_at_ms: number, ended_at_ms: number, tools: number, subjects: Array<string>, };
+export type WorkSummary = { started_at_ms: number, ended_at_ms: number, tools: number, subjects: Array<string>, subject_codes?: { [key in string]?: string }, };

@@ -393,7 +393,7 @@ class HermesConnection:
                     "session_id": session_id,
                     "content_base64": f"data:{block.mime};base64,{encoded}",
                     # The extension, not the name: Hermes takes a name's suffix
-                    # as the type, and «informe.pdf · página 3» would be refused.
+                    # as the type, and “report.pdf · page 3” would be refused.
                     "ext": extension,
                 },
             )

@@ -1,4 +1,4 @@
-"""Spanish-described MCP tools backed by the private Orbit hub."""
+"""English-described MCP tools backed by the private Orbit hub."""
 
 from __future__ import annotations
 
@@ -114,7 +114,7 @@ class OrbitMCPServer(MCPServer):
 def build_server(config: Config, hub_client: HubClient, *, clock=time.time) -> MCPServer:
     server = OrbitMCPServer(
         name="orbit",
-        instructions="Herramientas privadas de Orbit.",
+        instructions="Private Orbit tools.",
     )
     server.hub_client = hub_client
     runner = ToolRunner(config, hub_client, clock)

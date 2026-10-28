@@ -191,7 +191,7 @@ class TurnSender:
     async def _commit_turn(self, params, request_id, session_id, agent_id, state, meeting) -> str:
         runtime = self.runtime
         tracked_input_type = runtime.input_tracker.consume(runtime.device, params.text)
-        input_type = "llamada de voz en curso" if params.call_active else tracked_input_type
+        input_type = "ongoing voice call" if params.call_active else tracked_input_type
         sent = meeting.text if meeting is not None else params.text
         header = f"[Orbit · {runtime.device_name} · {input_type}]"
         if params.voice is not None and meeting is None:
@@ -314,7 +314,7 @@ class TurnSender:
         `meeting_not_found` before anything reaches the agent."""
         runtime = self.runtime
         meeting = params.meeting
-        lines, started, pending = await runtime.run_store(
+        lines, started, pending, language = await runtime.run_store(
             lambda: read_meeting(runtime.store, runtime.device, meeting.recording_id)
         )
         elapsed = None if started is None else round(runtime.now() * 1000) - started
@@ -326,4 +326,5 @@ class TurnSender:
             lines,
             elapsed,
             pending,
+            language,
         )

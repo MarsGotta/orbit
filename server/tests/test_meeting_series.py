@@ -1,10 +1,10 @@
 """A meeting's series as the Mac reads and sets it.
 
 `GET /v1/series/previous-meeting`: the earlier meeting of a calendar series and
-the tasks of its note, done or not, for «Pendiente de la última vez» in Hoy.
+the tasks of its note, done or not, for “Pending from last time” in Today.
 `PUT /v1/recordings/{id}/series`: the template and the dictionary of the
-meeting's series saved together, in one transaction, for «Usar lo mismo en toda
-la serie». Real routes over the real store; notes written by the real worker
+meeting's series saved together, in one transaction, for “Use the same for the whole
+series”. Real routes over the real store; notes written by the real worker
 with a scripted model (`support_series.Bench`). Invented meetings and people.
 """
 
@@ -89,7 +89,7 @@ def previous(http, headers, series=SERIES, before_ms=NEXT_MS, title_digest=None)
     return http.get("/v1/series/previous-meeting", params=params, headers=headers)
 
 
-# Proposal 5: «Pendiente de la última vez».
+# Proposal 5: “Pending from last time”.
 
 
 async def test_the_previous_meeting_of_the_series_brings_its_tasks_done_or_not(bench):
@@ -198,7 +198,7 @@ def test_a_previous_meeting_query_is_refused_with_the_field_and_its_numbers(envi
         assert previous(http, {}).status_code == 401
 
 
-# «Pendiente de la última vez» by the title, when the series has no earlier
+# “Pending from last time” by the title, when the series has no earlier
 # meeting: one recorded by hand with the event's title carries no series. The
 # title travels as the digest of its words (`title_digest`), never as text.
 

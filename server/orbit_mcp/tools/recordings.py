@@ -13,26 +13,24 @@ from ..hub import HubClientError
 from .runner import ToolRunner, ok, page_start, text
 
 TRANSCRIPT_DESCRIPTION = (
-    "Lee la transcripción de una grabación de Orbit, una línea por intervención: "
-    "«[hh:mm:ss] Nombre: texto», con el tiempo desde el inicio de la grabación. Los "
-    "nombres son los que ve quien usa Orbit: el micrófono del Mac lleva el de su dueño, "
-    "cada voz el que le puso; las voces separadas sin nombre son «Persona 1», «Persona 2»… y el borrador dice «Otra persona». De una "
-    "reunión en curso devuelve lo transcrito hasta ahora, marcado como parcial, con "
-    "cuánto audio queda por transcribir. Una transcripción larga llega por páginas de "
-    f"hasta {MAX_ANSWER_CHARS} caracteres: la primera línea dice cuáles son "
-    "y el after_index con el que seguir. format=segments da tiempos at_ms/end_ms, pista y speaker_key para identificar un turno, en una línea JSON por "
-    "fragmento transcrito."
+    "Reads an Orbit recording transcript, one line per turn: [hh:mm:ss] Name: text, "
+    "with time since the recording began. Names match those the Orbit user sees: "
+    "the Mac microphone uses its owner's name, each voice its assigned name; "
+    "separate unnamed voices are ‘Persona 1’, ‘Persona 2’… and the draft says ‘Otra persona’. "
+    "For an ongoing meeting, returns the transcript so far, marked partial, with "
+    "how much audio remains to transcribe. Long transcripts are paginated with up to "
+    f"{MAX_ANSWER_CHARS} characters: the first line states the range and after_index "
+    "to continue. format=segments gives at_ms/end_ms times, track and speaker_key "
+    "to identify a turn, one JSON line per transcribed chunk."
 )
 
 NOTE_DESCRIPTION = (
-    "Lee la nota de una grabación tal como la ve quien usa Orbit: título, resumen "
-    "corto, las secciones de su plantilla con sus ediciones aplicadas, las tareas con "
-    "responsable, plazo y si están hechas, las decisiones, los temas abiertos, sus "
-    "notas privadas, la plantilla, el modelo que la escribió y cuándo. Si la nota "
-    "no está escrita, dice en qué estado está y por qué, con sus números (por "
-    "ejemplo, cuándo es el siguiente intento). Sólo lectura. Una nota larga llega "
-    f"por páginas de hasta {MAX_ANSWER_CHARS} caracteres con el after_index "
-    "con el que seguir."
+    "Reads a recording note as the Orbit user sees it: title, short summary, "
+    "template sections with their edits applied, action items with owner, deadline "
+    "and completion state, decisions, open questions, private notes, template, "
+    "the model that wrote it and when. If unwritten, states its status and cause "
+    "with numbers (for example, when the next attempt is due). Read-only. Long notes "
+    f"are paginated with up to {MAX_ANSWER_CHARS} characters and after_index to continue."
 )
 
 
@@ -60,13 +58,13 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lista las reuniones de quien usa Orbit en todos sus Mac, de la que empezó más tarde a la "
-            "que empezó antes, incluida la que esté en curso (marcada EN CURSO). Cada una "
-            "dice el estado real de su nota —lista con su título y resumen corto, "
-            "escribiéndose, esperando la transcripción, en cola, fallida con su causa, sin "
-            "pedir o sin modelo configurado— y el de su transcripción. Devuelve "
-            f"{meetings.MEETINGS_PER_ANSWER} como máximo; si hay más lo dice y da el "
-            "before_ms y before_id con los que seguir. since_days (1–365, 7 por defecto) acota el periodo."
+            "Lists the Orbit user's meetings across all their Macs, from latest to earliest "
+            "start, including ongoing meetings (marked IN PROGRESS). Each states the real "
+            "status of its note — ready with title and short summary, being written, waiting "
+            "for transcription, queued, failed with cause, not requested or no model configured — "
+            "and its transcription. Returns at most "
+            f"{meetings.MEETINGS_PER_ANSWER}; if more exist, reports it and gives before_ms "
+            "and before_id to continue. since_days (1–365, default 7) bounds the period."
         ),
         structured_output=False,
     )

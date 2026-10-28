@@ -1,3 +1,5 @@
+import { aiPrivacy } from "./aiPrivacy";
+import { agentActivity } from "./agentActivity";
 import { interfaceCopy } from "./interface";
 import { assistantsCopy, vendorOf, shortDay } from "./assistants";
 import { accessGroups, agentFailureText, agentRefusalText } from "./agents";
@@ -45,6 +47,8 @@ export { globalShortcuts };
 export function spanish(assistantName = "Deimos") {
   return {
     ...interfaceCopy,
+    agentActivity,
+    aiPrivacy,
     extras: {
       assistantsCopy,
       vendorOf,

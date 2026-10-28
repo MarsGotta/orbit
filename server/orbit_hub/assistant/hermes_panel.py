@@ -188,7 +188,7 @@ class HermesPanelAdmin:
             report(event="hermes_panel_refused", code="assistant_admin_refused", status=status)
             raise HubError(
                 "assistant_admin_refused",
-                f"Hermes refused {method} {route} con HTTP {status}",
+                f"Hermes refused {method} {route} with HTTP {status}",
                 http_status=502,
                 numbers={"route": f"{method} {route}", "status": status},
             )

@@ -84,6 +84,7 @@ async def write_note(
     owner_name=None,
     private_notes=None,
     speakers=None,
+    model=None,
 ) -> NotesWorker:
     """Ask for the note and run the real worker once on it, as the hub would.
 
@@ -97,7 +98,7 @@ async def write_note(
     if speakers is not None:
         meetings.rename(store, owner, recording, speakers, set(speakers), now)
     executor = ThreadPoolExecutor(max_workers=1)
-    model = FakeModel()
+    model = model or FakeModel()
     model.script("note", *answers)
     worker = NotesWorker(
         NoteRepository(store),

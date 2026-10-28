@@ -3,8 +3,8 @@
 `orbit_calendar` handed its refusal the requested device *name* where a device
 selection belongs, so a disconnected Mac made it raise
 `AttributeError: 'str' object has no attribute 'device'` from inside its own
-`except`, and Deimos got an internal error instead of "el Mac no está
-conectado". The first test is that case against the loopback hub with real
+`except`, and Deimos got an internal error instead of “the Mac is not
+connected”. The first test is that case against the loopback hub with real
 auth; the second walks every tool that addresses a Mac, so the same slip in any
 of them is caught.
 """
@@ -27,8 +27,8 @@ from orbit_mcp.config import Config
 from orbit_mcp.hub import HubClient, HubClientError
 from orbit_mcp.server import build_server
 
-DISCONNECTED = "device_unavailable: El Mac no está conectado a Orbit. "
-LAST_SEEN = f"{DEFAULT_DEVICE} fue visto por última vez hace 2 min."
+DISCONNECTED = "device_unavailable: The Mac is not connected to Orbit. "
+LAST_SEEN = f"{DEFAULT_DEVICE} was last seen 2 min ago."
 START_MS = 1_789_000_000_000
 END_MS = START_MS + 3_600_000
 

@@ -50,63 +50,97 @@ BUILTIN_TEMPLATES: tuple[Template, ...] = (
     _builtin(
         "general",
         "General",
-        "Una reunión de trabajo cualquiera. Quien la lea no estuvo: necesita saber "
-        "de qué se habló, qué quedó decidido y qué hay que hacer.",
-        ("Resumen", "Dos a cuatro frases con el propósito de la reunión y su resultado."),
-        ("Puntos clave", "Los temas tratados, uno por viñeta, con lo esencial de cada uno."),
-        ("Decisiones", "Sólo lo que quedó acordado explícitamente. Si no hubo, dilo."),
-        ("Próximos pasos", "Qué sigue, quién lo hace y cuándo, si se dijo."),
+        "An ordinary work meeting. The reader was not there: explain what was discussed, what was decided and what needs to be done.",
+        ("Resumen", "Two to four sentences stating the meeting's purpose and outcome."),
+        ("Puntos clave", "The topics discussed, one per bullet, with the essentials of each."),
+        ("Decisiones", "Only what was explicitly agreed. If nothing was agreed, say so."),
+        ("Próximos pasos", "What comes next, who does it and when, if stated."),
     ),
     _builtin(
         "one_on_one",
         "Uno a uno",
-        "Una conversación entre dos personas que trabajan juntas de forma habitual.",
-        ("Cómo está", "El estado de ánimo, la carga y lo que preocupa, si salió."),
-        ("Temas tratados", "Cada tema con lo que se dijo de él."),
-        ("Acuerdos", "Lo que las dos personas acordaron."),
-        ("Para la próxima", "Lo que queda pendiente de retomar en el siguiente uno a uno."),
+        "A conversation between two people who work together regularly.",
+        ("Cómo está", "Mood, workload and concerns, if discussed."),
+        ("Temas tratados", "Each topic with what was said about it."),
+        ("Acuerdos", "What the two people agreed."),
+        ("Para la próxima", "What remains to revisit at the next one-on-one."),
     ),
     _builtin(
         "project",
         "Seguimiento de proyecto",
-        "Una reunión periódica sobre el avance de un proyecto.",
-        ("Estado", "Cómo va el proyecto en una o dos frases."),
-        ("Avances", "Lo terminado o desbloqueado desde la última vez."),
-        ("Bloqueos y riesgos", "Lo que frena o amenaza el plan, con su causa."),
-        ("Decisiones", "Lo acordado en esta reunión."),
-        ("Próximos pasos", "Tareas con responsable y plazo cuando se dijeron."),
+        "A recurring meeting about a project's progress.",
+        ("Estado", "How the project is going, in one or two sentences."),
+        ("Avances", "What was finished or unblocked since the last meeting."),
+        ("Bloqueos y riesgos", "What is blocking or threatening the plan, with its cause."),
+        ("Decisiones", "What was agreed at this meeting."),
+        ("Próximos pasos", "Tasks with owners and deadlines when stated."),
     ),
     _builtin(
         "client",
         "Cliente",
-        "Una conversación con un cliente o posible cliente.",
-        ("Contexto", "Quién es, qué busca y en qué punto está la relación."),
-        ("Necesidades", "Lo que el cliente pidió o dejó ver que necesita."),
-        ("Objeciones y dudas", "Lo que frena al cliente y cómo se respondió."),
-        ("Acuerdos", "Lo pactado: precios, plazos, alcance, próximos contactos."),
-        ("Seguimiento", "Lo que hay que enviar o hacer después de la llamada."),
+        "A conversation with a client or prospective client.",
+        ("Contexto", "Who they are, what they want and the relationship's current stage."),
+        ("Necesidades", "What the client requested or indicated they need."),
+        ("Objeciones y dudas", "What is holding the client back and how it was answered."),
+        ("Acuerdos", "What was agreed: prices, deadlines, scope and next contacts."),
+        ("Seguimiento", "What needs to be sent or done after the call."),
     ),
     _builtin(
         "interview",
         "Entrevista",
-        "Una entrevista a una persona candidata para un puesto.",
-        ("Perfil", "Trayectoria y experiencia relevante que contó."),
-        ("Puntos fuertes", "Lo que destacó con ejemplos concretos."),
-        ("Dudas", "Lo que no quedó claro o preocupa."),
-        ("Valoración", "Impresión general basada sólo en lo dicho."),
-        ("Siguiente paso", "Qué se le dijo sobre el proceso."),
+        "An interview with a candidate for a position.",
+        ("Perfil", "The background and relevant experience they described."),
+        ("Puntos fuertes", "Strengths they demonstrated with concrete examples."),
+        ("Dudas", "What remained unclear or concerning."),
+        ("Valoración", "Overall impression based only on what was said."),
+        ("Siguiente paso", "What they were told about the process."),
     ),
     _builtin(
         "brainstorm",
         "Lluvia de ideas",
-        "Una sesión para generar y comparar ideas.",
-        ("Ideas", "Cada idea propuesta, con quién la propuso si se sabe."),
-        ("Lo que gustó", "Las ideas que el grupo prefirió y por qué."),
-        ("Descartado", "Lo que se descartó y la razón."),
-        ("Preguntas abiertas", "Lo que falta por averiguar o decidir."),
+        "A session to generate and compare ideas.",
+        ("Ideas", "Each idea proposed, with who proposed it if known."),
+        ("Lo que gustó", "The ideas the group preferred and why."),
+        ("Descartado", "What was discarded and why."),
+        ("Preguntas abiertas", "What remains to be learned or decided."),
     ),
 )
 
 
 def builtin(template_id: str) -> Template | None:
     return next((t for t in BUILTIN_TEMPLATES if t.id == template_id), None)
+
+
+_ENGLISH_NAMES = {
+    "general": ("General", ("Summary", "Key points", "Decisions", "Next steps")),
+    "one_on_one": (
+        "One-on-one",
+        ("How they are", "Topics discussed", "Agreements", "For next time"),
+    ),
+    "project": (
+        "Project update",
+        ("Status", "Progress", "Blockers and risks", "Decisions", "Next steps"),
+    ),
+    "client": (
+        "Client",
+        ("Context", "Needs", "Objections and questions", "Agreements", "Follow-up"),
+    ),
+    "interview": ("Interview", ("Profile", "Strengths", "Questions", "Assessment", "Next step")),
+    "brainstorm": ("Brainstorm", ("Ideas", "What resonated", "Discarded", "Open questions")),
+}
+
+
+def for_meeting(template: Template, language: str) -> Template:
+    """Built-in headings follow the meeting; custom templates remain user content."""
+    if not template.builtin or not language.startswith("en") or template.id not in _ENGLISH_NAMES:
+        return template
+    name, headings = _ENGLISH_NAMES[template.id]
+    return template.model_copy(
+        update={
+            "name": name,
+            "sections": tuple(
+                section.model_copy(update={"name": heading})
+                for section, heading in zip(template.sections, headings, strict=True)
+            ),
+        }
+    )

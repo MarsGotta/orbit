@@ -339,7 +339,7 @@ def _prompt(text: str, images: list[ImageBlock]) -> tuple[str | list[str | Binar
         [
             text,
             *(
-                f"[Orbit · image «{image.name}» (adjunto {image.attachment_id}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
+                f"[Orbit · image «{image.name}» (attachment {image.attachment_id}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
                 for image in images
             ),
         ]

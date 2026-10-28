@@ -102,7 +102,7 @@ def profile_refusal(name: str, description: str, color: str) -> HubError | None:
     """Why a profile cannot be stored, with the field, its count and the ceiling.
     Uniqueness is the registry's (`Agents.set_profile`)."""
     if not name:
-        return _invalid("name", "empty", "Ponle un nombre: es como le llamas", 0, 1)
+        return _invalid("name", "empty", "Give it a name: this is how you address it", 0, 1)
     if len(name) > MAX_PROFILE_NAME_CHARS or _has_control(name):
         cause = "too_long" if len(name) > MAX_PROFILE_NAME_CHARS else "control_characters"
         return _invalid(

@@ -15,6 +15,7 @@ interface FunctionRowProps {
 }
 
 function FunctionRow({ fn, providers, view }: FunctionRowProps) {
+  const { aiPrivacy } = useCopy();
   const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const options = providers.flatMap((provider) =>
@@ -23,13 +24,16 @@ function FunctionRow({ fn, providers, view }: FunctionRowProps) {
       .map((model) => ({
         provider_id: provider.id,
         model: model.id,
-        label: `${provider.name} · ${model.id}`,
+        label: `${provider.id === "hub" ? aiPrivacy.hubName : provider.name} · ${model.id}`,
       })),
   );
   const selected = JSON.stringify([fn.provider_id, fn.model]);
   const operator = JSON.stringify(["operator", "default"]);
   return (
-    <Row title={lookupCopy(copy.functions, fn.id) ?? fn.id} help={fn.privacy}>
+    <Row
+      title={lookupCopy(copy.functions, fn.id) ?? fn.id}
+      help={aiPrivacy.text(fn.privacy_copies, fn.privacy)}
+    >
       <div className={`${styles.select} ${styles.aiSelect}`}>
         <select
           aria-label={lookupCopy(copy.functions, fn.id) ?? fn.id}
@@ -46,7 +50,7 @@ function FunctionRow({ fn, providers, view }: FunctionRowProps) {
         >
           <option value={operator}>
             {copy.operator}
-            {fn.provider_id === "operator" ? ` · ${fn.model}` : ""}
+            {fn.provider_id === "operator" ? ` · ${aiPrivacy.modelName(fn.model)}` : ""}
           </option>
           {options.map((option) => (
             <option

@@ -3,7 +3,7 @@
 One rule for every reader of a transcript: the Mac's routes, Deimos's meetings
 bridge, the note the model writes and the context of a question asked about a
 meeting. When the Mac rebuilt it on its own, it got the times (the chunks'
-wall clock), the names («Hablante sin identificar») and the empty groups wrong;
+wall clock), the names (“Unidentified speaker”) and the empty groups wrong;
 nothing else here may decide them again.
 
 `read` is the only part that touches the store, inside the caller's snapshot;
@@ -166,7 +166,7 @@ def clock(ms: int) -> str:
 
 
 def render(lines: list[Line]) -> str:
-    """«[hh:mm:ss] Nombre: texto», one line per turn."""
+    """“[hh:mm:ss] Name: text”, one line per turn."""
     return "\n".join(f"[{clock(line.at_ms)}] {line.speaker}: {line.text}" for line in lines)
 
 

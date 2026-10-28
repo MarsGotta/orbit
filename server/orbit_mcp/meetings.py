@@ -28,43 +28,41 @@ from .hub import HubClientError
 MEETINGS_PER_ANSWER = 20
 
 TRANSCRIPT_WORDS = {
-    "ready": "lista",
-    "pending": "pendiente",
-    "partial": "parcial (faltan fragmentos que fallaron)",
-    "failed": "fallida",
+    "ready": "ready",
+    "pending": "pending",
+    "partial": "partial (failed chunks are missing)",
+    "failed": "failed",
 }
 
 # Why a note could not be written, from the code and the numbers the hub's
 # processing client recorded. Each sentence names the cause; a code that is
 # not here is still shown, with every number it came with.
 NOTE_CAUSES = {
-    "provider_timeout": "el modelo tardó más de {timeout_seconds} s en contestar",
-    "provider_unreachable": "no se pudo conectar con el servicio del modelo ({error})",
-    "provider_http_error": "el servicio del modelo devolvió HTTP {status}",
-    "provider_rejected_credential": (
-        "el servicio del modelo rechazó la clave del hub (HTTP {status})"
-    ),
+    "provider_timeout": "the model took longer than {timeout_seconds} s to answer",
+    "provider_unreachable": "could not connect to the model service ({error})",
+    "provider_http_error": "the model service returned HTTP {status}",
+    "provider_rejected_credential": ("the model service rejected the hub key (HTTP {status})"),
     "provider_context_exceeded": (
-        "la transcripción no cabe en el contexto del modelo "
-        "({prompt_tokens} tokens frente a {context_tokens})"
+        "the transcript does not fit the model context "
+        "({prompt_tokens} tokens versus {context_tokens})"
     ),
-    "provider_refusal": "el modelo se negó a escribirla",
+    "provider_refusal": "the model refused to write it",
     "incomplete_completion": (
-        "el modelo agotó su límite de {max_completion_tokens} tokens de respuesta "
-        "({completion_tokens} usados) antes de terminarla"
+        "the model exhausted its {max_completion_tokens} response-token limit "
+        "({completion_tokens} used) before finishing it"
     ),
-    "invalid_response": "el servicio del modelo contestó algo que no es una respuesta ({reason})",
-    "invalid_json_content": "el modelo no devolvió JSON válido ({bytes} bytes)",
-    "note_schema_mismatch": "la respuesta del modelo no tiene la forma de una nota (campo {field})",
-    "request_too_large": "la petición al modelo ocupaba {bytes} bytes y el máximo es {limit}",
-    "response_too_large": "la respuesta del modelo pasó de {limit} bytes ({bytes} leídos)",
-    "processing_not_configured": "el hub no tiene configurado el modelo que escribe las notas",
-    "note_template_not_found": "no existe la plantilla «{template_id}»",
-    "transcript_empty": "la transcripción no tiene texto ({segments} fragmentos vacíos)",
-    "note_internal_error": "un fallo interno del hub al escribirla",
+    "invalid_response": "the model service returned something that is not a response ({reason})",
+    "invalid_json_content": "the model did not return valid JSON ({bytes} bytes)",
+    "note_schema_mismatch": "the model response does not have the shape of a note (field {field})",
+    "request_too_large": "the model request was {bytes} bytes and the maximum is {limit}",
+    "response_too_large": "the model response exceeded {limit} bytes ({bytes} read)",
+    "processing_not_configured": "the hub has no model configured to write notes",
+    "note_template_not_found": "template «{template_id}» does not exist",
+    "transcript_empty": "the transcript has no text ({segments} empty chunks)",
+    "note_internal_error": "an internal hub failure while writing it",
     "quota_exceeded": (
-        "el hub llegó a su cuota de almacenamiento: usa {used_bytes} bytes de {max_bytes} y "
-        "guardar esto ({bytes} bytes) reserva {reserved_bytes}"
+        "the hub reached its storage quota: it uses {used_bytes} bytes of {max_bytes} and "
+        "saving this ({bytes} bytes) reserves {reserved_bytes}"
     ),
 }
 _STATE_KEYS = frozenset({"cause", "attempt", "attempts", "retry_at_ms", "code", "retry"})
@@ -99,11 +97,11 @@ def audio_length(ms: int) -> str:
 
 
 def attempts_text(count: int) -> str:
-    return f"{count} intento{'' if count == 1 else 's'}"
+    return f"{count} attempt{'' if count == 1 else 's'}"
 
 
 def cause_sentence(numbers: dict) -> str:
-    """The recorded failure in words, with its numbers; never just «falló»."""
+    """The recorded failure in words, with its numbers; never just “failed”."""
     code = numbers.get("cause")
     template = NOTE_CAUSES.get(code)
     if template is not None:
@@ -114,55 +112,50 @@ def cause_sentence(numbers: dict) -> str:
     extra = ", ".join(
         f"{key}: {value}" for key, value in sorted(numbers.items()) if key not in _STATE_KEYS
     )
-    return f"código {code}" + (f" ({extra})" if extra else "")
+    return f"code {code}" + (f" ({extra})" if extra else "")
 
 
 def note_phrase(note: dict) -> str:
-    """One meeting's note in the listing: its real state, never an empty «sin resumen»."""
+    """One meeting's note in the listing: its real state, never an empty “no summary”."""
     state = note.get("state")
     title, short = note.get("title"), note.get("short_summary")
     written = isinstance(title, str) and isinstance(short, str)
     if state == "ready":
         if not written:
             raise HubClientError("invalid_response")
-        return f"nota lista: «{title}» — {short}"
+        return f"note ready: «{title}» — {short}"
     if state == "not_requested":
         phrase = (
-            "nota sin pedir: el Mac no la ha pedido, así que no existe "
-            "(no quiere decir que la reunión no tenga contenido)"
+            "note not requested: the Mac has not requested it, so it does not exist "
+            "(this does not mean the meeting has no content)"
         )
     elif state == "not_configured":
-        phrase = "nota sin escribir: el hub no tiene configurado el modelo que escribe las notas"
+        phrase = "note not written: the hub has no model configured to write notes"
     elif state == "waiting_transcript":
-        phrase = "nota esperando a que termine la transcripción"
+        phrase = "note waiting for transcription to finish"
     elif state == "generating" and _is_int(note.get("attempt")):
-        phrase = f"nota escribiéndose ahora (intento {note['attempt']})"
+        phrase = f"note being written now (attempt {note['attempt']})"
     elif state == "queued" and _is_int(note.get("retry_at_ms")):
-        phrase = f"nota en cola, próximo intento {utc_second(note['retry_at_ms'])}"
+        phrase = f"note queued, next attempt {utc_second(note['retry_at_ms'])}"
         if _is_int(note.get("attempts")) and isinstance(note.get("cause"), str):
             phrase += (
-                f", tras {attempts_text(note['attempts'])} fallido"
-                f"{'' if note['attempts'] == 1 else 's'}; el último: {cause_sentence(note)}"
+                f", after {attempts_text(note['attempts'])} failed"
+                f"{'' if note['attempts'] == 1 else 's'}; the last: {cause_sentence(note)}"
             )
     elif state == "failed" and _is_int(note.get("attempts")) and isinstance(note.get("cause"), str):
         phrase = (
-            f"nota fallida tras {attempts_text(note['attempts'])}: {cause_sentence(note)}; "
-            "el hub no la reintenta solo"
+            f"note failed after {attempts_text(note['attempts'])}: {cause_sentence(note)}; "
+            "the hub will not retry automatically"
         )
     else:
         raise HubClientError("invalid_response")
     if written:
-        phrase += f"; la escrita antes: «{title}» — {short}"
+        phrase += f"; previously written: «{title}» — {short}"
     return phrase
 
 
 def render_meetings(payload: dict, since_ms: int) -> str:
-    lines = [
-        (
-            f"Reuniones de Orbit desde {utc_minute(since_ms)}, de la que empezó más tarde a la "
-            "que empezó antes (hora UTC):"
-        )
-    ]
+    lines = [(f"Orbit meetings since {utc_minute(since_ms)}, from latest to earliest start (UTC):")]
     last_start = last_recording = None
     for meeting in payload["meetings"]:
         if not isinstance(meeting, dict):
@@ -185,26 +178,26 @@ def render_meetings(payload: dict, since_ms: int) -> str:
             last_start, last_recording = started, recording
         if capture == "open":
             received = meeting.get("last_audio_received_ms")
-            began = utc_minute(started) if started is not None else "a una hora desconocida"
-            arrived = f", el último a las {utc_second(received)}" if _is_int(received) else ""
-            words = "en curso" if transcript == "pending" else TRANSCRIPT_WORDS[transcript]
+            began = utc_minute(started) if started is not None else "at an unknown time"
+            arrived = f", last at {utc_second(received)}" if _is_int(received) else ""
+            words = "in progress" if transcript == "pending" else TRANSCRIPT_WORDS[transcript]
             lines.append(
-                f"- EN CURSO · «{title}» · empezó {began} · el Mac aún no la ha cerrado · "
-                f"{audio_length(max(0, duration))} de audio recibido{arrived} · "
-                f"grabación {recording} · transcripción {words} · {note_phrase(note)}"
+                f"- IN PROGRESS · «{title}» · started {began} · the Mac has not closed it yet · "
+                f"{audio_length(max(0, duration))} of audio received{arrived} · "
+                f"recording {recording} · transcription {words} · {note_phrase(note)}"
             )
         else:
             lines.append(
                 f"- «{title}» · {utc_minute(started)} · {max(0, duration) // 60_000} min · "
-                f"grabación {recording} · transcripción {TRANSCRIPT_WORDS[transcript]} · "
+                f"recording {recording} · transcription {TRANSCRIPT_WORDS[transcript]} · "
                 f"{note_phrase(note)}"
             )
     if len(lines) == 1:
-        lines.append("Ninguna.")
+        lines.append("None.")
     if payload["more"] and last_start is not None:
         lines.append(
-            f"Hay más reuniones en ese periodo; se muestran las {MEETINGS_PER_ANSWER} que "
-            f"empezaron más tarde. Sigue con before_ms={last_start}, before_id={last_recording}."
+            f"There are more meetings in that period; showing the {MEETINGS_PER_ANSWER} that "
+            f"started latest. Continue with before_ms={last_start}, before_id={last_recording}."
         )
     return "\n".join(lines)
 
@@ -225,8 +218,8 @@ def out_of_range(after_index: int, total: int) -> HubClientError:
 def page_line(start: int, length: int, total: int, following: int | None) -> str:
     end = start + length
     if following is None:
-        return f"Página: caracteres {start}–{end} de {total}; es la última."
-    return f"Página: caracteres {start}–{end} de {total}. Sigue con after_index={following}."
+        return f"Page: characters {start}–{end} of {total}; this is the last page."
+    return f"Page: characters {start}–{end} of {total}. Continue with after_index={following}."
 
 
 def render_transcript(payload: dict, after_index: int) -> str:
@@ -246,23 +239,23 @@ def render_transcript(payload: dict, after_index: int) -> str:
         if not _is_int(chunks) or not _is_int(audio):
             raise HubClientError("invalid_response")
         lines.append(
-            "Transcripción parcial: la reunión sigue en curso; el Mac aún no la ha cerrado. "
-            f"Quedan por transcribir {chunks} fragmentos que ya llegaron al hub, unos "
-            f"{audio_length(audio)} de audio en la pista más atrasada; el audio que el Mac "
-            "todavía no ha subido no cuenta aquí. El texto crece y puede reordenarse: "
-            "vuelve a pedirlo desde el principio en vez de seguir un after_index antiguo."
+            "Partial transcript: the meeting is still in progress; the Mac has not closed it yet. "
+            f"Still awaiting transcription: {chunks} chunks that already reached the hub, about "
+            f"{audio_length(audio)} of audio on the most delayed track; audio the Mac "
+            "has not uploaded yet is not counted here. The text grows and may be reordered: "
+            "request it again from the beginning instead of continuing an old after_index."
         )
     if payload.get("speaker_names") == "tracks":
         lines.append(
-            "Hablantes sin nombre: el Mac aún no le ha dicho al hub quién es su dueño. "
-            "«Micrófono local» es el micrófono del Mac de quien usa Orbit; «Persona 1», "
-            "«Persona 2»… "
-            "son voces separadas sin nombre; «Otra persona», audio aún sin voz identificada."
+            "Unnamed speakers: the Mac has not told the hub who its owner is yet. "
+            "“Micrófono local” is the Orbit user’s Mac microphone; “Persona 1”, "
+            "“Persona 2”… "
+            "are separate unnamed voices; “Otra persona” is audio without an identified voice yet."
         )
     final = payload.get("final_pass")
     if isinstance(final, dict) and final.get("error"):
         lines.append(
-            "Borrador: falló la pasada final. "
+            "Draft: the final pass failed. "
             + cause_sentence({**final["error"], "cause": final["error"]["code"]})
         )
     body = "\n".join([*lines, shown]) if lines else shown
@@ -272,17 +265,17 @@ def render_transcript(payload: dict, after_index: int) -> str:
         for group in groups:
             detail = group["cause"]
             if _is_int(group.get("provider_status")):
-                detail = f"HTTP {group['provider_status']} del servicio"
+                detail = f"HTTP {group['provider_status']} from the service"
             elif _is_int(group.get("timeout_ms")):
-                detail = f"plazo de {group['timeout_ms']} ms vencido"
+                detail = f"deadline of {group['timeout_ms']} ms exceeded"
             missing.append(
-                f"{group['track']}, fragmentos {group['first_index']}–{group['last_index']}: "
+                f"{group['track']}, chunks {group['first_index']}–{group['last_index']}: "
                 f"{detail}; {attempts_text(group['attempts'])}"
             )
         body += (
-            "\n\nTranscripción parcial. Falta: "
+            "\n\nPartial transcript. Missing: "
             + "; ".join(missing)
-            + ". No se reintentará automáticamente; el audio original se conserva."
+            + ". It will not retry automatically; the original audio is retained."
         )
     return body
 
@@ -292,20 +285,20 @@ def _note_text(payload: dict) -> str:
     try:
         title, short = str(note["title"]), str(note["short_summary"])
         header = (
-            f"Nota «{title}» de la grabación {payload.get('recording_id')} · "
-            f"plantilla {note['template_name']} · escrita por {note['model']} el "
-            f"{utc_minute(int(note['generated_at_ms']))} · revisión {payload.get('revision')}"
+            f"Note «{title}» from recording {payload.get('recording_id')} · "
+            f"template {note['template_name']} · written by {note['model']} at "
+            f"{utc_minute(int(note['generated_at_ms']))} · revision {payload.get('revision')}"
         )
         lines = [header]
         if note.get("final_pass_error"):
             failure = note["final_pass_error"]
             lines.append(
-                "Nota escrita con el borrador: "
+                "Note written from the draft: "
                 + cause_sentence({**failure, "cause": failure["code"]})
             )
         if payload["state"] != "ready":
             lines.append(
-                "No es la versión definitiva: "
+                "This is not the final version: "
                 + note_phrase({"state": payload["state"], **(payload.get("progress") or {})})
                 + "."
             )
@@ -313,53 +306,49 @@ def _note_text(payload: dict) -> str:
         changed = [
             word
             for word, flag in (
-                ("el título", edited.get("title")),
-                ("las secciones", edited.get("sections")),
+                ("the title", edited.get("title")),
+                ("the sections", edited.get("sections")),
             )
             if flag
         ]
         if changed:
-            lines.append(
-                f"Quien usa Orbit editó {' y '.join(changed)}; lo que sigue es su versión."
-            )
+            lines.append(f"The Orbit user edited {' and '.join(changed)}; their version follows.")
         if payload.get("superseded_edits"):
             lines.append(
-                "Al reescribir la nota quedaron apartadas ediciones anteriores de quien usa "
+                "Rewriting the note set aside previous edits by the user of "
                 "Orbit; "
-                "la app se las muestra."
+                "the app shows them to the user."
             )
-        lines.append(f"Resumen corto: {short}")
+        lines.append(f"Short summary: {short}")
         lines.append(
-            f"Escrita a partir de {note['segments']} fragmentos de transcripción, "
-            f"{int(note['duration_ms']) // 60_000} min de reunión"
-            + (f", en {note['parts']} partes." if int(note["parts"]) > 1 else ".")
+            f"Written from {note['segments']} transcript chunks, "
+            f"{int(note['duration_ms']) // 60_000} minutes of meeting"
+            + (f", in {note['parts']} parts." if int(note["parts"]) > 1 else ".")
         )
-        lines.append("\n# Resumen por secciones")
+        lines.append("\n# Summary by section")
         for section in note["sections"]:
             lines.append(f"## {section['name']}\n{section['markdown']}")
-        lines.append("\n# Tareas")
+        lines.append("\n# Action items")
         for item in note["action_items"] or []:
-            owner = item.get("owner") or "Sin responsable"
-            due = f" (plazo: {item['due']})" if item.get("due") else ""
-            mark = "hecha" if item.get("done") is True else "pendiente"
+            owner = item.get("owner") or "Unassigned"
+            due = f" (due: {item['due']})" if item.get("due") else ""
+            mark = "done" if item.get("done") is True else "pending"
             lines.append(f"- [{mark}] {owner}: {item['text']}{due}")
         if not note["action_items"]:
-            lines.append("Ninguna.")
-        lines.append("\n# Decisiones")
+            lines.append("None.")
+        lines.append("\n# Decisions")
         lines.extend(f"- {decision}" for decision in note["decisions"] or [])
         if not note["decisions"]:
-            lines.append("Ninguna.")
-        lines.append("\n# Temas abiertos")
+            lines.append("None.")
+        lines.append("\n# Open questions")
         lines.extend(f"- {topic}" for topic in note["open_topics"] or [])
         if not note["open_topics"]:
-            lines.append("Ninguno.")
+            lines.append("None.")
     except (KeyError, TypeError, ValueError):
         raise HubClientError("invalid_response") from None
     owner = payload.get("owner_name")
-    lines.append(
-        f"\n# Notas privadas de {owner}" if isinstance(owner, str) else "\n# Notas privadas"
-    )
-    lines.append(payload["private_notes"] or "Ninguna.")
+    lines.append(f"\n# Private notes by {owner}" if isinstance(owner, str) else "\n# Private notes")
+    lines.append(payload["private_notes"] or "None.")
     return "\n".join(lines)
 
 
@@ -374,7 +363,7 @@ def render_note(payload: dict, after_index: int) -> str:
         return shown
     lines = [page_line(after_index, len(shown), len(text), following)]
     if after_index:
-        lines.append(f"Continuación de la nota de la grabación {payload.get('recording_id')}.")
+        lines.append(f"Continuation of the note for recording {payload.get('recording_id')}.")
     return "\n".join([*lines, shown])
 
 
@@ -385,31 +374,31 @@ def refusal_sentence(code: str, refusal) -> str:
     attempts = refusal.get("attempts")
     parts = []
     if code == "note_failed" and isinstance(refusal.get("cause"), str):
-        parts.append(f"Causa: {cause_sentence(refusal)}.")
+        parts.append(f"Cause: {cause_sentence(refusal)}.")
         if _is_int(attempts):
             parts.append(f"{attempts_text(attempts)}.")
     elif code == "note_queued":
         if _is_int(refusal.get("retry_at_ms")):
-            parts.append(f"Próximo intento: {utc_second(refusal['retry_at_ms'])}.")
+            parts.append(f"Next attempt: {utc_second(refusal['retry_at_ms'])}.")
         if isinstance(refusal.get("cause"), str):
-            parts.append(f"Último fallo: {cause_sentence(refusal)}.")
+            parts.append(f"Last failure: {cause_sentence(refusal)}.")
         if _is_int(attempts):
-            parts.append(f"{attempts_text(attempts)} hasta ahora.")
+            parts.append(f"{attempts_text(attempts)} so far.")
     elif code == "note_generating" and _is_int(refusal.get("attempt")):
-        parts.append(f"Intento {refusal['attempt']} en curso.")
+        parts.append(f"Attempt {refusal['attempt']} in progress.")
     elif code == "note_waiting_transcript":
         if _is_int(refusal.get("pending_chunks")):
-            parts.append(f"Quedan {refusal['pending_chunks']} fragmentos por transcribir.")
+            parts.append(f"Remaining: {refusal['pending_chunks']} chunks to transcribe.")
         if refusal.get("capture") == "open":
-            parts.append("La reunión sigue en curso: el Mac aún no la ha cerrado.")
+            parts.append("The meeting is still in progress: the Mac has not closed it yet.")
         elif refusal.get("capture") == "closed":
-            parts.append("La grabación ya está cerrada.")
+            parts.append("The recording is already closed.")
         if _is_int(refusal.get("retry_at_ms")):
-            parts.append(f"El hub vuelve a mirarla a las {utc_second(refusal['retry_at_ms'])}.")
+            parts.append(f"The hub checks it again at {utc_second(refusal['retry_at_ms'])}.")
     elif code == "after_index_out_of_range":
         if _is_int(refusal.get("after_index")) and _is_int(refusal.get("total_chars")):
             parts.append(
-                f"Pediste after_index={refusal['after_index']} y el texto tiene "
-                f"{refusal['total_chars']} caracteres."
+                f"You requested after_index={refusal['after_index']} and the text has "
+                f"{refusal['total_chars']} characters."
             )
     return " ".join(parts)

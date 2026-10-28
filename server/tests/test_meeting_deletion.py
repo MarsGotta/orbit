@@ -1,6 +1,6 @@
 """Deleting a recording on the hub, and everything made from it.
 
-«Borrar reunión» and «Terminar sin guardar» both end in `DELETE
+“Delete meeting” and “End without saving” both end in `DELETE
 /v1/recordings/{id}`: the audio, the live transcript, what the final pass
 started, the note with its tasks, the speakers, the private notes, the title,
 the language and the meeting's choice of dictionaries leave the hub in one
@@ -226,7 +226,7 @@ async def test_a_recording_deleted_while_open_takes_no_late_chunk_or_closure(hub
 
 
 async def test_a_recording_the_hub_never_had_is_deleted_too_and_stays_away(hub):
-    """«Terminar sin guardar» with the hub away: nothing reached it, and the
+    """“End without saving” with the hub away: nothing reached it, and the
     order still succeeds when it comes back; a chunk sent late is refused."""
     app, store = hub
     paired = device(store)

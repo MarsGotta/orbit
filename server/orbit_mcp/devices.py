@@ -31,8 +31,8 @@ class UnknownDevice(HubClientError):
 def seen_ago(timestamp: float) -> str:
     seconds = max(0, time.time() - timestamp)
     if seconds < 60:
-        return "hace menos de un minuto"
-    return f"hace {int(seconds // 60)} min"
+        return "less than a minute ago"
+    return f"{int(seconds // 60)} min ago"
 
 
 def folded_name(value: str) -> str:
@@ -67,11 +67,11 @@ def hub_selection(devices: list[DeviceSummary], selected: str) -> DeviceSelectio
     notice = None
     if len(matches) > 1:
         choice = (
-            "la identidad conectada más reciente"
+            "the most recently connected identity"
             if connected
-            else "la identidad disponible más reciente"
+            else "the most recently available identity"
         )
-        notice = f"Hay varias identidades con el nombre «{chosen.name}»; se usó {choice}."
+        notice = f"Several identities have the name «{chosen.name}»; selected {choice}."
     return DeviceSelection(selected, chosen.id, chosen, tuple(matches), notice)
 
 
@@ -90,7 +90,7 @@ async def device_selection(
             config.devices[selected],
             None,
             notice=(
-                f"Se usó «{selected}», del fichero; el hub no pudo informar de los Mac."
+                f"Selected «{selected}» from the file; the hub could not report the Macs."
                 if name is None
                 else None
             ),
@@ -104,7 +104,7 @@ async def device_selection(
                 device.name,
                 device.id,
                 device,
-                notice=f"Se usó «{device.name}»: tiene un turno del asistente en curso.",
+                notice=f"Selected «{device.name}»: it has an assistant turn in progress.",
             )
         if len(connected) == 1:
             device = connected[0]
@@ -112,7 +112,7 @@ async def device_selection(
                 device.name,
                 device.id,
                 device,
-                notice=f"Se usó «{device.name}»: es el único Mac conectado.",
+                notice=f"Selected «{device.name}»: it is the only connected Mac.",
             )
     if selected in config.devices:
         device_id = config.devices[selected]
@@ -139,7 +139,7 @@ async def device_selection(
             raise UnknownDevice(devices, default_id) from None
     if name is None:
         chosen = selection.device.name if selection.device is not None else selected
-        notice = f"Se usó «{chosen}»: es el Mac predeterminado del fichero."
+        notice = f"Selected «{chosen}»: it is the default Mac in the file."
         if selection.notice:
             notice += " " + selection.notice
         return DeviceSelection(

@@ -67,7 +67,7 @@ def handover_turn(
     lines: list[str] = []
     used = 0
     for message in reversed(said):
-        speaker = "Usuario" if message["role"] == "user" else from_name
+        speaker = "User" if message["role"] == "user" else from_name
         line = f"{speaker}: {message['text']}"
         if used + len(line) + 1 > MAX_HANDOVER_CHARS:
             break
@@ -78,7 +78,13 @@ def handover_turn(
     head = f"[Orbit · You are taking over the conversation with {from_name}: the discussion so far, from oldest to newest message"
     if left_out:
         head += f". {left_out} earlier messages are omitted: they exceed the ceiling of {MAX_HANDOVER_CHARS} characters"
-    body = "\n".join([head + "]", *lines, "[End of conversation. Continue with the question:]"])
+    body = "\n".join(
+        [
+            head + "]",
+            *lines,
+            "[End of conversation. Continue with the question in the language the user writes in:]",
+        ]
+    )
     return MeetingTurn(text=f"{body}\n{question}", visible=question)
 
 

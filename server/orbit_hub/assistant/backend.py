@@ -46,7 +46,7 @@ class ImageBlock:
 
     # The attachment it comes from, which `orbit_attachment` reads again.
     attachment_id: str
-    # What the user sees: the file's name, or «name · página N».
+    # What the user sees: the file's name, or “name · page N”.
     name: str
     # image/png, image/jpeg, image/gif or image/webp.
     mime: str

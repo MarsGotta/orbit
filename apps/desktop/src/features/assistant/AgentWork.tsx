@@ -26,7 +26,10 @@ function listText(subjects: string[]): string {
 }
 
 /** What the folded line needs: the turn in the topic, or an answer's summary from the hub. */
-type Worked = Pick<AgentWork, "started_at_ms" | "ended_at_ms" | "tools" | "subjects">;
+type Worked = Pick<
+  AgentWork,
+  "started_at_ms" | "ended_at_ms" | "tools" | "subjects" | "subject_codes"
+>;
 
 /**
  * The folded line of an ended turn: what its tools used, how many and how
@@ -37,7 +40,16 @@ export function workSummary(work: Worked): string {
     work.ended_at_ms == null ? null : durationText(work.ended_at_ms - work.started_at_ms);
   if (work.tools === 0) return took === null ? "" : getCopy().assistant.work.worked(took);
   const parts: string[] = [];
-  if (work.subjects.length > 0) parts.push(getCopy().assistant.work.used(listText(work.subjects)));
+  if (work.subjects.length > 0)
+    parts.push(
+      getCopy().assistant.work.used(
+        listText(
+          work.subjects.map((subject) =>
+            getCopy().agentActivity.subject(work.subject_codes?.[subject], subject),
+          ),
+        ),
+      ),
+    );
   parts.push(getCopy().assistant.work.steps(work.tools));
   if (took !== null) parts.push(took);
   return parts.join(" · ");
@@ -80,7 +92,7 @@ function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
               <StepMark item={item} wait={waits} />
             </span>
             <span>
-              {item.label}
+              {es.agentActivity.label(item.label_copy, item.label)}
               {waits === "approval" && ` · ${es.assistant.stepWaits}`}
               {waits === "denied" && ` · ${es.assistant.stepDenied}`}
               {item.phase === "failed" && item.cause != null && (
@@ -95,10 +107,14 @@ function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
 }
 
 function Plan({ plan }: { plan: WorkItem }) {
-  const copy = useCopy().assistant.work;
+  const catalogue = useCopy();
+  const copy = catalogue.assistant.work;
   const status: Record<WorkStepStatus, string> = copy.stepStatus;
   return (
-    <ol aria-label={plan.label} className={styles.plan}>
+    <ol
+      aria-label={catalogue.agentActivity.label(plan.label_copy, plan.label)}
+      className={styles.plan}
+    >
       {plan.steps.map((step, index) => (
         <li data-status={step.status} key={index}>
           <span>{step.text}</span>

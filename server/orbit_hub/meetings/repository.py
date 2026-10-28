@@ -74,8 +74,7 @@ def person_name(value: str, field: str) -> str:
     if len(name) > MAX_PERSON_NAME_CHARS:
         raise HubError(
             "invalid_parameters",
-            f"Nombre demasiado largo en {field}: {len(name)} caracteres, como mucho "
-            f"{MAX_PERSON_NAME_CHARS}",
+            f"Name too long in {field}: {len(name)} characters, maximum {MAX_PERSON_NAME_CHARS}",
             numbers={"field": field, "actual": len(name), "max": MAX_PERSON_NAME_CHARS},
         )
     return name
@@ -328,7 +327,7 @@ def meeting_title(value: str) -> str | None:
     if len(title) > MAX_RECORDING_TITLE_CHARACTERS:
         raise HubError(
             "invalid_parameters",
-            f"Title too long: {len(title)} caracteres, como mucho {MAX_RECORDING_TITLE_CHARACTERS}",
+            f"Title too long: {len(title)} characters, maximum {MAX_RECORDING_TITLE_CHARACTERS}",
             numbers={
                 "field": "title",
                 "actual": len(title),
@@ -428,7 +427,7 @@ def change_language(
         if unreadable:
             raise HubError(
                 "meeting_audio_unreadable",
-                f"The language was not changed: the hub cannot read audio for {unreadable} de {total} groups of this meeting",
+                f"The language was not changed: the hub cannot read audio for {unreadable} of {total} groups of this meeting",
                 http_status=409,
                 numbers={"groups": unreadable, "total": total, "cause": "invalid_group_audio"},
             )

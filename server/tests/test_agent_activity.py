@@ -41,8 +41,10 @@ async def test_a_hermes_tool_is_one_item_from_its_start_to_its_end(reviewed):
         "item_id": "call-1",
         "kind": "tool",
         "phase": "started",
-        "label": "Mirando la pantalla",
-        "subject": "la pantalla",
+        "label": "Looking at the screen",
+        "label_copy": {"code": "orbit_look"},
+        "subject": "the screen",
+        "subject_code": "screen",
     }
     assert completed["data"] == {**started["data"], "phase": "completed"}
     await runtime.close()
@@ -54,7 +56,7 @@ def answers(runtime, session):
 
 
 async def test_each_answer_keeps_what_its_turn_did_and_the_next_turn_does_not_take_it(reviewed):
-    """«Trabajó…» stays with its answer: the hub keeps each turn's summary with it."""
+    """“Worked…” stays with its answer: the hub keeps each turn's summary with it."""
     runtime, session, _, upstream = await runtime_fixture(reviewed)
     clock = {"now": 1001.0}
     runtime.now = lambda: clock["now"]
@@ -72,7 +74,8 @@ async def test_each_answer_keeps_what_its_turn_did_and_the_next_turn_does_not_ta
         "started_at_ms": 1_001_000,
         "ended_at_ms": 1_047_000,
         "tools": 2,
-        "subjects": ["la pantalla", "el calendario"],
+        "subjects": ["the screen", "the calendar"],
+        "subject_codes": {"the screen": "screen", "the calendar": "calendar"},
     }
     # The next turn, without tools: only how long it worked; the first keeps its own.
     await runtime.handle("chat.send", SendParams(text="otra", session_id=session), str(uuid4()))
@@ -142,13 +145,13 @@ async def test_hermes_todos_are_a_plan_with_the_state_of_each_step(reviewed):
     plans = frames
     assert [plan["phase"] for plan in plans] == ["started", "progress", "completed"]
     assert plans[0]["item_id"] == "plan"
-    assert plans[0]["label"] == "Plan · 0 de 2 pasos"
+    assert plans[0]["label"] == "Plan · 0 of 2 steps"
     assert plans[0]["steps"] == [
         {"text": "Mirar el calendario", "status": "in_progress"},
         {"text": "Crear la nota", "status": "pending"},
     ]
-    assert plans[1]["label"] == "Plan · 1 de 2 pasos"
-    assert plans[2]["label"] == "Plan · 2 de 2 pasos"
+    assert plans[1]["label"] == "Plan · 1 of 2 steps"
+    assert plans[2]["label"] == "Plan · 2 of 2 steps"
     await runtime.close()
 
 
@@ -191,48 +194,53 @@ async def test_a_hermes_subagent_is_an_item_and_its_failure_carries_the_cause(re
 @pytest.mark.parametrize(
     "name,arguments,label,subject",
     [
-        ("orbit_calendar", {"start_ms": 0, "end_ms": 1}, "Leyendo el calendario", "el calendario"),
-        ("mcp__orbit__orbit_screenshot", {"application": "Notas"}, "Mirando Notas", "la pantalla"),
+        ("orbit_calendar", {"start_ms": 0, "end_ms": 1}, "Reading the calendar", "the calendar"),
+        (
+            "mcp__orbit__orbit_screenshot",
+            {"application": "Notas"},
+            "Looking at Notas",
+            "the screen",
+        ),
         (
             "orbit_perform_action",
             {"action": {"tool": "click", "arguments": {"app": "Notas"}}},
-            "Pulsando en Notas",
-            "el Mac",
+            "Clicking in Notas",
+            "the Mac",
         ),
         (
             "orbit/orbit_perform_action",
             {"action": {"tool": "type_text", "arguments": {"text": "una clave"}}},
-            "Escribiendo",
-            "el Mac",
+            "Typing",
+            "the Mac",
         ),
         (
             "orbit_transcript",
             {"recording_id": "r"},
-            "Leyendo la transcripción de una reunión",
-            "las reuniones",
+            "Reading a meeting transcript",
+            "the meetings",
         ),
         (
             "mcp__orbit__orbit_files_read",
             {"path": "/Users/prueba/Documentos/informe-privado.md"},
-            "Leyendo un archivo del Mac",
-            "las carpetas",
+            "Reading a Mac file",
+            "the folders",
         ),
         (
             "mcp__orbit__orbit_attachment",
             {"attachment_id": "00000000-0000-4000-8000-000000000003"},
-            "Leyendo un adjunto del mensaje",
-            "los adjuntos",
+            "Reading a message attachment",
+            "the attachments",
         ),
         ("mcp_otro_buscar", {}, "mcp_otro_buscar", "mcp_otro_buscar"),
     ],
 )
-def test_orbit_tools_have_spanish_labels_and_others_keep_their_name(
+def test_orbit_tools_have_english_fallback_labels_and_others_keep_their_name(
     name, arguments, label, subject
 ):
     assert tool_label(name, arguments) == (label, subject)
 
 
-async def test_every_orbit_mcp_tool_has_a_spanish_label(tmp_path):
+async def test_every_orbit_mcp_tool_has_an_english_fallback_label(tmp_path):
     from support_orbit_mcp import FakeHub, serving
 
     async with serving(tmp_path, FakeHub()) as (_client, server):

@@ -3,12 +3,12 @@
 import json
 from urllib.parse import urlsplit
 
+from .privacy import combine, describe_privacy, sentence
+
 
 def endpoint_privacy(function, url, model):
-    from .registry import privacy_line
-
     provider = {"kind": "local", "base_url": url, "name": urlsplit(url).netloc}
-    return privacy_line(function, provider, model)
+    return describe_privacy(function, provider, model)
 
 
 def describe(registry, function):
@@ -26,7 +26,7 @@ def describe(registry, function):
                 return (
                     "operator",
                     legacy,
-                    "Notes model saved by the operator; the hub job does not run yet.",
+                    sentence("vault_legacy"),
                 )
         if settings.processing is not None:
             return (
@@ -54,7 +54,7 @@ def describe(registry, function):
             )
         ]
     elif default.kind == "hermes":
-        descriptions = [("Escucha de Hermes", hermes_destination(settings, "audio"))]
+        descriptions = [("Hermes listening", hermes_destination(settings, "audio"))]
     else:
         descriptions = []
     if not descriptions:
@@ -62,22 +62,22 @@ def describe(registry, function):
     return (
         "operator",
         " · ".join(dict.fromkeys(d[0] for d in descriptions)),
-        " ".join(dict.fromkeys(d[1] for d in descriptions)),
+        combine(d[1] for d in descriptions),
     )
 
 
 def unconfigured():
-    return "operator", "No model configured", "No operator model is configured for this function."
+    return "operator", "No model configured", sentence("unconfigured")
 
 
 def hermes_destination(settings, material):
     host = urlsplit(settings.hermes_url).netloc
-    return f"The {material} is sent to Hermes at {host}; its configuration determines whether data goes to another provider."
+    return sentence("hermes", material=material, destination=host)
 
 
 def speech(settings, agent):
     if agent.kind == "hermes":
-        return "Voz de Hermes", hermes_destination(settings, "texto")
+        return "Hermes speech", hermes_destination(settings, "text")
     if agent.kind == "openai" and agent.settings.speech is not None:
         voice = agent.settings.speech
         return voice.model, endpoint_privacy("speech", voice.base_url, voice.model)

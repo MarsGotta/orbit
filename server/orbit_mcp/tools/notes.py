@@ -25,10 +25,10 @@ def rendered(result, after_index):
             },
         )
     end = min(len(body), start + MAX_ANSWER_CHARS)
-    next_index = str(end) if end < len(body) else "fin"
+    next_index = str(end) if end < len(body) else "end"
     return ok(
         text(
-            f"Caracteres {start}–{end} de {len(body)}; next_after_index: {next_index}\n"
+            f"Characters {start}–{end} of {len(body)}; next_after_index: {next_index}\n"
             + body[start:end]
         )
     )
@@ -61,7 +61,7 @@ async def read(runner, parameters, after_index=0):
 
 def register(server, runner):
     @server.tool(
-        description="Busca por nombre y contenido en tu vault de Notas del hub. Solo lectura. Devuelve rutas citables y next_page para continuar; no necesita un Mac conectado.",
+        description="Searches names and content in your Notes vault on the hub. Read-only. Returns citable paths and next_page to continue; does not need a connected Mac.",
         structured_output=False,
     )
     async def orbit_notes_search(
@@ -83,7 +83,7 @@ def register(server, runner):
         return await runner.invoke(operation)
 
     @server.tool(
-        description="Lee una nota Markdown del vault, con frontmatter y enlaces internos resueltos. Cita su path. after_index continúa una respuesta larga. Solo lectura, sin acceso al disco del Mac.",
+        description="Reads a Markdown note from the vault, with frontmatter and resolved internal links. Cite its path. after_index continues a long response. Read-only, without access to the Mac disk.",
         structured_output=False,
     )
     async def orbit_note_read(path: str, after_index: int = 0):
@@ -93,7 +93,7 @@ def register(server, runner):
         return await runner.invoke(operation)
 
     @server.tool(
-        description="Lee index.md de tu vault de Notas; si falta, sintetiza un índice paginado. next_page y next_after_index permiten continuar. Solo lectura: nunca crea el archivo.",
+        description="Reads index.md from your Notes vault; if missing, synthesizes a paginated index. next_page and next_after_index continue it. Read-only: never creates the file.",
         structured_output=False,
     )
     async def orbit_notes_index(page: int = 1, page_size: int = 50, after_index: int = 0):

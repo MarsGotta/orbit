@@ -224,7 +224,7 @@ class HermesEvents:
         arguments = payload.get("args") if isinstance(payload.get("args"), dict) else None
         if name == "todo":
             # Hermes's task list is the turn's plan, not a step of its own
-            # (and «Usó todo» would read as «used everything»).
+            # (and “Used everything” would read as «used everything»).
             if kind == "tool.complete" and payload.get("is_error") is not True:
                 # A turn that is not a local viewer's gets no `todo.updated`:
                 # the todo tool's own result carries the list.

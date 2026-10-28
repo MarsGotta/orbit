@@ -1,11 +1,12 @@
 """What the agent does in a turn, as the Mac reads it: `chat.item` (hub-v1).
 
 The backends translate their own events into `ActivityItem`s (`backend`);
-this module writes the public item: a bounded one-line label, in Spanish for
-Orbit's own tools (orbit-mcp) and the tool's own name for any other.
+this module writes the public item: copy codes with an English fallback for Orbit's own tools (orbit-mcp)
+and the tool's own name for any other.
 """
 
-from .backend import ActivityItem, PlanStep
+from .activity_copy import SUBJECTS, label_text
+from .backend import ActivityItem
 
 # A label is one line the chat shows while a step runs, or the reasoning
 # summary folded under it. 500 characters is Hermes's own reasoning preview
@@ -14,7 +15,7 @@ from .backend import ActivityItem, PlanStep
 # any length (a goal, a raw tool name, a thought). It does not limit what the
 # agent does or says: the answer streams as `chat.delta`.
 MAX_ITEM_LABEL_CHARS = 500
-# What a tool step used, for the summary («Usó la pantalla y el calendario»):
+# What a tool step used, for the summary (“Used the screen and calendar”):
 # a noun phrase, or a tool's own name, which upstream bounds nowhere.
 MAX_ITEM_SUBJECT_CHARS = 80
 # Why a step failed, in the agent's words: one line, as `the vendor refusal bound`.
@@ -23,7 +24,7 @@ MAX_ITEM_CAUSE_CHARS = 300
 # this bounds every frame of it; the label still counts every step.
 MAX_PLAN_STEPS = 20
 
-# orbit-mcp's seventeen tools, by the name the agent calls (an MCP client may
+# Orbit MCP tools, by the name the agent calls (an MCP client may
 # prefix it with the server's name: `mcp__orbit__orbit_look`, `mcp_orbit_orbit_look`).
 ORBIT_TOOLS = (
     "orbit_devices",
@@ -49,27 +50,24 @@ ORBIT_TOOLS = (
 )
 
 _FIXED = {
-    "orbit_devices": ("Mirando los Mac de Orbit", "los Mac"),
-    "orbit_windows": ("Mirando las ventanas", "las ventanas"),
-    "orbit_look": ("Mirando la pantalla", "la pantalla"),
-    "orbit_selected_text": ("Leyendo el texto seleccionado", "el texto seleccionado"),
-    "orbit_control_tools": ("Viendo qué puede hacer en el Mac", "el Mac"),
-    "orbit_action_result": ("Comprobando cómo acabó la acción", "el Mac"),
-    "orbit_calendar": ("Leyendo el calendario", "el calendario"),
-    "orbit_notes_search": ("Buscando en las notas", "las notas"),
-    "orbit_note_read": ("Leyendo una nota", "una nota"),
-    "orbit_notes_index": ("Leyendo el índice de notas", "el índice de notas"),
-    "orbit_meetings": ("Leyendo las reuniones", "las reuniones"),
-    "orbit_transcript": ("Leyendo la transcripción de una reunión", "las reuniones"),
-    "orbit_note": ("Leyendo la nota de una reunión", "las reuniones"),
-    # Never the path or the search: they can name the user's private documents.
-    "orbit_files_list": ("Mirando las carpetas del Mac", "las carpetas"),
-    "orbit_files_search": ("Buscando en las carpetas del Mac", "las carpetas"),
-    "orbit_files_read": ("Leyendo un archivo del Mac", "las carpetas"),
-    # Never the file's name: it is the user's words.
-    "orbit_attachment": ("Leyendo un adjunto del mensaje", "los adjuntos"),
-    # The agent's own configuration, nothing of the user's.
-    "orbit_skill": ("Cargando una de sus skills", "sus skills"),
+    "orbit_devices": "macs",
+    "orbit_windows": "windows",
+    "orbit_look": "screen",
+    "orbit_selected_text": "selected_text",
+    "orbit_control_tools": "mac",
+    "orbit_action_result": "mac",
+    "orbit_calendar": "calendar",
+    "orbit_notes_search": "notes",
+    "orbit_note_read": "note",
+    "orbit_notes_index": "notes_index",
+    "orbit_meetings": "meetings",
+    "orbit_transcript": "meetings",
+    "orbit_note": "meetings",
+    "orbit_files_list": "folders",
+    "orbit_files_search": "folders",
+    "orbit_files_read": "folders",
+    "orbit_attachment": "attachments",
+    "orbit_skill": "skills",
 }
 
 
@@ -102,57 +100,59 @@ def _app(arguments: object) -> str:
     return ""
 
 
-def _action_label(arguments: dict) -> str:
+def _action_copy(arguments: dict) -> dict:
     action = arguments.get("action")
     action = action if isinstance(action, dict) else {}
     tool = one_line(action.get("tool"), MAX_ITEM_SUBJECT_CHARS)
     app = _app(action.get("arguments"))
     if "click" in tool:
-        return f"Pulsando en {app}" if app else "Pulsando en la pantalla"
+        return {"code": "click_app", "value": app} if app else {"code": "click"}
     if tool.startswith("type"):
-        # Never the text typed: it can be anything the user has on screen.
-        return "Escribiendo"
+        # Never include typed text: it can be anything on the user's screen.
+        return {"code": "type"}
     if tool in {"press_key", "hotkey"}:
-        return "Pulsando teclas"
+        return {"code": "keys"}
     if tool == "scroll":
-        return f"Desplazándose por {app}" if app else "Desplazándose"
+        return {"code": "scroll_app", "value": app} if app else {"code": "scroll"}
     if tool in {"launch_app", "bring_to_front"}:
-        return f"Abriendo {app}" if app else "Abriendo una app"
-    return f"Usando {tool} en el Mac" if tool else "Actuando en el Mac"
+        return {"code": "open_app", "value": app} if app else {"code": "open"}
+    return {"code": "action_tool", "value": tool} if tool else {"code": "action"}
+
+
+def tool_copy(name: str, arguments: dict | None) -> tuple[dict | None, str | None]:
+    """Only known labels get codes; upstream names and content stay data."""
+    arguments = arguments if isinstance(arguments, dict) else {}
+    tool = orbit_tool(name)
+    if tool in _FIXED:
+        return {"code": tool}, _FIXED[tool]
+    if tool == "orbit_screenshot":
+        app = one_line(arguments.get("application"), MAX_ITEM_SUBJECT_CHARS)
+        return (
+            {"code": "screenshot_app", "value": app} if app else {"code": "screenshot"}
+        ), "screen"
+    if tool:
+        return _action_copy(arguments), "mac"
+    if name in {"Bash", "command"}:
+        command = one_line(arguments.get("command"), MAX_ITEM_LABEL_CHARS - 12)
+        return (
+            {"code": "command_value", "value": command} if command else {"code": "command"}
+        ), "hub_terminal"
+    if name in {"Edit", "Write", "NotebookEdit", "edit"}:
+        paths = arguments.get("paths") or [
+            arguments.get("file_path") or arguments.get("notebook_path")
+        ]
+        value = one_line(
+            ", ".join(path for path in paths if isinstance(path, str)), MAX_ITEM_LABEL_CHARS - 10
+        )
+        return ({"code": "edit_value", "value": value} if value else {"code": "edit"}), "hub_files"
+    return None, None
 
 
 def tool_label(name: str, arguments: dict | None) -> tuple[str, str]:
-    """The line a tool step shows while it runs, and what it used."""
-    arguments = arguments if isinstance(arguments, dict) else {}
-    tool = orbit_tool(name)
-    if tool is None:
-        if name in {"Bash", "command"}:
-            command = one_line(arguments.get("command"), MAX_ITEM_LABEL_CHARS - 12)
-            return (
-                f"Ejecutando: {command}" if command else "Ejecutando una orden"
-            ), "la terminal del hub"
-        if name in {"Edit", "Write", "NotebookEdit", "edit"}:
-            paths = arguments.get("paths") or [
-                arguments.get("file_path") or arguments.get("notebook_path")
-            ]
-            label = one_line(
-                ", ".join(path for path in paths if isinstance(path, str)),
-                MAX_ITEM_LABEL_CHARS - 10,
-            )
-            return (f"Editando: {label}" if label else "Editando archivos"), "archivos del hub"
-        own = one_line(name, MAX_ITEM_SUBJECT_CHARS) or "herramienta"
-        return own, own
-    if tool in _FIXED:
-        return _FIXED[tool]
-    if tool == "orbit_screenshot":
-        app = one_line(arguments.get("application"), MAX_ITEM_SUBJECT_CHARS)
-        return (f"Mirando {app}" if app else "Mirando la pantalla"), "la pantalla"
-    return _action_label(arguments), "el Mac"
-
-
-def _plan_label(steps: tuple[PlanStep, ...]) -> str:
-    done = sum(step.status in {"completed", "cancelled"} for step in steps)
-    return f"Plan · {done} de {len(steps)} pasos"
+    """English fallback label and subject for an older Mac."""
+    copy, subject = tool_copy(name, arguments)
+    own = one_line(name, MAX_ITEM_SUBJECT_CHARS) or "tool"
+    return (label_text(copy), SUBJECTS[subject]) if copy else (own, own)
 
 
 def public_item(event: ActivityItem) -> dict:
@@ -162,8 +162,17 @@ def public_item(event: ActivityItem) -> dict:
         label, subject = tool_label(event.tool or "", event.arguments)
         data["label"] = one_line(label, MAX_ITEM_LABEL_CHARS)
         data["subject"] = subject
+        copy, code = tool_copy(event.tool or "", event.arguments)
+        if copy:
+            data["label_copy"] = copy
+            data["subject_code"] = code
     elif event.kind == "plan":
-        data["label"] = _plan_label(event.steps)
+        data["label_copy"] = {
+            "code": "plan",
+            "done": sum(step.status in {"completed", "cancelled"} for step in event.steps),
+            "total": len(event.steps),
+        }
+        data["label"] = label_text(data["label_copy"])
         data["steps"] = [
             {"text": one_line(step.text, MAX_ITEM_LABEL_CHARS), "status": step.status}
             for step in event.steps[:MAX_PLAN_STEPS]

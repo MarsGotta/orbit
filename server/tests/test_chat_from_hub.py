@@ -68,7 +68,7 @@ async def test_a_meeting_question_keeps_the_question_and_sends_the_window(enviro
     method, prompt = adapter.connections[0].calls[-1]
     assert method == "prompt.submit"
     sent = prompt["text"]
-    assert sent.startswith("[Orbit · Sample Mac · texto]\n¿Qué se ha decidido?\n")
+    assert sent.startswith("[Orbit · Sample Mac · text]\n¿Qué se ha decidido?\n")
     assert f"recording_id: {recording}" in sent
     assert "Title: «Comité»" in sent
     assert "[00:03:20] Otra persona: Aprobamos el gasto" in sent

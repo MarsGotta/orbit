@@ -1,6 +1,6 @@
 """Deleting one recording of a device and everything made from it.
 
-«Borrar reunión» and «Terminar sin guardar» on the Mac: its audio, its live
+“Delete meeting” and “End without saving” on the Mac: its audio, its live
 transcript, what the final pass made of it, its note with its tasks, its
 speakers, its private notes, its title, its language and its choice of
 dictionaries leave the hub in one transaction. The dictionaries themselves

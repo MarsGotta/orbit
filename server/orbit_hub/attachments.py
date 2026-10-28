@@ -358,7 +358,7 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
             if whole and not shown:
                 said = f"its text is not in this message, which already contains the {MAX_TURN_PDF_CHARS} PDF characters that fit; read it with orbit_attachment"
             elif len(shown) < len(whole):
-                said = f"its text follows up to character {len(shown)} de {len(whole)}; read the rest with orbit_attachment and after_index {len(shown)}"
+                said = f"its text follows up to character {len(shown)} of {len(whole)}; read the rest with orbit_attachment and after_index {len(shown)}"
             else:
                 said = "its text follows below"
             if shown:
@@ -381,7 +381,7 @@ def turn_parts(attachments: list[Stored], images: bool) -> tuple[str, list[TurnI
                 said += f"; pages with almost no text ({len(empty)}) are not included as images"
             lines.append(f"{head}PDF of {_pages(len(pages))}{tail}{said}.")
         else:
-            lines.append(f"{head}texto{tail}read it with orbit_attachment when needed.")
+            lines.append(f"{head}text{tail}read it with orbit_attachment when needed.")
     return "\n".join([*lines, *texts]), carried
 
 

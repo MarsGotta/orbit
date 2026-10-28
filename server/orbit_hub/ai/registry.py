@@ -1,10 +1,9 @@
 """One encrypted provider registry, shared by paired Macs and all consumers."""
 
 import json
-from urllib.parse import urlsplit
 
 from ..errors import HubError
-from ..urls import LOOPBACK_HOSTS
+from .privacy import describe_privacy
 from .types import FUNCTIONS, MAI, OPENROUTER_URL
 
 SCHEMA = """
@@ -18,20 +17,7 @@ MAX_REGISTRY_BYTES = 512 * 1024
 
 
 def privacy_line(function, provider, model):
-    material = "audio" if function in ("meeting_transcription", "listening") else "texto"
-    if provider["kind"] == "openrouter":
-        destination = (
-            "Microsoft a través de OpenRouter"
-            if model == MAI
-            else "OpenRouter y el proveedor del modelo"
-        )
-        return f"El {material} sale a {destination}."
-    url = provider.get("base_url")
-    if url and urlsplit(url).hostname not in LOOPBACK_HOSTS:
-        return f"El {material} sale a {provider['name']}, fuera de tu hub, por tu red o Internet."
-    if url or provider["kind"] == "hub":
-        return f"El {material} se queda en tu hub."
-    return "Se usa la configuración del operador; el servicio puede enviar datos fuera del hub."
+    return describe_privacy(function, provider, model).text
 
 
 class Registry:
@@ -159,7 +145,7 @@ class Registry:
     def hub_provider(self):
         return {
             "id": "hub",
-            "name": "En tu hub",
+            "name": "On your hub",
             "kind": "hub",
             "base_url": None,
             "key_configured": False,
@@ -187,7 +173,7 @@ class Registry:
             if choice:
                 pid, model = choice["provider_id"], choice["model"]
                 provider = next(p for p in providers if p["id"] == pid)
-                privacy = privacy_line(function, provider, model)
+                privacy = describe_privacy(function, provider, model)
                 if pid == "hub":
                     privacy = self.default("meeting_transcription")[2]
             else:
@@ -198,7 +184,8 @@ class Registry:
                     "provider_id": pid,
                     "model": model,
                     "capability": capability,
-                    "privacy": privacy,
+                    "privacy": privacy.text,
+                    "privacy_copies": privacy.copies,
                 }
             )
         return {"providers": providers, "functions": functions}

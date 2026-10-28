@@ -357,6 +357,7 @@ async fn opening_a_previous_conversation_shows_its_messages() -> Result<()> {
             ended_at_ms: 1_700_000_001_000,
             tools: 2,
             subjects: vec!["el calendario".into()],
+            subject_codes: Default::default(),
         })
     );
     assert_eq!(value.total, 2);

@@ -48,7 +48,7 @@ async def test_the_catalogue_is_read_from_the_engine_not_from_a_list_in_orbit(tm
     # A tool Orbit has never named still reaches Deimos.
     assert "a_tool_invented_by_a_newer_engine" in text_of(listed)
     assert not empty.is_error
-    assert "no declara ninguna herramienta" in text_of(empty).lower()
+    assert "declares no tools" in text_of(empty).lower()
     assert [request["capability"] for request in hub.device_requests] == [
         "control_tools",
         "control_tools",
@@ -138,7 +138,7 @@ async def test_without_an_engine_the_answer_names_the_cause(tmp_path):
 
     assert result.is_error
     assert "engine_unavailable" in text_of(result)
-    assert "motor" in text_of(result).lower()
+    assert "engine" in text_of(result).lower()
 
 
 # «There is no helper» and «the helper has not said yet» are two

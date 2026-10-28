@@ -204,7 +204,7 @@ class TemplateRepository:
         if size > MAX_TEMPLATE_LISTING_BYTES:
             raise HubError(
                 "note_templates_too_large",
-                f"With this template the list would be {size} bytes and the maximum is {MAX_TEMPLATE_LISTING_BYTES}: acorta sus instrucciones o borra otra",
+                f"With this template the list would be {size} bytes and the maximum is {MAX_TEMPLATE_LISTING_BYTES}: shorten its instructions or delete another",
                 http_status=413,
                 numbers={"bytes": size, "max_bytes": MAX_TEMPLATE_LISTING_BYTES},
             )

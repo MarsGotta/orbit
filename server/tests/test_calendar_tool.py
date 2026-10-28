@@ -83,7 +83,7 @@ async def test_a_december_question_reaches_the_mac_with_december_in_it(tmp_path)
     # The answer says when the Mac actually read, so nobody has to guess
     # whether they are holding something six hours old.
     # In the Mac's zone, in the summary line (00:59:59 there on 1 Dec).
-    assert "leída en el Mac el mar 1 dic 2026 00:59." in body.splitlines()[0]
+    assert "read on the Mac at Tue 1 Dec 2026 00:59." in body.splitlines()[0]
 
 
 def refused_with(code: str, notice: str) -> Response:
@@ -122,7 +122,7 @@ async def test_a_refusal_never_arrives_looking_like_an_empty_agenda(tmp_path):
     body = text_of(result)
     assert result.is_error, body
     assert '"events"' not in body, body
-    assert "NO significa que la agenda esté vacía" in body, body
+    assert "NOT mean the agenda is empty" in body, body
 
 
 async def test_invalid_ranges_are_refused_before_they_reach_the_mac(tmp_path):
@@ -146,6 +146,6 @@ async def test_calendar_explains_cached_events_and_unknown_sync_even_with_events
     body = text_of(result)
     assert not result.is_error, body
     assert "Cena de diciembre" in body
-    assert "lo que macOS tiene guardado" in body
-    assert "no puede saber si está al día" in body
-    assert "cuenta haya dejado de sincronizar" in body
+    assert "what macOS has stored" in body
+    assert "cannot know whether it is current" in body
+    assert "account has stopped syncing" in body

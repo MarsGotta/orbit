@@ -183,7 +183,7 @@ def mount_workspaces(app, settings, agents, configs, identity, bounded_body, con
             await bounded_body(request, 6 * MAX_WORKING_FOLDER_BYTES + 1024),
             WorkingFolder,
             "invalid_agent_config",
-            "Carpeta de trabajo",
+            "Working folder",
         ).path
         validated = WorkspacePolicy(settings, agent.id, configs).validate(path)
         configs.set_working_folder(agent.id, str(validated))

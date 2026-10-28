@@ -198,7 +198,7 @@ def test_a_turn_with_a_permission_runs_through_any_backend(environment):
     assert connection.prompts == [
         (
             "live-1",
-            (TextBlock("[Orbit · Portátil de Prueba · texto]\nCrea la nota de la excursión"),),
+            (TextBlock("[Orbit · Portátil de Prueba · text]\nCrea la nota de la excursión"),),
         )
     ]
     assert connection.answers == [("live-1", "permission-1", "once")]

@@ -219,9 +219,8 @@ async def test_a_voice_clip_over_its_ceiling_says_its_size(
 def test_the_assistant_reads_the_quota_rule_that_fired():
     numbers = {"bytes": 10, "reserved_bytes": 262174, "used_bytes": 900, "max_bytes": 1000}
     assert cause_sentence({"cause": "quota_exceeded", **numbers}) == (
-        "el hub llegó a su cuota de almacenamiento: usa 900 bytes de 1000 y "
-        "guardar esto (10 bytes) reserva 262174"
+        "the hub reached its storage quota: it uses 900 bytes of 1000 and saving this (10 bytes) reserves 262174"
     )
     # A failure stored before the reservation was recorded keeps its numbers.
     older = cause_sentence({"cause": "quota_exceeded", "bytes": 10, "max_bytes": 1000})
-    assert older == "código quota_exceeded (bytes: 10, max_bytes: 1000)"
+    assert older == "code quota_exceeded (bytes: 10, max_bytes: 1000)"

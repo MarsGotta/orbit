@@ -82,37 +82,37 @@ def test_wrong_screenshot_filter_is_named_by_mcp(parameters, field):
     refusal = error.value.detail["refusal"]
     assert refusal["code"] == "invalid_parameters"
     assert refusal["field"] == field
-    assert refusal["expected"] == "texto"
+    assert refusal["expected"] == "text"
 
 
 @pytest.mark.parametrize(
     "capability,parameters,field,expected",
     [
-        ("calendar_read", {"start_ms": "hoy", "end_ms": 2}, "start_ms", "entero"),
-        ("control_tools", {"after_index": "uno"}, "after_index", "entero"),
-        ("calendar_read", {"start_ms": 2, "end_ms": 1}, "end_ms", "posterior a start_ms"),
+        ("calendar_read", {"start_ms": "hoy", "end_ms": 2}, "start_ms", "integer"),
+        ("control_tools", {"after_index": "uno"}, "after_index", "integer"),
+        ("calendar_read", {"start_ms": 2, "end_ms": 1}, "end_ms", "later than start_ms"),
         (
             "calendar_read",
             {"start_ms": 1, "end_ms": 2, "read_id": "r"},
             "after_ms",
-            "entero en milisegundos",
+            "integer milliseconds",
         ),
         (
             "calendar_read",
             {"start_ms": 1, "end_ms": 2, "read_id": "r", "after_ms": 1},
             "after_index",
-            "entero no negativo",
+            "nonnegative integer",
         ),
-        ("perform_action", {"action": {"tool": 7, "arguments": {}}}, "action.tool", "texto"),
+        ("perform_action", {"action": {"tool": 7, "arguments": {}}}, "action.tool", "text"),
         (
             "perform_action",
             {"action": {"tool": "x", "arguments": []}},
             "action.arguments",
-            "objeto",
+            "object",
         ),
-        ("perform_action", {"action": {}}, "action.tool", "texto"),
-        ("calendar_read", {"end_ms": 2}, "start_ms", "entero"),
-        ("control_tools", {"after_index": -1}, "after_index", "entero no negativo"),
+        ("perform_action", {"action": {}}, "action.tool", "text"),
+        ("calendar_read", {"end_ms": 2}, "start_ms", "integer"),
+        ("control_tools", {"after_index": -1}, "after_index", "nonnegative integer"),
     ],
 )
 def test_invalid_bridge_parameters_name_the_field_and_expected_type(
@@ -143,7 +143,7 @@ async def test_parameters_that_are_not_an_object_are_named(bridged):
         refusal = response.json()["refusal"]
         assert refusal["code"] == "invalid_request"
         assert refusal["field"] == "parameters"
-        assert refusal["expected"] == "objeto"
+        assert refusal["expected"] == "object"
         assert not app.state.device_bridge.bridge.pending
 
 

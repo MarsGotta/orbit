@@ -37,10 +37,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lista las carpetas del Mac que quien usa Orbit dio al asistente y, con path, lo "
-            "que hay dentro de una de ellas: carpetas, archivos con su tamaño y enlaces. Sin "
-            "path dice cuáles son y si se pueden leer. Sólo lectura. Una carpeta grande llega "
-            "por páginas: la respuesta da el after_index con el que seguir."
+            "Lists the Mac folders the Orbit user gave the assistant and, with path, their contents: folders, files with sizes and links. Without path, reports which folders exist and whether they are readable. Read-only. Large folders are paginated: the response gives after_index to continue."
         ),
         structured_output=False,
     )
@@ -60,11 +57,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Busca en las carpetas del Mac que quien usa Orbit dio al asistente: por nombre de "
-            "archivo o carpeta, sin distinguir mayúsculas ni acentos, y con content=true también "
-            "dentro de los archivos de texto. path limita la búsqueda a una carpeta. Tiene "
-            "techos de resultados, de entradas recorridas y de bytes leídos, y dice cuál la "
-            "detuvo. Sólo lectura."
+            "Searches the Mac folders the Orbit user gave the assistant: file or folder names, ignoring case and accents, and with content=true also inside text files. path restricts the search to one folder. Has ceilings for results, traversed entries and bytes read, and reports which ceiling stopped it. Read-only."
         ),
         structured_output=False,
     )
@@ -87,11 +80,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
 
     @server.tool(
         description=(
-            "Lee un archivo de las carpetas del Mac que quien usa Orbit dio al asistente: texto "
-            "o Markdown por páginas (after_index sigue donde acabó la anterior), el texto de un "
-            "PDF por páginas (after_page y after_index) o una imagen, que llega como imagen. "
-            "path es la ruta absoluta que dan orbit_files_list u orbit_files_search. Nada "
-            "fuera de esas carpetas, tampoco a través de enlaces o «..». Sólo lectura."
+            "Reads a file from the Mac folders the Orbit user gave the assistant: paginated text or Markdown (after_index resumes where the previous page ended), paginated PDF text (after_page and after_index), or an image, delivered as an image. path is the absolute path returned by orbit_files_list or orbit_files_search. Nothing outside those folders, including through links or .. . Read-only."
         ),
         structured_output=False,
     )

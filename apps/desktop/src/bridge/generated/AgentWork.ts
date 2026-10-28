@@ -12,4 +12,4 @@ tools: number,
 /**
  * What those tools used, each once, in order.
  */
-subjects: Array<string>, };
+subjects: Array<string>, subject_codes?: { [key in string]?: string }, };

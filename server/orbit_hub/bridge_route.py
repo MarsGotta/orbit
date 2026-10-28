@@ -256,7 +256,7 @@ class BridgeService:
         except ValidationError as error:
             first = error.errors(include_input=False, include_context=False)[0]
             field = ".".join(str(part) for part in first["loc"])
-            expected = "objeto" if first["type"] == "dict_type" else "valid envelope field"
+            expected = "object" if first["type"] == "dict_type" else "valid envelope field"
             raise BridgeError(
                 400, "invalid_request", detail={"field": field, "expected": expected}
             ) from None

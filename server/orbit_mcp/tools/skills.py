@@ -20,8 +20,7 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
     @server.tool(
         name=SKILL_TOOL,
         description=(
-            "Carga las instrucciones de una de tus skills activadas en Orbit, para seguirlas. "
-            "name es su nombre, tal como aparece en tu lista de skills. No lee nada del Mac."
+            "Loads the instructions of one of your skills enabled in Orbit, to follow them. name is its name as listed in your skills list. Reads nothing from the Mac."
         ),
         structured_output=False,
     )

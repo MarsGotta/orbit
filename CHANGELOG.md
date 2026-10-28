@@ -11,6 +11,10 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- Use English for assistant tool help, results and model instructions. Keep meeting
+  notes in the meeting language, and render AI privacy help and assistant progress
+  from English and Spanish catalogue codes with English fallbacks for older Macs.
+
 - The Mac menu bar, application menus, notifications and the Rust side's
   copy follow the interface language and update when it changes.
 - Move remaining desktop interface labels, accessible names and helper copy into

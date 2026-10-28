@@ -104,7 +104,7 @@ async def test_mcp_names_invalid_mac_result_field_and_version(tmp_path):
     assert reply.is_error
     text = text_of(reply)
     assert "device_reply_invalid" in text
-    assert "result.windows" in text and "lista" in text and "0.7.0-test" in text
+    assert "result.windows" in text and "list" in text and "0.7.0-test" in text
 
 
 @pytest.mark.parametrize(

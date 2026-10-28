@@ -415,11 +415,11 @@ async def test_an_unnamed_transcript_keeps_the_counted_page_body_separate_from_t
     assert len(result.content) == 2
     assert all(block.type == "text" for block in result.content)
     header, separator, body = result.content[0].text.partition("\n")
-    bounds = re.search(r"caracteres (\d+)–(\d+) de (\d+)", header)
+    bounds = re.search(r"characters (\d+)–(\d+) of (\d+)", header)
     assert bounds and separator
     start, end, total = map(int, bounds.groups())
     assert len(body) == end - start
     assert len(body) == 48_000
     assert total > end
-    assert header.startswith("Página: caracteres ")
-    assert "portatil" in result.content[1].text and "fichero" in result.content[1].text
+    assert header.startswith("Page: characters ")
+    assert "portatil" in result.content[1].text and "file" in result.content[1].text

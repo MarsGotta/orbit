@@ -1,4 +1,4 @@
-"""The assistant's folders on the Mac, read through the device bridge, in Spanish.
+"""The assistant's folders on the Mac, read through the device bridge, in English.
 
 Every answer names whole paths, so the assistant can ask for the next one
 with what it was given, and says where to go on when there is more. A refusal
@@ -14,15 +14,15 @@ REFUSALS = frozenset(
     {"no_folders", "outside_folders", "folder_unavailable", "file_unavailable", "file_too_large"}
 )
 
-KINDS = {"text": "texto", "pdf": "PDF", "image": "imágenes"}
+KINDS = {"text": "text", "pdf": "PDF", "image": "images"}
 
 STOPS = {
-    "results": "Hay más de {limit} resultados; afina la búsqueda.",
-    "visited": "La búsqueda se detuvo tras recorrer {limit} entradas; busca en una carpeta más concreta.",
-    "files_read": "La búsqueda se detuvo tras leer {limit} archivos; busca en una carpeta más concreta.",
-    "bytes_read": "La búsqueda se detuvo tras leer {limit} bytes; busca en una carpeta más concreta.",
-    "deadline": "La búsqueda se detuvo a los {limit} ms; busca en una carpeta más concreta.",
-    "page_bytes": "Los resultados llenaron la respuesta ({limit} bytes); afina la búsqueda.",
+    "results": "There are more than {limit} results; refine the search.",
+    "visited": "The search stopped after traversing {limit} entries; search a narrower folder.",
+    "files_read": "The search stopped after reading {limit} files; search a narrower folder.",
+    "bytes_read": "The search stopped after reading {limit} bytes; search a narrower folder.",
+    "deadline": "The search stopped at {limit} ms; search a narrower folder.",
+    "page_bytes": "The results filled the response ({limit} bytes); refine the search.",
 }
 
 
@@ -32,52 +32,52 @@ def _joined(directory: str, name: str) -> str:
 
 def folder_cause(cause) -> str:
     if not isinstance(cause, dict):
-        return "causa desconocida"
+        return "unknown cause"
     kind = cause.get("kind")
     if kind == "bookmark_unresolvable":
         return (
-            "macOS no encuentra la carpeta: se borró o su disco no está conectado "
+            "macOS cannot find the folder: it was deleted or its disk is disconnected "
             f"({cause.get('domain')} {cause.get('code')})"
         )
     if kind == "not_a_folder":
-        return "lo que hay en su lugar ya no es una carpeta"
+        return "what is there is no longer a folder"
     if kind == "access_denied":
-        return f"macOS no deja abrirla (errno {cause.get('errno')})"
+        return f"macOS refuses to open it (errno {cause.get('errno')})"
     if kind in {"path_too_long", "bookmark_too_large"}:
-        what = "su ruta" if kind == "path_too_long" else "su marcador"
-        return f"{what} ocupa {cause.get('bytes')} bytes; Orbit admite {cause.get('max_bytes')}"
-    return f"causa {kind}"
+        what = "its path" if kind == "path_too_long" else "its bookmark"
+        return f"{what} takes {cause.get('bytes')} bytes; Orbit allows {cause.get('max_bytes')}"
+    return f"cause {kind}"
 
 
 def file_cause(cause) -> str:
     if not isinstance(cause, dict):
-        return "causa desconocida"
+        return "unknown cause"
     kind = cause.get("kind")
     sentences = {
-        "not_found": "no existe",
-        "not_a_file": "no es un archivo",
-        "not_a_folder": "no es una carpeta",
-        "not_text": "no es texto UTF-8 (es un archivo binario o de otra codificación)",
-        "pdf_unreadable": "PDFKit no puede abrir el PDF (está dañado o protegido con contraseña)",
-        "image_unreadable": "ImageIO no puede abrir la imagen",
-        "changed": "cambió mientras se leía (un enlace apareció en su ruta); no se leyó nada, vuelve a pedirlo",
+        "not_found": "it does not exist",
+        "not_a_file": "it is not a file",
+        "not_a_folder": "it is not a folder",
+        "not_text": "it is not UTF-8 text (it is binary or uses another encoding)",
+        "pdf_unreadable": "PDFKit cannot open the PDF (it is damaged or password-protected)",
+        "image_unreadable": "ImageIO cannot open the image",
+        "changed": "it changed during the read (a link appeared in its path); nothing was read, request it again",
     }
     if kind in sentences:
         return sentences[kind]
     if kind == "image_does_not_fit":
         return (
-            f"ni a su menor tamaño cabe en una captura: {cause.get('smallest_png_bytes')} bytes "
-            f"de PNG frente a {cause.get('max_png_bytes')}"
+            f"even at its smallest size it does not fit in a screenshot: {cause.get('smallest_png_bytes')} bytes "
+            f"of PNG versus {cause.get('max_png_bytes')}"
         )
     if kind == "read_failed":
-        return f"macOS no dejó leerlo (errno {cause.get('errno')})"
+        return f"macOS refused to read it (errno {cause.get('errno')})"
     if kind == "past_end":
-        return f"after_index={cause.get('after_index')} pasa del final ({cause.get('size_bytes')} bytes)"
+        return f"after_index={cause.get('after_index')} is past the end ({cause.get('size_bytes')} bytes)"
     if kind == "not_character_boundary":
-        return f"after_index={cause.get('after_index')} cae dentro de un carácter; usa el que dio la respuesta anterior"
+        return f"after_index={cause.get('after_index')} falls inside a character; use the value from the previous response"
     if kind == "past_last_page":
-        return f"after_page={cause.get('after_page')} pasa de la última página (tiene {cause.get('page_count')})"
-    return f"causa {kind}"
+        return f"after_page={cause.get('after_page')} is past the last page (page count: {cause.get('page_count')})"
+    return f"cause {kind}"
 
 
 def refusal_message(code: str, refusal) -> str:
@@ -86,29 +86,29 @@ def refusal_message(code: str, refusal) -> str:
     path = refusal.get("path")
     if code == "no_folders":
         return (
-            "Quien usa Orbit no ha dado al asistente ninguna carpeta de este Mac. Puede añadirla "
-            "en Orbit, en Ajustes › Carpetas del asistente › «Añadir carpeta»."
+            "The Orbit user has not given the assistant any folders on this Mac. They can add one "
+            "in Orbit, in Settings › Assistant folders › “Add folder”."
         )
     if code == "outside_folders":
         folders = refusal.get("folders")
-        listed = ", ".join(folders) if isinstance(folders, list) and folders else "ninguna"
+        listed = ", ".join(folders) if isinstance(folders, list) and folders else "none"
         resolved = refusal.get("resolved")
-        leads = f", que lleva a {resolved}," if isinstance(resolved, str) else ""
+        leads = f", which leads to {resolved}," if isinstance(resolved, str) else ""
         return (
-            f"{path}{leads} está fuera de las carpetas que el asistente puede leer. "
-            f"Las carpetas son: {listed}. Pide una ruta dentro de ellas."
+            f"{path}{leads} is outside the folders the assistant can read. "
+            f"The folders are: {listed}. Request a path inside them."
         )
     if code == "folder_unavailable":
         return (
-            f"La carpeta {path} no se puede abrir: {folder_cause(refusal.get('cause'))}. "
-            "Quien usa Orbit puede quitarla y volver a añadirla en Ajustes."
+            f"The folder {path} cannot be opened: {folder_cause(refusal.get('cause'))}. "
+            "The Orbit user can remove and add it again in Settings."
         )
     if code == "file_unavailable":
         return f"{path}: {file_cause(refusal.get('cause'))}."
-    kind = KINDS.get(refusal.get("content"), "archivos")
+    kind = KINDS.get(refusal.get("content"), "files")
     return (
-        f"{path} pesa {refusal.get('bytes')} bytes y Orbit lee {kind} de hasta "
-        f"{refusal.get('max_bytes')} bytes, así que no lo abrió."
+        f"{path} is {refusal.get('bytes')} bytes and Orbit reads {kind} up to "
+        f"{refusal.get('max_bytes')} bytes, so it did not open it."
     )
 
 
@@ -125,14 +125,14 @@ def render_list(result: dict) -> str:
         for entry in entries:
             unavailable = entry.get("unavailable")
             note = (
-                f" — no se puede leer ahora: {folder_cause(unavailable)}"
+                f" — cannot be read now: {folder_cause(unavailable)}"
                 if isinstance(unavailable, dict)
                 else ""
             )
             lines.append(f"- {entry['name']}/{note}")
         if not lines:
-            return "Quien usa Orbit no ha dado al asistente ninguna carpeta."
-        return "Carpetas que el asistente puede leer en este Mac:\n" + "\n".join(lines)
+            return "The Orbit user has not given the assistant any folders."
+        return "Folders the assistant can read on this Mac:\n" + "\n".join(lines)
     start = result["after_index"]
     total = result["total"]
     lines = []
@@ -143,9 +143,9 @@ def render_list(result: dict) -> str:
         if entry["kind"] == "folder":
             line = f"- {full}/"
         elif entry["kind"] == "link":
-            line = f"- {full} (enlace; léelo para saber adónde lleva)"
+            line = f"- {full} (link; read it to learn its destination)"
         elif entry["kind"] == "other":
-            line = f"- {full} (ni archivo ni carpeta)"
+            line = f"- {full} (neither file nor folder)"
         else:
             line = f"- {full}{_size(entry)}"
         if lines and budget - len(line) - 1 < 0:
@@ -157,22 +157,22 @@ def render_list(result: dict) -> str:
     if shown < len(entries):
         following = start + shown
     if total == 0:
-        return f"{directory} está vacía."
+        return f"{directory} is empty."
     if not entries and start >= total:
         return (
-            f"{directory} tiene {total} {'entrada' if total == 1 else 'entradas'}: "
-            f"after_index={start} queda después de la última; usa uno menor que {total}."
+            f"{directory} has {total} {'entry' if total == 1 else 'entries'}: "
+            f"after_index={start} is past the last entry; use a value smaller than {total}."
         )
-    header = f"Contenido de {directory} (entradas {start + 1}–{start + shown} de {total}):"
+    header = f"Contents of {directory} (entries {start + 1}–{start + shown} of {total}):"
     text = header + "\n" + "\n".join(lines)
     if type(following) is int:
-        text += f"\nHay más: sigue con after_index={following}."
+        text += f"\nThere is more: continue with after_index={following}."
     return text
 
 
 def render_search(result: dict) -> str:
-    where = result.get("path") or "todas las carpetas"
-    how = "nombres y texto" if result["content"] else "nombres"
+    where = result.get("path") or "all folders"
+    how = "names and text" if result["content"] else "names"
     hits = result["results"]
     lines = []
     for hit in hits:
@@ -184,17 +184,17 @@ def render_search(result: dict) -> str:
         else:
             lines.append(f"- {place}{_size(hit)}")
     header = (
-        f"Búsqueda de «{result['query']}» en {where} ({how}): {len(hits)} "
-        f"{'resultado' if len(hits) == 1 else 'resultados'}; "
-        f"{result['visited']} entradas recorridas"
+        f"Search for «{result['query']}» in {where} ({how}): {len(hits)} "
+        f"{'result' if len(hits) == 1 else 'results'}; "
+        f"{result['visited']} entries traversed"
     )
     if result["content"]:
-        header += f", {result['files_read']} archivos y {result['bytes_read']} bytes leídos"
-    text = header + ".\n" + ("\n".join(lines) if lines else "Nada coincide.")
+        header += f", {result['files_read']} files and {result['bytes_read']} bytes read"
+    text = header + ".\n" + ("\n".join(lines) if lines else "No matches.")
     if result["partial_files"]:
         text += (
-            f"\n{result['partial_files']} archivos se leyeron sólo en su primera parte; una "
-            "coincidencia más adentro no aparece."
+            f"\n{result['partial_files']} files were read only in their first part; a "
+            "match further inside will not appear."
         )
     stopped = result.get("stopped")
     if isinstance(stopped, dict) and stopped.get("cause") in STOPS:
@@ -209,25 +209,25 @@ def render_read(result: dict) -> str:
         start = result["after_index"]
         body = result["text"]
         end = start + len(body.encode("utf-8"))
-        header = f"{path} · bytes {start}–{end} de {size}:\n"
+        header = f"{path} · bytes {start}–{end} of {size}:\n"
         following = result.get("next_after_index")
-        footer = f"\nSigue con after_index={following}." if type(following) is int else ""
+        footer = f"\nContinue with after_index={following}." if type(following) is int else ""
         return header + body + footer
     if result["content"] == "pdf":
         count = result["page_count"]
-        parts = [f"{path} · PDF de {count} páginas ({size} bytes):"]
+        parts = [f"{path} · PDF with {count} pages ({size} bytes):"]
         for page in result["pages"]:
             if page["text"].strip():
-                parts.append(f"[Página {page['page']} de {count}]\n{page['text']}")
+                parts.append(f"[Page {page['page']} of {count}]\n{page['text']}")
             else:
-                parts.append(f"[Página {page['page']} de {count}: sin texto]")
+                parts.append(f"[Page {page['page']} of {count}: no text]")
         following = result.get("next_after_page")
         if type(following) is int:
             parts.append(
-                f"Sigue con after_page={following} y after_index={result.get('next_after_index') or 0}."
+                f"Continue with after_page={following} and after_index={result.get('next_after_index') or 0}."
             )
         return "\n".join(parts)
     return (
-        f"{path}: imagen de {result['source_width']} × {result['source_height']} píxeles, "
-        f"enviada a {result['width']} × {result['height']} ({size} bytes en el Mac)."
+        f"{path}: image of {result['source_width']} × {result['source_height']} pixels, "
+        f"sent at {result['width']} × {result['height']} ({size} bytes on the Mac)."
     )
