@@ -99,7 +99,7 @@ extension OrbitApplication {
         if fields.enabled {
             guard microphone.activeStreamID == id else { throw NativeFailure("stream_not_found") }
             let sink = assistantTrigger.start(streamID: id, assistantName: fields.assistant_name ?? "Deimos",
-                                              assistantNames: fields.assistant_names, allow: { [weak self] stream in
+                                              assistantNames: fields.assistant_names, locale: fields.locale, allow: { [weak self] stream in
                 guard let self else { return false }
                 return !self.latch.stopped && self.microphone.activeStreamID == stream
             })

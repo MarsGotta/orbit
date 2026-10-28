@@ -309,17 +309,17 @@ public enum CalendarWriteRefusal: Error, Equatable, Sendable {
         }
     }
 
-    /// Spanish, for the log-free diagnostic message next to the code. The
+    /// English diagnostic text alongside the refusal code. The
     /// daemon builds what the user reads from the code and the detail.
     public var message: String {
         switch self {
-        case .eventNotFound: "No hay ninguna ocurrencia de ese evento en esa fecha; no se cambió nada."
-        case .notEditable(.calendarReadOnly, _): "El calendario es de sólo lectura; no se cambió nada."
-        case .notEditable(.organizedBySomeoneElse, _): "El evento lo organizó otra persona; no se cambió nada."
-        case .invalidChange(let change): "El campo \(change.field) no es válido (\(change.problem.rawValue)); no se cambió nada."
-        case .permissionDenied: "macOS no da a Orbit acceso completo a Calendarios; no se cambió nada."
-        case .saveFailed: "EventKit rechazó el cambio; no se cambió nada."
-        case .outcomeUnknown: "No se sabe si el cambio llegó al calendario; Orbit no lo repite."
+        case .eventNotFound: "There is no occurrence of that event on that date; nothing was changed."
+        case .notEditable(.calendarReadOnly, _): "The calendar is read-only; nothing was changed."
+        case .notEditable(.organizedBySomeoneElse, _): "Someone else organized the event; nothing was changed."
+        case .invalidChange(let change): "Field \(change.field) is invalid (\(change.problem.rawValue)); nothing was changed."
+        case .permissionDenied: "macOS has not granted Orbit full calendar access; nothing was changed."
+        case .saveFailed: "EventKit rejected the change; nothing was changed."
+        case .outcomeUnknown: "The calendar change outcome is unknown; Orbit will not repeat it."
         }
     }
 }

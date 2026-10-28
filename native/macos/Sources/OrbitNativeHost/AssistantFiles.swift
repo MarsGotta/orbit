@@ -19,6 +19,8 @@ package final class AssistantFiles: @unchecked Sendable {
     /// Only touched on the main thread, by `pick`.
     private var panelOpen = false
 
+    @MainActor package var locale: NativeSpeechLocale = .englishUS
+
     package init() {}
 
     // MARK: The panel
@@ -34,8 +36,8 @@ package final class AssistantFiles: @unchecked Sendable {
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = false
         panel.resolvesAliases = true
-        panel.prompt = "Añadir"
-        panel.message = "Elige una carpeta que el asistente pueda leer. No podrá cambiar nada en ella."
+        panel.prompt = HelperCopy.text(.folderAdd, locale: locale)
+        panel.message = HelperCopy.text(.folderReadOnly, locale: locale)
         // Orbit runs as an accessory; without this the panel can open behind
         // the window the person is looking at.
         NSApplication.shared.activate()

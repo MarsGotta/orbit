@@ -141,13 +141,13 @@ package struct CalendarHostFacts: Sendable {
             // The same code covers the user's latch and a stop still cleaning up;
             // the message says which, and only the user's latch needs a rearm.
             let message = current.latched
-                ? "Todo está parado: reactiva Orbit para usar los calendarios."
-                : "Orbit está terminando de parar la captura o no está conectado; vuelve a intentarlo en unos segundos."
+                ? "Everything is stopped: rearm Orbit to use calendars."
+                : "Orbit is finishing capture cleanup or is disconnected; try again in a few seconds."
             channel.reject(command, code: "privacy_stopped", message: message)
             return nil
         }
         guard !commandInFlight, !controller.lastStatus().physical_read_pending else {
-            channel.reject(command, code: "calendar_busy", message: "La operación anterior de EventKit aún no ha terminado.")
+            channel.reject(command, code: "calendar_busy", message: "The previous EventKit operation has not finished yet.")
             return nil
         }
         // Capture the calendar generation now, before scheduling work. A
@@ -215,7 +215,7 @@ private struct CalendarCommandFlow: Sendable {
             channel.respond(command, result: try CalendarBridge.fields(result))
         } catch {
             let code = (error as? CalendarFailure)?.rawValue ?? "calendar_read_failed"
-            channel.reject(command, code: code, message: "No se pudo leer el calendario; no se ha devuelto una agenda vacía.")
+            channel.reject(command, code: code, message: "The calendar could not be read; no empty agenda was returned.")
         }
     }
 
@@ -228,13 +228,13 @@ private struct CalendarCommandFlow: Sendable {
         do { operation = try CalendarBridge.operation(command) }
         catch {
             channel.reject(command, code: CalendarFailure.invalidRequest.rawValue,
-                message: "La orden de escritura del calendario no tiene la forma del protocolo; no se cambió nada.")
+                message: "The calendar write command does not match the protocol; nothing was changed.")
             return
         }
         let before = await facts()
         guard before.connected, before.generation == generation, !before.stopped else {
             channel.reject(command, code: "privacy_stopped",
-                message: "Orbit se detuvo antes de escribir; no se cambió nada.")
+                message: "Orbit stopped before writing; nothing was changed.")
             return
         }
         let result: CalendarResult
@@ -246,7 +246,7 @@ private struct CalendarCommandFlow: Sendable {
         } catch {
             // Refused before the slot was taken or any commit asked for.
             let code = (error as? CalendarFailure)?.rawValue ?? CalendarFailure.invalidRequest.rawValue
-            channel.reject(command, code: code, message: "No se escribió en el calendario; no se cambió nada.")
+            channel.reject(command, code: code, message: "The calendar was not written; nothing was changed.")
             return
         }
         // Each withheld answer names its own cause; the write is done.

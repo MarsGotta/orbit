@@ -61,6 +61,7 @@ public struct NativeAudioMuteFields: Decodable, Sendable {
 /// is every agent's name (hub-v1 «Agents»); `assistant_name`, the default
 /// agent's, is what a daemon that knows one name sends.
 public struct NativeAudioWakePhraseFields: Decodable, Sendable {
+    public let locale: NativeSpeechLocale?
     public let assistant_name: String?
     public let assistant_names: [String]?
     public let stream_id: String
@@ -103,6 +104,7 @@ public enum NativeWireCommand: Decodable, Sendable {
     case audioStart(NativeWireEnvelope<NativeAudioStartFields>)
     case audioPurpose(NativeWireEnvelope<NativeAudioPurposeFields>)
     case audioMute(NativeWireEnvelope<NativeAudioMuteFields>)
+    case interfaceLanguage(NativeWireEnvelope<NativeInterfaceLanguageFields>)
     case audioWakePhrase(NativeWireEnvelope<NativeAudioWakePhraseFields>)
     case audioStop(NativeWireEnvelope<NativeStreamFields>)
     case playback(NativeWireEnvelope<NativePlaybackFields>)
@@ -136,6 +138,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .audioStart(let value): return (value.v, value.id)
         case .audioPurpose(let value): return (value.v, value.id)
         case .audioMute(let value): return (value.v, value.id)
+        case .interfaceLanguage(let value): return (value.v, value.id)
         case .audioWakePhrase(let value): return (value.v, value.id)
         case .audioStop(let value): return (value.v, value.id)
         case .playback(let value): return (value.v, value.id)
@@ -204,6 +207,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "audio_start": self = .audioStart(try .init(from: decoder))
         case "audio_purpose": self = .audioPurpose(try .init(from: decoder))
         case "audio_mute": self = .audioMute(try .init(from: decoder))
+        case "interface_language": self = .interfaceLanguage(try .init(from: decoder))
         case "audio_wake_phrase": self = .audioWakePhrase(try .init(from: decoder))
         case "audio_stop": self = .audioStop(try .init(from: decoder))
         case "playback": self = .playback(try .init(from: decoder))
@@ -220,7 +224,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case "window_text": self = .windowText(try .init(from: decoder))
         case "photo_jpeg": self = .photoJPEG(try .init(from: decoder))
         default: throw DecodingError.dataCorruptedError(forKey: .command,
-            in: try decoder.container(keyedBy: CodingKeys.self), debugDescription: "Comando nativo desconocido: \(command)")
+            in: try decoder.container(keyedBy: CodingKeys.self), debugDescription: "Unknown native command: \(command)")
         }
     }
 
@@ -245,6 +249,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         case .audioStart: "audio_start"
         case .audioPurpose: "audio_purpose"
         case .audioMute: "audio_mute"
+        case .interfaceLanguage: "interface_language"
         case .audioWakePhrase: "audio_wake_phrase"
         case .audioStop: "audio_stop"
         case .playback: "playback"
@@ -267,7 +272,7 @@ public enum NativeWireCommand: Decodable, Sendable {
         "calendar_sources", "calendar_snapshot", "calendar_save", "calendar_delete",
         "privacy_stop", "capture_stop",
         "playback_stop", "playback_pause", "playback_resume", "rearm", "shutdown", "permissions", "audio_start",
-        "audio_purpose", "audio_mute", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
+        "audio_purpose", "audio_mute", "interface_language", "audio_wake_phrase", "audio_stop", "playback", "playback_clip",
         "application_sources", "screen_sources",
         "screenshot", "selected_text",
         "assistant_folder_pick", "assistant_folders", "assistant_files_list",

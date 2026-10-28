@@ -638,9 +638,14 @@ class ReleaseBuildTests(unittest.TestCase):
         fixture = self.scratch / "fixture"
         files = (
             "scripts/macos/bundle.sh",
+            "scripts/macos/copy-localizations.sh",
             "Cargo.toml",
             "crates/orbit-control/src/cua.rs",
             "native/macos/Info.plist",
+            "native/macos/Resources/en.lproj/InfoPlist.strings",
+            "native/macos/Resources/es.lproj/InfoPlist.strings",
+            "native/macos/Resources/en.lproj/Localizable.strings",
+            "native/macos/Resources/es.lproj/Localizable.strings",
             "native/macos/Orbit.entitlements",
             "apps/desktop/src-tauri/icons/icon.icns",
             "third-party/cua-driver/LICENSE.md",

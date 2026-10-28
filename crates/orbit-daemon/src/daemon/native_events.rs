@@ -23,6 +23,7 @@ impl Runtime {
             let host_update = self.helper.observe_host(&event);
             self.observe_calendar_native(&event, host_update);
             let event_name = NativeEventHeader::from_value(&event)?.event.to_owned();
+            let preferences_changed = self.observe_speech_preferences(&event)?;
             match event_name.as_str() {
                 "ready" => self.on_native_ready(&event).await,
                 "response" => self.on_native_response(&event).await,
@@ -55,7 +56,11 @@ impl Runtime {
                 "notice" => self.on_native_notice(&event),
                 "playback_progress" => self.on_playback_progress(event),
                 _ => Ok(()),
+            }?;
+            if preferences_changed || event_name == "ready" {
+                self.sync_wake_phrase().await?;
             }
+            Ok(())
         })
     }
 }

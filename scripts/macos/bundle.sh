@@ -123,6 +123,7 @@ cp -- "$orbit_swift_bin/OrbitNative" "$orbit_bundle/Contents/MacOS/OrbitNative"
 cp -- "$orbit_cua_driver" "$orbit_engine_binary"
 cp -- apps/desktop/src-tauri/icons/icon.icns "$orbit_bundle/Contents/Resources/icon.icns"
 cp -- native/macos/Info.plist "$orbit_bundle/Contents/Info.plist"
+bash scripts/macos/copy-localizations.sh "$orbit_bundle/Contents/Resources"
 cp -- LICENSE "$orbit_bundle/Contents/Resources/LICENSE"
 cp -- third-party/cua-driver/LICENSE.md \
   "$orbit_bundle/Contents/Resources/third-party/cua-driver/LICENSE.md"

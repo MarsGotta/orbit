@@ -59,6 +59,25 @@ SOFTWARE.
 
 class BundleLayoutTests(unittest.TestCase):
 
+    def test_bundle_localizations_include_each_permission_in_both_languages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            resources = Path(directory) / "Orbit.app/Contents/Resources"
+            subprocess.run(
+                ["bash", str(ROOT / "scripts/macos/copy-localizations.sh"), str(resources)],
+                check=True, timeout=10,
+            )
+            info = plistlib.loads(INFO_PLIST.read_bytes())
+            keys = {key for key in info if key.endswith("UsageDescription")}
+            for language in ("en", "es"):
+                strings = resources / f"{language}.lproj/InfoPlist.strings"
+                self.assertEqual(strings.read_bytes(),
+                    (ROOT / f"native/macos/Resources/{language}.lproj/InfoPlist.strings").read_bytes())
+                text = strings.read_text()
+                for key in keys:
+                    self.assertIn(f'"{key}" = "', text)
+                self.assertTrue((resources / f"{language}.lproj/Localizable.strings").is_file())
+        self.assertIn('scripts/macos/copy-localizations.sh', SCRIPT.read_text())
+
     def test_the_cua_driver_license_is_the_agreed_mit_text(self):
         self.assertEqual(
             CUA_DRIVER_LICENSE.read_text(encoding="utf-8"),
@@ -84,8 +103,7 @@ class BundleLayoutTests(unittest.TestCase):
         # Orbit creates, moves, edits and deletes events when the user does
         # so from Orbit. The text macOS shows with the permission must say so,
         # and must not keep the promise it no longer makes.
-        info = plistlib.loads(INFO_PLIST.read_bytes())
-        text = info.get("NSCalendarsFullAccessUsageDescription", "").lower()
+        text = (ROOT / "native/macos/Resources/es.lproj/InfoPlist.strings").read_text().lower()
         for verb in ("leer", "crear", "mover", "editar", "borrar"):
             self.assertIn(verb, text, f"the Calendars permission text does not say «{verb}»")
         self.assertNotIn("no creará", text, "the text still promises that Orbit does not write events")

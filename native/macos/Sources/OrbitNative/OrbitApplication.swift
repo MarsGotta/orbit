@@ -147,7 +147,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             guard let self else { return }
             for rejection in self.commandRouter.watchdog(at: ProcessInfo.processInfo.systemUptime) {
                 self.channel.reject(rejection.command, code: rejection.code,
-                    message: "La operación nativa anterior superó su plazo; vuelve a intentarlo.")
+                    message: "The previous native operation exceeded its deadline; try again.")
             }
             if !self.latch.stopped && self.microphone.slot.isActive && !self.audioSession.referenceIsHealthy() {
                 self.stop(reason: "voice_processing_state_lost")
@@ -158,7 +158,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         channel.start()
         channel.send(.makeReady(selectedTextAvailable: AXIsProcessTrusted(),
             launchMode: launchOptions.launchModeName,
-            isolatedFixture: launchOptions.isIsolatedFixture))
+            isolatedFixture: launchOptions.isIsolatedFixture, preferredLanguages: Locale.preferredLanguages))
         if !launchOptions.isIsolatedFixture {
             microphoneActivity.changed = { [weak self] applications in
                 guard let self, !self.latch.stopped else { return }
@@ -226,7 +226,8 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     }
 
     func state() -> [String: Any] {
-        ["privacy_stopped": latch.stopped, "connected": connected,
+        ["preferred_languages": Locale.preferredLanguages,
+         "privacy_stopped": latch.stopped, "connected": connected,
          "native_instance_id": windowScreenshots.nativeInstanceID, "privacy_generation": privacyEpoch,
          "selected_text_available": !launchOptions.isIsolatedFixture && AXIsProcessTrusted(),
          "microphone": microphone.slot.isActive, "system_audio": systemAudio.slot.isActive,
@@ -253,6 +254,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             playing: playback.playing, voiceProcessingAvailable: audioSession.voiceProcessingAvailable,
             playbackReferenceAvailable: audioSession.playbackReferenceAvailable,
             audioProcessing: audioSession.statusFields,
+            preferredLanguages: Locale.preferredLanguages,
             calendar: NativeCalendarStatusResultFields(authorization: calendar.authorization.rawValue,
                 physicalReadPending: calendar.physical_read_pending,
                 failure: calendar.failure?.rawValue)))

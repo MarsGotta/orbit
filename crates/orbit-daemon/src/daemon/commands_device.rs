@@ -21,6 +21,7 @@ impl Runtime {
                     .save_settings(&settings)
                     .context("Could not save language")?;
                 self.settings = settings;
+                self.sync_wake_phrase().await?;
             }
             Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
             // Already in the app's report log: it only goes to the client.

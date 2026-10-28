@@ -2,6 +2,8 @@
 use super::*;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NativeStateResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preferred_languages: Option<Vec<String>>,
     pub privacy_stopped: bool,
     pub connected: bool,
     pub native_instance_id: String,

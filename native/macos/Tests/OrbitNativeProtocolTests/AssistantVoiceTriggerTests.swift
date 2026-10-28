@@ -43,7 +43,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
             return XCTFail("missing typed wake command")
         }
         var names = [String]()
-        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { heard, _, _ in
+        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { heard, _, _, _ in
             names.append(contentsOf: heard)
             return FakeListener()
         })
@@ -67,7 +67,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         }
         XCTAssertEqual(wire.fields.assistant_names, ["Deimos", "Atlas"])
         var heard = [[String]]()
-        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { names, _, _ in
+        let trigger = AssistantVoiceTrigger(channel: channel(), makeListener: { names, _, _, _ in
             heard.append(names)
             return FakeListener()
         })
@@ -100,7 +100,7 @@ final class AssistantVoiceTriggerTests: XCTestCase {
     func testStoppingTheTriggerStopsItsListenerAtOnce() {
         let channel = channel()
         let fake = FakeListener()
-        let trigger = AssistantVoiceTrigger(channel: channel, makeListener: { _, _, _ in fake })
+        let trigger = AssistantVoiceTrigger(channel: channel, makeListener: { _, _, _, _ in fake })
         let sink = trigger.start(streamID: "mic-1", allow: { _ in true })
         XCTAssertTrue(sink === fake)
         XCTAssertTrue(trigger.isListening)

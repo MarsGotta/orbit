@@ -1,0 +1,4 @@
+"NSCalendarsFullAccessUsageDescription" = "Orbit necesita acceso completo a tus calendarios para leer tus eventos y para crear, mover, editar y borrar los eventos que tú cambies desde Orbit.";
+"NSMicrophoneUsageDescription" = "Orbit usa el micrófono solo cuando activas una conversación o autorizas una grabación.";
+"NSAudioCaptureUsageDescription" = "Orbit captura el audio de la aplicación que autorizas para conservar tu reunión.";
+"NSScreenCaptureUsageDescription" = "Orbit ve la pantalla solo durante una llamada activa o cuando se lo pides.";

@@ -25,10 +25,15 @@ class EngineBundleTests(unittest.TestCase):
                 root = Path(temporary)
                 for name in (
                     "scripts/macos/bundle.sh",
+                    "scripts/macos/copy-localizations.sh",
                     "scripts/release/lib.sh",
                     "Cargo.toml",
                     "crates/orbit-control/src/cua.rs",
                     "native/macos/Info.plist",
+                    "native/macos/Resources/en.lproj/InfoPlist.strings",
+                    "native/macos/Resources/es.lproj/InfoPlist.strings",
+                    "native/macos/Resources/en.lproj/Localizable.strings",
+                    "native/macos/Resources/es.lproj/Localizable.strings",
                     "third-party/cua-driver/LICENSE.md",
                     "LICENSE",
                     "scripts/release/third-party-notices.py",
@@ -124,6 +129,13 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 name = "Orbit Pruebas" if pruebas else "Orbit"
                 bundle = root / "dist" / f"{name}.app"
+                for language in ("en", "es"):
+                    for filename in ("InfoPlist.strings", "Localizable.strings"):
+                        relative = f"{language}.lproj/{filename}"
+                        self.assertEqual(
+                            (bundle / "Contents/Resources" / relative).read_bytes(),
+                            (ROOT / "native/macos/Resources" / relative).read_bytes(),
+                        )
                 engine = bundle / ENGINE
                 self.assertTrue(
                     engine.is_dir(), "the engine is still in the outer bundle"

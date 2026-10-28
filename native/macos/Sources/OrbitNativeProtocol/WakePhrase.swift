@@ -1,6 +1,8 @@
 import Foundation
 
-/// «Oye {nombre}», for each assistant by its own name; «Oye» alone opens
+/// «Oye {name}» in Spanish and «Hey {name}» in English, followed by a
+/// question in the same locale. Spanish retains its measured aliases.
+/// Each assistant has its own name; the greeting alone opens
 /// nothing («oye, una cosa…» is said in any meeting). The product decision
 /// (2026-10-15): «Oye Deimos», also «Hola Deimos» and «Deimos,» at the start
 /// of a phrase. macOS's on-device
@@ -13,8 +15,6 @@ import Foundation
 /// Pure: it reads transcribed text, never audio. Which microphone it is fed
 /// from and when it listens is the host's decision.
 public enum WakePhrase {
-    /// The words that may open the phrase before the name.
-    static let greetings: Set<String> = ["oye", "hola"]
     /// The name as the transcription writes it.
     static let heardName = "demos"
     /// Marks after which a new phrase starts.
@@ -45,14 +45,15 @@ public enum WakePhrase {
     /// What follows the phrase in `text`, when a phrase of `text` starts with
     /// it: the question, possibly still empty (the name was said and the
     /// question has not come yet). `nil` when no phrase starts with it.
-    public static func question(after text: String, assistantName: String = "Deimos") -> String? {
+    public static func question(after text: String, assistantName: String = "Deimos",
+                                locale: NativeSpeechLocale = .spanish) -> String? {
         let tokens = tokenize(text)
         let name = tokenize(assistantName)
         guard !name.isEmpty else { return nil }
-        let acceptsHeardName = fold(assistantName.trimmingCharacters(in: .whitespacesAndNewlines)) == "deimos"
+        let acceptsHeardName = locale == .spanish && fold(assistantName.trimmingCharacters(in: .whitespacesAndNewlines)) == "deimos"
         var phraseStart = true
         for position in tokens.indices {
-            if phraseStart, let end = phraseEnd(tokens, from: position, name: name, acceptsHeardName: acceptsHeardName) {
+            if phraseStart, let end = phraseEnd(tokens, from: position, name: name, acceptsHeardName: acceptsHeardName, locale: locale) {
                 let from = end < tokens.count ? tokens[end].range.lowerBound : text.endIndex
                 return String(text[from...]).trimmingCharacters(in: .whitespacesAndNewlines)
             }
@@ -74,14 +75,15 @@ public enum WakePhrase {
     /// after it. There is one name per agent (hub-v1 «Agents»), each heard
     /// by the rules above. A name of more words is tried before a shorter
     /// one, so «Oye Atlas Azul, …» is Atlas Azul's and not Atlas's.
-    public static func match(after text: String, assistantNames: [String]) -> WakePhraseMatch? {
+    public static func match(after text: String, assistantNames: [String],
+                             locale: NativeSpeechLocale = .spanish) -> WakePhraseMatch? {
         let ordered = assistantNames.enumerated().sorted { lhs, rhs in
             let left = tokenize(lhs.element).count
             let right = tokenize(rhs.element).count
             return left != right ? left > right : lhs.offset < rhs.offset
         }
         for entry in ordered {
-            if let heard = question(after: text, assistantName: entry.element) {
+            if let heard = question(after: text, assistantName: entry.element, locale: locale) {
                 return WakePhraseMatch(name: entry.element, question: heard)
             }
         }
@@ -95,13 +97,14 @@ public enum WakePhrase {
     /// greeted phrase: a bare name in the middle of a sentence calls nobody.
     /// Never for a phrase not heard yet: by itself, «Le pregunté: oye Ares, …»
     /// opens nothing.
-    public static func question(joinedTo text: String, assistantName: String = "Deimos") -> String? {
+    public static func question(joinedTo text: String, assistantName: String = "Deimos",
+                                locale: NativeSpeechLocale = .spanish) -> String? {
         let tokens = tokenize(text)
         let name = tokenize(assistantName)
         guard !name.isEmpty else { return nil }
-        let acceptsHeardName = fold(assistantName.trimmingCharacters(in: .whitespacesAndNewlines)) == "deimos"
+        let acceptsHeardName = locale == .spanish && fold(assistantName.trimmingCharacters(in: .whitespacesAndNewlines)) == "deimos"
         for position in tokens.indices {
-            guard case .word(let word, _) = tokens[position], greetings.contains(word) else { continue }
+            guard case .word(let word, _) = tokens[position], locale.greetings.contains(word) else { continue }
             var index = position + 1
             if index < tokens.count, case .mark(",", _) = tokens[index] { index += 1 }
             if let end = nameEnd(tokens, from: index, name: name,
@@ -115,8 +118,8 @@ public enum WakePhrase {
 
     /// Where the question starts when the phrase starts at `start`.
     private static func phraseEnd(_ tokens: [Token], from start: Int,
-                                  name: [Token], acceptsHeardName: Bool) -> Int? {
-        if case .word(let word, _) = tokens[start], greetings.contains(word) {
+                                  name: [Token], acceptsHeardName: Bool, locale: NativeSpeechLocale) -> Int? {
+        if case .word(let word, _) = tokens[start], locale.greetings.contains(word) {
             var index = start + 1
             if index < tokens.count, case .mark(",", _) = tokens[index] { index += 1 }
             if let end = nameEnd(tokens, from: index, name: name,
@@ -183,7 +186,7 @@ public enum WakePhrase {
     /// Not measured on a Mac; it only makes the two spellings one name.
     static func fold(_ word: String) -> String {
         word.folding(options: [.caseInsensitive, .diacriticInsensitive],
-                     locale: Locale(identifier: "es_ES"))
+                     locale: Locale(identifier: "en_US_POSIX"))
             .replacingOccurrences(of: "ph", with: "f")
     }
 }
@@ -324,23 +327,27 @@ public struct SpokenQuestionPolicy {
     private var ignoreBefore = -Double.infinity
 
     private let assistantNames: [String]
+    private let locale: NativeSpeechLocale
 
     public init(
         assistantName: String = "Deimos",
+        locale: NativeSpeechLocale = .spanish,
         pauseSeconds: Double = Double(NativeLimits.assistantQuestionPauseMilliseconds) / 1_000,
         maximumSeconds: Double = Double(NativeLimits.maximumAssistantQuestionMilliseconds) / 1_000
     ) {
-        self.init(assistantNames: [assistantName], pauseSeconds: pauseSeconds,
+        self.init(assistantNames: [assistantName], locale: locale, pauseSeconds: pauseSeconds,
                   maximumSeconds: maximumSeconds)
     }
 
     /// Listens for every agent's name; the question says which one was heard.
     public init(
         assistantNames: [String],
+        locale: NativeSpeechLocale = .spanish,
         pauseSeconds: Double = Double(NativeLimits.assistantQuestionPauseMilliseconds) / 1_000,
         maximumSeconds: Double = Double(NativeLimits.maximumAssistantQuestionMilliseconds) / 1_000
     ) {
         self.assistantNames = assistantNames
+        self.locale = locale
         self.pauseSeconds = pauseSeconds
         self.maximumSeconds = maximumSeconds
     }
@@ -376,7 +383,7 @@ public struct SpokenQuestionPolicy {
         if phrase == nil {
             var found: (segment: HeardSegment, name: String)?
             for known in segments {
-                if let match = WakePhrase.match(after: known.text, assistantNames: assistantNames) {
+                if let match = WakePhrase.match(after: known.text, assistantNames: assistantNames, locale: locale) {
                     found = (known, match.name)
                     break
                 }
@@ -434,12 +441,12 @@ public struct SpokenQuestionPolicy {
             abs($0.start - phrase.segmentStart) < 0.05
         })
         guard let opening else { return nil }
-        var first = WakePhrase.question(after: opening.text, assistantName: phrase.name)
+        var first = WakePhrase.question(after: opening.text, assistantName: phrase.name, locale: locale)
         if first == nil, opening.start < phrase.segmentStart - 0.05 {
             // The result now starts earlier: the transcription joined words
             // said before the phrase and dropped the mark between them. The
             // phrase's own audio is the same, so it is still the phrase.
-            first = WakePhrase.question(joinedTo: opening.text, assistantName: phrase.name)
+            first = WakePhrase.question(joinedTo: opening.text, assistantName: phrase.name, locale: locale)
         }
         guard let first else { return nil }
         let rest = segments.filter({ $0.start > opening.start + 0.05 })

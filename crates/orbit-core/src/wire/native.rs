@@ -15,6 +15,9 @@ use crate::{
     sources::{SelectedTextRange, WindowBinding},
 };
 
+mod language;
+pub use language::SpeechLocale;
+
 pub const NATIVE_PROTOCOL: u8 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -224,6 +227,9 @@ pub enum NativeCommand {
     /// stays open for the note.
     #[serde(rename = "audio_wake_phrase")]
     AudioWakePhrase {
+        /// Missing only from older daemons, whose recognizer was Spanish.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        locale: Option<SpeechLocale>,
         /// The default agent's name, which a helper reading only this hears.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         assistant_name: Option<String>,
@@ -235,6 +241,13 @@ pub enum NativeCommand {
         id: String,
         stream_id: String,
         enabled: bool,
+    },
+    /// Update helper-owned panels even while no meeting is recording.
+    #[serde(rename = "interface_language")]
+    InterfaceLanguage {
+        v: u8,
+        id: String,
+        locale: SpeechLocale,
     },
     #[serde(rename = "audio_stop")]
     AudioStop {
@@ -428,6 +441,7 @@ impl NativeCommand {
             "audio_purpose",
             "audio_mute",
             "audio_wake_phrase",
+            "interface_language",
             "audio_stop",
             "playback",
             "playback_clip",

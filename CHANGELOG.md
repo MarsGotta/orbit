@@ -14,6 +14,11 @@ English and Spanish; labels quoted below may use either language.
 - Move remaining desktop interface labels, accessible names and helper copy into
   the English and Spanish catalogues. Enforce the migration with an AST check
   in the UI test gate, including the app shell, design components and state.
+- Follow the app language for the meeting wake phrase and its question:
+  “Oye {name}” in Spanish or “Hey {name}” in English, including British
+  English recognition when preferred by macOS. Re-arm listening after a
+  language change. Bundle English and Spanish permission descriptions and
+  folder picker copy, and use English for helper diagnostics.
 
 - Add English and Spanish catalogue copy with a live language choice in
   Settings › General. Follow the first supported system language by default,

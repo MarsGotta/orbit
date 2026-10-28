@@ -76,8 +76,8 @@ final class RearmTests: XCTestCase {
         let refusal = ready(connected: false, quitRequested: true).refusal
 
         XCTAssertEqual(refusal, ready(connected: false).refusal)
-        XCTAssertTrue(refusal?.contains("servicio") == true)
-        XCTAssertFalse(refusal?.contains("cerrando") == true)
+        XCTAssertTrue(refusal?.contains("service") == true)
+        XCTAssertFalse(refusal?.contains("closing") == true)
     }
 
     func testAnUnconfirmedDrainKeepsItsRecordAndAllowsRearm() {

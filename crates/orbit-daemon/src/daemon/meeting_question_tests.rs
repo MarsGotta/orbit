@@ -934,3 +934,121 @@ async fn a_phrase_heard_again_at_once_never_shows_its_abandonment() -> Result<()
     assert_eq!(state(&runtime)?, "abandoned", "not heard again: said");
     Ok(())
 }
+
+#[tokio::test]
+async fn wake_language_follows_settings_and_rearms_the_same_stream() -> Result<()> {
+    use orbit_core::language::LanguageChoice;
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime
+        .native_event(json!({"event":"ready", "preferred_languages":["fr-FR", "en-GB"]}))
+        .await?;
+    helper_commands(&mut helper);
+    recording(&mut runtime, "recording");
+    runtime.maintain_meeting_question().await?;
+    let commands = helper_commands(&mut helper);
+    let on = commands
+        .iter()
+        .find(|c| c["command"] == "audio_wake_phrase" && c["enabled"] == true)
+        .context("wake on")?;
+    assert_eq!(on["locale"], "en_GB");
+    runtime
+        .command(Command::LanguageSet {
+            language: LanguageChoice::Spanish,
+        })
+        .await?;
+    let changed = helper_commands(&mut helper);
+    assert_eq!(
+        wake_orders(&changed),
+        [(MIC.into(), false), (MIC.into(), true)]
+    );
+    let on = changed
+        .iter()
+        .find(|c| c["command"] == "audio_wake_phrase" && c["enabled"] == true)
+        .context("Spanish wake on")?;
+    assert_eq!(on["locale"], "es_ES");
+    runtime
+        .command(Command::LanguageSet {
+            language: LanguageChoice::Spanish,
+        })
+        .await?;
+    runtime.maintain_meeting_question().await?;
+    assert!(wake_orders(&helper_commands(&mut helper)).is_empty());
+    runtime
+        .command(Command::LanguageSet {
+            language: LanguageChoice::English,
+        })
+        .await?;
+    let commands = helper_commands(&mut helper);
+    assert_eq!(
+        commands
+            .iter()
+            .find(|c| c["command"] == "audio_wake_phrase" && c["enabled"] == true)
+            .context("English wake on")?["locale"],
+        "en_GB"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn helper_language_is_resolved_without_a_meeting() -> Result<()> {
+    for (preferences, expected) in [
+        (json!(["es-ES", "en-US"]), "es_ES"),
+        (json!(["en-US", "es-ES"]), "en_US"),
+        (json!(["fr-FR"]), "en_US"),
+    ] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, mut helper) = fixture(directory.path())?;
+        runtime
+            .native_event(json!({"event":"ready", "preferred_languages": preferences}))
+            .await?;
+        runtime.maintain_meeting_question().await?;
+        let commands = helper_commands(&mut helper);
+        let language = commands
+            .iter()
+            .find(|c| c["command"] == "interface_language")
+            .context("helper language")?;
+        assert_eq!(language["locale"], expected);
+        assert!(wake_orders(&commands).is_empty());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn changing_system_preferences_rearms_only_when_the_resolved_locale_changes() -> Result<()> {
+    use orbit_core::language::LanguageChoice;
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut helper) = fixture(directory.path())?;
+    runtime
+        .native_event(json!({"event":"ready", "preferred_languages":["en-US"]}))
+        .await?;
+    recording(&mut runtime, "recording");
+    runtime.maintain_meeting_question().await?;
+    helper_commands(&mut helper);
+    runtime
+        .native_event(json!({"event":"state", "privacy_stopped":false,
+        "preferred_languages":["en-GB"]}))
+        .await?;
+    let changed = helper_commands(&mut helper);
+    assert_eq!(
+        wake_orders(&changed),
+        [(MIC.into(), false), (MIC.into(), true)]
+    );
+    let on = changed
+        .iter()
+        .find(|c| c["command"] == "audio_wake_phrase" && c["enabled"] == true)
+        .context("British English wake on")?;
+    assert_eq!(on["locale"], "en_GB");
+    runtime
+        .command(Command::LanguageSet {
+            language: LanguageChoice::Spanish,
+        })
+        .await?;
+    helper_commands(&mut helper);
+    runtime
+        .native_event(json!({"event":"state", "privacy_stopped":false,
+        "preferred_languages":["en-US"]}))
+        .await?;
+    assert!(wake_orders(&helper_commands(&mut helper)).is_empty());
+    Ok(())
+}

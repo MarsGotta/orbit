@@ -5,6 +5,8 @@ use super::*;
 pub enum NativeEvent {
     #[serde(rename = "ready")]
     Ready {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        preferred_languages: Option<Vec<String>>,
         v: u8,
         protocol: u8,
         platform: String,
