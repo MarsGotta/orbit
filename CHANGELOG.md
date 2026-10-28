@@ -7,10 +7,9 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
-- Render hub and daemon refusals from codes and facts in English or Spanish; keep English compatibility messages for older Macs.
-
 ### Changed
 
+- Render hub and daemon refusals from codes and facts in English or Spanish; keep English compatibility messages for older Macs.
 - Use the resolved app language for the call's spoken silence question and
   local reply vocabulary. Re-arm a pending question when the language changes
   without extending its deadline; keep Spanish wording and meeting content.
