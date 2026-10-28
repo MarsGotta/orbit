@@ -9,6 +9,7 @@
     "allow-orbit-read-sessions-page",
     "allow-orbit-read-session-messages",
     "allow-orbit-agent",
+    "allow-orbit-vault",
     "allow-orbit-send",
     "allow-orbit-report",
     "allow-orbit-attachment-add",

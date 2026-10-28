@@ -7,6 +7,13 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- «Ajustes › Notas» and the «Notas» section reach the hub again: the main
+  window's capability now allows the vault order, which it refused before
+  the request left the app. A test checks every order each window's
+  interface sends against the real capabilities.
+
 ## [0.12.7] - 2026-10-28
 
 ### Fixed

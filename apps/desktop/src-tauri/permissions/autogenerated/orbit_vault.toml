@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-vault"
+description = "Enables the orbit_vault command without any pre-configured scope."
+commands.allow = ["orbit_vault"]
+
+[[permission]]
+identifier = "deny-orbit-vault"
+description = "Denies the orbit_vault command without any pre-configured scope."
+commands.deny = ["orbit_vault"]

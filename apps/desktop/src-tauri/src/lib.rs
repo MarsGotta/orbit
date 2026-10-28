@@ -245,6 +245,73 @@ fn update_service() -> UpdateService {
 #[cfg(test)]
 mod tests {
     use super::daemon_thread::{EmbeddedDaemon, Ended, Launch};
+
+    /// The orders a port file sends: each `invoke("orbit_…")`.
+    fn sent_orders(port: &str) -> Vec<&str> {
+        port.match_indices("invoke")
+            .filter_map(|(at, _)| {
+                let call =
+                    port[at + "invoke".len()..].trim_start_matches(|c| c != '(' && c != '\n');
+                let name = call.strip_prefix("(\"")?;
+                name.split('"')
+                    .next()
+                    .filter(|name| name.starts_with("orbit_"))
+            })
+            .collect()
+    }
+
+    /// Each window may send every order its interface sends, through the
+    /// real capabilities. In 0.12.6 `orbit_vault` was registered but not
+    /// allowed: Ajustes › Notas failed in the app while every interface
+    /// test, with a fake port, passed.
+    #[test]
+    fn each_window_may_send_every_order_its_interface_sends()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // No handler: the capability is checked before an order is looked up.
+        let app = tauri::test::mock_builder().build(tauri::generate_context!())?;
+        for (label, ports) in [
+            (
+                "main",
+                vec![
+                    include_str!("../../src/bridge/tauri-port.ts"),
+                    include_str!("../../src/bridge/attachments.ts"),
+                ],
+            ),
+            (
+                super::panel::PANEL_LABEL,
+                vec![include_str!("../../src/bridge/panel-port.ts")],
+            ),
+        ] {
+            let window =
+                tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::default())
+                    .build()?;
+            let orders: Vec<&str> = ports.into_iter().flat_map(sent_orders).collect();
+            assert!(!orders.is_empty(), "{label} sends no order");
+            for order in orders {
+                let answer = tauri::test::get_ipc_response(
+                    &window,
+                    tauri::webview::InvokeRequest {
+                        cmd: order.into(),
+                        callback: tauri::ipc::CallbackFn(0),
+                        error: tauri::ipc::CallbackFn(1),
+                        url: "tauri://localhost".parse()?,
+                        body: tauri::ipc::InvokeBody::default(),
+                        headers: Default::default(),
+                        invoke_key: tauri::test::INVOKE_KEY.to_string(),
+                    },
+                );
+                // Allowed, the order is then not found here; only the
+                // capability's refusal says "not allowed".
+                if let Err(error) = answer {
+                    assert!(
+                        !error.to_string().contains("not allowed"),
+                        "{label} may not send {order}: {error}"
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
     use orbit_ipc::Paths;
     use std::sync::{
         Arc,

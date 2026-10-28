@@ -9,6 +9,7 @@ fn main() {
             "orbit_read_sessions_page",
             "orbit_read_session_messages",
             "orbit_agent",
+            "orbit_vault",
             "orbit_send",
             "orbit_panel_send",
             "orbit_report",
