@@ -1,6 +1,11 @@
 //! Localized macOS application menus, preserving the native responder actions
 //! (including Quit, which must reach the orderly daemon closure).
-#[cfg(target_os = "macos")]
+//!
+//! Tauri builds menus through `run_on_main_thread`, which Tauri's mock runtime
+//! runs on the test's own thread, where macOS's menu library refuses to create
+//! one. Tests therefore use the stub below on every platform; the native menus
+//! are checked by running the app.
+#[cfg(all(target_os = "macos", not(test)))]
 pub fn install<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     copy: &crate::copy::Copy,
@@ -68,7 +73,7 @@ pub fn install<R: tauri::Runtime>(
     Ok(())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(not(target_os = "macos"), test))]
 pub fn install<R: tauri::Runtime>(
     _app: &tauri::AppHandle<R>,
     copy: &crate::copy::Copy,
@@ -79,7 +84,7 @@ pub fn install<R: tauri::Runtime>(
     Ok(())
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", not(test)))]
 fn orbit_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     copy: &crate::copy::Copy,
