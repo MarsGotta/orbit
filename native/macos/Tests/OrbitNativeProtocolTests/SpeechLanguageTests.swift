@@ -9,6 +9,9 @@ private final class FakeRecognizer: PhraseListening {
     private var policy: SpokenQuestionPolicy
     private let question: (SpokenQuestion, Double) -> Void
     private(set) var stopped = false
+    /// Each phrase is heard after the last, as speech is: a policy ignores a
+    /// result that does not move forward in time.
+    private var clock = 0.0
 
     init(names: [String], locale: NativeSpeechLocale,
          question: @escaping (SpokenQuestion, Double) -> Void) {
@@ -17,9 +20,11 @@ private final class FakeRecognizer: PhraseListening {
     }
 
     func recognize(_ text: String) -> SpokenQuestion? {
-        _ = policy.heard(.init(text: text, start: 0, end: 2, isFinal: true))
-        let spoken = policy.voice(at: 3.5, speaking: false)
-        if let spoken { question(spoken, 3.5) }
+        let start = clock
+        clock += 10
+        _ = policy.heard(.init(text: text, start: start, end: start + 2, isFinal: true))
+        let spoken = policy.voice(at: start + 3.5, speaking: false)
+        if let spoken { question(spoken, start + 3.5) }
         return spoken
     }
 
