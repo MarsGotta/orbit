@@ -6,11 +6,14 @@ import { noteRoute, type VaultRoute } from "./route";
 import styles from "./VaultColumn.module.css";
 import { VaultFolder as Folder } from "./VaultFolder";
 
-const ORDER = Object.keys(copy.folderNames);
-
 function Folders({ catalog, route }: { catalog: VaultCatalog | null; route: VaultRoute }) {
   const notes = catalog?.notes ?? [];
-  const groups = [...new Set([...ORDER, ...notes.map((note) => note.path.split("/")[0] ?? "")])];
+  const groups = [
+    ...new Set([
+      ...Object.values(catalog?.schema.folders ?? {}).map((path) => path?.split("/")[0] ?? ""),
+      ...notes.map((note) => note.path?.split("/")[0] ?? ""),
+    ]),
+  ];
   return (
     <>
       {groups

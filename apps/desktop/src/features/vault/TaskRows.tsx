@@ -27,7 +27,7 @@ export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMet
       {tasks.map((task) => (
         <li
           className={styles.task}
-          id={`vault-task-${task.block_id}`}
+          id={`vault-task-${task.block_id || task.id}`}
           key={`${task.file}:${task.line}`}
         >
           <input
@@ -43,6 +43,11 @@ export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMet
               {task.text}
             </a>
             <small>
+              {task.priority !== "" && <>{task.priority} · </>}
+              {task.scheduled !== "" && <>Programada {displayDate(task.scheduled)} · </>}
+              {task.start !== "" && <>Inicio {displayDate(task.start)} · </>}
+              {task.recurrence !== "" && <>🔁 {task.recurrence} · </>}
+              {task.done_at !== "" && <>Hecha el {displayDate(task.done_at)} · </>}
               {task.who !== "" && <>{task.who} · </>}
               {task.project !== "" && <>en {taskTitle(task.project, notes)} · </>}
               {task.source !== "" && (

@@ -2,16 +2,15 @@
 
 import re
 
-import yaml
-from yaml.tokens import AliasToken, AnchorToken, TagToken
-
+from .conformance import check
 from .method import file_name
 from .models import MAX_NOTE_BYTES, refusal
 from .paths import resolve
-from .syntax import citations, dependencies, query_blocks, tasks
+from .schema import frontmatter, load, properties
+from .syntax import citations, tasks
 
 
-def document(path, text, paths):
+def document(path, text, paths, schema=None, people=()):
     size = len(text.encode("utf-8"))
     if size > MAX_NOTE_BYTES:
         raise refusal(
@@ -21,38 +20,43 @@ def document(path, text, paths):
             bytes=size,
             max_bytes=MAX_NOTE_BYTES,
         )
-    fields, body = {}, text
-    if text.startswith(("---\n", "---\r\n")):
-        parts = re.split(r"^---\s*$", text, maxsplit=2, flags=re.MULTILINE)
-        if len(parts) != 3:
+    schema = load() if schema is None else schema
+    try:
+        fields, body = frontmatter(text)
+    except (ValueError, TypeError) as exc:
+        if path != "SCHEMA.md":
             raise refusal(
-                "vault_frontmatter_invalid", "El frontmatter YAML de la nota no está cerrado."
-            )
-        try:
-            # Aliases/anchors/tags are unnecessary for OKF and can amplify or make
-            # recursive data. BaseLoader keeps dates as strings; no object constructors.
-            tokens = list(yaml.scan(parts[1]))
-            if any(isinstance(t, (AliasToken, AnchorToken, TagToken)) for t in tokens):
-                raise ValueError()
-            fields = yaml.load(parts[1], Loader=yaml.BaseLoader) or {}
-            if not isinstance(fields, dict):
-                raise TypeError()
-        except (yaml.YAMLError, ValueError, TypeError, RecursionError):
-            raise refusal(
-                "vault_frontmatter_invalid", "El frontmatter YAML no es un mapa seguro de campos."
+                "vault_frontmatter_invalid", f"El frontmatter YAML de la nota: {exc}."
             ) from None
-        body = parts[2].lstrip("\r\n")
+        fields, body = {}, schema["body"] or text
+    kind, role, values = properties(path, fields, schema)
+    return_value = {
+        "type": kind,
+        "role": role,
+        "properties": values,
+        "schema_warnings": schema["warnings"],
+        "conformance": check(
+            fields, path=path, has_frontmatter=text.startswith(("---\n", "---\r\n"))
+        ),
+    }
     return {
+        **return_value,
         "path": path,
+        # A later writer must round-trip this complete map, including unknown
+        # keys nested in provenance events and sources. Properties are only a
+        # normalized reading projection; never write them over the original.
         "frontmatter": fields,
         "body": body,
         "outlinks": links(path, body, paths),
         "synthesized": False,
         "raw": text,
-        "citations": citations(fields, body),
-        "tasks": tasks(path, fields, body, text[: len(text) - len(body)].count("\n"), paths),
-        "dependencies": dependencies(path, body, paths),
-        "queries": query_blocks(body),
+        "citations": citations(values, body),
+        "tasks": tasks(
+            path, values, body, text[: len(text) - len(body)].count("\n"), paths, people, role
+        ),
+        "dependencies": [],
+        "dependency_tasks": [],
+        "queries": [],
     }
 
 

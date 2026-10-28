@@ -1,4 +1,4 @@
-import { COLORS } from "./type-colors";
+import { COLORS, typeLabel } from "./type-colors";
 import { MapNode } from "./MapNode";
 import { useState } from "react";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
@@ -95,9 +95,10 @@ function Graph({
 }
 
 export function VaultMap({ notes }: { notes: VaultMeta[] }) {
-  const [types, setTypes] = useState(Object.keys(copy.types).filter((type) => type !== "fuente"));
+  const [excluded, setExcluded] = useState<string[]>([]);
+  const types = [...new Set(notes.map((note) => note.type))];
   const [selected, select] = useState("");
-  const filtered = notes.filter((note) => types.includes(note.type));
+  const filtered = notes.filter((note) => !excluded.includes(note.type));
   const picked = filtered.find((note) => note.path === selected);
   return (
     <section className={styles.content}>
@@ -105,28 +106,12 @@ export function VaultMap({ notes }: { notes: VaultMeta[] }) {
         <h1>{copy.map}</h1>
         <p>{copy.mapLead}</p>
       </header>
-      <div className={styles.filters}>
-        {Object.entries(copy.types).map(([type, label]) => (
-          <button
-            aria-pressed={types.includes(type)}
-            key={type}
-            onClick={() =>
-              setTypes(types.includes(type) ? types.filter((t) => t !== type) : [...types, type])
-            }
-            type="button"
-          >
-            <span aria-hidden="true" style={{ color: COLORS[type] }}>
-              ●{" "}
-            </span>
-            {label}
-          </button>
-        ))}
-      </div>
+      <TypeFilters notes={notes} types={types} excluded={excluded} setExcluded={setExcluded} />
       <div className={styles.mapArea}>
         <Graph notes={filtered} select={select} selected={selected} />
         {picked !== undefined && (
           <div className={styles.mapCard}>
-            <small>{copy.types[picked.type as keyof typeof copy.types] ?? picked.type}</small>
+            <small>{typeLabel(picked.type, picked.role)}</small>
             <h2>{picked.title}</h2>
             <p>{picked.description}</p>
             <p>
@@ -149,5 +134,42 @@ export function VaultMap({ notes }: { notes: VaultMeta[] }) {
         </ul>
       </details>
     </section>
+  );
+}
+
+function TypeFilters({
+  notes,
+  types,
+  excluded,
+  setExcluded,
+}: {
+  notes: VaultMeta[];
+  types: string[];
+  excluded: string[];
+  setExcluded: (types: string[]) => void;
+}) {
+  return (
+    <div className={styles.filters}>
+      {types.map((type) => (
+        <button
+          aria-pressed={!excluded.includes(type)}
+          key={type}
+          onClick={() =>
+            setExcluded(
+              excluded.includes(type) ? excluded.filter((t) => t !== type) : [...excluded, type],
+            )
+          }
+          type="button"
+        >
+          <span
+            aria-hidden="true"
+            style={{ color: COLORS[notes.find((note) => note.type === type)?.role ?? "note"] }}
+          >
+            ●{" "}
+          </span>
+          {typeLabel(type, notes.find((note) => note.type === type)?.role ?? "note")}
+        </button>
+      ))}
+    </div>
   );
 }

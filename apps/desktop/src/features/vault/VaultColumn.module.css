@@ -94,22 +94,22 @@
   border-radius: 3px;
   background: var(--o-ink2);
 }
-.dot[data-folder="personas"] {
+.dot[data-role="person"] {
   background: var(--o-c1);
 }
-.dot[data-folder="proyectos"] {
+.dot[data-role="project"] {
   background: var(--o-c2);
 }
-.dot[data-folder="decisiones"] {
+.dot[data-role="meeting"] {
   background: var(--o-c4);
 }
-.dot[data-folder="temas"] {
+.dot[data-role="topic"] {
   background: var(--o-c3);
 }
-.dot[data-folder="consultas"] {
+.dot[data-role="journal"] {
   background: var(--o-accText);
 }
-.dot[data-folder="fuentes"] {
+.dot[data-role="source"] {
   background: var(--o-ink3);
 }
 .footer {

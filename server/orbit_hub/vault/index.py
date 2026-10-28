@@ -1,17 +1,19 @@
 """Bounded indexing of the working copy, with no invented notes or missing-as-empty reads."""
 
-import re
-
+from .conformance import reserved
 from .markdown import document
 from .models import MAX_SCAN_BYTES, refusal
-from .syntax import activities
+from .schema import load
+from .syntax import activities, tasks
+from .task_views import dependencies, queries, task_index
 
-RESERVED = {"SCHEMA.md", "index.md", "log.md", "LEEME.md", "AGENTS.md"}
+# These control concepts stay in the navigation footer, but still need an OKF type.
+CONTROL_DOCUMENTS = {"SCHEMA.md", "README.md", "AGENTS.md"}
 
 
 def build(reader, entries):
     paths = {entry["path"] for entry in entries if entry["kind"] == "note"}
-    documents, scanned = {}, 0
+    raws, scanned = {}, 0
     for path in sorted(paths):
         raw = reader.read(path)
         scanned += len(raw.encode())
@@ -22,16 +24,37 @@ def build(reader, entries):
                 bytes=scanned,
                 max_bytes=MAX_SCAN_BYTES,
             )
-        documents[path] = document(path, raw, paths)
-    notes = [summary(note) for path, note in documents.items() if path not in RESERVED]
+        raws[path] = raw
+    schema = load(raws.get("SCHEMA.md", ""))
+    if "SCHEMA.md" in raws:
+        schema["path"] = "SCHEMA.md"
+    documents = {path: document(path, raw, paths, schema) for path, raw in raws.items()}
+    people = {path for path, note in documents.items() if note["role"] == "person"}
+    for path, note in documents.items():
+        offset = note["raw"][: len(note["raw"]) - len(note["body"])].count("\n")
+        note["tasks"] = tasks(
+            path, note["properties"], note["body"], offset, paths, people, note["role"]
+        )
+    all_tasks = [task for note in documents.values() for task in note["tasks"]]
+    ids, by_reference = task_index(all_tasks)
+    for note in documents.values():
+        note["dependencies"] = dependencies(note, ids)
+        refs = {edge[key] for edge in note["dependencies"] for key in ("prerequisite", "dependent")}
+        note["dependency_tasks"] = [
+            by_reference[ref] for ref in sorted(refs) if ref in by_reference
+        ]
+        note["queries"] = queries(note["body"], all_tasks)
+    notes = [
+        summary(note)
+        for path, note in documents.items()
+        if not reserved(path) and path not in CONTROL_DOCUMENTS
+    ]
     backlinks = {path: 0 for path in paths}
     for note in documents.values():
         for target in {link["path"] for link in note["outlinks"]}:
             backlinks[target] += 1
     for note in notes:
         note["backlink_count"] = backlinks[note["path"]]
-    all_tasks = [task for note in documents.values() for task in note["tasks"]]
-    schema = documents.get("SCHEMA.md")
     return {
         "notes": notes,
         "tasks": all_tasks,
@@ -40,36 +63,27 @@ def build(reader, entries):
         "okf_version": str(
             documents.get("index.md", {}).get("frontmatter", {}).get("okf_version", "")
         ),
-        "schema": {
-            "path": "SCHEMA.md" if schema else "",
-            "body": schema["body"] if schema else "",
-            "folders": schema_folders(schema["body"]) if schema else {},
-        },
+        "schema": schema,
     }
 
 
 def summary(note):
-    fields = note["frontmatter"]
-    generated = fields.get("generated")
+    fields = note["properties"]
+    generated = note["frontmatter"].get("generated")
     generated = generated if isinstance(generated, dict) else {}
     return {
         "path": note["path"],
         "kind": "note",
-        "title": str(fields.get("title", note["path"].rsplit("/", 1)[-1][:-3]))[:240],
-        "type": str(fields.get("type", "nota"))[:32],
+        "title": str(note["frontmatter"].get("title", note["path"].rsplit("/", 1)[-1][:-3]))[:240],
+        "type": note["type"],
+        "role": note["role"],
         "description": str(fields.get("description", ""))[:500],
-        "state": str(fields.get("estado", ""))[:64],
-        "start": str(fields.get("arranque", ""))[:64],
+        "state": str(fields.get("stage", ""))[:64],
+        "start": str(fields.get("start", ""))[:64],
         "links": list(dict.fromkeys(link["path"] for link in note["outlinks"])),
         "backlink_count": 0,
         "task_count": sum(not task["done"] for task in note["tasks"]),
         "modified_at": str(generated.get("at", ""))[:64],
-    }
-
-
-def schema_folders(body):
-    return {
-        match[2]: match[1] for match in re.finditer(r"`([^`]+/)`\s*·\s*`type:\s*([^`]+)`", body)
     }
 
 
@@ -79,8 +93,8 @@ def catalog(index, request):
     return {
         "notes": notes[start : start + request.page_size],
         "next_page": request.page + 1 if start + request.page_size < len(notes) else None,
-        "notes_count": sum(note["type"] != "fuente" for note in notes),
-        "sources_count": sum(note["type"] == "fuente" for note in notes),
+        "notes_count": sum(note["role"] != "source" for note in notes),
+        "sources_count": sum(note["role"] == "source" for note in notes),
         "open_tasks": sum(not task["done"] for task in index["tasks"]),
         "type_counts": {
             kind: sum(n["type"] == kind for n in notes) for kind in {n["type"] for n in notes}

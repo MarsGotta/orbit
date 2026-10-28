@@ -56,7 +56,7 @@ describe("the views that stay", () => {
 });
 
 it("the vault route opens Notas independently of meeting notes", () => {
-  window.location.hash = "#/vault/n/personas%2Faster.md";
+  window.location.hash = "#/vault/n/People%2Faster.md";
   const stop = ui.initializeUiStore();
   try {
     expect(ui.useUiStore.getState().view).toBe("vault");

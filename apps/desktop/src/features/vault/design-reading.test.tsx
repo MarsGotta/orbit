@@ -19,18 +19,20 @@ it("51 has the vault column, projects, tasks and a keyboard path to the reading 
 });
 
 it("54–56 show properties, citation sources, raw Markdown and project dependencies", async () => {
-  window.location.hash = "#/vault/n/personas%2Fjavier-ortega.md";
+  window.location.hash = "#/vault/n/People%2Fada-vale.md";
   render(<VaultView port={fixturePort()} />);
   const panel = await screen.findByRole("complementary", { name: "Sobre esta nota" });
   expect(within(panel).getByRole("heading", { name: "Fuentes · 3" })).not.toBeNull();
-  expect(await screen.findByText("Backend de reservas")).not.toBeNull();
+  expect(await screen.findByText("Reservation backend", { selector: "dd" })).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "MD Markdown" }));
   expect(await screen.findByText(/Propiedades \(YAML\) · OKF 0.2/)).not.toBeNull();
-  expect(screen.getAllByText(/type: persona/).length).toBeGreaterThan(0);
-  window.location.hash = "#/vault/n/proyectos%2Fpiloto-hoteles-ribera.md";
+  expect(screen.getAllByText(/type: person/).length).toBeGreaterThan(0);
+  window.location.hash = "#/vault/n/Projects%2Fgarden-pilot.md";
   fireEvent(window, new Event("hashchange"));
   expect(await screen.findByRole("img", { name: "Diagrama de dependencias" })).not.toBeNull();
-  expect(await screen.findByText("Preparar la demo con Ribera Aeropuerto")).not.toBeNull();
+  expect(
+    await screen.findByText(/Prepare the airport demo/, { selector: "a[data-done]" }),
+  ).not.toBeNull();
   expect(
     screen.getAllByRole("checkbox").every((input) => (input as HTMLInputElement).disabled),
   ).toBe(true);
@@ -39,15 +41,15 @@ it("54–56 show properties, citation sources, raw Markdown and project dependen
 it("57 is read-only and 58 exposes each map note to keyboard users", async () => {
   window.location.hash = "#/vault/tasks";
   render(<VaultView port={fixturePort()} />);
-  await screen.findByText("Confirmar con Pablo la fecha de arranque");
+  await screen.findByText(/Confirm kickoff with Ben/, { selector: "a[data-done]" });
   expect(
     screen.getAllByRole("checkbox").every((input) => (input as HTMLInputElement).disabled),
   ).toBe(true);
   fireEvent.click(screen.getByRole("radio", { name: "Por proyecto" }));
-  expect(await screen.findByRole("heading", { name: /Piloto Hoteles Ribera/ })).not.toBeNull();
+  expect(await screen.findByRole("heading", { name: /Garden Pilot/ })).not.toBeNull();
   window.location.hash = "#/vault/map";
   fireEvent(window, new Event("hashchange"));
-  const node = await screen.findByRole("button", { name: /Javier Ortega · Persona/ });
+  const node = await screen.findByRole("button", { name: /Ada Vale · Persona/ });
   fireEvent.keyDown(node, { key: "Enter" });
   await waitFor(() => expect(node.getAttribute("aria-pressed")).toBe("true"));
   expect(screen.getByText(/Lista equivalente del mapa/)).not.toBeNull();
@@ -57,16 +59,15 @@ it("the folder tree expands nested source folders without flattening their paths
   window.location.hash = "#/vault";
   render(<VaultView port={fixturePort()} />);
   const column = await screen.findByRole("complementary", { name: "Tu vault" });
-  fireEvent.click(await within(column).findByRole("button", { name: /Fuentes/ }));
-  const folder = await within(column).findByRole("button", { name: /reuniones/i });
+  const sources = await within(column).findByRole("button", { name: /Fuentes/ });
+  fireEvent.click(sources);
+  const folder = await within(sources.parentElement!).findByRole("button", { name: /Reuniones/ });
   fireEvent.click(folder);
-  expect(
-    within(column).getByRole("link", { name: "Revisión del diseño de reservas · 21 oct" }),
-  ).not.toBeNull();
+  expect(within(column).getByRole("link", { name: "Garden review · 21 Oct" })).not.toBeNull();
 });
 
 it("shows deprecated notes as retired in their reading properties", async () => {
-  window.location.hash = "#/vault/n/personas%2Fjavier-ortega.md";
+  window.location.hash = "#/vault/n/People%2Fada-vale.md";
   const fixture = fixturePort();
   render(
     <VaultView
@@ -78,6 +79,7 @@ it("shows deprecated notes as retired in their reading properties", async () => 
               note: {
                 ...result.note,
                 frontmatter: { ...result.note.frontmatter, status: "deprecated" },
+                properties: { ...result.note.properties, status: "deprecated" },
               },
             }
           : result;
@@ -88,7 +90,7 @@ it("shows deprecated notes as retired in their reading properties", async () => 
 });
 
 it("treats an ordinary code fence using the internal task language as literal text", async () => {
-  window.location.hash = "#/vault/n/personas%2Fjavier-ortega.md";
+  window.location.hash = "#/vault/n/People%2Fada-vale.md";
   const fixture = fixturePort();
   const body = "## Example\n\n```orbit-tasks\nInvented literal code\n```\n";
   render(
@@ -118,7 +120,7 @@ it("keeps notes with no links in a separate area of the map", async () => {
           ...first,
           path: "loose.md",
           title: "Invented loose note",
-          type: "nota",
+          type: "note",
           links: [],
           backlink_count: 0,
         };

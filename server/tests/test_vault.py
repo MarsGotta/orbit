@@ -15,7 +15,7 @@ async def vault_client(environment, tmp_path):
     root.mkdir()
     (root / "People").mkdir()
     (root / "People" / "Ada.md").write_text(
-        "---\ntype: persona\ntitle: Ada\n---\nWorks on [[Garden]].\n", encoding="utf-8"
+        "---\ntype: person\ntitle: Ada\n---\nWorks on [[Garden]].\n", encoding="utf-8"
     )
     (root / "Garden.md").write_text("# Garden\nWith [Ada](People/Ada.md).", encoding="utf-8")
     (root / ".private.md").write_text("hidden")
@@ -50,7 +50,7 @@ async def test_folder_reads_links_pagination_and_index(vault_client):
     note = (
         await client.post("/v1/vault/read", json={"operation": "read", "path": "People/Ada.md"})
     ).json()
-    assert note["frontmatter"]["type"] == "persona"
+    assert note["frontmatter"]["type"] == "person"
     assert note["body"] == "Works on [[Garden]].\n"
     assert note["outlinks"] == [{"target": "Garden", "path": "Garden.md"}]
     backlinks = (
@@ -106,19 +106,18 @@ def test_method_schema():
     from orbit_hub.vault import validate_note
 
     fields = {
-        "type": "persona",
+        "type": "person",
         "title": "Ada",
         "description": "Gardener",
         "tags": [],
         "sources": [],
-        "updated": "2026-10-27",
     }
     assert validate_note(fields, "Short note.") == {"errors": [], "warnings": []}
     assert validate_note(fields, "word " * 401)["warnings"][0]["code"] == "word_limit"
-    assert "invalid_status" in validate_note({**fields, "status": "busy"}, "Short")["errors"]
-    assert "invalid_type" in validate_note({**fields, "type": "other"}, "Short")["errors"]
+    assert "invalid_status" in validate_note({**fields, "status": []}, "Short")["errors"]
+    assert validate_note({**fields, "type": "other"}, "Short")["errors"] == []
     trust = {
-        "sources": [{"resource": "meetings/garden.md", "id": "garden"}],
+        "sources": [{"resource": "/meetings/garden.md", "id": "garden"}],
         "generated": {"by": "orbit/fixture", "at": "2026-10-27T10:00:00Z"},
         "verified": [{"by": "human:ada", "at": "2026-10-27T11:00:00Z"}],
     }

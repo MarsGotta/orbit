@@ -5,25 +5,20 @@ import { taskTitle } from "./TaskRows";
 import styles from "./VaultReading.module.css";
 
 const LABELS: Record<string, string> = {
-  rol: "Rol",
-  organizacion: "Organización",
-  correo: "Correo",
-  estado: "Estado",
-  responsable: "Responsable",
-  cliente: "Cliente",
-  arranque: "Arranque",
-  resource: "Origen",
-  fecha: "Fecha",
-  duracion_min: "Duración (min)",
-  serie: "Serie",
-  participantes: "Participantes",
-  sha256: "SHA-256",
+  stage: "Estado del proyecto",
+  start: "Arranque",
 };
-const FIELDS: Record<string, string[]> = {
-  persona: ["rol", "organizacion", "correo"],
-  proyecto: ["estado", "responsable", "cliente", "arranque"],
-  fuente: ["resource", "fecha", "duracion_min", "serie", "participantes", "sha256"],
-};
+const METADATA = [
+  "status",
+  "type",
+  "title",
+  "description",
+  "tags",
+  "sources",
+  "generated",
+  "verified",
+  "stale_after",
+];
 
 export function PropertyValue({ value, notes }: { value: unknown; notes: VaultMeta[] }) {
   if (typeof value === "string") {
@@ -34,36 +29,39 @@ export function PropertyValue({ value, notes }: { value: unknown; notes: VaultMe
   return <>{value === undefined ? "—" : JSON.stringify(value)}</>;
 }
 
-export function NoteProperties({ note, notes }: { note: VaultNote; notes: VaultMeta[] }) {
-  const type = typeof note.frontmatter.type === "string" ? note.frontmatter.type : "";
+export function NoteProperties({
+  note,
+  notes,
+  fieldNames,
+}: {
+  note: VaultNote;
+  notes: VaultMeta[];
+  fieldNames: Partial<Record<string, string>>;
+}) {
   const projects =
-    type === "persona"
-      ? notes.filter((entry) => entry.type === "proyecto" && entry.links.includes(note.path))
+    note.role === "person"
+      ? notes.filter((entry) => entry.role === "project" && entry.links.includes(note.path))
       : [];
+  const fields = {
+    ...Object.fromEntries(
+      Object.entries(note.frontmatter).filter(
+        ([key]) => !METADATA.includes(key) && !Object.values(fieldNames).includes(key),
+      ),
+    ),
+    ...Object.fromEntries(Object.entries(note.properties).filter(([key]) => key in LABELS)),
+  };
   return (
     <dl className={styles.properties}>
-      {(FIELDS[type] ?? []).map((field) => (
+      {Object.entries(fields).map(([field, value]) => (
         <div key={field}>
-          <dt>{LABELS[field]}</dt>
+          <dt>{LABELS[field] ?? field}</dt>
           <dd>
-            <PropertyValue notes={notes} value={note.frontmatter[field]} />
+            <PropertyValue notes={notes} value={value} />
           </dd>
         </div>
       ))}
-      {projects.length > 0 && (
-        <div>
-          <dt>Proyectos</dt>
-          <dd>
-            {projects.map((project, i) => (
-              <span key={project.path}>
-                {i > 0 && " · "}
-                <a href={noteRoute(project.path)}>{project.title}</a>
-              </span>
-            ))}
-          </dd>
-        </div>
-      )}
-      {type === "proyecto" && (
+      <ProjectLinks projects={projects} />
+      {note.role === "project" && (
         <div>
           <dt>Equipo</dt>
           <dd className={styles.team}>
@@ -78,5 +76,22 @@ export function NoteProperties({ note, notes }: { note: VaultNote; notes: VaultM
         </div>
       )}
     </dl>
+  );
+}
+
+function ProjectLinks({ projects }: { projects: VaultMeta[] }) {
+  if (projects.length === 0) return null;
+  return (
+    <div>
+      <dt>Proyectos</dt>
+      <dd>
+        {projects.map((project, index) => (
+          <span key={project.path}>
+            {index > 0 && " · "}
+            <a href={noteRoute(project.path)}>{project.title}</a>
+          </span>
+        ))}
+      </dd>
+    </div>
   );
 }

@@ -7,8 +7,6 @@ import type { VaultPort } from "./api";
 import { internalTarget, remarkVault } from "./markdown-tree";
 import { noteRoute } from "./route";
 import { TaskRows } from "./TaskRows";
-import { DependencyDiagram } from "./DependencyDiagram";
-import { VaultTasks } from "./VaultTasks";
 import styles from "./VaultReading.module.css";
 
 interface Props {
@@ -79,25 +77,24 @@ function CodeBlock({
   ...props
 }: Props & { className?: string; children: React.ReactNode; taskRange?: unknown }) {
   const language = className?.replace("language-", "");
-  if (language === "dependencias") return <DependencyDiagram note={props.note} />;
-  if (language === "tareas") {
-    const text = String(children);
-    const person = /^persona:\s*(.+)$/m.exec(text)?.[1] ?? "";
-    const project = /^proyecto:\s*(.+)$/m.exec(text)?.[1];
-    const path =
-      project === undefined ? "" : (props.notes.find((n) => n.title === project)?.path ?? "");
-    if (project !== undefined && path === "")
-      return <p>El proyecto de esta consulta no está en la página del índice: {project}.</p>;
-    const state = /^estado:\s*(.+)$/m.exec(text)?.[1];
+  if (language === "tasks") {
+    const lines = String(children)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const query = props.note.queries.find(
+      (query) => JSON.stringify(query.lines) === JSON.stringify(lines),
+    );
+    if (query === undefined) return <p role="alert">No se pudo leer esta consulta de tareas.</p>;
     return (
-      <VaultTasks
-        embedded
-        initialState={state === "abiertas" ? "open" : state === "hechas" ? "done" : "all"}
-        notes={props.notes}
-        path={path}
-        port={props.port}
-        query={person}
-      />
+      <>
+        {query.warnings.map((warning) => (
+          <p role="alert" key={warning}>
+            {warning}
+          </p>
+        ))}
+        <TaskRows notes={props.notes} tasks={query.tasks} />
+      </>
     );
   }
   // Only our AST transform supplies this attribute. A note's ordinary

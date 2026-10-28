@@ -14,19 +14,19 @@ export const vaultScenarios: Scenario[] = [
   reading(
     "vault-person",
     "Ficha de persona",
-    "#/vault/n/personas%2Fjavier-ortega.md",
-    "h1:has-text('Javier Ortega')",
+    "#/vault/n/People%2Fada-vale.md",
+    "h1:has-text('Ada Vale')",
   ),
   reading(
     "vault-markdown",
     "Markdown",
-    "#/vault/n/personas%2Fjavier-ortega.md?md=1",
+    "#/vault/n/People%2Fada-vale.md?md=1",
     "text=Propiedades (YAML) · OKF 0.2 · Solo lectura",
   ),
   reading(
     "vault-project",
     "Proyecto",
-    "#/vault/n/proyectos%2Fpiloto-hoteles-ribera.md",
+    "#/vault/n/Projects%2Fgarden-pilot.md",
     "svg[aria-label='Diagrama de dependencias']",
   ),
   reading("vault-tasks", "Tareas", "#/vault/tasks", "h1:has-text('Tareas')"),

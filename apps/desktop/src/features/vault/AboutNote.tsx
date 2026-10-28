@@ -137,9 +137,10 @@ function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
       {data?.history.length === 0 && <p>{copy.noHistory}</p>}
       {data?.history.map((entry, i) => (
         <p key={i}>
-          {entry.by} · {entry.action} · {entry.detail}
+          {entry.text !== "" ? entry.text : `${entry.by} · ${entry.action} · ${entry.detail}`}
           <small>
-            {entry.date} · {entry.time}
+            {entry.date}
+            {entry.time !== "" ? ` · ${entry.time}` : ""}
           </small>
         </p>
       ))}

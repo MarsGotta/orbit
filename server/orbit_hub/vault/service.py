@@ -3,14 +3,14 @@
 import json
 from threading import BoundedSemaphore
 from typing import Protocol
+from urllib.parse import quote
 
 from . import index
 from .fast_note_sync import FastNoteSync
 from .folder import Folder
-from .markdown import document
+from .markdown import document, links
 from .models import MAX_READS, MAX_SCAN_BYTES, Configuration, Read, refusal
 from .paths import checked
-from .syntax import activities
 from .working_copy import WorkingCopy
 
 
@@ -169,7 +169,7 @@ class Vault:
                 else index.task_page(built, request)
             )
         if request.operation == "read":
-            return self._note(reader, paths, request)
+            return self._note(reader, entries, paths, request)
         if request.operation == "list":
             if isinstance(remote, FastNoteSync):
                 folders = [
@@ -180,15 +180,7 @@ class Vault:
         if request.operation == "index":
             if "index.md" in paths:
                 return document("index.md", reader.read("index.md"), paths)
-            listing = page([entry for entry in entries if entry["kind"] == "note"], request)
-            body = "# Notas\n\n" + "\n".join(
-                f"- [[{entry['path']}]]" for entry in listing["entries"]
-            )
-            return {
-                **document("index.md", body, paths),
-                "synthesized": True,
-                "next_page": listing["next_page"],
-            }
+            return self._index(reader, entries, paths, request)
         if request.operation == "outlinks":
             note = document(request.path, reader.read(request.path), paths)
             return page(
@@ -199,14 +191,42 @@ class Vault:
         return page(self._scan(reader, entries, paths, request), request)
 
     @staticmethod
-    def _note(reader, paths, request):
-        note = document(request.path, reader.read(request.path), paths)
-        history = (
-            activities(document("log.md", reader.read("log.md"), paths)["body"])
-            if "log.md" in paths
-            else []
+    def _index(reader, entries, paths, request):
+        built = index.build(reader, entries)
+        start = (request.page - 1) * request.page_size
+        notes = built["notes"][start : start + request.page_size]
+        body = "# Notes\n\n" + "\n".join(
+            "* ["
+            + note["title"].replace("\n", " ").replace("[", r"\[").replace("]", r"\]")
+            + "](/"
+            + quote(note["path"], safe="/")
+            + ") - "
+            + note["description"].replace("\n", " ")
+            for note in notes
         )
-        history = [entry for entry in history if entry["path"] == request.path]
+        return {
+            **document("index.md", body, paths),
+            "synthesized": True,
+            "next_page": request.page + 1 if start + len(notes) < len(built["notes"]) else None,
+        }
+
+    @staticmethod
+    def _note(reader, entries, paths, request):
+        if request.path not in paths:
+            raise refusal("vault_note_missing", "La nota no existe en el vault.", 404)
+        built = index.build(reader, entries)
+        note = built["documents"][request.path]
+        history = [
+            entry
+            for entry in built["recent"]
+            if entry["path"] == request.path
+            or (
+                entry["text"]
+                and any(
+                    link["path"] == request.path for link in links("log.md", entry["text"], paths)
+                )
+            )
+        ]
         start = (request.page - 1) * request.page_size
         return {
             **note,

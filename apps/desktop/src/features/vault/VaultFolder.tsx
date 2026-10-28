@@ -15,7 +15,9 @@ export function VaultFolder({
   route: VaultRoute;
   count: number | null;
 }) {
-  const [expanded, setExpanded] = useState(folder === "personas" || folder === "proyectos");
+  const [expanded, setExpanded] = useState(
+    notes.some((note) => ["person", "project"].includes(note.role)),
+  );
   const name = folder.split("/").pop() ?? folder;
   const label = copy.folderNames[name as keyof typeof copy.folderNames] ?? name;
   return (
@@ -27,7 +29,7 @@ export function VaultFolder({
         type="button"
       >
         <span aria-hidden="true">{expanded ? "⌄" : "›"}</span>
-        <span className={styles.dot} data-folder={folder.split("/")[0]} />
+        <span className={styles.dot} data-role={notes[0]?.role ?? "note"} />
         <span>{label}</span>
         <span className={styles.count}>{count ?? "…"}</span>
       </button>

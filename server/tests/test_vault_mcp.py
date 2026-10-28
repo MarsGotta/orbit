@@ -28,7 +28,12 @@ async def test_notes_tools_read_without_a_mac_and_enforce_notes_group(environmen
     )
     root = tmp_path / "garden"
     root.mkdir()
-    (root / "Ada.md").write_text("# Ada\nA gardener.")
+    (root / "SCHEMA.md").write_text(
+        "---\ntype: schema\ntypes: {contact: {role: person}}\n---\nFree prose."
+    )
+    (root / "Ada.md").write_text(
+        "---\ntype: contact\ndescription: A gardener.\n---\n# Ada\nA gardener."
+    )
     factory = lambda **kwargs: httpx.AsyncClient(transport=httpx.ASGITransport(app), **kwargs)
     config = Config(
         "https://localhost",
@@ -57,6 +62,9 @@ async def test_notes_tools_read_without_a_mac_and_enforce_notes_group(environmen
             result = await server.call_tool(name, args)
             assert not result.is_error, text_of(result)
             assert "Ada" in text_of(result)
+            if name == "orbit_note_read":
+                assert '"role": "person"' in text_of(result)
+                assert '"description": "A gardener."' in text_of(result)
         configs = AgentConfigStore(store)
         configs.set_access("default", {**configs.access("default"), "notes": False})
         # Even an old translator with a cached list is refused by the real hub.

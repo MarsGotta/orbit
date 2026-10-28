@@ -31,6 +31,12 @@ function RouteContent({
 }) {
   return (
     <>
+      {route.section !== "note" &&
+        catalog.schema.warnings.map((warning) => (
+          <p className={styles.content} role="alert" key={warning}>
+            {warning}
+          </p>
+        ))}
       {route.section === "home" && (
         <VaultHome catalog={catalog} configuration={configuration} port={port} />
       )}

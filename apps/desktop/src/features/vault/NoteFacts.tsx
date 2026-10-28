@@ -9,6 +9,15 @@ function actor(value: unknown): string {
   return `${typeof event.by === "string" ? event.by : "Sin datos"}${typeof event.at === "string" ? ` · ${displayDate(event.at)}` : ""}`;
 }
 
+function statusLabel(value: unknown) {
+  const labels: Record<string, string> = {
+    draft: "Borrador",
+    deprecated: "Retirada",
+    stable: "Estable",
+  };
+  return typeof value === "string" ? (labels[value] ?? value) : "Sin estado";
+}
+
 export function NoteFacts({ note }: { note: VaultNote }) {
   const fields = note.frontmatter;
   const verified = Array.isArray(fields.verified)
@@ -22,17 +31,11 @@ export function NoteFacts({ note }: { note: VaultNote }) {
       <dl className={styles.properties}>
         <div>
           <dt>Tipo</dt>
-          <dd>{typeof fields.type === "string" ? fields.type : "Sin type"}</dd>
+          <dd>{typeof fields.type === "string" ? fields.type : note.type}</dd>
         </div>
         <div>
           <dt>Nota</dt>
-          <dd>
-            {fields.status === "draft"
-              ? "Borrador"
-              : fields.status === "deprecated"
-                ? "Retirada"
-                : "Estable"}
-          </dd>
+          <dd>{statusLabel(note.properties.status)}</dd>
         </div>
         <div>
           <dt>Escrita por</dt>
@@ -53,8 +56,8 @@ export function NoteFacts({ note }: { note: VaultNote }) {
         <div>
           <dt>Etiquetas</dt>
           <dd>
-            {Array.isArray(fields.tags)
-              ? fields.tags.map((tag) =>
+            {Array.isArray(note.properties.tags)
+              ? note.properties.tags.map((tag) =>
                   typeof tag === "string" ? (
                     <span className={styles.tag} key={tag}>
                       {tag}

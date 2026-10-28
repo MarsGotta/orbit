@@ -8,7 +8,7 @@ from ..errors import HubError
 
 # Bounds memory per decoded note, not the method's word count (old notes remain readable).
 MAX_NOTE_BYTES = 256 * 1024
-# Bounds one listing response, not the number of notes in the vault.
+# Bounds one listing or embedded task query, not the number of notes or tasks in the vault.
 MAX_PAGE_SIZE = 100
 # Bounds a catalogue walk, including hidden entries, independently of page size.
 MAX_SCAN_ENTRIES = 10_000

@@ -2,93 +2,93 @@
   "catalog": {
     "notes": [
       {
-        "path": "consultas/que-bloquea-el-arranque-del-piloto.md",
+        "path": "People/ada-vale.md",
         "kind": "note",
-        "title": "Qué bloquea el arranque del piloto",
-        "type": "consulta",
-        "description": "Respuesta de Deimos guardada desde Preguntar a tus notas el 21 oct.",
+        "title": "Ada Vale",
+        "type": "person",
+        "role": "person",
+        "description": "Reservation backend",
         "state": "",
         "start": "",
-        "links": [
-          "personas/pablo-medina.md",
-          "personas/javier-ortega.md",
-          "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        ],
-        "backlink_count": 0,
+        "links": ["People/cora-moss.md"],
+        "backlink_count": 3,
         "task_count": 0,
-        "modified_at": "2026-10-21T12:20:00+02:00"
+        "modified_at": "2026-10-21T11:52:00+02:00"
       },
       {
-        "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
+        "path": "People/ben-reed.md",
         "kind": "note",
-        "title": "Revisión del diseño de reservas · 21 oct",
-        "type": "fuente",
-        "description": "Reunión semanal del equipo de producto. Guardada por Orbit al destilarla.",
+        "title": "Ben Reed",
+        "type": "person",
+        "role": "person",
+        "description": "Garden pilot lead",
         "state": "",
         "start": "",
-        "links": [],
+        "links": ["People/cora-moss.md"],
+        "backlink_count": 2,
+        "task_count": 0,
+        "modified_at": "2026-10-21T11:52:00+02:00"
+      },
+      {
+        "path": "People/cora-moss.md",
+        "kind": "note",
+        "title": "Cora Moss",
+        "type": "person",
+        "role": "person",
+        "description": "Garden operations",
+        "state": "",
+        "start": "",
+        "links": ["People/cora-moss.md"],
         "backlink_count": 5,
         "task_count": 0,
         "modified_at": "2026-10-21T11:52:00+02:00"
       },
       {
-        "path": "personas/javier-ortega.md",
+        "path": "Projects/garden-pilot.md",
         "kind": "note",
-        "title": "Javier Ortega",
-        "type": "persona",
-        "description": "Backend de reservas en Nubaria. Lleva la caché de tarifas del piloto de Hoteles Ribera.",
-        "state": "",
-        "start": "",
-        "links": [
-          "personas/marta-ibanez.md",
-          "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        ],
-        "backlink_count": 3,
-        "task_count": 0,
-        "modified_at": "2026-10-21T11:52:00+02:00"
-      },
-      {
-        "path": "personas/marta-ibanez.md",
-        "kind": "note",
-        "title": "Marta Ibáñez",
-        "type": "persona",
-        "description": "Diseño de producto en Nubaria. Lleva el flujo de reserva y las pruebas con recepcionistas.",
-        "state": "",
-        "start": "",
-        "links": ["fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"],
-        "backlink_count": 2,
-        "task_count": 0,
-        "modified_at": "2026-10-21T11:52:00+02:00"
-      },
-      {
-        "path": "personas/pablo-medina.md",
-        "kind": "note",
-        "title": "Pablo Medina",
-        "type": "persona",
-        "description": "Responsable del piloto en Hoteles Ribera. Decide la fecha de arranque.",
-        "state": "",
-        "start": "",
-        "links": ["proyectos/piloto-hoteles-ribera.md"],
-        "backlink_count": 3,
-        "task_count": 0,
-        "modified_at": "2026-10-21T11:52:00+02:00"
-      },
-      {
-        "path": "proyectos/piloto-hoteles-ribera.md",
-        "kind": "note",
-        "title": "Piloto Hoteles Ribera",
-        "type": "proyecto",
-        "description": "Cinco hoteles de Hoteles Ribera prueban el nuevo flujo de reserva antes de llevarlo a toda la cadena.",
-        "state": "en marcha",
+        "title": "Garden Pilot",
+        "type": "project",
+        "role": "project",
+        "description": "Five invented hotels test a new reservation flow.",
+        "state": "active",
         "start": "2026-10-26",
         "links": [
-          "personas/pablo-medina.md",
-          "personas/javier-ortega.md",
-          "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
+          "People/ada-vale.md",
+          "People/ben-reed.md",
+          "People/cora-moss.md",
+          "Sources/Meetings/2026-10-21-garden-review.md"
         ],
-        "backlink_count": 2,
+        "backlink_count": 3,
         "task_count": 4,
         "modified_at": "2026-10-21T11:52:00+02:00"
+      },
+      {
+        "path": "Sources/Meetings/2026-10-21-garden-review.md",
+        "kind": "note",
+        "title": "Garden review · 21 Oct",
+        "type": "source",
+        "role": "source",
+        "description": "Invented reservation review.",
+        "state": "",
+        "start": "",
+        "links": [],
+        "backlink_count": 3,
+        "task_count": 0,
+        "modified_at": ""
+      },
+      {
+        "path": "Topics/kickoff-blockers.md",
+        "kind": "note",
+        "title": "What blocks the pilot kickoff",
+        "type": "topic",
+        "role": "topic",
+        "description": "",
+        "state": "",
+        "start": "",
+        "links": ["Projects/garden-pilot.md", "People/ada-vale.md"],
+        "backlink_count": 0,
+        "task_count": 0,
+        "modified_at": ""
       }
     ],
     "next_page": null,
@@ -96,134 +96,184 @@
     "sources_count": 1,
     "open_tasks": 4,
     "type_counts": {
-      "proyecto": 1,
-      "persona": 3,
-      "consulta": 1,
-      "fuente": 1
+      "project": 1,
+      "source": 1,
+      "person": 3,
+      "topic": 1
     },
     "okf_version": "0.2",
     "schema": {
       "path": "SCHEMA.md",
-      "body": "## Para qué es\nLas reglas que sigue Deimos al escribir en este vault. Las lee antes de cada cambio, junto con el índice y el registro.\n## Carpetas\n- `personas/` · `type: persona` · una por persona\n- `proyectos/` · `type: proyecto` · estado, dependencias, tareas y decisiones\n- `organizaciones/` · `type: organizacion`\n- `decisiones/` · `type: decision` · qué, por qué y qué se descartó\n- `temas/` · `type: tema` · lo que sabemos y lo que falta\n- `consultas/` · `type: consulta` · respuestas que merecían quedarse\n- `fuentes/` · reuniones y documentos tal cual: **no se cambian nunca**\n## Reglas\n1. Cada frase nueva lleva su fuente: `[^id]` en el texto y la fuente en `sources`.\n2. Si algo nuevo contradice lo que hay, no se elige: se le propone a Lucía.\n3. Lo que Lucía escribe a mano no se reescribe sin preguntar.\n4. Cada tarea se escribe una vez, en su proyecto: `- [ ] tarea · [persona](/personas/…) · para el AAAA-MM-DD [^fuente] ^id`.\n5. Las dependencias van en la tarea o en el proyecto: **depende de** [otra nota](/ruta.md) o de otra tarea del proyecto por su `^id`.\n6. Al terminar, se actualiza `index.md` y se añade una línea a `log.md`.\n## Destilar una reunión\n- Leer la nota de la reunión y su transcripción.\n- Guardarla en `fuentes/reuniones/` con su `sha256`.\n- Actualizar las fichas de quienes hablaron y los proyectos y temas que salieron; crear las decisiones nuevas.\n- Proponer los cambios o aplicarlos, según Ajustes › Notas.\n",
+      "body": "# Garden vault\nKeep source transcripts unchanged. Cite claims with sources and footnotes.\nTasks use Obsidian Tasks markers and vault-wide identifiers.\n",
       "folders": {
-        "persona": "personas/",
-        "proyecto": "proyectos/",
-        "organizacion": "organizaciones/",
-        "decision": "decisiones/",
-        "tema": "temas/",
-        "consulta": "consultas/"
-      }
+        "person": "People/",
+        "project": "Projects/",
+        "meeting": "Meetings/",
+        "topic": "Topics/",
+        "source": "Sources/",
+        "journal": "Journal/"
+      },
+      "types": {
+        "person": {
+          "role": "person",
+          "folder": "People/"
+        },
+        "project": {
+          "role": "project",
+          "folder": "Projects/"
+        },
+        "meeting": {
+          "role": "meeting",
+          "folder": "Meetings/"
+        },
+        "topic": {
+          "role": "topic",
+          "folder": "Topics/"
+        },
+        "source": {
+          "role": "source",
+          "folder": "Sources/"
+        },
+        "journal": {
+          "role": "journal",
+          "folder": "Journal/"
+        }
+      },
+      "fields": {
+        "stage": "stage",
+        "start": "start"
+      },
+      "warnings": []
     },
     "recent": [
       {
         "date": "2026-10-21",
-        "time": "12:05",
-        "action": "aplicar",
-        "title": "Revisión del diseño de reservas",
-        "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-        "by": "human:lucia",
-        "detail": "11 cambios en 6 notas"
-      },
-      {
-        "date": "2026-10-21",
         "time": "11:52",
-        "action": "destilar",
-        "title": "Revisión del diseño de reservas",
-        "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-        "by": "deimos/llm-wiki-2.1",
-        "detail": "11 cambios propuestos"
+        "action": "apply",
+        "title": "Garden review",
+        "path": "Sources/Meetings/2026-10-21-garden-review.md",
+        "by": "orbit/fixture",
+        "detail": "Updated the project and people.",
+        "text": ""
       },
       {
-        "date": "2026-10-21",
-        "time": "09:14",
-        "action": "destilar",
-        "title": "Daily del equipo de producto",
-        "path": "fuentes/reuniones/2026-10-21-daily-del-equipo-de-producto.md",
-        "by": "deimos/llm-wiki-2.1",
-        "detail": "3 cambios aplicados solos"
-      },
-      {
-        "date": "2026-10-21",
-        "time": "09:00",
-        "action": "revisar",
-        "title": "vault",
+        "date": "2026-10-20",
+        "time": "",
+        "action": "",
+        "title": "",
         "path": "",
-        "by": "deimos/llm-wiki-2.1",
-        "detail": "7 avisos"
+        "by": "",
+        "detail": "",
+        "text": "* **Review**: Checked [Garden Pilot](/Projects/garden-pilot.md) against its sources."
       }
     ]
   },
   "tasks": {
     "tasks": [
       {
-        "file": "proyectos/piloto-hoteles-ribera.md",
-        "line": 35,
-        "block_id": "si-de-pablo",
-        "text": "Confirmar con Pablo la fecha de arranque",
-        "who": "Lucía Ferrer",
-        "who_path": "personas/lucia-ferrer.md",
-        "due": "2026-10-23",
+        "file": "Projects/garden-pilot.md",
+        "line": 16,
+        "block_id": "confirm",
+        "text": "Confirm kickoff with Ben Cora Moss",
+        "who": "Cora Moss",
+        "who_path": "People/cora-moss.md",
         "done": false,
+        "project": "Projects/garden-pilot.md",
+        "source_id": "",
+        "source": "",
+        "tags": [],
+        "due": "2026-10-23",
+        "scheduled": "",
+        "start": "",
         "done_at": "",
-        "project": "proyectos/piloto-hoteles-ribera.md",
-        "source_id": "r1014",
-        "source": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md"
+        "priority": "",
+        "recurrence": "",
+        "id": "confirm",
+        "depends_on": []
       },
       {
-        "file": "proyectos/piloto-hoteles-ribera.md",
-        "line": 36,
-        "block_id": "cache-tarifas",
-        "text": "Cachear las tarifas por día",
-        "who": "Javier Ortega",
-        "who_path": "personas/javier-ortega.md",
-        "due": "",
+        "file": "Projects/garden-pilot.md",
+        "line": 17,
+        "block_id": "cache-rates",
+        "text": "Cache daily rates Ada Vale",
+        "who": "Ada Vale",
+        "who_path": "People/ada-vale.md",
         "done": true,
-        "done_at": "2026-10-21",
-        "project": "proyectos/piloto-hoteles-ribera.md",
+        "project": "Projects/garden-pilot.md",
         "source_id": "r1021",
-        "source": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-      },
-      {
-        "file": "proyectos/piloto-hoteles-ribera.md",
-        "line": 37,
-        "block_id": "demo-aeropuerto",
-        "text": "Preparar la demo con Ribera Aeropuerto",
-        "who": "Diego Salinas",
-        "who_path": "personas/diego-salinas.md",
-        "due": "2026-10-23",
-        "done": false,
-        "done_at": "",
-        "project": "proyectos/piloto-hoteles-ribera.md",
-        "source_id": "r1021",
-        "source": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-      },
-      {
-        "file": "proyectos/piloto-hoteles-ribera.md",
-        "line": 38,
-        "block_id": "formacion-playa",
-        "text": "Preparar la formación de Ribera Playa",
-        "who": "Sara Llorente",
-        "who_path": "personas/sara-llorente.md",
-        "due": "2026-10-27",
-        "done": false,
-        "done_at": "",
-        "project": "proyectos/piloto-hoteles-ribera.md",
-        "source_id": "r1009",
-        "source": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md"
-      },
-      {
-        "file": "proyectos/piloto-hoteles-ribera.md",
-        "line": 39,
-        "block_id": "",
-        "text": "Enviar el resumen al equipo de Ribera",
-        "who": "Lucía Ferrer",
-        "who_path": "personas/lucia-ferrer.md",
+        "source": "/Sources/Meetings/2026-10-21-garden-review.md",
+        "tags": [],
         "due": "",
+        "scheduled": "",
+        "start": "",
+        "done_at": "2026-10-21",
+        "priority": "",
+        "recurrence": "",
+        "id": "cache-rates",
+        "depends_on": []
+      },
+      {
+        "file": "Projects/garden-pilot.md",
+        "line": 18,
+        "block_id": "airport-demo",
+        "text": "Prepare the airport demo Ada Vale",
+        "who": "Ada Vale",
+        "who_path": "People/ada-vale.md",
         "done": false,
+        "project": "Projects/garden-pilot.md",
+        "source_id": "",
+        "source": "",
+        "tags": [],
+        "due": "2026-10-23",
+        "scheduled": "",
+        "start": "",
         "done_at": "",
-        "project": "proyectos/piloto-hoteles-ribera.md",
-        "source_id": "r1014",
-        "source": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md"
+        "priority": "",
+        "recurrence": "",
+        "id": "airport-demo",
+        "depends_on": ["cache-rates"]
+      },
+      {
+        "file": "Projects/garden-pilot.md",
+        "line": 19,
+        "block_id": "beach-training",
+        "text": "Prepare beach training Ben Reed",
+        "who": "Ben Reed",
+        "who_path": "People/ben-reed.md",
+        "done": false,
+        "project": "Projects/garden-pilot.md",
+        "source_id": "",
+        "source": "",
+        "tags": [],
+        "due": "",
+        "scheduled": "",
+        "start": "",
+        "done_at": "",
+        "priority": "",
+        "recurrence": "",
+        "id": "beach-training",
+        "depends_on": ["airport-demo"]
+      },
+      {
+        "file": "Projects/garden-pilot.md",
+        "line": 20,
+        "block_id": "",
+        "text": "Send the team summary Cora Moss",
+        "who": "Cora Moss",
+        "who_path": "People/cora-moss.md",
+        "done": false,
+        "project": "Projects/garden-pilot.md",
+        "source_id": "",
+        "source": "",
+        "tags": [],
+        "due": "",
+        "scheduled": "",
+        "start": "",
+        "done_at": "",
+        "priority": "🔼",
+        "recurrence": "every week",
+        "id": "",
+        "depends_on": []
       }
     ],
     "total": 5,
@@ -237,621 +287,961 @@
     "next_page": null
   },
   "documents": {
-    "LEEME.md": {
-      "path": "LEEME.md",
-      "frontmatter": {},
-      "body": "# Vault de ejemplo\n\nLos mismos datos del prototipo (Nubaria, el piloto con Hoteles Ribera), con el destilado de la «Revisión del diseño de reservas» del 21 oct ya aplicado. Sirve para ver el formato de cada archivo y para probar el lector, el editor y el destilado con algo real.\n\nSolo trae una parte del vault de 26 notas que se ve en el prototipo: el esquema, el índice, el registro, tres personas, el proyecto, una consulta y una fuente. Los enlaces a notas que no están aquí apuntan a su ruta, igual que en el vault entero.\n\n- **Enlaces.** Van como enlace Markdown con ruta (`[Nubaria](/organizaciones/nubaria.md)`), que es lo que pide OKF y la opción por defecto en Ajustes › Notas. Con «[[Wikilinks]]» se escribirían `[[Nubaria]]`.\n- **Citas.** Cada frase que sale de una reunión lleva `[^id]`. El `id` es el mismo que en `sources` y la definición va al final del archivo.\n- **Tareas.** Se escriben una vez, en la nota de su proyecto: `- [ ] texto · [persona](/personas/…) · para el AAAA-MM-DD [^fuente] ^id`. Las fichas de persona las juntan con un bloque `tareas`.\n- **Dependencias.** Enlazan tareas por su `^id` dentro del proyecto.\n- **Fuentes.** Las reuniones van a `fuentes/` tal cual y no se cambian nunca. El `sha256` es del cuerpo del archivo.\n",
-      "outlinks": [],
-      "synthesized": false,
-      "raw": "# Vault de ejemplo\n\nLos mismos datos del prototipo (Nubaria, el piloto con Hoteles Ribera), con el destilado de la «Revisión del diseño de reservas» del 21 oct ya aplicado. Sirve para ver el formato de cada archivo y para probar el lector, el editor y el destilado con algo real.\n\nSolo trae una parte del vault de 26 notas que se ve en el prototipo: el esquema, el índice, el registro, tres personas, el proyecto, una consulta y una fuente. Los enlaces a notas que no están aquí apuntan a su ruta, igual que en el vault entero.\n\n- **Enlaces.** Van como enlace Markdown con ruta (`[Nubaria](/organizaciones/nubaria.md)`), que es lo que pide OKF y la opción por defecto en Ajustes › Notas. Con «[[Wikilinks]]» se escribirían `[[Nubaria]]`.\n- **Citas.** Cada frase que sale de una reunión lleva `[^id]`. El `id` es el mismo que en `sources` y la definición va al final del archivo.\n- **Tareas.** Se escriben una vez, en la nota de su proyecto: `- [ ] texto · [persona](/personas/…) · para el AAAA-MM-DD [^fuente] ^id`. Las fichas de persona las juntan con un bloque `tareas`.\n- **Dependencias.** Enlazan tareas por su `^id` dentro del proyecto.\n- **Fuentes.** Las reuniones van a `fuentes/` tal cual y no se cambian nunca. El `sha256` es del cuerpo del archivo.\n",
-      "citations": [],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "SCHEMA.md": {
-      "path": "SCHEMA.md",
-      "frontmatter": {
-        "type": "esquema",
-        "title": "Esquema del vault",
-        "description": "Cómo se organiza este vault y las reglas que sigue el asistente que lo mantiene.",
+    "People/ada-vale.md": {
+      "type": "person",
+      "role": "person",
+      "properties": {
+        "type": "person",
+        "title": "Ada Vale",
+        "description": "Reservation backend",
+        "sources": [
+          {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          },
+          {
+            "id": "r1014",
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
+          },
+          {
+            "id": "r1009",
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
+          }
+        ],
+        "generated": {
+          "by": "orbit/fixture",
+          "at": "2026-10-21T11:52:00+02:00"
+        },
         "status": "stable"
       },
-      "body": "## Para qué es\nLas reglas que sigue Deimos al escribir en este vault. Las lee antes de cada cambio, junto con el índice y el registro.\n## Carpetas\n- `personas/` · `type: persona` · una por persona\n- `proyectos/` · `type: proyecto` · estado, dependencias, tareas y decisiones\n- `organizaciones/` · `type: organizacion`\n- `decisiones/` · `type: decision` · qué, por qué y qué se descartó\n- `temas/` · `type: tema` · lo que sabemos y lo que falta\n- `consultas/` · `type: consulta` · respuestas que merecían quedarse\n- `fuentes/` · reuniones y documentos tal cual: **no se cambian nunca**\n## Reglas\n1. Cada frase nueva lleva su fuente: `[^id]` en el texto y la fuente en `sources`.\n2. Si algo nuevo contradice lo que hay, no se elige: se le propone a Lucía.\n3. Lo que Lucía escribe a mano no se reescribe sin preguntar.\n4. Cada tarea se escribe una vez, en su proyecto: `- [ ] tarea · [persona](/personas/…) · para el AAAA-MM-DD [^fuente] ^id`.\n5. Las dependencias van en la tarea o en el proyecto: **depende de** [otra nota](/ruta.md) o de otra tarea del proyecto por su `^id`.\n6. Al terminar, se actualiza `index.md` y se añade una línea a `log.md`.\n## Destilar una reunión\n- Leer la nota de la reunión y su transcripción.\n- Guardarla en `fuentes/reuniones/` con su `sha256`.\n- Actualizar las fichas de quienes hablaron y los proyectos y temas que salieron; crear las decisiones nuevas.\n- Proponer los cambios o aplicarlos, según Ajustes › Notas.\n",
-      "outlinks": [],
-      "synthesized": false,
-      "raw": "---\ntype: esquema\ntitle: Esquema del vault\ndescription: Cómo se organiza este vault y las reglas que sigue el asistente que lo mantiene.\nstatus: stable\n---\n## Para qué es\nLas reglas que sigue Deimos al escribir en este vault. Las lee antes de cada cambio, junto con el índice y el registro.\n## Carpetas\n- `personas/` · `type: persona` · una por persona\n- `proyectos/` · `type: proyecto` · estado, dependencias, tareas y decisiones\n- `organizaciones/` · `type: organizacion`\n- `decisiones/` · `type: decision` · qué, por qué y qué se descartó\n- `temas/` · `type: tema` · lo que sabemos y lo que falta\n- `consultas/` · `type: consulta` · respuestas que merecían quedarse\n- `fuentes/` · reuniones y documentos tal cual: **no se cambian nunca**\n## Reglas\n1. Cada frase nueva lleva su fuente: `[^id]` en el texto y la fuente en `sources`.\n2. Si algo nuevo contradice lo que hay, no se elige: se le propone a Lucía.\n3. Lo que Lucía escribe a mano no se reescribe sin preguntar.\n4. Cada tarea se escribe una vez, en su proyecto: `- [ ] tarea · [persona](/personas/…) · para el AAAA-MM-DD [^fuente] ^id`.\n5. Las dependencias van en la tarea o en el proyecto: **depende de** [otra nota](/ruta.md) o de otra tarea del proyecto por su `^id`.\n6. Al terminar, se actualiza `index.md` y se añade una línea a `log.md`.\n## Destilar una reunión\n- Leer la nota de la reunión y su transcripción.\n- Guardarla en `fuentes/reuniones/` con su `sha256`.\n- Actualizar las fichas de quienes hablaron y los proyectos y temas que salieron; crear las decisiones nuevas.\n- Proponer los cambios o aplicarlos, según Ajustes › Notas.\n",
-      "citations": [],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "consultas/que-bloquea-el-arranque-del-piloto.md": {
-      "path": "consultas/que-bloquea-el-arranque-del-piloto.md",
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "People/ada-vale.md",
       "frontmatter": {
-        "type": "consulta",
-        "title": "Qué bloquea el arranque del piloto",
-        "description": "Respuesta de Deimos guardada desde Preguntar a tus notas el 21 oct.",
-        "tags": ["piloto"],
+        "type": "person",
+        "title": "Ada Vale",
+        "description": "Reservation backend",
+        "role": "Reservation backend",
         "status": "stable",
         "sources": [
+          {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          },
+          {
+            "id": "r1014",
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
+          },
           {
             "id": "r1009",
-            "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-            "title": "Hoteles Ribera · arranque del piloto · 9 oct"
-          },
-          {
-            "id": "r1021",
-            "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 21 oct"
-          },
-          {
-            "id": "r1014",
-            "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 14 oct"
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
           }
         ],
         "generated": {
-          "by": "deimos/llm-wiki-2.1",
-          "at": "2026-10-21T12:20:00+02:00"
-        },
-        "stale_after": "2026-10-28T00:00:00+01:00"
+          "by": "orbit/fixture",
+          "at": "2026-10-21T11:52:00+02:00"
+        }
       },
-      "body": "**Pregunta:** ¿Qué bloquea el arranque del piloto?\n\nAhora mismo, dos cosas:\n\n1. **El sí de Pablo a la fecha.** Está apuntado para el lunes 26, pero [Pablo Medina](/personas/pablo-medina.md) no lo ha confirmado y el 9 oct habló de «la primera semana de noviembre». [^r1009]\n2. **La demo con Ribera Aeropuerto**, que prepara [Diego Salinas](/personas/diego-salinas.md) para el jueves 23. Ya no espera a la caché: [Javier Ortega](/personas/javier-ortega.md) la terminó hoy. [^r1021]\n\nLa formación de Ribera Playa (martes 27) va después del arranque y no lo bloquea. [^r1014]\n\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
+      "body": "## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Ada Vale\n```\n",
       "outlinks": [
         {
-          "target": "/personas/pablo-medina.md",
-          "path": "personas/pablo-medina.md"
-        },
-        {
-          "target": "/personas/javier-ortega.md",
-          "path": "personas/javier-ortega.md"
-        },
-        {
-          "target": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
+          "target": "/People/cora-moss.md",
+          "path": "People/cora-moss.md"
         }
       ],
       "synthesized": false,
-      "raw": "---\ntype: consulta\ntitle: Qué bloquea el arranque del piloto\ndescription: Respuesta de Deimos guardada desde Preguntar a tus notas el 21 oct.\ntags: [piloto]\nstatus: stable\nsources:\n  - id: r1009\n    resource: /fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md\n    title: Hoteles Ribera · arranque del piloto · 9 oct\n  - id: r1021\n    resource: /fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 21 oct\n  - id: r1014\n    resource: /fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 14 oct\ngenerated:\n  by: deimos/llm-wiki-2.1\n  at: 2026-10-21T12:20:00+02:00\nstale_after: 2026-10-28T00:00:00+01:00\n---\n**Pregunta:** ¿Qué bloquea el arranque del piloto?\n\nAhora mismo, dos cosas:\n\n1. **El sí de Pablo a la fecha.** Está apuntado para el lunes 26, pero [Pablo Medina](/personas/pablo-medina.md) no lo ha confirmado y el 9 oct habló de «la primera semana de noviembre». [^r1009]\n2. **La demo con Ribera Aeropuerto**, que prepara [Diego Salinas](/personas/diego-salinas.md) para el jueves 23. Ya no espera a la caché: [Javier Ortega](/personas/javier-ortega.md) la terminó hoy. [^r1021]\n\nLa formación de Ribera Playa (martes 27) va después del arranque y no lo bloquea. [^r1014]\n\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
+      "raw": "---\ntype: person\ntitle: Ada Vale\ndescription: Reservation backend\nrole: Reservation backend\nstatus: stable\nsources:\n  - {id: r1021, resource: /Sources/Meetings/2026-10-21-garden-review.md, title: Garden review · 21 Oct}\n  - {id: r1014, resource: /Sources/Meetings/2026-10-14-garden-review.md, title: Garden review · 14 Oct}\n  - {id: r1009, resource: /Sources/Meetings/2026-10-09-pilot-kickoff.md, title: Pilot kickoff · 9 Oct}\ngenerated: {by: orbit/fixture, at: '2026-10-21T11:52:00+02:00'}\n---\n## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Ada Vale\n```\n",
       "citations": [
+        {
+          "id": "r1021",
+          "number": 1,
+          "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "title": "Garden review · 21 Oct"
+        },
+        {
+          "id": "r1014",
+          "number": 2,
+          "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+          "title": "Garden review · 14 Oct"
+        },
         {
           "id": "r1009",
-          "number": 1,
-          "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-          "title": "Hoteles Ribera · arranque del piloto · 9 oct"
-        },
-        {
-          "id": "r1021",
-          "number": 2,
-          "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 21 oct"
-        },
-        {
-          "id": "r1014",
           "number": 3,
-          "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 14 oct"
+          "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+          "title": "Pilot kickoff · 9 Oct"
         }
       ],
       "tasks": [],
       "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md": {
-      "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-      "frontmatter": {
-        "type": "fuente",
-        "title": "Revisión del diseño de reservas · 21 oct",
-        "description": "Reunión semanal del equipo de producto. Guardada por Orbit al destilarla.",
-        "resource": "orbit://reuniones/2026-10-21-1100-revision-del-diseno-de-reservas",
-        "fecha": "2026-10-21T11:00:00+02:00",
-        "duracion_min": "47",
-        "serie": "Revisión del diseño de reservas",
-        "participantes": ["Lucía Ferrer", "Marta Ibáñez", "Javier Ortega", "Diego Salinas"],
-        "sha256": "cc541438c7e433407a3ea42428486fa4a2642df6a696a74d286d2815ec0544d7",
-        "generated": {
-          "by": "orbit/reuniones",
-          "at": "2026-10-21T11:52:00+02:00"
-        }
-      },
-      "body": "## Resumen\n- El pago en una sola pantalla ya está en Orbit: tres recepcionistas lo terminaron sin ayuda.\n- La caché de tarifas por día está hecha: la disponibilidad baja a unos 300 ms con los cinco hoteles.\n- Diego prepara la demo con Ribera Aeropuerto para el jueves 23.\n- Lucía apunta el arranque del piloto para el lunes 26. Falta que Pablo lo confirme.\n\n## Transcripción\nFragmentos que citan las notas. Con «Guardar la transcripción entera en la fuente» activado (por defecto), aquí va entera.\n\n- **00:21 · Marta Ibáñez** · Ya está en Orbit. Lo probamos ayer con tres recepcionistas y lo terminaron todas sin ayuda.\n- **01:05 · Javier Ortega** · Con la caché por día baja a unos trescientos milisegundos con los cinco hoteles.\n- **01:32 · Lucía Ferrer** · Perfecto. Lo dejo apuntado en Orbit para el lunes.\n- **01:50 · Diego Salinas** · Yo preparo la demo con Ribera Aeropuerto si llega la caché.\n",
-      "outlinks": [],
-      "synthesized": false,
-      "raw": "---\ntype: fuente\ntitle: Revisión del diseño de reservas · 21 oct\ndescription: Reunión semanal del equipo de producto. Guardada por Orbit al destilarla.\nresource: orbit://reuniones/2026-10-21-1100-revision-del-diseno-de-reservas\nfecha: 2026-10-21T11:00:00+02:00\nduracion_min: 47\nserie: Revisión del diseño de reservas\nparticipantes: [Lucía Ferrer, Marta Ibáñez, Javier Ortega, Diego Salinas]\nsha256: cc541438c7e433407a3ea42428486fa4a2642df6a696a74d286d2815ec0544d7\ngenerated:\n  by: orbit/reuniones\n  at: 2026-10-21T11:52:00+02:00\n---\n## Resumen\n- El pago en una sola pantalla ya está en Orbit: tres recepcionistas lo terminaron sin ayuda.\n- La caché de tarifas por día está hecha: la disponibilidad baja a unos 300 ms con los cinco hoteles.\n- Diego prepara la demo con Ribera Aeropuerto para el jueves 23.\n- Lucía apunta el arranque del piloto para el lunes 26. Falta que Pablo lo confirme.\n\n## Transcripción\nFragmentos que citan las notas. Con «Guardar la transcripción entera en la fuente» activado (por defecto), aquí va entera.\n\n- **00:21 · Marta Ibáñez** · Ya está en Orbit. Lo probamos ayer con tres recepcionistas y lo terminaron todas sin ayuda.\n- **01:05 · Javier Ortega** · Con la caché por día baja a unos trescientos milisegundos con los cinco hoteles.\n- **01:32 · Lucía Ferrer** · Perfecto. Lo dejo apuntado en Orbit para el lunes.\n- **01:50 · Diego Salinas** · Yo preparo la demo con Ribera Aeropuerto si llega la caché.\n",
-      "citations": [],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [
-        {
-          "date": "2026-10-21",
-          "time": "12:05",
-          "action": "aplicar",
-          "title": "Revisión del diseño de reservas",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "by": "human:lucia",
-          "detail": "11 cambios en 6 notas"
-        },
-        {
-          "date": "2026-10-21",
-          "time": "11:52",
-          "action": "destilar",
-          "title": "Revisión del diseño de reservas",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "by": "deimos/llm-wiki-2.1",
-          "detail": "11 cambios propuestos"
-        }
-      ],
-      "history_next_page": null
-    },
-    "index.md": {
-      "path": "index.md",
-      "frontmatter": {
-        "okf_version": "0.2",
-        "type": "indice",
-        "title": "Índice del vault"
-      },
-      "body": "## Personas\n- [Lucía Ferrer](/personas/lucia-ferrer.md) · Producto en Nubaria (tú)\n- [Javier Ortega](/personas/javier-ortega.md) · Backend de reservas; lleva la caché de tarifas\n- [Marta Ibáñez](/personas/marta-ibanez.md) · Diseño de producto; el flujo de reserva\n- [Diego Salinas](/personas/diego-salinas.md) · Producto; prepara la demo con Ribera Aeropuerto\n- [Pablo Medina](/personas/pablo-medina.md) · Hoteles Ribera; decide la fecha de arranque\n- [Sara Llorente](/personas/sara-llorente.md) · Hoteles Ribera; contacto en los hoteles\n## Proyectos\n- [Piloto Hoteles Ribera](/proyectos/piloto-hoteles-ribera.md) · en marcha · arranque el lunes 26\n- [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md) · en marcha\n- [Calendario semanal](/proyectos/calendario-semanal.md) · en pausa\n## Decisiones\n- [Pago en una sola pantalla](/decisiones/pago-en-una-sola-pantalla.md) · 14 oct\n- [Cinco hoteles en el piloto](/decisiones/cinco-hoteles-en-el-piloto.md) · 9 oct\n- [El bloqueo para grupos, después del piloto](/decisiones/el-bloqueo-para-grupos-despues-del-piloto.md) · 14 oct\n## Fuentes\n- `fuentes/reuniones/` · 39 reuniones, la última de hoy\n- `fuentes/documentos/` · 3 documentos\n",
-      "outlinks": [
-        {
-          "target": "/personas/javier-ortega.md",
-          "path": "personas/javier-ortega.md"
-        },
-        {
-          "target": "/personas/marta-ibanez.md",
-          "path": "personas/marta-ibanez.md"
-        },
-        {
-          "target": "/personas/pablo-medina.md",
-          "path": "personas/pablo-medina.md"
-        },
-        {
-          "target": "/proyectos/piloto-hoteles-ribera.md",
-          "path": "proyectos/piloto-hoteles-ribera.md"
-        }
-      ],
-      "synthesized": false,
-      "raw": "---\nokf_version: \"0.2\"\ntype: indice\ntitle: Índice del vault\n---\n## Personas\n- [Lucía Ferrer](/personas/lucia-ferrer.md) · Producto en Nubaria (tú)\n- [Javier Ortega](/personas/javier-ortega.md) · Backend de reservas; lleva la caché de tarifas\n- [Marta Ibáñez](/personas/marta-ibanez.md) · Diseño de producto; el flujo de reserva\n- [Diego Salinas](/personas/diego-salinas.md) · Producto; prepara la demo con Ribera Aeropuerto\n- [Pablo Medina](/personas/pablo-medina.md) · Hoteles Ribera; decide la fecha de arranque\n- [Sara Llorente](/personas/sara-llorente.md) · Hoteles Ribera; contacto en los hoteles\n## Proyectos\n- [Piloto Hoteles Ribera](/proyectos/piloto-hoteles-ribera.md) · en marcha · arranque el lunes 26\n- [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md) · en marcha\n- [Calendario semanal](/proyectos/calendario-semanal.md) · en pausa\n## Decisiones\n- [Pago en una sola pantalla](/decisiones/pago-en-una-sola-pantalla.md) · 14 oct\n- [Cinco hoteles en el piloto](/decisiones/cinco-hoteles-en-el-piloto.md) · 9 oct\n- [El bloqueo para grupos, después del piloto](/decisiones/el-bloqueo-para-grupos-despues-del-piloto.md) · 14 oct\n## Fuentes\n- `fuentes/reuniones/` · 39 reuniones, la última de hoy\n- `fuentes/documentos/` · 3 documentos\n",
-      "citations": [],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "log.md": {
-      "path": "log.md",
-      "frontmatter": {
-        "type": "registro",
-        "title": "Registro"
-      },
-      "body": "# Registro\n\n## 2026-10-21\n- 12:05 · aplicar · [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md) · human:lucia · 11 cambios en 6 notas\n- 11:52 · destilar · [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md) · deimos/llm-wiki-2.1 · 11 cambios propuestos\n- 09:14 · destilar · [Daily del equipo de producto](/fuentes/reuniones/2026-10-21-daily-del-equipo-de-producto.md) · deimos/llm-wiki-2.1 · 3 cambios aplicados solos\n- 09:00 · revisar · vault · deimos/llm-wiki-2.1 · 7 avisos\n\n## 2026-10-20\n- 17:52 · destilar · [Llamada con Javier sobre la API de tarifas](/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md) · deimos/llm-wiki-2.1 · 2 cambios\n- 16:10 · editar · [Sara Llorente](/personas/sara-llorente.md) · human:lucia\n- 10:30 · consultar · [Quién lleva cada hotel](/consultas/quien-lleva-cada-hotel.md) · deimos/llm-wiki-2.1\n\n## 2026-10-19\n- 12:40 · destilar · [1:1 Lucía y Diego](/fuentes/reuniones/2026-10-19-1-1-lucia-y-diego.md) · deimos/llm-wiki-2.1 · 1 cambio\n",
-      "outlinks": [
-        {
-          "target": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        }
-      ],
-      "synthesized": false,
-      "raw": "---\ntype: registro\ntitle: Registro\n---\n# Registro\n\n## 2026-10-21\n- 12:05 · aplicar · [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md) · human:lucia · 11 cambios en 6 notas\n- 11:52 · destilar · [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md) · deimos/llm-wiki-2.1 · 11 cambios propuestos\n- 09:14 · destilar · [Daily del equipo de producto](/fuentes/reuniones/2026-10-21-daily-del-equipo-de-producto.md) · deimos/llm-wiki-2.1 · 3 cambios aplicados solos\n- 09:00 · revisar · vault · deimos/llm-wiki-2.1 · 7 avisos\n\n## 2026-10-20\n- 17:52 · destilar · [Llamada con Javier sobre la API de tarifas](/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md) · deimos/llm-wiki-2.1 · 2 cambios\n- 16:10 · editar · [Sara Llorente](/personas/sara-llorente.md) · human:lucia\n- 10:30 · consultar · [Quién lleva cada hotel](/consultas/quien-lleva-cada-hotel.md) · deimos/llm-wiki-2.1\n\n## 2026-10-19\n- 12:40 · destilar · [1:1 Lucía y Diego](/fuentes/reuniones/2026-10-19-1-1-lucia-y-diego.md) · deimos/llm-wiki-2.1 · 1 cambio\n",
-      "citations": [],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "personas/javier-ortega.md": {
-      "path": "personas/javier-ortega.md",
-      "frontmatter": {
-        "type": "persona",
-        "title": "Javier Ortega",
-        "description": "Backend de reservas en Nubaria. Lleva la caché de tarifas del piloto de Hoteles Ribera.",
-        "tags": ["equipo", "backend"],
-        "rol": "Backend de reservas",
-        "organizacion": "/organizaciones/nubaria.md",
-        "correo": "javier.ortega@nubaria.example",
-        "status": "stable",
-        "sources": [
-          {
-            "id": "r1021",
-            "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 21 oct"
-          },
-          {
-            "id": "r1020",
-            "resource": "/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md",
-            "title": "Llamada con Javier sobre la API de tarifas · 20 oct"
-          },
-          {
-            "id": "r1014",
-            "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 14 oct"
-          }
-        ],
-        "generated": {
-          "by": "deimos/llm-wiki-2.1",
-          "at": "2026-10-21T11:52:00+02:00"
-        },
-        "verified": [
-          {
-            "by": "human:lucia",
-            "at": "2026-10-21T12:05:00+02:00"
-          }
-        ],
-        "stale_after": "2026-11-21T00:00:00+01:00"
-      },
-      "body": "## Quién es\nLleva el backend de reservas en [Nubaria](/organizaciones/nubaria.md). Trabaja con [Marta Ibáñez](/personas/marta-ibanez.md) en el [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md).\n## En qué está\n- Terminó la caché de tarifas por día: la disponibilidad baja a unos 300 ms con cinco hoteles. [^r1021]\n- La API de tarifas ya devuelve precios por día. [^r1020]\n## Tareas\n```tareas\npersona: Javier Ortega\n```\n## Lo último\n- **21 oct** · En la [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md): con la caché, unos 300 ms con cinco hoteles. [^r1021]\n- **20 oct** · Llamada sobre la API de tarifas: ya devuelve precios por día. [^r1020]\n- **14 oct** · Propuso cachear las tarifas por día: con cincuenta hoteles la disponibilidad no aguantaría. [^r1014]\n## Cómo trabajar con él\nPrefiere los cambios por escrito antes de la daily.\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1020]: [Llamada con Javier sobre la API de tarifas · 20 oct](/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
-      "outlinks": [
-        {
-          "target": "/personas/marta-ibanez.md",
-          "path": "personas/marta-ibanez.md"
-        },
-        {
-          "target": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        }
-      ],
-      "synthesized": false,
-      "raw": "---\ntype: persona\ntitle: Javier Ortega\ndescription: Backend de reservas en Nubaria. Lleva la caché de tarifas del piloto de Hoteles Ribera.\ntags: [equipo, backend]\nrol: Backend de reservas\norganizacion: /organizaciones/nubaria.md\ncorreo: javier.ortega@nubaria.example\nstatus: stable\nsources:\n  - id: r1021\n    resource: /fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 21 oct\n  - id: r1020\n    resource: /fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md\n    title: Llamada con Javier sobre la API de tarifas · 20 oct\n  - id: r1014\n    resource: /fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 14 oct\ngenerated:\n  by: deimos/llm-wiki-2.1\n  at: 2026-10-21T11:52:00+02:00\nverified:\n  - by: human:lucia\n    at: 2026-10-21T12:05:00+02:00\nstale_after: 2026-11-21T00:00:00+01:00\n---\n## Quién es\nLleva el backend de reservas en [Nubaria](/organizaciones/nubaria.md). Trabaja con [Marta Ibáñez](/personas/marta-ibanez.md) en el [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md).\n## En qué está\n- Terminó la caché de tarifas por día: la disponibilidad baja a unos 300 ms con cinco hoteles. [^r1021]\n- La API de tarifas ya devuelve precios por día. [^r1020]\n## Tareas\n```tareas\npersona: Javier Ortega\n```\n## Lo último\n- **21 oct** · En la [Revisión del diseño de reservas](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md): con la caché, unos 300 ms con cinco hoteles. [^r1021]\n- **20 oct** · Llamada sobre la API de tarifas: ya devuelve precios por día. [^r1020]\n- **14 oct** · Propuso cachear las tarifas por día: con cincuenta hoteles la disponibilidad no aguantaría. [^r1014]\n## Cómo trabajar con él\nPrefiere los cambios por escrito antes de la daily.\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1020]: [Llamada con Javier sobre la API de tarifas · 20 oct](/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
-      "citations": [
-        {
-          "id": "r1021",
-          "number": 1,
-          "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 21 oct"
-        },
-        {
-          "id": "r1020",
-          "number": 2,
-          "resource": "/fuentes/reuniones/2026-10-20-llamada-con-javier-sobre-la-api-de-tarifas.md",
-          "title": "Llamada con Javier sobre la API de tarifas · 20 oct"
-        },
-        {
-          "id": "r1014",
-          "number": 3,
-          "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 14 oct"
-        }
-      ],
-      "tasks": [],
-      "dependencies": [],
+      "dependency_tasks": [],
       "queries": [
         {
-          "kind": "tareas",
-          "filters": {
-            "persona": "Javier Ortega"
-          }
+          "kind": "tasks",
+          "lines": ["not done", "description includes Ada Vale"],
+          "warnings": [],
+          "tasks": [
+            {
+              "file": "Projects/garden-pilot.md",
+              "line": 18,
+              "block_id": "airport-demo",
+              "text": "Prepare the airport demo Ada Vale",
+              "who": "Ada Vale",
+              "who_path": "People/ada-vale.md",
+              "done": false,
+              "project": "Projects/garden-pilot.md",
+              "source_id": "",
+              "source": "",
+              "tags": [],
+              "due": "2026-10-23",
+              "scheduled": "",
+              "start": "",
+              "done_at": "",
+              "priority": "",
+              "recurrence": "",
+              "id": "airport-demo",
+              "depends_on": ["cache-rates"]
+            }
+          ],
+          "total": 1
         }
       ],
-      "next_page": null,
       "history": [],
-      "history_next_page": null
+      "history_next_page": null,
+      "next_page": null
     },
-    "personas/marta-ibanez.md": {
-      "path": "personas/marta-ibanez.md",
+    "People/ben-reed.md": {
+      "type": "person",
+      "role": "person",
+      "properties": {
+        "type": "person",
+        "title": "Ben Reed",
+        "description": "Garden pilot lead",
+        "sources": [
+          {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          },
+          {
+            "id": "r1014",
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
+          },
+          {
+            "id": "r1009",
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
+          }
+        ],
+        "generated": {
+          "by": "orbit/fixture",
+          "at": "2026-10-21T11:52:00+02:00"
+        },
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "People/ben-reed.md",
       "frontmatter": {
-        "type": "persona",
-        "title": "Marta Ibáñez",
-        "description": "Diseño de producto en Nubaria. Lleva el flujo de reserva y las pruebas con recepcionistas.",
-        "tags": ["equipo", "diseño"],
-        "rol": "Diseño de producto",
-        "organizacion": "/organizaciones/nubaria.md",
+        "type": "person",
+        "title": "Ben Reed",
+        "description": "Garden pilot lead",
+        "role": "Garden pilot lead",
         "status": "stable",
         "sources": [
           {
             "id": "r1021",
-            "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 21 oct"
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
           },
           {
             "id": "r1014",
-            "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 14 oct"
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
           },
           {
-            "id": "r1006",
-            "resource": "/fuentes/reuniones/2026-10-06-entrevistas-con-recepcionistas.md",
-            "title": "Entrevistas con recepcionistas · 6 oct"
+            "id": "r1009",
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
           }
         ],
         "generated": {
-          "by": "deimos/llm-wiki-2.1",
+          "by": "orbit/fixture",
           "at": "2026-10-21T11:52:00+02:00"
-        },
-        "verified": [
-          {
-            "by": "human:lucia",
-            "at": "2026-10-21T12:05:00+02:00"
-          }
-        ],
-        "stale_after": "2026-11-21T00:00:00+01:00"
+        }
       },
-      "body": "## Quién es\nDiseña el [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md) y el [Calendario semanal](/proyectos/calendario-semanal.md). Hizo las [Entrevistas con recepcionistas](/temas/entrevistas-con-recepcionistas.md).\n## En qué está\n- El pago en una sola pantalla ya está: lo probó con tres recepcionistas y lo terminaron todas sin ayuda. [^r1021]\n## Tareas\n```tareas\npersona: Marta Ibáñez\n```\n## Lo último\n- **21 oct** · Pruebas del pago en una pantalla: tres recepcionistas, todas sin ayuda. [^r1021]\n- **14 oct** · La versión de una pantalla fue casi el doble de rápida en las pruebas. [^r1014]\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
+      "body": "## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Ben Reed\n```\n",
       "outlinks": [
         {
-          "target": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
+          "target": "/People/cora-moss.md",
+          "path": "People/cora-moss.md"
         }
       ],
       "synthesized": false,
-      "raw": "---\ntype: persona\ntitle: Marta Ibáñez\ndescription: Diseño de producto en Nubaria. Lleva el flujo de reserva y las pruebas con recepcionistas.\ntags: [equipo, diseño]\nrol: Diseño de producto\norganizacion: /organizaciones/nubaria.md\nstatus: stable\nsources:\n  - id: r1021\n    resource: /fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 21 oct\n  - id: r1014\n    resource: /fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 14 oct\n  - id: r1006\n    resource: /fuentes/reuniones/2026-10-06-entrevistas-con-recepcionistas.md\n    title: Entrevistas con recepcionistas · 6 oct\ngenerated:\n  by: deimos/llm-wiki-2.1\n  at: 2026-10-21T11:52:00+02:00\nverified:\n  - by: human:lucia\n    at: 2026-10-21T12:05:00+02:00\nstale_after: 2026-11-21T00:00:00+01:00\n---\n## Quién es\nDiseña el [Flujo de reserva en una pantalla](/proyectos/flujo-de-reserva-en-una-pantalla.md) y el [Calendario semanal](/proyectos/calendario-semanal.md). Hizo las [Entrevistas con recepcionistas](/temas/entrevistas-con-recepcionistas.md).\n## En qué está\n- El pago en una sola pantalla ya está: lo probó con tres recepcionistas y lo terminaron todas sin ayuda. [^r1021]\n## Tareas\n```tareas\npersona: Marta Ibáñez\n```\n## Lo último\n- **21 oct** · Pruebas del pago en una pantalla: tres recepcionistas, todas sin ayuda. [^r1021]\n- **14 oct** · La versión de una pantalla fue casi el doble de rápida en las pruebas. [^r1014]\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n",
+      "raw": "---\ntype: person\ntitle: Ben Reed\ndescription: Garden pilot lead\nrole: Garden pilot lead\nstatus: stable\nsources:\n  - {id: r1021, resource: /Sources/Meetings/2026-10-21-garden-review.md, title: Garden review · 21 Oct}\n  - {id: r1014, resource: /Sources/Meetings/2026-10-14-garden-review.md, title: Garden review · 14 Oct}\n  - {id: r1009, resource: /Sources/Meetings/2026-10-09-pilot-kickoff.md, title: Pilot kickoff · 9 Oct}\ngenerated: {by: orbit/fixture, at: '2026-10-21T11:52:00+02:00'}\n---\n## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Ben Reed\n```\n",
       "citations": [
         {
           "id": "r1021",
           "number": 1,
-          "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 21 oct"
+          "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "title": "Garden review · 21 Oct"
         },
         {
           "id": "r1014",
           "number": 2,
-          "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 14 oct"
+          "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+          "title": "Garden review · 14 Oct"
         },
         {
-          "id": "r1006",
+          "id": "r1009",
           "number": 3,
-          "resource": "/fuentes/reuniones/2026-10-06-entrevistas-con-recepcionistas.md",
-          "title": "Entrevistas con recepcionistas · 6 oct"
+          "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+          "title": "Pilot kickoff · 9 Oct"
         }
       ],
       "tasks": [],
       "dependencies": [],
+      "dependency_tasks": [],
       "queries": [
         {
-          "kind": "tareas",
-          "filters": {
-            "persona": "Marta Ibáñez"
-          }
+          "kind": "tasks",
+          "lines": ["not done", "description includes Ben Reed"],
+          "warnings": [],
+          "tasks": [
+            {
+              "file": "Projects/garden-pilot.md",
+              "line": 19,
+              "block_id": "beach-training",
+              "text": "Prepare beach training Ben Reed",
+              "who": "Ben Reed",
+              "who_path": "People/ben-reed.md",
+              "done": false,
+              "project": "Projects/garden-pilot.md",
+              "source_id": "",
+              "source": "",
+              "tags": [],
+              "due": "",
+              "scheduled": "",
+              "start": "",
+              "done_at": "",
+              "priority": "",
+              "recurrence": "",
+              "id": "beach-training",
+              "depends_on": ["airport-demo"]
+            }
+          ],
+          "total": 1
         }
       ],
-      "next_page": null,
       "history": [],
-      "history_next_page": null
+      "history_next_page": null,
+      "next_page": null
     },
-    "personas/pablo-medina.md": {
-      "path": "personas/pablo-medina.md",
-      "frontmatter": {
-        "type": "persona",
-        "title": "Pablo Medina",
-        "description": "Responsable del piloto en Hoteles Ribera. Decide la fecha de arranque.",
-        "tags": ["cliente"],
-        "rol": "Responsable del piloto",
-        "organizacion": "/organizaciones/hoteles-ribera.md",
-        "status": "stable",
+    "People/cora-moss.md": {
+      "type": "person",
+      "role": "person",
+      "properties": {
+        "type": "person",
+        "title": "Cora Moss",
+        "description": "Garden operations",
         "sources": [
           {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          },
+          {
+            "id": "r1014",
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
+          },
+          {
             "id": "r1009",
-            "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-            "title": "Hoteles Ribera · arranque del piloto · 9 oct"
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
           }
         ],
         "generated": {
-          "by": "deimos/llm-wiki-2.1",
+          "by": "orbit/fixture",
           "at": "2026-10-21T11:52:00+02:00"
         },
-        "verified": [
-          {
-            "by": "human:lucia",
-            "at": "2026-10-21T12:05:00+02:00"
-          }
-        ],
-        "stale_after": "2026-11-21T00:00:00+01:00"
+        "status": "stable"
       },
-      "body": "## Quién es\nLleva el piloto en [Hoteles Ribera](/organizaciones/hoteles-ribera.md). La persona de contacto en los hoteles es [Sara Llorente](/personas/sara-llorente.md).\n## Pendiente con él\n- Su sí a la fecha de arranque del [Piloto Hoteles Ribera](/proyectos/piloto-hoteles-ribera.md). [^r1009]\n## Lo último\n- **9 oct** · Entran cinco hoteles en el piloto; arranque «la primera semana de noviembre». [^r1009]\n## Cómo trabajar con él\nPrefiere llamada a correo. Confirma por escrito después.\n\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n",
-      "outlinks": [
-        {
-          "target": "/proyectos/piloto-hoteles-ribera.md",
-          "path": "proyectos/piloto-hoteles-ribera.md"
-        }
-      ],
-      "synthesized": false,
-      "raw": "---\ntype: persona\ntitle: Pablo Medina\ndescription: Responsable del piloto en Hoteles Ribera. Decide la fecha de arranque.\ntags: [cliente]\nrol: Responsable del piloto\norganizacion: /organizaciones/hoteles-ribera.md\nstatus: stable\nsources:\n  - id: r1009\n    resource: /fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md\n    title: Hoteles Ribera · arranque del piloto · 9 oct\ngenerated:\n  by: deimos/llm-wiki-2.1\n  at: 2026-10-21T11:52:00+02:00\nverified:\n  - by: human:lucia\n    at: 2026-10-21T12:05:00+02:00\nstale_after: 2026-11-21T00:00:00+01:00\n---\n## Quién es\nLleva el piloto en [Hoteles Ribera](/organizaciones/hoteles-ribera.md). La persona de contacto en los hoteles es [Sara Llorente](/personas/sara-llorente.md).\n## Pendiente con él\n- Su sí a la fecha de arranque del [Piloto Hoteles Ribera](/proyectos/piloto-hoteles-ribera.md). [^r1009]\n## Lo último\n- **9 oct** · Entran cinco hoteles en el piloto; arranque «la primera semana de noviembre». [^r1009]\n## Cómo trabajar con él\nPrefiere llamada a correo. Confirma por escrito después.\n\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n",
-      "citations": [
-        {
-          "id": "r1009",
-          "number": 1,
-          "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-          "title": "Hoteles Ribera · arranque del piloto · 9 oct"
-        }
-      ],
-      "tasks": [],
-      "dependencies": [],
-      "queries": [],
-      "next_page": null,
-      "history": [],
-      "history_next_page": null
-    },
-    "proyectos/piloto-hoteles-ribera.md": {
-      "path": "proyectos/piloto-hoteles-ribera.md",
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "People/cora-moss.md",
       "frontmatter": {
-        "type": "proyecto",
-        "title": "Piloto Hoteles Ribera",
-        "description": "Cinco hoteles de Hoteles Ribera prueban el nuevo flujo de reserva antes de llevarlo a toda la cadena.",
-        "tags": ["cliente", "piloto"],
-        "estado": "en marcha",
-        "responsable": "/personas/lucia-ferrer.md",
-        "cliente": "/organizaciones/hoteles-ribera.md",
-        "arranque": "2026-10-26",
+        "type": "person",
+        "title": "Cora Moss",
+        "description": "Garden operations",
+        "role": "Garden operations",
         "status": "stable",
         "sources": [
           {
             "id": "r1021",
-            "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 21 oct"
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
           },
           {
             "id": "r1014",
-            "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-            "title": "Revisión del diseño de reservas · 14 oct"
+            "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+            "title": "Garden review · 14 Oct"
           },
           {
             "id": "r1009",
-            "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-            "title": "Hoteles Ribera · arranque del piloto · 9 oct"
+            "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+            "title": "Pilot kickoff · 9 Oct"
           }
         ],
         "generated": {
-          "by": "deimos/llm-wiki-2.1",
+          "by": "orbit/fixture",
           "at": "2026-10-21T11:52:00+02:00"
-        },
-        "verified": [
-          {
-            "by": "human:lucia",
-            "at": "2026-10-21T12:05:00+02:00"
-          }
-        ],
-        "stale_after": "2026-11-21T00:00:00+01:00"
+        }
       },
-      "body": "> **En marcha** · La caché de tarifas por día ya funciona y Ribera Aeropuerto puede hacer la demo. Falta el sí de [Pablo Medina](/personas/pablo-medina.md) a la fecha de arranque. [^r1021]\n## Dependencias\n- El **arranque** (propiedad `arranque`) depende de [Preparar la demo con Ribera Aeropuerto](#^demo-aeropuerto) y de [Confirmar con Pablo la fecha de arranque](#^si-de-pablo).\n- [Preparar la demo con Ribera Aeropuerto](#^demo-aeropuerto) dependía de [Cachear las tarifas por día](#^cache-tarifas), ya hecha.\n- [Preparar la formación de Ribera Playa](#^formacion-playa) va después del arranque: no lo bloquea.\n## Tareas\n- [ ] Confirmar con Pablo la fecha de arranque · [Lucía Ferrer](/personas/lucia-ferrer.md) · para el 2026-10-23 [^r1014] ^si-de-pablo\n- [x] Cachear las tarifas por día · [Javier Ortega](/personas/javier-ortega.md) · hecha el 2026-10-21 [^r1021] ^cache-tarifas\n- [ ] Preparar la demo con Ribera Aeropuerto · [Diego Salinas](/personas/diego-salinas.md) · para el 2026-10-23 [^r1021] ^demo-aeropuerto\n- [ ] Preparar la formación de Ribera Playa · [Sara Llorente](/personas/sara-llorente.md) · para el 2026-10-27 [^r1009] ^formacion-playa\n- [ ] Enviar el resumen al equipo de Ribera · [Lucía Ferrer](/personas/lucia-ferrer.md) [^r1014]\n## Hoteles\n- **Ribera Centro** · 84 habitaciones · formación hecha\n- **Ribera Playa** · 120 habitaciones · formación el martes 27\n- **Ribera Golf** · 46 habitaciones · formación hecha\n- **Casa Ribera** · 18 habitaciones · formación hecha\n- **Ribera Aeropuerto** · 210 habitaciones · demo el jueves 23 [^r1021]\n## Decisiones\n- [Cinco hoteles en el piloto](/decisiones/cinco-hoteles-en-el-piloto.md) · 9 oct\n- [Pago en una sola pantalla](/decisiones/pago-en-una-sola-pantalla.md) · 14 oct\n- [El bloqueo para grupos, después del piloto](/decisiones/el-bloqueo-para-grupos-despues-del-piloto.md) · 14 oct\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n",
+      "body": "## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Cora Moss\n```\n",
       "outlinks": [
         {
-          "target": "/personas/pablo-medina.md",
-          "path": "personas/pablo-medina.md"
-        },
-        {
-          "target": "/personas/javier-ortega.md",
-          "path": "personas/javier-ortega.md"
-        },
-        {
-          "target": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "path": "fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
+          "target": "/People/cora-moss.md",
+          "path": "People/cora-moss.md"
         }
       ],
       "synthesized": false,
-      "raw": "---\ntype: proyecto\ntitle: Piloto Hoteles Ribera\ndescription: Cinco hoteles de Hoteles Ribera prueban el nuevo flujo de reserva antes de llevarlo a toda la cadena.\ntags: [cliente, piloto]\nestado: en marcha\nresponsable: /personas/lucia-ferrer.md\ncliente: /organizaciones/hoteles-ribera.md\narranque: 2026-10-26\nstatus: stable\nsources:\n  - id: r1021\n    resource: /fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 21 oct\n  - id: r1014\n    resource: /fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md\n    title: Revisión del diseño de reservas · 14 oct\n  - id: r1009\n    resource: /fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md\n    title: Hoteles Ribera · arranque del piloto · 9 oct\ngenerated:\n  by: deimos/llm-wiki-2.1\n  at: 2026-10-21T11:52:00+02:00\nverified:\n  - by: human:lucia\n    at: 2026-10-21T12:05:00+02:00\nstale_after: 2026-11-21T00:00:00+01:00\n---\n> **En marcha** · La caché de tarifas por día ya funciona y Ribera Aeropuerto puede hacer la demo. Falta el sí de [Pablo Medina](/personas/pablo-medina.md) a la fecha de arranque. [^r1021]\n## Dependencias\n- El **arranque** (propiedad `arranque`) depende de [Preparar la demo con Ribera Aeropuerto](#^demo-aeropuerto) y de [Confirmar con Pablo la fecha de arranque](#^si-de-pablo).\n- [Preparar la demo con Ribera Aeropuerto](#^demo-aeropuerto) dependía de [Cachear las tarifas por día](#^cache-tarifas), ya hecha.\n- [Preparar la formación de Ribera Playa](#^formacion-playa) va después del arranque: no lo bloquea.\n## Tareas\n- [ ] Confirmar con Pablo la fecha de arranque · [Lucía Ferrer](/personas/lucia-ferrer.md) · para el 2026-10-23 [^r1014] ^si-de-pablo\n- [x] Cachear las tarifas por día · [Javier Ortega](/personas/javier-ortega.md) · hecha el 2026-10-21 [^r1021] ^cache-tarifas\n- [ ] Preparar la demo con Ribera Aeropuerto · [Diego Salinas](/personas/diego-salinas.md) · para el 2026-10-23 [^r1021] ^demo-aeropuerto\n- [ ] Preparar la formación de Ribera Playa · [Sara Llorente](/personas/sara-llorente.md) · para el 2026-10-27 [^r1009] ^formacion-playa\n- [ ] Enviar el resumen al equipo de Ribera · [Lucía Ferrer](/personas/lucia-ferrer.md) [^r1014]\n## Hoteles\n- **Ribera Centro** · 84 habitaciones · formación hecha\n- **Ribera Playa** · 120 habitaciones · formación el martes 27\n- **Ribera Golf** · 46 habitaciones · formación hecha\n- **Casa Ribera** · 18 habitaciones · formación hecha\n- **Ribera Aeropuerto** · 210 habitaciones · demo el jueves 23 [^r1021]\n## Decisiones\n- [Cinco hoteles en el piloto](/decisiones/cinco-hoteles-en-el-piloto.md) · 9 oct\n- [Pago en una sola pantalla](/decisiones/pago-en-una-sola-pantalla.md) · 14 oct\n- [El bloqueo para grupos, después del piloto](/decisiones/el-bloqueo-para-grupos-despues-del-piloto.md) · 14 oct\n\n[^r1021]: [Revisión del diseño de reservas · 21 oct](/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md)\n[^r1014]: [Revisión del diseño de reservas · 14 oct](/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md)\n[^r1009]: [Hoteles Ribera · arranque del piloto · 9 oct](/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md)\n",
+      "raw": "---\ntype: person\ntitle: Cora Moss\ndescription: Garden operations\nrole: Garden operations\nstatus: stable\nsources:\n  - {id: r1021, resource: /Sources/Meetings/2026-10-21-garden-review.md, title: Garden review · 21 Oct}\n  - {id: r1014, resource: /Sources/Meetings/2026-10-14-garden-review.md, title: Garden review · 14 Oct}\n  - {id: r1009, resource: /Sources/Meetings/2026-10-09-pilot-kickoff.md, title: Pilot kickoff · 9 Oct}\ngenerated: {by: orbit/fixture, at: '2026-10-21T11:52:00+02:00'}\n---\n## Current work\nWorking with [Cora Moss](/People/cora-moss.md). [^r1021]\n## Tasks\n```tasks\nnot done\ndescription includes Cora Moss\n```\n",
       "citations": [
         {
           "id": "r1021",
           "number": 1,
-          "resource": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 21 oct"
+          "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "title": "Garden review · 21 Oct"
         },
         {
           "id": "r1014",
           "number": 2,
-          "resource": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md",
-          "title": "Revisión del diseño de reservas · 14 oct"
+          "resource": "/Sources/Meetings/2026-10-14-garden-review.md",
+          "title": "Garden review · 14 Oct"
         },
         {
           "id": "r1009",
           "number": 3,
-          "resource": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md",
-          "title": "Hoteles Ribera · arranque del piloto · 9 oct"
+          "resource": "/Sources/Meetings/2026-10-09-pilot-kickoff.md",
+          "title": "Pilot kickoff · 9 Oct"
+        }
+      ],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [
+        {
+          "kind": "tasks",
+          "lines": ["not done", "description includes Cora Moss"],
+          "warnings": [],
+          "tasks": [
+            {
+              "file": "Projects/garden-pilot.md",
+              "line": 16,
+              "block_id": "confirm",
+              "text": "Confirm kickoff with Ben Cora Moss",
+              "who": "Cora Moss",
+              "who_path": "People/cora-moss.md",
+              "done": false,
+              "project": "Projects/garden-pilot.md",
+              "source_id": "",
+              "source": "",
+              "tags": [],
+              "due": "2026-10-23",
+              "scheduled": "",
+              "start": "",
+              "done_at": "",
+              "priority": "",
+              "recurrence": "",
+              "id": "confirm",
+              "depends_on": []
+            },
+            {
+              "file": "Projects/garden-pilot.md",
+              "line": 20,
+              "block_id": "",
+              "text": "Send the team summary Cora Moss",
+              "who": "Cora Moss",
+              "who_path": "People/cora-moss.md",
+              "done": false,
+              "project": "Projects/garden-pilot.md",
+              "source_id": "",
+              "source": "",
+              "tags": [],
+              "due": "",
+              "scheduled": "",
+              "start": "",
+              "done_at": "",
+              "priority": "🔼",
+              "recurrence": "every week",
+              "id": "",
+              "depends_on": []
+            }
+          ],
+          "total": 2
+        }
+      ],
+      "history": [],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "Projects/garden-pilot.md": {
+      "type": "project",
+      "role": "project",
+      "properties": {
+        "type": "project",
+        "title": "Garden Pilot",
+        "description": "Five invented hotels test a new reservation flow.",
+        "tags": ["client", "pilot"],
+        "sources": [
+          {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          }
+        ],
+        "generated": {
+          "by": "orbit/fixture",
+          "at": "2026-10-21T11:52:00+02:00"
+        },
+        "status": "stable",
+        "stage": "active",
+        "start": "2026-10-26"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "Projects/garden-pilot.md",
+      "frontmatter": {
+        "type": "project",
+        "title": "Garden Pilot",
+        "description": "Five invented hotels test a new reservation flow.",
+        "tags": ["client", "pilot"],
+        "status": "stable",
+        "stage": "active",
+        "start": "2026-10-26",
+        "sources": [
+          {
+            "id": "r1021",
+            "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+            "title": "Garden review · 21 Oct"
+          }
+        ],
+        "generated": {
+          "by": "orbit/fixture",
+          "at": "2026-10-21T11:52:00+02:00"
+        }
+      },
+      "body": "## Current state\nWith [Ada Vale](/People/ada-vale.md) and [Ben Reed](/People/ben-reed.md).\n## Tasks\n- [ ] Confirm kickoff with Ben [Cora Moss](/People/cora-moss.md) 📅 2026-10-23 🆔 confirm ^confirm\n- [x] Cache daily rates [Ada Vale](/People/ada-vale.md) ✅ 2026-10-21 🆔 cache-rates [^r1021] ^cache-rates\n- [ ] Prepare the airport demo [Ada Vale](/People/ada-vale.md) 📅 2026-10-23 🆔 airport-demo ⛔ cache-rates ^airport-demo\n- [ ] Prepare beach training [Ben Reed](/People/ben-reed.md) 🆔 beach-training ⛔ airport-demo ^beach-training\n- [ ] Send the team summary [Cora Moss](/People/cora-moss.md) 🔼 🔁 every week\n[^r1021]: [Garden review](/Sources/Meetings/2026-10-21-garden-review.md)\n",
+      "outlinks": [
+        {
+          "target": "/People/ada-vale.md",
+          "path": "People/ada-vale.md"
+        },
+        {
+          "target": "/People/ben-reed.md",
+          "path": "People/ben-reed.md"
+        },
+        {
+          "target": "/People/cora-moss.md",
+          "path": "People/cora-moss.md"
+        },
+        {
+          "target": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "path": "Sources/Meetings/2026-10-21-garden-review.md"
+        }
+      ],
+      "synthesized": false,
+      "raw": "---\ntype: project\ntitle: Garden Pilot\ndescription: Five invented hotels test a new reservation flow.\ntags: [client, pilot]\nstatus: stable\nstage: active\nstart: 2026-10-26\nsources:\n  - {id: r1021, resource: /Sources/Meetings/2026-10-21-garden-review.md, title: Garden review · 21 Oct}\ngenerated: {by: orbit/fixture, at: '2026-10-21T11:52:00+02:00'}\n---\n## Current state\nWith [Ada Vale](/People/ada-vale.md) and [Ben Reed](/People/ben-reed.md).\n## Tasks\n- [ ] Confirm kickoff with Ben [Cora Moss](/People/cora-moss.md) 📅 2026-10-23 🆔 confirm ^confirm\n- [x] Cache daily rates [Ada Vale](/People/ada-vale.md) ✅ 2026-10-21 🆔 cache-rates [^r1021] ^cache-rates\n- [ ] Prepare the airport demo [Ada Vale](/People/ada-vale.md) 📅 2026-10-23 🆔 airport-demo ⛔ cache-rates ^airport-demo\n- [ ] Prepare beach training [Ben Reed](/People/ben-reed.md) 🆔 beach-training ⛔ airport-demo ^beach-training\n- [ ] Send the team summary [Cora Moss](/People/cora-moss.md) 🔼 🔁 every week\n[^r1021]: [Garden review](/Sources/Meetings/2026-10-21-garden-review.md)\n",
+      "citations": [
+        {
+          "id": "r1021",
+          "number": 1,
+          "resource": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "title": "Garden review · 21 Oct"
         }
       ],
       "tasks": [
         {
-          "file": "proyectos/piloto-hoteles-ribera.md",
-          "line": 35,
-          "block_id": "si-de-pablo",
-          "text": "Confirmar con Pablo la fecha de arranque",
-          "who": "Lucía Ferrer",
-          "who_path": "personas/lucia-ferrer.md",
-          "due": "2026-10-23",
+          "file": "Projects/garden-pilot.md",
+          "line": 16,
+          "block_id": "confirm",
+          "text": "Confirm kickoff with Ben Cora Moss",
+          "who": "Cora Moss",
+          "who_path": "People/cora-moss.md",
           "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "2026-10-23",
+          "scheduled": "",
+          "start": "",
           "done_at": "",
-          "project": "proyectos/piloto-hoteles-ribera.md",
-          "source_id": "r1014",
-          "source": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md"
+          "priority": "",
+          "recurrence": "",
+          "id": "confirm",
+          "depends_on": []
         },
         {
-          "file": "proyectos/piloto-hoteles-ribera.md",
-          "line": 36,
-          "block_id": "cache-tarifas",
-          "text": "Cachear las tarifas por día",
-          "who": "Javier Ortega",
-          "who_path": "personas/javier-ortega.md",
-          "due": "",
+          "file": "Projects/garden-pilot.md",
+          "line": 17,
+          "block_id": "cache-rates",
+          "text": "Cache daily rates Ada Vale",
+          "who": "Ada Vale",
+          "who_path": "People/ada-vale.md",
           "done": true,
-          "done_at": "2026-10-21",
-          "project": "proyectos/piloto-hoteles-ribera.md",
+          "project": "Projects/garden-pilot.md",
           "source_id": "r1021",
-          "source": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        },
-        {
-          "file": "proyectos/piloto-hoteles-ribera.md",
-          "line": 37,
-          "block_id": "demo-aeropuerto",
-          "text": "Preparar la demo con Ribera Aeropuerto",
-          "who": "Diego Salinas",
-          "who_path": "personas/diego-salinas.md",
-          "due": "2026-10-23",
-          "done": false,
-          "done_at": "",
-          "project": "proyectos/piloto-hoteles-ribera.md",
-          "source_id": "r1021",
-          "source": "/fuentes/reuniones/2026-10-21-revision-del-diseno-de-reservas.md"
-        },
-        {
-          "file": "proyectos/piloto-hoteles-ribera.md",
-          "line": 38,
-          "block_id": "formacion-playa",
-          "text": "Preparar la formación de Ribera Playa",
-          "who": "Sara Llorente",
-          "who_path": "personas/sara-llorente.md",
-          "due": "2026-10-27",
-          "done": false,
-          "done_at": "",
-          "project": "proyectos/piloto-hoteles-ribera.md",
-          "source_id": "r1009",
-          "source": "/fuentes/reuniones/2026-10-09-hoteles-ribera-arranque-del-piloto.md"
-        },
-        {
-          "file": "proyectos/piloto-hoteles-ribera.md",
-          "line": 39,
-          "block_id": "",
-          "text": "Enviar el resumen al equipo de Ribera",
-          "who": "Lucía Ferrer",
-          "who_path": "personas/lucia-ferrer.md",
+          "source": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "tags": [],
           "due": "",
+          "scheduled": "",
+          "start": "",
+          "done_at": "2026-10-21",
+          "priority": "",
+          "recurrence": "",
+          "id": "cache-rates",
+          "depends_on": []
+        },
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 18,
+          "block_id": "airport-demo",
+          "text": "Prepare the airport demo Ada Vale",
+          "who": "Ada Vale",
+          "who_path": "People/ada-vale.md",
           "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "2026-10-23",
+          "scheduled": "",
+          "start": "",
           "done_at": "",
-          "project": "proyectos/piloto-hoteles-ribera.md",
-          "source_id": "r1014",
-          "source": "/fuentes/reuniones/2026-10-14-revision-del-diseno-de-reservas.md"
+          "priority": "",
+          "recurrence": "",
+          "id": "airport-demo",
+          "depends_on": ["cache-rates"]
+        },
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 19,
+          "block_id": "beach-training",
+          "text": "Prepare beach training Ben Reed",
+          "who": "Ben Reed",
+          "who_path": "People/ben-reed.md",
+          "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "",
+          "scheduled": "",
+          "start": "",
+          "done_at": "",
+          "priority": "",
+          "recurrence": "",
+          "id": "beach-training",
+          "depends_on": ["airport-demo"]
+        },
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 20,
+          "block_id": "",
+          "text": "Send the team summary Cora Moss",
+          "who": "Cora Moss",
+          "who_path": "People/cora-moss.md",
+          "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "",
+          "scheduled": "",
+          "start": "",
+          "done_at": "",
+          "priority": "🔼",
+          "recurrence": "every week",
+          "id": "",
+          "depends_on": []
         }
       ],
       "dependencies": [
         {
-          "prerequisite": "proyectos/piloto-hoteles-ribera.md#demo-aeropuerto",
-          "dependent": "proyectos/piloto-hoteles-ribera.md#milestone-arranque",
+          "prerequisite": "Projects/garden-pilot.md#cache-rates",
+          "dependent": "Projects/garden-pilot.md#airport-demo",
           "relation": "requires"
         },
         {
-          "prerequisite": "proyectos/piloto-hoteles-ribera.md#si-de-pablo",
-          "dependent": "proyectos/piloto-hoteles-ribera.md#milestone-arranque",
+          "prerequisite": "Projects/garden-pilot.md#airport-demo",
+          "dependent": "Projects/garden-pilot.md#beach-training",
           "relation": "requires"
         },
         {
-          "prerequisite": "proyectos/piloto-hoteles-ribera.md#cache-tarifas",
-          "dependent": "proyectos/piloto-hoteles-ribera.md#demo-aeropuerto",
-          "relation": "requires"
-        },
-        {
-          "prerequisite": "proyectos/piloto-hoteles-ribera.md#milestone-arranque",
-          "dependent": "proyectos/piloto-hoteles-ribera.md#formacion-playa",
+          "prerequisite": "Projects/garden-pilot.md#milestone-start",
+          "dependent": "Projects/garden-pilot.md#beach-training",
           "relation": "after"
         }
       ],
+      "dependency_tasks": [
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 18,
+          "block_id": "airport-demo",
+          "text": "Prepare the airport demo Ada Vale",
+          "who": "Ada Vale",
+          "who_path": "People/ada-vale.md",
+          "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "2026-10-23",
+          "scheduled": "",
+          "start": "",
+          "done_at": "",
+          "priority": "",
+          "recurrence": "",
+          "id": "airport-demo",
+          "depends_on": ["cache-rates"]
+        },
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 19,
+          "block_id": "beach-training",
+          "text": "Prepare beach training Ben Reed",
+          "who": "Ben Reed",
+          "who_path": "People/ben-reed.md",
+          "done": false,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "",
+          "source": "",
+          "tags": [],
+          "due": "",
+          "scheduled": "",
+          "start": "",
+          "done_at": "",
+          "priority": "",
+          "recurrence": "",
+          "id": "beach-training",
+          "depends_on": ["airport-demo"]
+        },
+        {
+          "file": "Projects/garden-pilot.md",
+          "line": 17,
+          "block_id": "cache-rates",
+          "text": "Cache daily rates Ada Vale",
+          "who": "Ada Vale",
+          "who_path": "People/ada-vale.md",
+          "done": true,
+          "project": "Projects/garden-pilot.md",
+          "source_id": "r1021",
+          "source": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "tags": [],
+          "due": "",
+          "scheduled": "",
+          "start": "",
+          "done_at": "2026-10-21",
+          "priority": "",
+          "recurrence": "",
+          "id": "cache-rates",
+          "depends_on": []
+        }
+      ],
       "queries": [],
-      "next_page": null,
+      "history": [
+        {
+          "date": "2026-10-20",
+          "time": "",
+          "action": "",
+          "title": "",
+          "path": "",
+          "by": "",
+          "detail": "",
+          "text": "* **Review**: Checked [Garden Pilot](/Projects/garden-pilot.md) against its sources."
+        }
+      ],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "README.md": {
+      "type": "guide",
+      "role": "note",
+      "properties": {
+        "type": "guide",
+        "title": "Example vault",
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "README.md",
+      "frontmatter": {
+        "type": "guide",
+        "title": "Example vault"
+      },
+      "body": "# Example vault\nInvented people, project and transcript for reading acceptance.\n",
+      "outlinks": [],
+      "synthesized": false,
+      "raw": "---\ntype: guide\ntitle: Example vault\n---\n# Example vault\nInvented people, project and transcript for reading acceptance.\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
       "history": [],
-      "history_next_page": null
+      "history_next_page": null,
+      "next_page": null
+    },
+    "SCHEMA.md": {
+      "type": "schema",
+      "role": "note",
+      "properties": {
+        "type": "schema",
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "SCHEMA.md",
+      "frontmatter": {
+        "type": "schema",
+        "types": {
+          "person": {
+            "role": "person",
+            "folder": "People/"
+          },
+          "project": {
+            "role": "project",
+            "folder": "Projects/"
+          },
+          "meeting": {
+            "role": "meeting",
+            "folder": "Meetings/"
+          },
+          "topic": {
+            "role": "topic",
+            "folder": "Topics/"
+          },
+          "source": {
+            "role": "source",
+            "folder": "Sources/"
+          },
+          "journal": {
+            "role": "journal",
+            "folder": "Journal/"
+          }
+        }
+      },
+      "body": "# Garden vault\nKeep source transcripts unchanged. Cite claims with sources and footnotes.\nTasks use Obsidian Tasks markers and vault-wide identifiers.\n",
+      "outlinks": [],
+      "synthesized": false,
+      "raw": "---\ntype: schema\ntypes:\n  person: {role: person, folder: People/}\n  project: {role: project, folder: Projects/}\n  meeting: {role: meeting, folder: Meetings/}\n  topic: {role: topic, folder: Topics/}\n  source: {role: source, folder: Sources/}\n  journal: {role: journal, folder: Journal/}\n---\n# Garden vault\nKeep source transcripts unchanged. Cite claims with sources and footnotes.\nTasks use Obsidian Tasks markers and vault-wide identifiers.\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
+      "history": [],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "Sources/Meetings/2026-10-21-garden-review.md": {
+      "type": "source",
+      "role": "source",
+      "properties": {
+        "type": "source",
+        "title": "Garden review · 21 Oct",
+        "description": "Invented reservation review.",
+        "resource": "orbit://meeting/synthetic-garden",
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "Sources/Meetings/2026-10-21-garden-review.md",
+      "frontmatter": {
+        "type": "source",
+        "title": "Garden review · 21 Oct",
+        "description": "Invented reservation review.",
+        "resource": "orbit://meeting/synthetic-garden",
+        "date": "2026-10-21",
+        "duration_minutes": "18",
+        "participants": ["Ada Vale", "Cora Moss"]
+      },
+      "body": "# Garden review\nAda: Daily rates are cached. Cora: Prepare the airport demo.\n",
+      "outlinks": [],
+      "synthesized": false,
+      "raw": "---\ntype: source\ntitle: Garden review · 21 Oct\ndescription: Invented reservation review.\nresource: orbit://meeting/synthetic-garden\ndate: 2026-10-21\nduration_minutes: 18\nparticipants: [Ada Vale, Cora Moss]\n---\n# Garden review\nAda: Daily rates are cached. Cora: Prepare the airport demo.\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
+      "history": [
+        {
+          "date": "2026-10-21",
+          "time": "11:52",
+          "action": "apply",
+          "title": "Garden review",
+          "path": "Sources/Meetings/2026-10-21-garden-review.md",
+          "by": "orbit/fixture",
+          "detail": "Updated the project and people.",
+          "text": ""
+        }
+      ],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "Topics/kickoff-blockers.md": {
+      "type": "topic",
+      "role": "topic",
+      "properties": {
+        "type": "topic",
+        "title": "What blocks the pilot kickoff",
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "Topics/kickoff-blockers.md",
+      "frontmatter": {
+        "type": "topic",
+        "title": "What blocks the pilot kickoff"
+      },
+      "body": "Read [the project](/Projects/garden-pilot.md) and [[ada-vale]].\n",
+      "outlinks": [
+        {
+          "target": "/Projects/garden-pilot.md",
+          "path": "Projects/garden-pilot.md"
+        },
+        {
+          "target": "ada-vale",
+          "path": "People/ada-vale.md"
+        }
+      ],
+      "synthesized": false,
+      "raw": "---\ntype: topic\ntitle: What blocks the pilot kickoff\n---\nRead [the project](/Projects/garden-pilot.md) and [[ada-vale]].\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
+      "history": [],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "index.md": {
+      "type": "note",
+      "role": "note",
+      "properties": {
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "index.md",
+      "frontmatter": {
+        "okf_version": "0.2"
+      },
+      "body": "# People\n* [Ada Vale](/People/ada-vale.md) - Reservation backend.\n* [Ben Reed](/People/ben-reed.md) - Garden pilot lead.\n* [Cora Moss](/People/cora-moss.md) - Garden operations.\n# Projects\n* [Garden Pilot](/Projects/garden-pilot.md) - Five hotels test a reservation flow.\n# Sources\n* [Garden review](/Sources/Meetings/2026-10-21-garden-review.md) - Invented review transcript.\n",
+      "outlinks": [
+        {
+          "target": "/People/ada-vale.md",
+          "path": "People/ada-vale.md"
+        },
+        {
+          "target": "/People/ben-reed.md",
+          "path": "People/ben-reed.md"
+        },
+        {
+          "target": "/People/cora-moss.md",
+          "path": "People/cora-moss.md"
+        },
+        {
+          "target": "/Projects/garden-pilot.md",
+          "path": "Projects/garden-pilot.md"
+        },
+        {
+          "target": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "path": "Sources/Meetings/2026-10-21-garden-review.md"
+        }
+      ],
+      "synthesized": false,
+      "raw": "---\nokf_version: \"0.2\"\n---\n# People\n* [Ada Vale](/People/ada-vale.md) - Reservation backend.\n* [Ben Reed](/People/ben-reed.md) - Garden pilot lead.\n* [Cora Moss](/People/cora-moss.md) - Garden operations.\n# Projects\n* [Garden Pilot](/Projects/garden-pilot.md) - Five hotels test a reservation flow.\n# Sources\n* [Garden review](/Sources/Meetings/2026-10-21-garden-review.md) - Invented review transcript.\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
+      "history": [],
+      "history_next_page": null,
+      "next_page": null
+    },
+    "log.md": {
+      "type": "note",
+      "role": "note",
+      "properties": {
+        "status": "stable"
+      },
+      "schema_warnings": [],
+      "conformance": {
+        "conformant": true,
+        "issues": []
+      },
+      "path": "log.md",
+      "frontmatter": {},
+      "body": "## 2026-10-21\n- 11:52 · apply · [Garden review](/Sources/Meetings/2026-10-21-garden-review.md) · orbit/fixture · Updated the project and people.\n\n## 2026-10-20\n* **Review**: Checked [Garden Pilot](/Projects/garden-pilot.md) against its sources.\n",
+      "outlinks": [
+        {
+          "target": "/Sources/Meetings/2026-10-21-garden-review.md",
+          "path": "Sources/Meetings/2026-10-21-garden-review.md"
+        },
+        {
+          "target": "/Projects/garden-pilot.md",
+          "path": "Projects/garden-pilot.md"
+        }
+      ],
+      "synthesized": false,
+      "raw": "## 2026-10-21\n- 11:52 · apply · [Garden review](/Sources/Meetings/2026-10-21-garden-review.md) · orbit/fixture · Updated the project and people.\n\n## 2026-10-20\n* **Review**: Checked [Garden Pilot](/Projects/garden-pilot.md) against its sources.\n",
+      "citations": [],
+      "tasks": [],
+      "dependencies": [],
+      "dependency_tasks": [],
+      "queries": [],
+      "history": [],
+      "history_next_page": null,
+      "next_page": null
     }
   }
 }
