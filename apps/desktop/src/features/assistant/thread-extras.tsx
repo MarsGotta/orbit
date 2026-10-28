@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { DaemonPort } from "../../bridge/port";
 import { Button } from "../../design/Button";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { agentsOf } from "./agents";
@@ -80,7 +80,7 @@ export function EmptyPage({
   send: Send;
   with: With;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   if (talk.empty === "choose")
     return <ChooseAssistant nowMs={talk.nowMs} port={talk.port} send={send} snapshot={snapshot} />;
   return (
@@ -98,6 +98,7 @@ export function EmptyPage({
 
 /** «Sigues con Deimos · le hemos pasado esta conversación», across the thread. */
 export function HandoverLine({ with: talk }: { with: With }) {
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   if (talk.handedFrom === undefined || talk.agent === undefined) return null;
   return (
     <p className={styles.handover} role="note">
@@ -108,7 +109,7 @@ export function HandoverLine({ with: talk }: { with: With }) {
 
 /** «Cargar mensajes anteriores», while they load, or why they could not. */
 function OlderMessages({ history }: { history: History }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <>
       {history.hasOlder && (

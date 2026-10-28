@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Button } from "../../design/Button";
 import { Field } from "../../design/Field";
-import { transcription as copy } from "../../i18n/es/transcription";
+
 import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
 import type { AgentPort } from "./agents/use-agent-config";
 import { Group, List, Row } from "./layout";
@@ -10,6 +11,7 @@ import styles from "./SettingsView.module.css";
 type View = ReturnType<typeof useTranscriptionSettings>;
 
 function KeyField({ view }: { view: View }) {
+  const copy = useCopy().extras.transcription;
   return (
     <Row title={copy.mai} help={copy.privacy}>
       <Field
@@ -26,6 +28,7 @@ function KeyField({ view }: { view: View }) {
 }
 
 export function TranscriptionSettings({ agent }: { agent?: AgentPort }) {
+  const copy = useCopy().extras.transcription;
   const view = useTranscriptionSettings({ agent });
   return (
     <Group label={copy.title} help={copy.scope}>

@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import { DAY_GROUPS, groupFor } from "./notes-format";
+import { dayGroups, groupFor } from "./notes-format";
 
 /** The list in the order it is shown: by day group, then as the daemon sent it. */
 export function listOrder(list: NoteListItem[]): NoteListItem[] {
-  return DAY_GROUPS.flatMap(([group]) => list.filter((note) => groupFor(note) === group));
+  return dayGroups().flatMap(([group]) => list.filter((note) => groupFor(note) === group));
 }
 
 /** The note ↑ or ↓ goes to from `currentId`; the first one when none is open. */

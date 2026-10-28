@@ -1,10 +1,11 @@
+import { getCopy } from "../../i18n";
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import { Button } from "../../design/Button";
 import { TextLink } from "../../design/TextLink";
 import { MarkdownView } from "../../features/notes/MarkdownView";
-import { es } from "../../i18n/es";
-import { useSpanish } from "../../i18n/AssistantCopy";
+
+import { useCopy } from "../../i18n/CopyProvider";
 import { answerPieces, causeText, linkText } from "./copy";
 import styles from "./MeetingQuestion.module.css";
 
@@ -22,7 +23,7 @@ export interface QuestionCardProps {
  * or the user closes it; the answer also stays in the conversation.
  */
 export function QuestionCard({ question, send, openUrl }: QuestionCardProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const failed = question.stage === "failed";
   return (
     <section
@@ -50,7 +51,11 @@ export function QuestionCard({ question, send, openUrl }: QuestionCardProps) {
   );
 }
 
-function body(question: MeetingQuestionSnapshot, openUrl: QuestionCardProps["openUrl"], copy = es) {
+function body(
+  question: MeetingQuestionSnapshot,
+  openUrl: QuestionCardProps["openUrl"],
+  copy = getCopy(),
+) {
   switch (question.stage) {
     case "thinking":
       return <p className={styles.status}>{copy.meetingQuestion.thinking}</p>;

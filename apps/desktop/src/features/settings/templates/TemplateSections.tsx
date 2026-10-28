@@ -1,9 +1,10 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useRef } from "react";
 import type { NoteTemplateBoundsSnapshot } from "../../../bridge/generated/NoteTemplateBoundsSnapshot";
 import type { TemplateSection } from "../../../bridge/generated/TemplateSection";
 import { Button } from "../../../design/Button";
 import { Icon } from "../../../design/Icon";
-import { es } from "../../../i18n/es";
+
 import { moveSection } from "./template-draft";
 import styles from "./Templates.module.css";
 
@@ -11,6 +12,7 @@ type Sections = TemplateSection[];
 
 /** The handle moves its section with the mouse, or with ↑ and ↓ from the keyboard. */
 function SectionHandle({ name, onMove }: { name: string; onMove: (by: -1 | 1) => void }) {
+  const es = useCopy();
   return (
     <button
       aria-label={es.library.dragSection(name)}
@@ -29,6 +31,7 @@ function SectionHandle({ name, onMove }: { name: string; onMove: (by: -1 | 1) =>
 
 /** «Añadir sección», up to the hub's ceiling; there, why not. */
 function AddSection({ count, max, onAdd }: { count: number; max: number; onAdd: () => void }) {
+  const es = useCopy();
   return (
     <Button
       className={styles.add}
@@ -53,6 +56,7 @@ function SectionRow(props: {
   onRemove?: () => void;
   section: TemplateSection;
 }) {
+  const es = useCopy();
   const { bounds, index, section } = props;
   return (
     <li
@@ -110,6 +114,7 @@ export function TemplateSections({
   onChange: (sections: Sections) => void;
   sections: Sections;
 }) {
+  const es = useCopy();
   const dragged = useRef<number | null>(null);
   const list = useRef<HTMLOListElement>(null);
   const replace = (index: number, section: TemplateSection) =>

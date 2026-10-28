@@ -4,7 +4,7 @@ import type { AgentCall } from "./generated/AgentCall";
 import type { VaultCall } from "./generated/VaultCall";
 import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { NoticeClass } from "./generated/NoticeClass";
-import type { NoticeData } from "../i18n/es/notices";
+import type { NoticeData } from "../i18n";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 
 export type FrameListener = (frame: FeatureFrame) => void;

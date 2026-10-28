@@ -1,10 +1,22 @@
+import { assistantsCopy, vendorOf, shortDay } from "./assistants";
+import { accessGroups, agentFailureText, agentRefusalText } from "./agents";
+import { permissionRows, macPermissions } from "./permissions";
+import { fileSize, attachmentRefusalText } from "./attachments";
+import { providerRefusedAudio } from "./voice-failures";
+import { aiCopy, aiRefusalText } from "./ai";
+import { usageWindow } from "./assistantsFormat";
+import { transcription } from "./transcription";
+import { vaultCopy } from "./vault";
+import { waits } from "./waits";
+import { refusalEntries } from "./refusalEntries";
+import { noticesForAssistant } from "./notices";
 import { agents } from "./agents";
 import { dictionary } from "./dictionary";
 import { statusCopy } from "./status";
 import { shellCopy } from "./shell";
 import { controls } from "./controls";
 import { permissions } from "./permissions";
-import { briefing } from "./briefing";
+import { briefingCopy } from "./briefing";
 import { settingsCopy } from "./settings";
 import { recording } from "./recording";
 import { agenda } from "./agenda";
@@ -28,13 +40,36 @@ export { globalShortcuts };
 
 export function spanish(assistantName = "Deimos") {
   return {
+    extras: {
+      assistantsCopy,
+      vendorOf,
+      shortDay,
+      accessGroups,
+      agentFailureText,
+      agentRefusalText,
+      permissionRows,
+      macPermissions,
+      fileSize,
+      attachmentRefusalText,
+      providerRefusedAudio,
+      aiCopy,
+      aiRefusalText,
+      usageWindow,
+      transcription,
+      vaultCopy,
+      waits,
+      refusalEntries,
+      noticesForAssistant,
+      globalShortcuts,
+      failures,
+    },
     ...agents,
     ...dictionary,
     ...statusCopy(assistantName),
     ...shellCopy(assistantName),
     ...controls,
     ...permissions,
-    ...briefing,
+    ...briefingCopy(assistantName),
     ...settingsCopy(assistantName),
     ...recording,
     ...agenda,

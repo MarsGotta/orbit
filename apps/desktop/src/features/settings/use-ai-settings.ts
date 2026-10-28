@@ -1,11 +1,15 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useEffect, useState } from "react";
 import type { AiSettings } from "../../bridge/generated/AiSettings";
 import type { AgentCall } from "../../bridge/generated/AgentCall";
-import { agentFailureText, agentRefusalText } from "../../i18n/es/agents";
-import { aiCopy as copy, aiRefusalText } from "../../i18n/es/ai";
+
 import type { AgentPort } from "./agents/use-agent-config";
 
 export function useAISettings(agent?: AgentPort, load = true) {
+  const copy = useCopy().extras.aiCopy;
+  const aiRefusalText = useCopy().extras.aiRefusalText;
+  const agentRefusalText = useCopy().extras.agentRefusalText;
+  const agentFailureText = useCopy().extras.agentFailureText;
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [errorPlace, setErrorPlace] = useState("load");
   const [error, setError] = useState("");

@@ -1,11 +1,11 @@
+import { dateTime } from "../locale";
 // What the assistants' texts share: the times they say and the vendor of each service.
-const clock = new Intl.DateTimeFormat("es-ES", {
+const clock = dateTime({
   hour: "2-digit",
   minute: "2-digit",
-  hourCycle: "h23",
 });
-export const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric" });
-const dayMonth = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+export const weekday = dateTime({ weekday: "long", day: "numeric" });
+const dayMonth = dateTime({ day: "numeric", month: "short" });
 
 /** «18:40». */
 export function hourOf(atMs: number): string {

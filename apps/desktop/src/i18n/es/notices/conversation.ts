@@ -1,4 +1,4 @@
-import { openSettings, worded, type Entries, type NoticeData } from "./types";
+import { openSettings, worded, type Entries, NoticeData } from "./types";
 
 const asked: Record<string, string> = {
   screenshot_full: "una captura de la pantalla",

@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useHeldChoice } from "../../state/use-held-choice";
 import type { AgentPort } from "../settings/agents/use-agent-config";
@@ -30,6 +31,7 @@ function AssistantCard({
   nowMs: number;
   onChoose: () => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const id = useId();
   return (
     <button
@@ -76,6 +78,7 @@ export function ChooseAssistant({
   send: Send;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const agents = agentsOf(snapshot);
   const primaryId = snapshot.settings.default_agent_id;
   const current = agentFor(snapshot, snapshot.chat.agent_id);

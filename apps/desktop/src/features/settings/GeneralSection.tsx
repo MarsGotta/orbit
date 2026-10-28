@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
@@ -7,9 +8,10 @@ import { Segmented } from "../../design/Segmented";
 import { Skeleton } from "../../design/Skeleton";
 import { Switch } from "../../design/Switch";
 import { toggleTheme, useTheme, type Theme } from "../../design/theme";
-import { es as base } from "../../i18n/es";
+
 import { useHeldChoice } from "../../state/use-held-choice";
 import { Group, List, Row, SectionHeading } from "./layout";
+import { LanguageSetting } from "./LanguageSetting";
 import { ThisMac } from "./ThisMac";
 import { Updates } from "./Updates";
 import styles from "./SettingsView.module.css";
@@ -19,6 +21,7 @@ type Settings = AppSnapshot["settings"];
 
 /** «Tu nombre», saved when the person leaves the field (or presses ↵). */
 function NameField({ send, settings }: { send: Send; settings: Settings }) {
+  const base = useCopy();
   const known = settings.profile?.name ?? "";
   const [name, setName] = useState(known);
   const { feedback, track } = useFeedback();
@@ -57,6 +60,7 @@ function NameField({ send, settings }: { send: Send; settings: Settings }) {
 
 /** Oscuro / Claro: fixes the theme on this Mac, as the top bar's button does. */
 function Appearance() {
+  const base = useCopy();
   const theme = useTheme();
   return (
     <Segmented<Theme>
@@ -75,6 +79,7 @@ function Appearance() {
 
 /** «Abrir Orbit al iniciar sesión», shown as chosen until macOS confirms it. */
 function LoginItem({ send, settings }: { send: Send; settings: Settings }) {
+  const base = useCopy();
   const loginItem = useHeldChoice(settings.login_item === "on", send);
   return (
     <Row
@@ -101,6 +106,7 @@ export function GeneralSection({
   send: Send;
   snapshot: AppSnapshot;
 }) {
+  const base = useCopy();
   const settings = snapshot.settings;
   const availability = snapshot.status_availability?.state;
   const statusKnown = availability !== "unknown" && availability !== "absent";
@@ -121,6 +127,7 @@ export function GeneralSection({
           </div>
         </List>
       </Group>
+      <LanguageSetting send={send} />
       <Group label={base.settings.appearance}>
         <Appearance />
       </Group>

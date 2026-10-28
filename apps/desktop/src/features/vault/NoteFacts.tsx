@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { displayDate } from "./TaskRows";
 import styles from "./VaultReading.module.css";
 
@@ -19,6 +20,7 @@ function statusLabel(value: unknown) {
 }
 
 export function NoteFacts({ note }: { note: VaultNote }) {
+  const copy = useCopy().extras.vaultCopy;
   const fields = note.frontmatter;
   const verified = Array.isArray(fields.verified)
     ? fields.verified

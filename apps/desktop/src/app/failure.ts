@@ -1,7 +1,7 @@
+import { getCopy } from "../i18n";
 import type { AppCommand } from "../bridge/generated";
 import type { Report } from "../bridge/port";
 import type { Refusal } from "../bridge/refusal";
-import { failures } from "../i18n/es/failures";
 
 /**
  * What a failure offers besides its words: the code of its op to share,
@@ -24,8 +24,11 @@ export function failureCode(op: string): string {
  * The message of a failure the person cannot fix: what could not be done,
  * what to do, and the code of its op to share with whoever runs the hub.
  */
-export function genericFailure(op: string, what: string = failures.failure.fallback): string {
-  return `${failures.failure.title(what)}. ${failures.failure.help(failureCode(op))}`;
+export function genericFailure(
+  op: string,
+  what: string = getCopy().extras.failures.failure.fallback,
+): string {
+  return `${getCopy().extras.failures.failure.title(what)}. ${getCopy().extras.failures.failure.help(failureCode(op))}`;
 }
 
 /**
@@ -50,12 +53,12 @@ export interface Failed {
 
 /** The generic failure of an op: «No se pudo {what}», what to do and its code. */
 export function failure(op: string, report: Report | null, what?: string): Failed {
-  const shown = what ?? failures.failure.fallback;
+  const shown = what ?? getCopy().extras.failures.failure.fallback;
   return {
     op,
     class: "failed",
     text: genericFailure(op, shown),
-    failure: { code: failureCode(op), title: failures.failure.title(shown) },
+    failure: { code: failureCode(op), title: getCopy().extras.failures.failure.title(shown) },
     report,
   };
 }

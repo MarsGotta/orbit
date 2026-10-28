@@ -1,8 +1,10 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AppCommand } from "../../bridge/generated";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
+
 import { effectiveTimezone, isoWeekForDay, localDayIndex } from "../../local-time";
 import { localDateLabel, localHour, useBriefingClock } from "./briefing-clock";
 import { BriefingBody, ZoneFailed } from "./BriefingBody";
@@ -19,9 +21,9 @@ interface Props {
 }
 
 function greetingForHour(hour: number): string {
-  if (hour < 14) return es.briefing.morning;
-  if (hour < 21) return es.briefing.afternoon;
-  return es.briefing.night;
+  if (hour < 14) return getCopy().briefing.morning;
+  if (hour < 21) return getCopy().briefing.afternoon;
+  return getCopy().briefing.night;
 }
 
 /**
@@ -30,6 +32,7 @@ function greetingForHour(hour: number): string {
  * will arrive; nothing is left blank.
  */
 export default function BriefingView({ error, onRecord, send, snapshot }: Props) {
+  const es = useCopy();
   const nowMs = useBriefingClock();
   const timezone = effectiveTimezone(snapshot.system_timezone ?? "");
   useBriefingReads(snapshot.briefing, send);
@@ -85,6 +88,7 @@ function DaySentence(props: {
   snapshot: AppSnapshot;
   zoneFailed: boolean;
 }) {
+  const es = useCopy();
   const { briefing, snapshot, zoneFailed } = props;
   if (zoneFailed) return <p>{es.briefing.timezoneFailed}</p>;
   if (briefing === null || briefingAgendaStatus(snapshot).state !== "known") return null;

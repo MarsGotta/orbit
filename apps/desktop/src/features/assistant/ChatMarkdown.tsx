@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { createContext, useContext, type ComponentProps } from "react";
 import Markdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { TextLink } from "../../design/TextLink";
-import { es } from "../../i18n/es";
+
 import { safeHref } from "../notes/markdown";
 import { CodeBlock } from "./CodeBlock";
 import { CopyButton } from "./CopyButton";
@@ -92,6 +93,7 @@ function Pre({ node }: ExtraProps) {
 }
 
 function Table({ children, node }: ComponentProps<"table"> & ExtraProps) {
+  const es = useCopy();
   const { source } = useContext(Answer);
   const start = node?.position?.start.offset;
   const end = node?.position?.end.offset;

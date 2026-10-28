@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // Creating, moving, editing and deleting events from the calendar.
 // Kept beside `agenda.ts`, which merges it into `es.calendar`.
 
@@ -13,11 +14,11 @@ export const agendaEdit = {
     undoLoses: (lost: string) => `Deshacer lo crea de nuevo ${lost}.`,
     and: "y",
     withoutGuests: (count: number) =>
-      count === 1 ? "sin su invitado" : `sin sus ${count} invitados`,
+      count === 1 ? "sin su invitado" : `sin sus ${numberFormat().format(count)} invitados`,
     withoutReminders: (count: number) =>
       count === 1
         ? "sin 1 recordatorio que Orbit no edita"
-        : `sin ${count} recordatorios que Orbit no edita`,
+        : `sin ${numberFormat().format(count)} recordatorios que Orbit no edita`,
     cannotUndo: (title: string) => `El último cambio de «${title}» no se puede deshacer.`,
     outsideSeries: "como evento suelto, fuera de la serie",
     undoing: (title: string) => `Deshaciendo el último cambio de «${title}»…`,
@@ -80,11 +81,11 @@ export const agendaEdit = {
       [60, "1 h"],
       [1440, "1 día"],
     ] as const,
-    minutesBefore: (minutes: number) => `${minutes} min`,
+    minutesBefore: (minutes: number) => `${numberFormat().format(minutes)} min`,
     remindersKept: (count: number) =>
       count === 1
         ? "Tiene además 1 recordatorio que Orbit no edita; se conserva."
-        : `Tiene además ${count} recordatorios que Orbit no edita; se conservan.`,
+        : `Tiene además ${numberFormat().format(count)} recordatorios que Orbit no edita; se conservan.`,
     remindersTooMany: "Tiene más recordatorios de los que Orbit edita: cámbialos en Calendario.",
     availability: "Mostrarme como",
     busy: "Ocupada",

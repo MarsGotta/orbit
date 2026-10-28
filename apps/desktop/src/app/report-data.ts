@@ -1,4 +1,4 @@
-import type { NoticeData } from "../i18n/es/notices";
+import type { NoticeData } from "../i18n";
 
 const TOKEN = /^[a-z0-9_.-]{1,64}$/;
 

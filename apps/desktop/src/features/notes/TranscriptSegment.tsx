@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { type CSSProperties, type ReactNode, forwardRef } from "react";
 import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import { es } from "../../i18n/es";
+
 import { formatTimestamp, isUnnamedSpeaker } from "./notes-format";
 import styles from "./Note.module.css";
 
@@ -23,6 +24,7 @@ export function SpeakerName({
   speaker: NoteSpeakerSnapshot | undefined;
   turn: NoteTurnSnapshot;
 }) {
+  const es = useCopy();
   const unnamed = isUnnamedSpeaker(speaker);
   return (
     <>

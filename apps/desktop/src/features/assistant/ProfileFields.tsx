@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId, type KeyboardEvent } from "react";
 import type { AssistantColor } from "../../design/AssistantAvatar";
 import { moveWithArrows } from "../../design/roving";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import { DESCRIPTION_MAX, NAME_MAX, type profileProblem } from "./assistants";
 import styles from "./AssistantPages.module.css";
 
@@ -19,6 +20,7 @@ export function ColorChoice({
   labelledBy?: string;
   label?: string;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <div
       aria-label={label}
@@ -58,6 +60,7 @@ export function NameField({
   problem: ReturnType<typeof profileProblem>;
   onChange: (name: string) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const id = useId();
   const hint =
     problem === "empty"
@@ -98,6 +101,7 @@ export function DescriptionField({
   value: string;
   onChange: (description: string) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const id = useId();
   return (
     <div className={styles.menuField}>
@@ -131,6 +135,7 @@ export function ColorField({
   value: AssistantColor;
   onChange: (color: AssistantColor) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const id = useId();
   return (
     <div className={styles.menuField}>

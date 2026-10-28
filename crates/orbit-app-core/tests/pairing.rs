@@ -37,6 +37,7 @@ fn status_snapshot(
                     privacy_stopped: false,
                     helper_connected: true,
                     error_reports: None,
+                    language: None,
                 },
                 as_of_ms: None,
             }),

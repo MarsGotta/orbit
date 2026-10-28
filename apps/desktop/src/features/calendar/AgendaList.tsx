@@ -1,7 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { Icon } from "../../design/Icon";
 import { Skeleton } from "../../design/Skeleton";
-import { es } from "../../i18n/es";
+
 import {
   civil,
   dayName,
@@ -57,6 +59,7 @@ export function AgendaList(props: AgendaListProps) {
 }
 
 function AgendaDay(props: AgendaListProps & { day: number; isToday: boolean }) {
+  const es = useCopy();
   return (
     <section aria-label={dayName(props.day)} className={styles.day}>
       <button
@@ -95,17 +98,18 @@ function secondLine(
   timezone: string,
 ): { text: string; warn: boolean } | null {
   if (event.self_response === "needs_action")
-    return { text: es.calendar.unansweredHere, warn: true };
+    return { text: getCopy().calendar.unansweredHere, warn: true };
   if (event.self_response === "tentative")
-    return { text: es.calendar.selfResponse.tentative, warn: false };
+    return { text: getCopy().calendar.selfResponse.tentative, warn: false };
   if (event.location != null && event.location !== "") return { text: event.location, warn: false };
   const last = dayOf(event.end_ms - 1, timezone);
   if (inAllDayLane(event) && day === dayOf(event.start_ms, timezone) && last > day)
-    return { text: es.calendar.untilDay(weekdayName(last)), warn: false };
+    return { text: getCopy().calendar.untilDay(weekdayName(last)), warn: false };
   return null;
 }
 
 function AgendaRow(props: AgendaListProps & { day: number; event: CalendarEvent }) {
+  const es = useCopy();
   const { event } = props;
   const guests = event.attendees?.length ?? 0;
   const sub = secondLine(event, props.day, props.timezone);

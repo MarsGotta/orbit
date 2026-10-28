@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
@@ -5,8 +6,7 @@ import { Breadcrumbs, TopBarLeading } from "../../app/shell-slots";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
-import { es } from "../../i18n/es";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { AgentCards } from "../settings/agents/AgentCards";
 import type { AgentPort } from "../settings/agents/use-agent-config";
@@ -24,6 +24,8 @@ type Send = (command: AppCommand) => unknown;
 
 /** «Quitar a … de Orbit», asked in its own row; one the hub gives says who can. */
 function Removal({ agent, port }: { agent: Agent; port?: AgentPort }) {
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const [asking, setAsking] = useState(false);
   const removing = useFeedback();
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -85,6 +87,7 @@ function SettingsHead({
   snapshot: AppSnapshot;
   port?: AgentPort;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const agents = agentsOf(snapshot);
   const line = copy.serviceFull(agent.service);
   return (
@@ -113,6 +116,8 @@ function SettingsHead({
 
 /** «En Orbit»: how it is called in a meeting, and whose voice reads it. */
 function InOrbit({ agent, snapshot }: { agent: Agent; snapshot: AppSnapshot }) {
+  const es = useCopy();
+  const copy = useCopy().extras.assistantsCopy;
   const primary = agentsOf(snapshot).find((each) => each.id === snapshot.settings.default_agent_id);
   const primaryName = primary?.name ?? snapshot.settings.assistant_name ?? es.chat.roles.assistant;
   return (
@@ -132,6 +137,7 @@ function InOrbit({ agent, snapshot }: { agent: Agent; snapshot: AppSnapshot }) {
 
 /** An id the hub no longer has (removed), or the agents still coming. */
 function NoSuchAssistant({ known }: { known: boolean }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <div className={styles.settingsScroll}>
       <div className={styles.settingsPage}>
@@ -168,6 +174,8 @@ export function AssistantSettingsPage({
   send: Send;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const agents = agentsOf(snapshot);
   const agent = agents.find((each) => each.id === agentId);
   if (agent === undefined) return <NoSuchAssistant known={agents.length > 0} />;

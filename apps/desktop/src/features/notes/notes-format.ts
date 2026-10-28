@@ -1,9 +1,10 @@
+import { dateTime } from "../../i18n/locale";
+import { getCopy, lookupCopy } from "../../i18n";
 import type { NoteDayGroup } from "../../bridge/generated/NoteDayGroup";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { mmss } from "../../time-format";
-import { es } from "../../i18n/es";
 
 const DAY_MS = 86_400_000;
 
@@ -13,11 +14,10 @@ export function formatTimestamp(atMs: number): string {
   return hours > 0 ? `${hours}:${mmss(atMs % 3_600_000)}` : mmss(atMs);
 }
 
-const weekday = new Intl.DateTimeFormat("es-ES", { weekday: "short" });
-const dayMonth = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
-const clock = new Intl.DateTimeFormat("es-ES", {
+const weekday = dateTime({ weekday: "short" });
+const dayMonth = dateTime({ day: "numeric", month: "short" });
+const clock = dateTime({
   hour: "numeric",
-  hourCycle: "h23",
   minute: "2-digit",
 });
 
@@ -40,8 +40,8 @@ export function formatClock(value: number): string {
 /** A meeting's length: «47 min», «1 h 52 min». */
 export function formatLength(durationMs: number): string {
   const minutes = Math.max(0, Math.round(durationMs / 60_000));
-  if (minutes < 60) return es.noteScreen.minutes(minutes);
-  return es.noteScreen.hours(Math.floor(minutes / 60), minutes % 60);
+  if (minutes < 60) return getCopy().noteScreen.minutes(minutes);
+  return getCopy().noteScreen.hours(Math.floor(minutes / 60), minutes % 60);
 }
 
 /** Where a meeting is in the list: its hour today and yesterday, its date before. */
@@ -53,12 +53,12 @@ export function rowTime(note: NoteListItem): string {
 }
 
 /** The list's day groups, in order, with their names. */
-export const DAY_GROUPS: Array<[NoteDayGroup, string]> = [
-  ["today", es.notes.today],
-  ["yesterday", es.notes.yesterday],
-  ["this_week", es.notes.thisWeek],
-  ["last_30_days", es.notes.last30Days],
-  ["before", es.notes.before],
+export const dayGroups = (): Array<[NoteDayGroup, string]> => [
+  ["today", getCopy().notes.today],
+  ["yesterday", getCopy().notes.yesterday],
+  ["this_week", getCopy().notes.thisWeek],
+  ["last_30_days", getCopy().notes.last30Days],
+  ["before", getCopy().notes.before],
 ];
 
 export function groupFor(note: NoteListItem): NoteDayGroup {
@@ -80,7 +80,7 @@ export function speakerName(note: OpenNoteSnapshot, turn: NoteTurnSnapshot): str
 
 /** The meeting's language, named in its own language; its code when not named. */
 export function languageName(code: string): string {
-  return es.notes.languages[code] ?? code;
+  return lookupCopy(getCopy().notes.languages, code) ?? code;
 }
 
 /** The transcript as text, for «Copiar transcripción»: «Nombre: texto», one turn per line. */
@@ -96,11 +96,11 @@ export function summaryMarkdown(note: OpenNoteSnapshot): string {
   for (const section of summary.sections) parts.push(`## ${section.name}\n\n${section.markdown}`);
   if (note.decisions.length > 0)
     parts.push(
-      `## ${es.noteScreen.decisions}\n\n${note.decisions.map((item) => `- ${item}`).join("\n")}`,
+      `## ${getCopy().noteScreen.decisions}\n\n${note.decisions.map((item) => `- ${item}`).join("\n")}`,
     );
   if (note.open_topics.length > 0)
     parts.push(
-      `## ${es.noteScreen.openTopics}\n\n${note.open_topics.map((item) => `- ${item}`).join("\n")}`,
+      `## ${getCopy().noteScreen.openTopics}\n\n${note.open_topics.map((item) => `- ${item}`).join("\n")}`,
     );
   return parts.filter((part) => part.trim() !== "").join("\n\n");
 }

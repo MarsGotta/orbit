@@ -1,9 +1,11 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState, type ReactNode } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
-import { assistantsCopy as copy, vendorOf } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { Group, List } from "../settings/layout";
@@ -57,6 +59,7 @@ function KeyValue({
 
 /** «Uso de tu plan»: the provider's share with its bar, amber from 80 %, and when it renews. */
 function Usage({ usage, nowMs }: { usage: NonNullable<Agent["usage"]>; nowMs: number }) {
+  const copy = useCopy().extras.assistantsCopy;
   const percent = Math.max(0, Math.min(100, Math.round(usage.used_percent)));
   const tone = percent >= USAGE_WARN_PERCENT ? "warn" : "ok";
   return (
@@ -88,6 +91,8 @@ function Usage({ usage, nowMs }: { usage: NonNullable<Agent["usage"]>; nowMs: nu
 
 /** «Ver mi plan de …» and «Cerrar sesión», for an assistant with a subscription signed in. */
 function AccountActions({ agent, port, send }: { agent: Agent; port?: AgentPort; send: Send }) {
+  const vendorOf = useCopy().extras.vendorOf;
+  const copy = useCopy().extras.assistantsCopy;
   const vendor = vendorOf(agent.service);
   const plan = agent.service === undefined ? undefined : PLAN_PAGES[agent.service];
   const signingOut = useFeedback();
@@ -131,12 +136,17 @@ function AccountActions({ agent, port, send }: { agent: Agent; port?: AgentPort;
 function stateOf(health: Health, online: boolean): { text: string; tone?: "ok" | "warn" } {
   if (health.kind === "sign_in")
     return {
-      text: health.reason === "expired" ? copy.stateExpired : copy.stateSignedOut,
+      text:
+        health.reason === "expired"
+          ? getCopy().extras.assistantsCopy.stateExpired
+          : getCopy().extras.assistantsCopy.stateSignedOut,
       tone: "warn",
     };
-  if (health.kind === "limit") return { text: copy.stateLimit(health.until), tone: "warn" };
-  if (health.kind === "unknown" || !online) return { text: copy.stateUnknown };
-  return { text: copy.stateConnected, tone: "ok" };
+  if (health.kind === "limit")
+    return { text: getCopy().extras.assistantsCopy.stateLimit(health.until), tone: "warn" };
+  if (health.kind === "unknown" || !online)
+    return { text: getCopy().extras.assistantsCopy.stateUnknown };
+  return { text: getCopy().extras.assistantsCopy.stateConnected, tone: "ok" };
 }
 
 /** «lucia.ferrer@nubaria.example · ChatGPT Plus», with what the adapter said of both. */
@@ -159,6 +169,7 @@ export function Connection({
   send: Send;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const health = healthOf(agent, nowMs);
   const hermes = agent.service === "hermes";
   const state = stateOf(health, snapshot.settings.hub.connection === "online");

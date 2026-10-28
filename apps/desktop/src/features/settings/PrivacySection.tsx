@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { Button } from "../../design/Button";
 import { Switch } from "../../design/Switch";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es as base } from "../../i18n/es";
+
 import { useHeldChoice } from "../../state/use-held-choice";
 import { Group, List, Row, SectionHeading } from "./layout";
 import { SystemPermissions } from "./Permissions";
@@ -14,7 +14,7 @@ type Send = (command: AppCommand) => unknown;
 
 /** «Parar todo» at the top; once stopped, «Todo está parado · Reactivar Orbit». */
 function StopCard({ send, stopped }: { send: Send; stopped: boolean }) {
-  const es = useSpanish();
+  const es = useCopy();
   const [rearming, setRearming] = useState(false);
   return (
     <section
@@ -55,6 +55,7 @@ function StopCard({ send, stopped }: { send: Send; stopped: boolean }) {
 
 /** «Enviar informes de errores anónimos», shown as chosen until it is confirmed. */
 function ErrorReports({ enabled, send }: { enabled: boolean; send: Send }) {
+  const base = useCopy();
   const reports = useHeldChoice(enabled, send);
   return (
     <Group label={base.settings.improve}>
@@ -79,6 +80,7 @@ function ErrorReports({ enabled, send }: { enabled: boolean; send: Send }) {
 
 /** Ajustes › Privacidad y permisos: stop everything, the four macOS permissions, reports. */
 export function PrivacySection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
+  const base = useCopy();
   const settings = snapshot.settings;
   return (
     <>

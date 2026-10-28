@@ -428,6 +428,12 @@ class Mac(DraftsAndPanel, CuaDriver):
         # first run's completion and the theme besides.
         if paths.data.exists():
             shutil.rmtree(paths.data)
+        # The acceptance flow locates Spanish labels, regardless of macOS's
+        # preferred languages. Only the isolated test identity's data is written.
+        paths.data.mkdir(parents=True, mode=0o700, exist_ok=True)
+        language = paths.data / "presentation.toml"
+        language.write_text('language = "es"\n', encoding="utf-8")
+        language.chmod(0o600)
         drafts = self.clear_web_drafts()
         self.launch(max_s)
         macos = self.system.run_checked("sw_vers", "-productVersion").strip()

@@ -1,5 +1,6 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import { es } from "../../../i18n/es";
+
 import { refusalText } from "../../../app/library-refusal";
 import styles from "./Templates.module.css";
 
@@ -9,6 +10,7 @@ import styles from "./Templates.module.css";
  * is never «none» and says nothing.
  */
 export function LibraryStatus({ library }: { library: NoteLibrarySnapshot | null | undefined }) {
+  const es = useCopy();
   if (library == null) return null;
   const lines: string[] = [];
   if (library.read === "failed" || library.templates.state === "failed")

@@ -1,17 +1,19 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import { openAttachment } from "../../bridge/attachments";
 import { useTrack } from "../../state/use-in-flight";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import { refusalOf } from "../../bridge/refusal";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
-import { fileSize } from "../../i18n/es/attachments";
+
 import { attachmentFailure } from "./attachment-drafts";
 import { useAttachmentUrl, useGallery } from "./AttachmentGallery";
 import styles from "./Attachments.module.css";
 
 /** An image the message carried, small; a click opens it in the viewer. */
 function Thumbnail({ attachment }: { attachment: Attachment }) {
+  const es = useCopy();
   const { view } = useGallery();
   const loaded = useAttachmentUrl(attachment);
   if (loaded.state === "failed")
@@ -34,13 +36,14 @@ function Thumbnail({ attachment }: { attachment: Attachment }) {
 
 /** «2 páginas · 1,5 MB»: what the chip and the viewer say of a file. */
 export function fileFacts(attachment: Attachment): string {
-  const facts = [fileSize(attachment.bytes)];
-  if (attachment.pages !== undefined) facts.unshift(es.attachments.pages(attachment.pages));
+  const facts = [getCopy().extras.fileSize(attachment.bytes)];
+  if (attachment.pages !== undefined) facts.unshift(getCopy().attachments.pages(attachment.pages));
   return facts.join(" · ");
 }
 
 /** A PDF, as a chip that opens it in the viewer. */
 function PdfChip({ attachment }: { attachment: Attachment }) {
+  const es = useCopy();
   const { view } = useGallery();
   return (
     <button
@@ -57,6 +60,7 @@ function PdfChip({ attachment }: { attachment: Attachment }) {
 
 /** Any other file: its facts, «Abrir» and «Mostrar en Finder». */
 function FileChip({ attachment }: { attachment: Attachment }) {
+  const es = useCopy();
   const track = useTrack();
   const [failure, setFailure] = useState<string | null>(null);
   const open = (reveal: boolean) => {

@@ -1,15 +1,17 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Fragment, useId } from "react";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Spinner } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import { STEP_KEYS, isPreparing, noteFailure, stepLabel, waitsForHub } from "./note-progress";
 import type { Send } from "./send";
 import styles from "./Note.module.css";
 
 /** «✓ Audio guardado — ◌ Transcribiendo… — ○ Escribir el resumen». */
 function Steps({ note }: { note: OpenNoteSnapshot }) {
+  const es = useCopy();
   return (
     <ol aria-label={es.noteScreen.progressLabel} className={styles.steps}>
       {STEP_KEYS.map((key, index) => {
@@ -33,6 +35,7 @@ function Steps({ note }: { note: OpenNoteSnapshot }) {
 
 /** Not drawn in the design: why the note is missing, and «Reintentar». */
 function Failure({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   const failure = noteFailure(note);
   if (!failure) return null;
   return (
@@ -56,6 +59,7 @@ function Failure({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
  * A note that failed says why instead, with «Reintentar».
  */
 export function NoteProgress({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   const titleId = useId();
   if (noteFailure(note)) return <Failure note={note} send={send} />;
   if (!isPreparing(note)) return null;

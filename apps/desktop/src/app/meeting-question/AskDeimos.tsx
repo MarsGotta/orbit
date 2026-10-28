@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
-import { useSpanish } from "../../i18n/AssistantCopy";
+
 import { questionBytes, voiceStatusText } from "./copy";
 import styles from "./MeetingQuestion.module.css";
 
@@ -22,7 +22,7 @@ export interface AskDeimosProps {
  * offers, 2 by default). Typing is the decision: no confirmation.
  */
 export function AskDeimos({ ask, voiceStatus, send, onDone }: AskDeimosProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const [question, setQuestion] = useState("");
   const [minutes, setMinutes] = useState(ask.default_minutes);
   const bytes = questionBytes(question);
@@ -91,6 +91,7 @@ function WindowChoice({
   onChoose: (minutes: number) => void;
   windows: number[];
 }) {
+  const es = useCopy();
   return (
     <div aria-label={es.meetingQuestion.windowLabel} className={styles.windows} role="radiogroup">
       {windows.map((window) => (

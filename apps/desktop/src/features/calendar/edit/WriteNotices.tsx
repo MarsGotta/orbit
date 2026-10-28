@@ -1,7 +1,8 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { Button } from "../../../design/Button";
 import { Icon } from "../../../design/Icon";
 import { Toast } from "../../../design/Toast";
-import { es } from "../../../i18n/es";
+
 import type { useCalendarWrites } from "./useCalendarWrites";
 import styles from "./EventPanel.module.css";
 
@@ -13,6 +14,7 @@ type Writes = ReturnType<typeof useCalendarWrites>;
  * and «Evento borrado · Deshacer» for ten seconds after a delete.
  */
 export function WriteNotices({ writes }: { writes: Writes }) {
+  const es = useCopy();
   const { deleted, notice } = writes;
   return (
     <>

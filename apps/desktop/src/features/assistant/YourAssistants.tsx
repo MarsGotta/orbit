@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Icon } from "../../design/Icon";
 import { Tooltip } from "../../design/Tooltip";
-import { assistantsCopy } from "../../i18n/es/assistants";
+
 import { useNow } from "../../use-now";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { assistantHash, useAssistantRoute } from "./assistant-route";
@@ -15,6 +16,7 @@ const REPAINT_MS = 60_000;
 
 /** «Tus asistentes»: each one with its service, and what is wrong when something is. */
 export function YourAssistants({ snapshot }: { snapshot: AppSnapshot }) {
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   const titleId = useId();
   const route = useAssistantRoute();
   const now = useNow(REPAINT_MS);

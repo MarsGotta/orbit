@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // The floating panel's own words: asking the agent without speaking, its
 // answer and what it asks to do. Named after the conversation's agent.
 export function floatingPanelCopy(assistantName: string) {
@@ -6,7 +7,7 @@ export function floatingPanelCopy(assistantName: string) {
       askAboutCall: "Pregunta sobre la llamada",
       askAboutMeeting: "Pregunta sobre la reunión",
       listenLast: "Escucha los últimos",
-      minutes: (minutes: number) => `${minutes} min`,
+      minutes: (minutes: number) => `${numberFormat().format(minutes)} min`,
       voiceHint: `Di «Oye ${assistantName}» y tu pregunta`,
       alsoInConversation: "Queda también en tu conversación",
       another: "Otra pregunta",

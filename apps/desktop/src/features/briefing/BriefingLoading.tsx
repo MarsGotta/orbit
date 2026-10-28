@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Skeleton } from "../../design/Skeleton";
 import { Loading } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import styles from "./BriefingView.module.css";
 
 /**
@@ -9,6 +10,7 @@ import styles from "./BriefingView.module.css";
  * meetings» before the agenda says so.
  */
 export function BriefingLoading() {
+  const es = useCopy();
   return (
     <div aria-busy="true" className={styles.loadingBody}>
       <Loading size={14}>{es.briefing.readingAgenda}</Loading>

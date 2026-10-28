@@ -1,16 +1,17 @@
+import { getCopy } from "../../i18n";
 import { useId } from "react";
 import type { CallSnapshot } from "../../bridge/generated/CallSnapshot";
 import { Button } from "../../design/Button";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+import { useCopy } from "../../i18n/CopyProvider";
+
 import { mmss } from "../../time-format";
 import { useNow } from "../../use-now";
 import styles from "./Call.module.css";
 
 /** The pause and answer window, without an overall call duration. */
 export function callLimits(): string {
-  return es.call.limits;
+  return getCopy().call.limits;
 }
 
 /** The bars that move only while the agent speaks; still while the user does. */
@@ -31,7 +32,7 @@ function Bars({ count, speaking }: { count: number; speaking: boolean }) {
 
 /** Who speaks, and the stopwatch; «Llamando a Deimos…» until the call begins. */
 function CallStatus({ call, now }: { call: CallSnapshot | null; now: number }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   if (call === null)
     return (
       <div className={styles.who}>
@@ -58,7 +59,7 @@ function CallStatus({ call, now }: { call: CallSnapshot | null; now: number }) {
 
 /** «Silenciar» / «Reactivar micrófono»: the assistant stops hearing her. */
 function MuteButton({ call, onMute }: { call: CallSnapshot; onMute: (muted: boolean) => void }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   const muted = call.microphone_muted === true;
   return (
     <Button onClick={() => onMute(!muted)} size={40}>
@@ -90,7 +91,7 @@ export function CallView({
   /** «Silenciar» (`true`) or «Reactivar micrófono» (`false`). */
   onMute: (muted: boolean) => void;
 }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   const titleId = useId();
   const now = useNow(1_000);
   const answer = call?.last_line ?? null;
@@ -139,7 +140,7 @@ export function CallView({
 
 /** The call, minimised: a small card over the conversation with «Abrir» and «Colgar». */
 export function MinimisedCall({ call, onHangUp, onOpen }: CallProps & { onOpen: () => void }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   const now = useNow(1_000);
   return (
     <section aria-label={copy.call.minimised} className={styles.mini}>

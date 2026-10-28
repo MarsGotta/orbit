@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useId, type ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { AnchoredCard } from "./AnchoredCard";
 import { Button } from "./Button";
 import cardStyles from "./AnchoredCard.module.css";
@@ -29,6 +30,7 @@ export interface ConfirmCardProps {
  * exists. What can be undone is not confirmed: it offers «Deshacer» instead.
  */
 export function ConfirmCard(props: ConfirmCardProps) {
+  const es = useCopy();
   const { anchor, align = "end", title, children, note, confirmLabel, onConfirm, onClose } = props;
   const titleId = useId();
   return (

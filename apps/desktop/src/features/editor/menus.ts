@@ -1,5 +1,5 @@
+import { getCopy } from "../../i18n";
 import type { EditorState } from "@codemirror/state";
-import { es } from "../../i18n/es";
 
 /** A note «[[» can link to: its title, and when it was. */
 export interface LinkTarget {
@@ -79,7 +79,7 @@ export interface SlashOption {
 }
 
 export function slashOptions(assistant: string | null): SlashOption[] {
-  const copy = es.editor;
+  const copy = getCopy().editor;
   const options: SlashOption[] = [
     { id: "h2", icon: "T", label: copy.heading, hint: "##", before: "## " },
     { id: "h3", icon: "t", label: copy.subheading, hint: "###", before: "### " },
@@ -152,7 +152,7 @@ export function menuRows(trigger: Trigger, sources: MenuSources): MenuRow[] | nu
 
 /** A menu's title, and what it says when nothing matches. */
 export function menuWords(trigger: Trigger): { title: string; empty: string } {
-  const copy = es.editor;
+  const copy = getCopy().editor;
   if (trigger.kind === "slash") return { title: copy.insert, empty: copy.nothingNamed };
   if (trigger.kind === "link") return { title: copy.linkMenu, empty: copy.noNoteNamed };
   return { title: copy.mentionMenu, empty: copy.nobodyNamed };

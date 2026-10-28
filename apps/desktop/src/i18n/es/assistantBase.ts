@@ -1,4 +1,4 @@
-export const esAssistant = {
+export const assistantBase = {
   playVoiceNote: "Reproducir nota de voz",
   stopVoiceNote: "Parar nota de voz",
   callEnded: "Llamada terminada",

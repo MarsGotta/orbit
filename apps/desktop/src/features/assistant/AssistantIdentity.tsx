@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { IconButton } from "../../design/IconButton";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { assistantHash } from "./assistant-route";
@@ -39,6 +40,7 @@ function PencilAndGear({
   port?: AgentPort;
   inSettings: boolean;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const pencil = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState(false);
   const echo = useSavedEcho();
@@ -111,6 +113,7 @@ export function AssistantIdentity({
   /** The name as the view's heading; the settings page has its own. */
   heading?: boolean;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const service = copy.serviceShort(agent.service);
   return (
     <span className={styles.identity}>

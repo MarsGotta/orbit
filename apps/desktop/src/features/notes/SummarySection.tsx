@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { NoteSectionSnapshot } from "../../bridge/generated/NoteSectionSnapshot";
 import { Button } from "../../design/Button";
 import { Spinner } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownView } from "./MarkdownView";
 import type { NoteWriting } from "./note-writing";
@@ -13,6 +14,7 @@ import styles from "./Note.module.css";
  * while the hub has not taken it, and «✓ Guardado» once it has.
  */
 function SectionSaving({ onMac, saving }: { onMac: boolean; saving: boolean }) {
+  const es = useCopy();
   if (saving) {
     return (
       <>
@@ -47,6 +49,7 @@ export function SummarySection({
   section: NoteSectionSnapshot;
   writing?: NoteWriting;
 }) {
+  const es = useCopy();
   const [editing, setEditing] = useState(false);
   const [edited, setEdited] = useState(false);
   return (

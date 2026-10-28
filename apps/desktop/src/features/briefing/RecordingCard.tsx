@@ -1,8 +1,10 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import { mmss } from "../../time-format";
 import { useNow } from "../../use-now";
 import { timeLabel } from "../calendar/date";
@@ -23,14 +25,14 @@ interface Props {
 function phaseLabel(meeting: AppSnapshot["meeting"], nowMs: number): string {
   switch (meeting.phase) {
     case "recording":
-      return es.briefing.recordingClock(mmss(nowMs - (meeting.started_at_ms ?? nowMs)));
+      return getCopy().briefing.recordingClock(mmss(nowMs - (meeting.started_at_ms ?? nowMs)));
     case "paused":
-      return es.briefing.paused;
+      return getCopy().briefing.paused;
     case "starting":
-      return es.meeting.starting;
+      return getCopy().meeting.starting;
     case "finishing":
     case "idle":
-      return es.meeting.finishing;
+      return getCopy().meeting.finishing;
   }
 }
 
@@ -40,6 +42,7 @@ function phaseLabel(meeting: AppSnapshot["meeting"], nowMs: number): string {
  * Deimos during the meeting.
  */
 export function RecordingCard({ meeting, event, send, timezone }: Props) {
+  const es = useCopy();
   const nowMs = useNow(meeting.phase === "recording" ? 1_000 : null);
   const recordingId = meeting.recording_id;
   const when =
@@ -94,6 +97,7 @@ function listens(status: VoiceStatusSnapshot | undefined): boolean {
 
 /** «Durante la reunión»: how to ask Deimos and how to finish from any app. */
 function DuringMeeting({ listening }: { listening: boolean }) {
+  const es = useCopy();
   const rows: Array<[string, string]> = [
     ...(listening ? [[es.briefing.askAloud, es.briefing.heyDeimos] as [string, string]] : []),
     [es.briefing.askSilently, es.briefing.pttShortcut],

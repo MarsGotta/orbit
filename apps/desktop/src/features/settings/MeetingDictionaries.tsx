@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { DictionarySnapshot } from "../../bridge/generated/DictionarySnapshot";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import { DictionaryFeedback, sendDictionary } from "../notes/DictionaryPicker";
 import { Group, List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";
@@ -22,6 +23,7 @@ function RenameForm({
   onName: (name: string | null) => void;
   send: Send;
 }) {
+  const es = useCopy();
   const { dictionary } = item;
   return (
     <form
@@ -66,6 +68,7 @@ const WORDS_SHOWN = 5;
 
 /** The dictionary's name, its words and the series that always use it; «Cambiar nombre» renames it. */
 function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }) {
+  const es = useCopy();
   const { dictionary, pending } = item;
   const [name, setName] = useState<string | null>(null);
   if (name !== null) return <RenameForm item={item} name={name} onName={setName} send={send} />;
@@ -99,6 +102,7 @@ function DictionaryName({ item, send }: { item: DictionarySnapshot; send: Send }
 
 /** One dictionary's card: its first words, and the rest on asking. */
 function Dictionary({ item, send }: { item: DictionarySnapshot; send: Send }) {
+  const es = useCopy();
   const { dictionary, pending } = item;
   const [all, setAll] = useState(false);
   const terms = all ? dictionary.terms : dictionary.terms.slice(0, WORDS_SHOWN);
@@ -152,6 +156,7 @@ export function MeetingDictionaries({
   library?: NoteLibrarySnapshot | null;
   send: Send;
 }) {
+  const es = useCopy();
   const state = library?.dictionaries?.state;
   const items = library?.dictionary_items ?? [];
   return (

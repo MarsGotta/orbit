@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useId, type KeyboardEvent, type ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { AnchoredCard } from "./AnchoredCard";
 import { Button } from "./Button";
 import type { Feedback } from "./feedback";
@@ -37,6 +38,7 @@ export interface EditMenuProps {
 
 /** The menu that edits something in place, anchored to what it edits. */
 export function EditMenu(props: EditMenuProps) {
+  const es = useCopy();
   const { anchor, width, align, above, title, subtitle, leading, canSave, feedback } = props;
   const { error, extra } = props;
   const { saveLabel = es.controls.save, onSave, onClose, children } = props;

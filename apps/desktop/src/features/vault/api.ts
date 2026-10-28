@@ -1,6 +1,6 @@
+import { getCopy } from "../../i18n";
 import type { VaultCall } from "../../bridge/generated/VaultCall";
 import type { VaultOutcome } from "../../bridge/generated/VaultOutcome";
-import { agentFailureText } from "../../i18n/es/agents";
 
 export type VaultPort = (call: VaultCall) => Promise<VaultOutcome>;
 
@@ -19,7 +19,8 @@ export async function request(port: VaultPort | undefined, call: VaultCall): Pro
       .join(", ");
     throw new Error(`${result.message} (${result.code}${numbers === "" ? "" : `; ${numbers}`})`);
   }
-  if (result.outcome === "failed") throw new Error(agentFailureText(result.refusal));
+  if (result.outcome === "failed")
+    throw new Error(getCopy().extras.agentFailureText(result.refusal));
   return result;
 }
 

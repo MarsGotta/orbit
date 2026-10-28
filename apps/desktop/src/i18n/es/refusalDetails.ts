@@ -1,3 +1,4 @@
+import { formatQuantity } from "../locale";
 import type { HelperCode } from "../../bridge/generated/HelperCode";
 import type { Refusal } from "../../bridge/refusal";
 
@@ -98,19 +99,19 @@ function expectedText(value: unknown): string {
     return names[String(expected.name)] ?? `el contrato ${String(expected.name)}`;
   }
   if (kind === "calendar_event")
-    return `un evento válido en la fila ${String(expected.position)} de ${String(expected.rows)}`;
+    return `un evento válido en la fila ${formatQuantity(expected.position)} de ${formatQuantity(expected.rows)}`;
   if (kind === "signed_range" || kind === "unsigned_range")
-    return `un valor entre ${String(expected.min)} y ${String(expected.max)}; se recibió ${String(expected.received)}`;
+    return `un valor entre ${formatQuantity(expected.min)} y ${formatQuantity(expected.max)}; se recibió ${formatQuantity(expected.received)}`;
   if (kind === "text_length")
-    return `texto no vacío de hasta ${String(expected.max_bytes)} bytes; se recibieron ${String(expected.bytes)}`;
+    return `texto no vacío de hasta ${formatQuantity(expected.max_bytes)} bytes; se recibieron ${formatQuantity(expected.bytes)}`;
   if (kind === "read_duration")
-    return `una lectura de menos de ${String(expected.max_exclusive_ns)} ns; duró ${String(expected.read_ns)} ns`;
+    return `una lectura de menos de ${formatQuantity(expected.max_exclusive_ns)} ns; duró ${formatQuantity(expected.read_ns)} ns`;
   if (kind === "read_times")
-    return `tiempos ordenados; empezó en ${String(expected.started_ns)} ns y terminó en ${String(expected.completed_ns)} ns`;
+    return `tiempos ordenados; empezó en ${formatQuantity(expected.started_ns)} ns y terminó en ${formatQuantity(expected.completed_ns)} ns`;
   if (kind === "current_generation")
-    return `la generación ${String(expected.required ?? "sin observar")}; se recibió ${String(expected.received)} y la instancia ${expected.instance_matches === true ? "coincide" : "no coincide"}`;
+    return `la generación ${String(expected.required ?? "sin observar")}; se recibió ${formatQuantity(expected.received)} y la instancia ${expected.instance_matches === true ? "coincide" : "no coincide"}`;
   if (kind === "clock_domain")
-    return `el reloj del helper; se recibió ${String(expected.received)}`;
+    return `el reloj del helper; se recibió ${formatQuantity(expected.received)}`;
   return "el contrato de esa lectura";
 }
 

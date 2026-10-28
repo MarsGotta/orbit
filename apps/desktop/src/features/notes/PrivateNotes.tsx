@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Spinner } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import type { NoteWriting } from "./note-writing";
 import {
@@ -21,6 +22,7 @@ function SaveStatus({
   recovered: boolean;
   state: SaveState;
 }) {
+  const es = useCopy();
   // Brought back from an earlier run that closed or fell before saving it.
   if (recovered && state === "saving") return <>{es.controls.draftRecovered}</>;
   if (state === "saving") {
@@ -57,6 +59,7 @@ export function PrivateNotes({
   send: Send;
   writing?: NoteWriting;
 }) {
+  const es = useCopy();
   const { draft, flush, recovered, state, update } = usePrivateNotesDraft(
     note.recording_id,
     note.private_notes,

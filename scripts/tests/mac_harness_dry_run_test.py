@@ -544,6 +544,9 @@ def test_prepare_removes_only_the_drafts_from_orbit_pruebas_s_webkit_storage(tmp
     assert paths.webkit.name == mac_side.BUNDLE_ID
     assert _stored_keys(storage / "localstorage.sqlite3") == set(KEPT)
     assert done["drafts_removed"] == len(DRAFTS)
+    language = paths.data / "presentation.toml"
+    assert language.read_text(encoding="utf-8") == 'language = "es"\n'
+    assert language.stat().st_mode & 0o777 == 0o600
     # The data directory is still cleared whole (the app recreated its logs).
     assert not left.exists()
     # The user's own Orbit is never touched.

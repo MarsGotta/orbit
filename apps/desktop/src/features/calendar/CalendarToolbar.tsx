@@ -1,10 +1,12 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { CalendarViewKind } from "../../bridge/generated/CalendarViewKind";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Segmented } from "../../design/Segmented";
 import { Loading } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import { CalendarFilter } from "./CalendarFilter";
 import { dayOf, dayRange, longDay, monthTitle, weekNumber } from "./date";
 import { includes, type Range, type ViewChoice } from "./range";
@@ -40,37 +42,40 @@ export function periodTitle(range: Range, timezone: string): string {
     case "week": {
       // A week across two months is named by the month of its middle.
       const middle = first + Math.floor((range.days - 1) / 2);
-      return `${monthTitle(middle)} · ${es.calendar.weekNumber(weekNumber(middle))}`;
+      return `${monthTitle(middle)} · ${getCopy().calendar.weekNumber(weekNumber(middle))}`;
     }
     case "month":
       return monthTitle(dayOf(range.anchor_ms, timezone));
     case "agenda":
-      return es.calendar.agenda;
+      return getCopy().calendar.agenda;
   }
 }
 
 function stepLabels(range: Range): [string, string] {
   switch (range.view) {
     case "day":
-      return [es.calendar.previous.day, es.calendar.next.day];
+      return [getCopy().calendar.previous.day, getCopy().calendar.next.day];
     case "days":
-      return [es.calendar.previous.days(range.days), es.calendar.next.days(range.days)];
+      return [
+        getCopy().calendar.previous.days(range.days),
+        getCopy().calendar.next.days(range.days),
+      ];
     case "month":
-      return [es.calendar.previous.month, es.calendar.next.month];
+      return [getCopy().calendar.previous.month, getCopy().calendar.next.month];
     case "week":
     case "agenda":
-      return [es.calendar.previousWeek, es.calendar.nextWeek];
+      return [getCopy().calendar.previousWeek, getCopy().calendar.nextWeek];
   }
 }
 
 /** Día · 3 días · Semana · Mes · Agenda; «3 días» names the N days on screen. */
 function viewOptions(range: Range): { value: CalendarViewKind; label: string }[] {
   return [
-    { label: es.calendar.day, value: "day" },
-    { label: es.calendar.days(range.view === "days" ? range.days : 3), value: "days" },
-    { label: es.calendar.week, value: "week" },
-    { label: es.calendar.month, value: "month" },
-    { label: es.calendar.agenda, value: "agenda" },
+    { label: getCopy().calendar.day, value: "day" },
+    { label: getCopy().calendar.days(range.view === "days" ? range.days : 3), value: "days" },
+    { label: getCopy().calendar.week, value: "week" },
+    { label: getCopy().calendar.month, value: "month" },
+    { label: getCopy().calendar.agenda, value: "agenda" },
   ];
 }
 
@@ -82,6 +87,7 @@ function choiceOf(view: CalendarViewKind, range: Range): ViewChoice {
 
 /** The period, ‹ ›, «Hoy» when today is out of sight, the view and the calendars. */
 export function CalendarToolbar(props: CalendarToolbarProps) {
+  const es = useCopy();
   const range = props.calendar.range;
   const [previous, next] = stepLabels(range);
   return (

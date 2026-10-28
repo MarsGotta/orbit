@@ -1,3 +1,5 @@
+import { editorLanguage } from "./editor-language";
+import { getCopy } from "../../i18n";
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState, Range } from "@codemirror/state";
 import {
@@ -7,7 +9,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { es } from "../../i18n/es";
+
 import { Glyph, TaskBox } from "./preview-widgets";
 
 /**
@@ -186,10 +188,9 @@ function fencedCode(
   if (writing) return;
   const language = first.text.replace(/^\s*(`{3,}|~{3,})/, "").trim();
   out.push(
-    Decoration.replace({ widget: new Glyph(language || es.editor.code, "cm-md-lang") }).range(
-      first.from,
-      first.to,
-    ),
+    Decoration.replace({
+      widget: new Glyph(language || getCopy().editor.code, "cm-md-lang"),
+    }).range(first.from, first.to),
   );
   if (closed && last.to > last.from) {
     out.push(hidden.range(last.from, last.to));
@@ -206,6 +207,7 @@ export const livePreview = ViewPlugin.fromClass(
     }
     update(update: ViewUpdate) {
       if (
+        update.startState.facet(editorLanguage) !== update.state.facet(editorLanguage) ||
         update.docChanged ||
         update.selectionSet ||
         update.viewportChanged ||

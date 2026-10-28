@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import { Button } from "../../design/Button";
 import { Toast } from "../../design/Toast";
-import { es } from "../../i18n/es";
+
 import type { AppView } from "../../state/app-view";
 import { openMeeting } from "./note-route";
 import { noteRowState } from "./note-row";
@@ -108,6 +109,7 @@ function MeetingNoteToast({
   close: () => void;
   open: () => void;
 }) {
+  const es = useCopy();
   if (shown.stage === "saved") {
     return (
       <Toast

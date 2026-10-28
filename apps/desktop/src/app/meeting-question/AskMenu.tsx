@@ -6,7 +6,7 @@ import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { AskAnswer } from "./AskAnswer";
 import { questionBytes, voiceStatusText } from "./copy";
 import styles from "./AskMenu.module.css";
@@ -24,7 +24,7 @@ function WindowChoice({
   onChoose: (minutes: number) => void;
   windows: MeetingAskSnapshot["windows"];
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div aria-label={es.askMenu.windows} className={styles.windows} role="radiogroup">
       <span aria-hidden="true">{es.askMenu.windows}</span>
@@ -57,7 +57,7 @@ function AskForm({
   /** The question is on its way: it stays here until the daemon takes it. */
   sending: boolean;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const field = useId();
   const [question, setQuestion] = useState("");
   const [minutes, setMinutes] = useState(ask.default_minutes);
@@ -135,7 +135,7 @@ function AskSteps({
   send: Send;
   onClose: () => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const current = meeting.question;
   const { asked, askNow, clear, sending } = useAsked(send, current);
   const [kept, setKept] = useState<MeetingQuestionSnapshot | null>(null);
@@ -179,7 +179,7 @@ function AskSteps({
  * conversation. Only while app-core offers it. Esc or a press outside closes it.
  */
 export function AskMenu({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
-  const es = useSpanish();
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   const ask = meeting.ask;
   if (!ask) return null;

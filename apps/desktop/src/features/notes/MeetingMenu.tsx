@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useState } from "react";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
-import { es } from "../../i18n/es";
+
 import { sent, type Send } from "./send";
 import styles from "./Note.module.css";
 
@@ -15,6 +16,7 @@ import styles from "./Note.module.css";
  * still closing says it is deleted once it has closed.
  */
 export function MeetingMenu({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   const [asking, setAsking] = useState(false);
   const toggle = useCallback((next: boolean) => {

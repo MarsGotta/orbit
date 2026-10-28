@@ -1,3 +1,4 @@
+import { getCopy } from "../../../i18n";
 /**
  * What the calendar says about a write, and what ⌘Z keeps of it.
  * Pure. A refusal and an unknown outcome say what to do, never their cause;
@@ -6,7 +7,7 @@
  */
 import type { AppView as AppSnapshot } from "../../../state/app-view";
 import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
-import { es } from "../../../i18n/es";
+
 import type { CalendarEvent } from "../eventLook";
 import { isSeries, recreateInput, type UndoEntry, inverseChanges, updatedTarget } from "./commands";
 import type { PendingWrite } from "./pending";
@@ -20,9 +21,9 @@ export interface Notice {
 
 export function failureNotice(record: WriteOutcome | null): Notice {
   if (record === null || record.stage === "outcome_unknown") {
-    return { kind: "unknown", text: es.calendar.write.unknown };
+    return { kind: "unknown", text: getCopy().calendar.write.unknown };
   }
-  return { kind: "refused", text: es.calendar.write.refused };
+  return { kind: "refused", text: getCopy().calendar.write.refused };
 }
 
 type Calendars = AppSnapshot["calendar"]["calendars"];
@@ -47,25 +48,25 @@ export function blockedNotice(
   calendars: Calendars = [],
 ): Notice {
   const reason = lockedReason(event, calendars) ?? "unnamed";
-  return { kind: "blocked", text: es.calendar.write.blocked[reason][action] };
+  return { kind: "blocked", text: getCopy().calendar.write.blocked[reason][action] };
 }
 
 /** «Evento borrado», and what undoing it will not bring back. */
 export function deletedToast(event: CalendarEvent, span: "this" | "future"): string {
   const guests = event.attendees?.length ?? 0;
   const lost = [
-    guests > 0 ? es.calendar.write.withoutGuests(guests) : null,
+    guests > 0 ? getCopy().calendar.write.withoutGuests(guests) : null,
     (event.alarms_not_editable ?? 0) > 0
-      ? es.calendar.write.withoutReminders(event.alarms_not_editable ?? 0)
+      ? getCopy().calendar.write.withoutReminders(event.alarms_not_editable ?? 0)
       : null,
-    span === "this" && isSeries(event) ? es.calendar.write.outsideSeries : null,
+    span === "this" && isSeries(event) ? getCopy().calendar.write.outsideSeries : null,
   ].filter((part): part is string => part !== null);
-  if (lost.length === 0) return es.calendar.write.deleted;
+  if (lost.length === 0) return getCopy().calendar.write.deleted;
   const joined =
     lost.length === 1
       ? lost.join("")
-      : `${lost.slice(0, -1).join(", ")} ${es.calendar.write.and} ${lost.at(-1) ?? ""}`;
-  return `${es.calendar.write.deleted}. ${es.calendar.write.undoLoses(joined)}`;
+      : `${lost.slice(0, -1).join(", ")} ${getCopy().calendar.write.and} ${lost.at(-1) ?? ""}`;
+  return `${getCopy().calendar.write.deleted}. ${getCopy().calendar.write.undoLoses(joined)}`;
 }
 
 /** What ⌘Z does about a write that finished, or `null` when it cannot name

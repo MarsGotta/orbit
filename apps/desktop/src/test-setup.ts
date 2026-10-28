@@ -1,3 +1,4 @@
+import { configureCopy } from "./i18n";
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
 import { QUERY_BUDGET_MS } from "./test-budgets";
@@ -59,7 +60,12 @@ function pinDate(): void {
 }
 
 pinDate();
-beforeEach(pinDate);
+// Existing Spanish acceptance fixtures explicitly model a Spanish Mac.
+Object.defineProperty(navigator, "languages", { configurable: true, get: () => ["es-ES"] });
+beforeEach(() => {
+  pinDate();
+  configureCopy("system", ["es-ES"], "Deimos");
+});
 
 // The Markdown editor (CodeMirror) measures the text and the cursor to
 // place them and to scroll the cursor into view. jsdom lays nothing out and has no

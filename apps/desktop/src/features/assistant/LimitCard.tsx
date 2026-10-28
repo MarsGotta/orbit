@@ -1,10 +1,12 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Button } from "../../design/Button";
 import { Tooltip } from "../../design/Tooltip";
-import { assistantsCopy as copy, vendorOf } from "../../i18n/es/assistants";
+
 import { assistantHash } from "./assistant-route";
 import { colorOf, healthOf, type Health } from "./assistants";
 import { handingOver, stopWaiting, useHandovers, waitFor } from "./handover";
@@ -59,6 +61,7 @@ function OfferButton({
   accent: boolean;
   onHandOver: (to: Agent) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const { agent, health } = offer;
   const avatar = <AssistantAvatar color={colorOf(agent, agents)} name={agent.name} size={20} />;
   if (health.kind !== "sign_in")
@@ -83,10 +86,10 @@ function OfferButton({
 
 /** «Phobos ha llegado al límite de tu plan de ChatGPT». */
 function limitTitle(agent: Agent): string {
-  const vendor = vendorOf(agent.service);
+  const vendor = getCopy().extras.vendorOf(agent.service);
   return vendor === undefined
-    ? copy.limitTitlePlan(agent.name)
-    : copy.limitTitle(agent.name, vendor);
+    ? getCopy().extras.assistantsCopy.limitTitlePlan(agent.name)
+    : getCopy().extras.assistantsCopy.limitTitle(agent.name, vendor);
 }
 
 /** «Te avisamos cuando … vuelva a estar disponible», and «Seguir con otro» to stop waiting. */
@@ -99,6 +102,7 @@ function WaitLine({
   sessionId: string | null;
   until: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <p className={styles.waitLine} role="status">
       {copy.waitingFor(name, until)}{" "}
@@ -131,6 +135,7 @@ export function LimitCard(props: {
   send: Send;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const { agent, agents, primaryId, sessionId, question, until, canHandOver, send, nowMs } = props;
   const waiting = useWaitedQuestion(agent, sessionId, send, nowMs);
   if (waiting !== undefined)

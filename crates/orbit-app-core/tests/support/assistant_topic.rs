@@ -90,6 +90,7 @@ pub fn snapshot_with_privacy(
                     privacy_stopped,
                     helper_connected: true,
                     error_reports: None,
+                    language: None,
                 },
                 as_of_ms: None,
             }),

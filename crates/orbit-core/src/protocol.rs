@@ -233,6 +233,9 @@ pub enum Command {
     },
     /// «Enviar informes de errores anónimos»: the user's choice, kept by the
     /// daemon with its settings. Off until they turn it on.
+    LanguageSet {
+        language: crate::language::LanguageChoice,
+    },
     ErrorReports {
         enabled: bool,
     },
@@ -355,9 +358,11 @@ impl Command {
     /// Internal transport and lifecycle orders have no interface feature.
     pub fn feature(&self) -> Option<FeatureId> {
         match self {
-            Self::Pair { .. } | Self::ErrorReports { .. } | Self::PrivacyStop | Self::Rearm => {
-                Some(FeatureId::Status)
-            }
+            Self::Pair { .. }
+            | Self::LanguageSet { .. }
+            | Self::ErrorReports { .. }
+            | Self::PrivacyStop
+            | Self::Rearm => Some(FeatureId::Status),
             Self::TranscriptRetranscribe { .. }
             | Self::TranscriptRetry { .. }
             | Self::NotePrivateSave { .. }

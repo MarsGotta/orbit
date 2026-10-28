@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import { copyImage, openAttachment } from "../../bridge/attachments";
 import type { Attachment } from "../../bridge/generated/Attachment";
@@ -5,12 +6,13 @@ import { refusalOf } from "../../bridge/refusal";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
 import { useTrack } from "../../state/use-in-flight";
-import { es } from "../../i18n/es";
+
 import { attachmentFailure } from "./attachment-drafts";
 import styles from "./Viewer.module.css";
 
 /** «Copiar imagen», which says «✓ Copiada» once the clipboard has it. */
 export function CopyImage({ bytes, mime }: { bytes: ArrayBuffer | null; mime: string }) {
+  const es = useCopy();
   const { feedback, track } = useFeedback();
   const [failure, setFailure] = useState<string | null>(null);
   return (
@@ -43,6 +45,7 @@ export function CopyImage({ bytes, mime }: { bytes: ArrayBuffer | null; mime: st
 
 /** «Abrir» and «Mostrar en Finder», each saying «Abriendo…» until macOS has done it. */
 export function OpenButtons({ attachment }: { attachment: Attachment }) {
+  const es = useCopy();
   const track = useTrack();
   const [opening, setOpening] = useState<boolean | null>(null);
   const [failure, setFailure] = useState<string | null>(null);

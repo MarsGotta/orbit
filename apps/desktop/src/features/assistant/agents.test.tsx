@@ -5,7 +5,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
-import { AssistantCopy } from "../../i18n/AssistantCopy";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { FeatureFrame } from "../../bridge/generated";
 import { applyFrame } from "../../state/feature-frame";
@@ -58,14 +58,14 @@ function snapshot(
 
 function view(snap: AppSnapshot, sent: AppCommand[] = []) {
   return render(
-    <AssistantCopy name={conversationAgentName(snap)}>
+    <CopyProvider name={conversationAgentName(snap)}>
       <AssistantView
         error={null}
         readMessages={() => new Promise(() => undefined)}
         send={(command) => sent.push(command)}
         snapshot={snap}
       />
-    </AssistantCopy>,
+    </CopyProvider>,
   );
 }
 
@@ -108,7 +108,7 @@ describe("the agent of a conversation", () => {
       receipts: [],
     };
     render(
-      <AssistantCopy name="Atlas">
+      <CopyProvider name="Atlas">
         <AssistantView
           error={null}
           readMessages={() =>
@@ -121,7 +121,7 @@ describe("the agent of a conversation", () => {
           send={() => undefined}
           snapshot={snapshot({ session_id: "session-atlas", agent_id: "atlas" })}
         />
-      </AssistantCopy>,
+      </CopyProvider>,
     );
     const article = (await screen.findByText(/sala Sur/)).closest("article") as HTMLElement;
     expect(within(article).getByText("Atlas")).toBeTruthy();

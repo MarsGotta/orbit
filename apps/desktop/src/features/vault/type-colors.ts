@@ -1,4 +1,4 @@
-import { vaultCopy as copy } from "../../i18n/es/vault";
+import { getCopy } from "../../i18n";
 
 export const COLORS: Record<string, string> = {
   person: "var(--o-c1)",
@@ -10,5 +10,6 @@ export const COLORS: Record<string, string> = {
   note: "var(--o-ink2)",
 };
 export function typeLabel(type: string, role: string) {
+  const copy = getCopy().extras.vaultCopy;
   return type === role ? (copy.types[role as keyof typeof copy.types] ?? type) : type;
 }

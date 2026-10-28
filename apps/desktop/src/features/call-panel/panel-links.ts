@@ -1,7 +1,7 @@
+import { getCopy } from "../../i18n";
 import { reportRefused } from "../../app/report-failure";
 import { panelOpenUrl } from "../../bridge/panel-port";
 import type { DaemonPort } from "../../bridge/port";
-import { es } from "../../i18n/es";
 
 /**
  * Opens a link of Deimos's answer through the panel's own order.
@@ -14,6 +14,6 @@ export async function openPanelLink(port: DaemonPort, url: string): Promise<stri
     return null;
   } catch (error: unknown) {
     reportRefused(port, error);
-    return es.meetingQuestion.linkRefused;
+    return getCopy().meetingQuestion.linkRefused;
   }
 }

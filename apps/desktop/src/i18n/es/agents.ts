@@ -1,3 +1,5 @@
+import { formatQuantity } from "../locale";
+import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 import type { AccessGroups } from "../../bridge/generated/AccessGroups";
 import type { AgentRefusal } from "../../bridge/generated/AgentRefusal";
@@ -6,7 +8,7 @@ import { assistantRefusals } from "./assistantRefusals";
 import { count, text, type Numbers } from "./refusalNumbers";
 
 /** A count as the person reads it: «16.384». */
-const figure = new Intl.NumberFormat("es-ES").format;
+const figure = numberFormat().format;
 
 /**
  * The groups of Orbit's tools an agent may use, in the order Ajustes shows
@@ -81,7 +83,7 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
     const skills = count(n, "count");
     const max = count(n, "max");
     if (skills === undefined || max === undefined) return undefined;
-    return `Este agente ya tiene ${skills} habilidades; el máximo es ${max}.`;
+    return `Este agente ya tiene ${numberFormat().format(skills)} habilidades; el máximo es ${numberFormat().format(max)}.`;
   },
   personality_too_large: (n) => {
     const bytes = count(n, "bytes");
@@ -94,7 +96,7 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
     const route = text(n, "route");
     const status = count(n, "status");
     if (route === undefined || status === undefined) return undefined;
-    return `Hermes no aceptó el cambio: ${route} respondió HTTP ${status}.`;
+    return `Hermes no aceptó el cambio: ${route} respondió HTTP ${numberFormat().format(status)}.`;
   },
 };
 
@@ -105,7 +107,7 @@ export function agentRefusalText(refusal: AgentRefusal): string {
     : undefined;
   if (words !== undefined) return words;
   const numbers = listed(refusal.numbers);
-  return `El hub rechazó la orden (${refusal.code}, HTTP ${refusal.status})${numbers ? `: ${numbers}` : ""}.`;
+  return `El hub rechazó la orden (${refusal.code}, HTTP ${numberFormat().format(refusal.status)})${numbers ? `: ${numbers}` : ""}.`;
 }
 
 /**
@@ -126,11 +128,11 @@ export function agentFailureText(refusal: Record<string, unknown>): string {
         return "El hub respondió HTTP 404 sin código: puede que su versión todavía no tenga la configuración de agentes.";
       return status === null
         ? "El hub no dio su respuesta: la conexión se cortó o no respondió a tiempo. Vuelve a leer para ver si el cambio se aplicó."
-        : `El hub respondió HTTP ${status}.`;
+        : `El hub respondió HTTP ${numberFormat().format(status)}.`;
     case "hub_reply_invalid":
       return `La respuesta del hub no cumple el contrato (campo ${String(refusal.field)}).`;
     case "too_large":
-      return `La respuesta del hub ocupa ${String(refusal.bytes)} bytes; el máximo es ${String(refusal.max_bytes)}.`;
+      return `La respuesta del hub ocupa ${formatQuantity(refusal.bytes)} bytes; el máximo es ${formatQuantity(refusal.max_bytes)}.`;
     default:
       return `Orbit no pudo preguntar al hub (${String(refusal.code)}).`;
   }
@@ -162,7 +164,8 @@ export const agents = {
     access: "Qué puede usar",
     accessHelp: "macOS sigue decidiendo sobre este Mac; esto solo limita a este agente.",
     skills: "Habilidades",
-    skillCount: (count: number, max: number) => `${count} de ${max}`,
+    skillCount: (count: number, max: number) =>
+      `${numberFormat().format(count)} de ${numberFormat().format(max)}`,
     noSkills:
       "Este agente aún no tiene habilidades. Una habilidad le enseña a hacer una tarea concreta, como preparar una reunión.",
     enable: (name: string) => `Activar ${name}`,

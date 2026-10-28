@@ -1,10 +1,12 @@
+import { getCopy } from "../../../i18n";
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { AppCommand } from "../../../bridge/generated";
 import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import { Toast } from "../../../design/Toast";
-import { es } from "../../../i18n/es";
+
 import { Group, SkeletonRows } from "../layout";
 import { LibraryStatus } from "./LibraryStatus";
 import { type Restoring, restoreNotice } from "./restore-notice";
@@ -30,9 +32,9 @@ interface Editing {
 function blank(): NoteTemplateDetailSnapshot {
   return {
     id: newTemplateId(),
-    name: es.library.newTemplateName,
+    name: getCopy().library.newTemplateName,
     context: "",
-    sections: [{ name: es.library.newSectionName, instructions: "" }],
+    sections: [{ name: getCopy().library.newSectionName, instructions: "" }],
     builtin: false,
     forked_from: null,
     pending: true,
@@ -69,6 +71,7 @@ function DeleteNotices({
   onUndo: (removed: RemovedTemplate) => void;
   restoring: Restoring | null;
 }) {
+  const es = useCopy();
   const notice = restoring === null ? null : restoreNotice(restoring, library, error, daemon);
   return (
     <>
@@ -156,6 +159,7 @@ export function NoteTemplates({
   library,
   send,
 }: NoteTemplatesProps) {
+  const es = useCopy();
   const [selected, setSelected] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const notices = useDeleteUndo(send, error, daemon);

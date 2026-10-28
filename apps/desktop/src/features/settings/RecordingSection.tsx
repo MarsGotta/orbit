@@ -1,9 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { CallPreference } from "../../bridge/generated/CallPreference";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { RadioList } from "../../design/RadioList";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es as base } from "../../i18n/es";
+
 import { useHeldChoice } from "../../state/use-held-choice";
 import { Group, List, SectionHeading } from "./layout";
 import styles from "./SettingsView.module.css";
@@ -26,6 +26,7 @@ export function CallPreferenceList({
   preference: CallPreference | null;
   send: Send;
 }) {
+  const base = useCopy();
   const choice = useHeldChoice(preference, send);
   const options = PREFERENCES.map((value) => ({
     value,
@@ -48,7 +49,8 @@ export function CallPreferenceList({
 
 /** Ajustes › Grabación y llamadas: what a call does, how long things last, the shortcuts. */
 export function RecordingSection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
-  const es = useSpanish();
+  const base = useCopy();
+  const es = useCopy();
   return (
     <>
       <SectionHeading

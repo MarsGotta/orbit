@@ -1,6 +1,7 @@
+import { getCopy } from "../../../i18n";
 import type { DaySegment } from "../DayColumn";
 import { eventSegments } from "../date";
-import { es } from "../../../i18n/es";
+
 import type { CalendarEvent } from "../eventLook";
 import type { GridPreview } from "./useGridGestures";
 
@@ -19,7 +20,7 @@ export function ghostSegments(
   if (preview === null) return byDay;
   const source = events.find((event) => event.id === preview.eventId);
   const event: CalendarEvent = {
-    ...(source ?? { id: "ghost", note: null, title: es.calendar.edit.newEvent }),
+    ...(source ?? { id: "ghost", note: null, title: getCopy().calendar.edit.newEvent }),
     end_ms: preview.span.endMs,
     id: `ghost:${preview.eventId ?? "new"}`,
     start_ms: preview.span.startMs,

@@ -12,7 +12,7 @@ import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSumma
 import type { Notice } from "../../bridge/generated/Notice";
 import type { MessagesPage, SessionPage } from "../../bridge/reads";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
-import { AssistantCopy } from "../../i18n/AssistantCopy";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { AssistantSessions } from "./AssistantSessions";
 import AssistantView from "./AssistantView";
@@ -158,7 +158,7 @@ export function renderAssistant(
   const tree = (current: AppSnapshot): ReactNode => (
     <ShellSlots>
       <Hosts />
-      <AssistantCopy name={conversationAgentName(current)}>
+      <CopyProvider name={conversationAgentName(current)}>
         <AssistantView
           agent={agent}
           error={null}
@@ -170,7 +170,7 @@ export function renderAssistant(
         {options.column !== false && (
           <AssistantSessions read={readSessions} send={send} snapshot={current} />
         )}
-      </AssistantCopy>
+      </CopyProvider>
     </ShellSlots>
   );
   const view = render(tree(snapshot));

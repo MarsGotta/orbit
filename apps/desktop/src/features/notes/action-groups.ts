@@ -1,5 +1,5 @@
+import { getCopy } from "../../i18n";
 import type { NoteActionSnapshot } from "../../bridge/generated/NoteActionSnapshot";
-import { es } from "../../i18n/es";
 
 export interface ActionGroup {
   key: string;
@@ -25,7 +25,11 @@ export function groupActions(actions: NoteActionSnapshot[], ownerName: string): 
       groups.set(key, {
         key,
         label:
-          key === "" ? es.noteScreen.unassigned : key === "\u0000mine" ? es.noteScreen.you : owner,
+          key === ""
+            ? getCopy().noteScreen.unassigned
+            : key === "\u0000mine"
+              ? getCopy().noteScreen.you
+              : owner,
         mine: key === "\u0000mine",
         items: [],
       });

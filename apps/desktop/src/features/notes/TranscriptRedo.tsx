@@ -1,3 +1,5 @@
+import { getCopy, lookupCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
 import { TranscriptionModelChoice } from "../settings/TranscriptionModelChoice";
 import { useEffect, useState } from "react";
@@ -7,7 +9,7 @@ import { Button } from "../../design/Button";
 import { ConfirmCard } from "../../design/ConfirmCard";
 import { Icon } from "../../design/Icon";
 import { ProgressCard } from "../../design/ProgressCard";
-import { es } from "../../i18n/es";
+
 import { meetingDictionaries, nameOf, takesLists } from "./dictionary-choice";
 import { formatLength } from "./notes-format";
 import { sent, type Send } from "./send";
@@ -54,9 +56,11 @@ export function useRetranscribe(note: OpenNoteSnapshot, send: Send) {
 function question(note: OpenNoteSnapshot, library: NoteLibrarySnapshot | null | undefined) {
   const language = note.transcript.language;
   const names = (meetingDictionaries(note) ?? []).map((id) => nameOf(library, id));
-  return es.notes.retranscribeBody(
+  return getCopy().notes.retranscribeBody(
     formatLength(note.ended_at_ms - note.started_at_ms),
-    language === null ? null : (es.notes.languagesInSentence[language] ?? language),
+    language === null
+      ? null
+      : (lookupCopy(getCopy().notes.languagesInSentence, language) ?? language),
     names,
   );
 }
@@ -77,6 +81,7 @@ export function RedoTranscriptButton({
   phase: RedoPhase;
   onConfirm: (model?: TranscriptionModel) => void;
 }) {
+  const es = useCopy();
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [asking, setAsking] = useState(false);
   const previous = note.transcript.final_pass?.model;
@@ -128,7 +133,9 @@ function measured(note: OpenNoteSnapshot) {
   return {
     percent: progress.total_ms > 0 ? (progress.done_ms / progress.total_ms) * 100 : undefined,
     remaining:
-      progress.remaining_ms === undefined ? undefined : es.notes.remaining(progress.remaining_ms),
+      progress.remaining_ms === undefined
+        ? undefined
+        : getCopy().notes.remaining(progress.remaining_ms),
   };
 }
 
@@ -137,17 +144,15 @@ function measured(note: OpenNoteSnapshot) {
  * «Rehacer resumen», or why it failed, the earlier transcript kept; and, in
  * a quiet line, the spans where it kept the live draft, which was better.
  */
-export function RedoStatus({
-  note,
-  phase,
-  onClose,
-  onRedoSummary,
-}: {
+interface RedoStatusProps {
   note: OpenNoteSnapshot;
   phase: RedoPhase;
   onClose: () => void;
   onRedoSummary: () => void;
-}) {
+}
+
+export function RedoStatus({ note, phase, onClose, onRedoSummary }: RedoStatusProps) {
+  const es = useCopy();
   const pass = note.transcript.final_pass;
   const unmatched = note.transcript.unmatched_speaker_names ?? 0;
   const kept = pass?.state === "completed" ? (pass.kept_draft?.spans ?? 0) : 0;
@@ -199,5 +204,9 @@ export function RedoStatus({
 }
 
 function failureLine(pass: OpenNoteSnapshot["transcript"]["final_pass"]) {
-  return es.notes.finalPassFailed(pass?.error ?? null, pass?.timeout_ms, pass?.provider_status);
+  return getCopy().notes.finalPassFailed(
+    pass?.error ?? null,
+    pass?.timeout_ms,
+    pass?.provider_status,
+  );
 }

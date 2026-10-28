@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
@@ -5,8 +7,7 @@ import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Spinner } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+
 import { MeetingMenu } from "./MeetingMenu";
 import { isRecording } from "./note-progress";
 import { NoteSettingsMenu } from "./NoteSettingsMenu";
@@ -23,6 +24,7 @@ import styles from "./Note.module.css";
  * does not have whole yet cannot be renamed, and says so.
  */
 function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   const [title, setTitle] = useState(note.title);
   const sentTitle = useRef(note.title);
   useEffect(() => {
@@ -56,7 +58,7 @@ function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
           value={title}
         />
       </h1>
-      {notOnHub && <p className={styles.dataLine}>{notOnHub}</p>}
+      {notOnHub !== undefined && <p className={styles.dataLine}>{notOnHub}</p>}
     </>
   );
 }
@@ -65,9 +67,9 @@ function NoteTitle({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
 function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
   const day =
     row?.group === "today"
-      ? es.notes.today
+      ? getCopy().notes.today
       : row?.group === "yesterday"
-        ? es.notes.yesterday
+        ? getCopy().notes.yesterday
         : formatDay(note.started_at_ms);
   const parts = [
     day,
@@ -77,8 +79,8 @@ function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
   const others = (note.event?.attendees ?? [])
     .filter((guest) => !guest.is_self)
     .map((guest) => (guest.name || guest.email).split(/\s+/)[0] ?? guest.email);
-  if (others.length > 0) parts.push(es.noteScreen.withPeople(others));
-  if (note.recorded_on) parts.push(es.notes.recordedOn(note.recorded_on.name));
+  if (others.length > 0) parts.push(getCopy().noteScreen.withPeople(others));
+  if (note.recorded_on) parts.push(getCopy().notes.recordedOn(note.recorded_on.name));
   return parts.join(" · ");
 }
 
@@ -99,7 +101,8 @@ export function NoteHeader({
   row?: NoteListItem;
   send: Send;
 }) {
-  const copy = useSpanish();
+  const es = useCopy();
+  const copy = useCopy();
   // While recording there is no note to write again yet: the control stays
   // in place, disabled, and says why.
   const blocked = isRecording(note.progress) ? es.noteScreen.whileRecording : undefined;
@@ -138,6 +141,7 @@ export function NoteHeader({
  * again; and what this Mac changed that the hub has not taken yet.
  */
 function HeadStatus({ note, template }: { note: OpenNoteSnapshot; template: string | null }) {
+  const es = useCopy();
   const again = note.transcript.retranscribing;
   return (
     <>

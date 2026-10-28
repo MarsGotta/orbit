@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatPending } from "../../bridge/generated/ChatPending";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import { useHeldChoice } from "../../state/use-held-choice";
 import styles from "./AssistantView.module.css";
 
@@ -81,6 +82,7 @@ function ReplyForm({
   onReply: () => void;
   ready: boolean;
 }) {
+  const es = useCopy();
   return (
     <form
       className={styles.reply}
@@ -109,6 +111,7 @@ export function Clarify({
   pending: Extract<ChatPending, { kind: "clarify" }>;
   send: Send;
 }) {
+  const es = useCopy();
   const [answer, setAnswer] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   // One question at a time: the hub removes each once answered.

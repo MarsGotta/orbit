@@ -1,9 +1,10 @@
+import { getCopy } from "../../i18n";
 import { type EditorView, WidgetType } from "@codemirror/view";
-import { es } from "../../i18n/es";
 
 /** What the formatted view draws in place of Markdown: a task's box, a bullet, a rule. */
 
 export class TaskBox extends WidgetType {
+  readonly label = getCopy().editor.markTask;
   constructor(
     readonly checked: boolean,
     /** Where its `[ ]` starts, which a press turns into `[x]` and back. */
@@ -12,14 +13,14 @@ export class TaskBox extends WidgetType {
     super();
   }
   eq(other: TaskBox): boolean {
-    return other.checked === this.checked && other.at === this.at;
+    return other.checked === this.checked && other.at === this.at && other.label === this.label;
   }
   toDOM(view: EditorView): HTMLElement {
     const box = document.createElement("span");
     box.className = "cm-md-taskbox";
     box.setAttribute("role", "checkbox");
     box.setAttribute("aria-checked", String(this.checked));
-    box.setAttribute("aria-label", es.editor.markTask);
+    box.setAttribute("aria-label", this.label);
     box.dataset.checked = String(this.checked);
     box.addEventListener("mousedown", (event) => {
       // The press toggles the task without moving the cursor into its line.

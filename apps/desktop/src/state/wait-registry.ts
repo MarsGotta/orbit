@@ -1,7 +1,8 @@
+import { getCopy } from "../i18n";
 import type { FeatureId, FrameRevision } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { newOp, type Context, type ErrorOrigin } from "../app/interceptor";
-import { waits } from "../i18n/es/waits";
+
 import {
   callCeilingMs,
   FIRST_STATE_CEILING_MS,
@@ -23,7 +24,7 @@ export class WaitExceeded extends Error {
     readonly ceilingMs: number,
     op: string,
   ) {
-    super(waits.exceeded(ceilingMs, op.slice(0, 6).toUpperCase()));
+    super(getCopy().extras.waits.exceeded(ceilingMs, op.slice(0, 6).toUpperCase()));
   }
 }
 

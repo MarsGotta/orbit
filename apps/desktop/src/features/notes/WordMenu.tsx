@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
@@ -6,7 +7,7 @@ import { Icon } from "../../design/Icon";
 import { EditMenu } from "../../design/EditMenu";
 import { Field } from "../../design/Field";
 import { MultiSelect } from "../../design/MultiSelect";
-import { es } from "../../i18n/es";
+
 import {
   chosen,
   correctionOrder,
@@ -134,6 +135,7 @@ function useCorrection(props: WordMenuProps, correct: string, choice: Choice) {
  * correction or says why not.
  */
 export function WordMenu(props: WordMenuProps) {
+  const es = useCopy();
   const { wrong, anchor, note, library, onClose } = props;
   const [correct, setCorrect] = useState(wrong);
   const choice = useDictionaries(note, library);
@@ -179,6 +181,7 @@ export function WordMenu(props: WordMenuProps) {
  * form is said, and the hub has no correction for one place alone.
  */
 function EveryPlace({ times }: { times: number }) {
+  const es = useCopy();
   return (
     <span aria-checked="true" aria-disabled="true" className={styles.every} role="checkbox">
       <span aria-hidden="true" className={styles.everyBox}>
@@ -197,6 +200,7 @@ function DictionaryChoice({
   choice: Choice;
   library: WordMenuProps["library"];
 }) {
+  const es = useCopy();
   return (
     <>
       <MultiSelect

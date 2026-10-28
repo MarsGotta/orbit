@@ -1,5 +1,7 @@
+import { numberFormat } from "../locale";
+import { getLocale } from "../locale";
 /** Thousands with a dot, as Spanish writes them: 16.384. */
-const number = (value: number) => value.toLocaleString("es-ES");
+const number = (value: number) => value.toLocaleString(getLocale());
 
 /** Ajustes' lists: the assistant's folders and what a detected call does. */
 export const settingsLists = {
@@ -8,7 +10,8 @@ export const settingsLists = {
   folders: {
     section: "Carpetas que pueden leer",
     help: "Las mismas para todos tus asistentes. Pueden leer estos archivos, nunca cambiarlos.",
-    count: (count: number, max: number) => `${count} de ${max}`,
+    count: (count: number, max: number) =>
+      `${numberFormat().format(count)} de ${numberFormat().format(max)}`,
     add: "Añadir carpeta",
     opening: "Abriendo…",
     remove: (name: string) => `Quitar ${name}`,
@@ -17,7 +20,8 @@ export const settingsLists = {
     accessible: "Se puede leer",
     unknown: "Comprobando…",
     unreadable: "No se pudieron leer las carpetas guardadas.",
-    full: (max: number) => `${max} carpetas como máximo. Quita una para añadir otra.`,
+    full: (max: number) =>
+      `${numberFormat().format(max)} carpetas como máximo. Quita una para añadir otra.`,
     notReady: "Orbit todavía está arrancando",
     readdHint: "Quítala y vuelve a añadirla.",
     missing: "No se encuentra: se borró o su disco no está conectado.",

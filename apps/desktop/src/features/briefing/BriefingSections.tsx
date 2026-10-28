@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
 import type { CalendarReadingBlocker } from "../../bridge/generated/CalendarReadingBlocker";
 import { TextLink } from "../../design/TextLink";
-import { es } from "../../i18n/es";
+
 import { AgendaRows } from "./AgendaRows";
 import { DayTimeline } from "./DayTimeline";
 import styles from "./BriefingView.module.css";
@@ -45,6 +46,7 @@ export function briefingAgendaStatus(snapshot: AppSnapshot): AgendaStatus {
 
 /** «Agenda de hoy»: the day from 8:00 to 20:00 and its meetings. */
 export function BriefingSections({ briefing, snapshot, nowMs = Date.now() }: Props) {
+  const es = useCopy();
   const timezone = snapshot.system_timezone ?? "UTC";
   const meeting = snapshot.meeting as AppSnapshot["meeting"] | undefined;
   // While a meeting records, the card above holds the day's moment: the

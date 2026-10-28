@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AiProvider } from "../../bridge/generated/AiProvider";
 import { Button } from "../../design/Button";
 import { Field } from "../../design/Field";
-import { aiCopy as copy } from "../../i18n/es/ai";
+
 import {
   MAX_AI_PROVIDER_NAME_CHARS,
   MAX_AI_PROVIDER_URL_CHARS,
@@ -44,6 +45,7 @@ function useProviderForm({ view, existing, onClose }: Props) {
 type Form = ReturnType<typeof useProviderForm>;
 
 function EndpointFields({ form, busy }: { form: Form; busy: boolean }) {
+  const copy = useCopy().extras.aiCopy;
   return (
     <>
       <Field
@@ -66,6 +68,7 @@ function EndpointFields({ form, busy }: { form: Form; busy: boolean }) {
 }
 
 export function AIProviderEditor(props: Props) {
+  const copy = useCopy().extras.aiCopy;
   const { view, existing, onClose } = props;
   const form = useProviderForm(props);
   const { name, url, key, setKey, kind, setKind, save } = form;

@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import type { ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { Icon } from "./Icon";
 import { useRequested, type CheckedChange } from "./requested";
 import styles from "./Checkbox.module.css";
@@ -18,6 +19,7 @@ export interface CheckboxProps {
  * back by itself; only a refusal puts back what the hub has.
  */
 export function Checkbox({ checked, children, disabled, onCheckedChange }: CheckboxProps) {
+  const es = useCopy();
   const { requested, waiting, request } = useRequested(checked, onCheckedChange);
   const shown = requested ?? checked;
   return (

@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { BriefingReminder } from "../../bridge/generated/BriefingReminder";
 import { Field } from "../../design/Field";
-import { es } from "../../i18n/es";
+
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";
 
@@ -158,6 +159,7 @@ function useHubCopy(
  * its cause, and stays on screen.
  */
 export function PersonalReminder({ calendarItemId, seriesKey, ...hub }: Props) {
+  const es = useCopy();
   const place = { calendarItemId, seriesKey };
   const [draft, setDraft] = useState(() => readReminder(place));
   const [saved, setSaved] = useState(false);

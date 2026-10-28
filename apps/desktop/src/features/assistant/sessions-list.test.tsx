@@ -6,7 +6,7 @@ import type { Agent } from "../../bridge/generated/Agent";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import type { SessionPage } from "../../bridge/reads";
-import { AssistantCopy } from "../../i18n/AssistantCopy";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
@@ -105,9 +105,9 @@ function list(
   render(
     <ShellSlots>
       <ColumnHost />
-      <AssistantCopy name={conversationAgentName(snap)}>
+      <CopyProvider name={conversationAgentName(snap)}>
         <AssistantSessions read={read} send={(command) => sent.push(command)} snapshot={snap} />
-      </AssistantCopy>
+      </CopyProvider>
     </ShellSlots>,
   );
   return { sent };

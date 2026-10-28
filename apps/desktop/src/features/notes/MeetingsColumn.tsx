@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
@@ -7,10 +8,10 @@ import { Icon } from "../../design/Icon";
 import { Loading, Spinner } from "../../design/Spinner";
 import { Skeleton } from "../../design/Skeleton";
 import { ListColumn } from "../../app/shell-slots";
-import { es } from "../../i18n/es";
+
 import type { AppView } from "../../state/app-view";
 import { noteRowState } from "./note-row";
-import { DAY_GROUPS, groupFor, rowTime } from "./notes-format";
+import { dayGroups, groupFor, rowTime } from "./notes-format";
 import { openMeeting, routeRecordingId } from "./note-route";
 import { sent } from "./send";
 import styles from "./MeetingsColumn.module.css";
@@ -18,6 +19,7 @@ import styles from "./MeetingsColumn.module.css";
 type Send = (command: AppCommand) => Promise<unknown>;
 
 function Row({ note, open, send }: { note: NoteListItem; open: boolean; send: Send }) {
+  const es = useCopy();
   const line = noteRowState(note);
   return (
     <a
@@ -53,6 +55,7 @@ function Row({ note, open, send }: { note: NoteListItem; open: boolean; send: Se
 
 /** «Leyendo tus reuniones del hub…» with rows in the shape of what is coming. */
 function ListLoading() {
+  const es = useCopy();
   return (
     <div aria-busy="true" className={styles.loading}>
       <Loading size={12}>{es.notes.loadingIndex}</Loading>
@@ -67,6 +70,7 @@ function ListLoading() {
 }
 
 function IndexMessage({ notes, send }: { notes: NotesSnapshot; send: Send }) {
+  const es = useCopy();
   const index = notes.index;
   if (notes.list.length > 0) return null;
   if (index === undefined || index.state === "loading") return <ListLoading />;
@@ -91,6 +95,7 @@ function IndexMessage({ notes, send }: { notes: NotesSnapshot; send: Send }) {
 }
 
 function RefreshButton({ send }: { send: Send }) {
+  const es = useCopy();
   const { feedback, track } = useFeedback();
   const pending = feedback === "pending";
   return (
@@ -110,6 +115,7 @@ function RefreshButton({ send }: { send: Send }) {
 }
 
 function MoreButton({ send }: { send: Send }) {
+  const es = useCopy();
   const { feedback, track } = useFeedback();
   const pending = feedback === "pending";
   return (
@@ -140,6 +146,7 @@ function MoreButton({ send }: { send: Send }) {
  * meetings) when it has more.
  */
 export function MeetingsColumn({ send, snapshot }: { send: Send; snapshot: AppView }) {
+  const es = useCopy();
   const notes = snapshot.notes ?? { list: [], open: null };
   const routed = routeRecordingId();
   const openId = routed !== "" ? routed : (notes.open?.recording_id ?? "");
@@ -150,7 +157,7 @@ export function MeetingsColumn({ send, snapshot }: { send: Send; snapshot: AppVi
       title={es.notes.section}
     >
       <IndexMessage notes={notes} send={send} />
-      {DAY_GROUPS.map(([group, label]) => {
+      {dayGroups().map(([group, label]) => {
         const rows = notes.list.filter((note) => groupFor(note) === group);
         if (rows.length === 0) return null;
         return (

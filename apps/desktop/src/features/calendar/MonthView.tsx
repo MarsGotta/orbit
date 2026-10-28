@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { type CSSProperties, useState } from "react";
-import { es } from "../../i18n/es";
+
 import {
   civil,
   dayHeading,
@@ -57,6 +58,7 @@ export function usePickedDay(range: Range, nowMs: number, timezone: string) {
 
 /** Five or six weeks; each day with up to three events, then «N más». */
 export function MonthView(props: MonthViewProps) {
+  const es = useCopy();
   const days = rangeDays(props.range, props.timezone);
   const weeks = Array.from({ length: Math.ceil(days.length / 7) }, (_, index) =>
     days.slice(index * 7, index * 7 + 7).filter((day) => props.showWeekends || !isWeekend(day)),
@@ -117,6 +119,7 @@ interface MonthCellProps extends MonthViewProps {
 }
 
 function MonthCell(props: MonthCellProps) {
+  const es = useCopy();
   const overflow = props.events.length > props.rows;
   const shown = props.events.slice(0, props.rows);
   const number = civil(props.day).date;

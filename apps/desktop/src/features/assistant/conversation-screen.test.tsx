@@ -6,7 +6,7 @@ import type { Agent } from "../../bridge/generated/Agent";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { Notice } from "../../bridge/generated/Notice";
 import type { MessagesPage } from "../../bridge/reads";
-import { AssistantCopy } from "../../i18n/AssistantCopy";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import AssistantView from "./AssistantView";
 import { conversationAgentName } from "./agents";
@@ -71,14 +71,14 @@ function show(
 ) {
   const sent: AppCommand[] = [];
   const view = (current: AppSnapshot) => (
-    <AssistantCopy name={conversationAgentName(current)}>
+    <CopyProvider name={conversationAgentName(current)}>
       <AssistantView
         error={null}
         readMessages={read}
         send={(command) => sent.push(command)}
         snapshot={current}
       />
-    </AssistantCopy>
+    </CopyProvider>
   );
   const rendered = render(view(snap));
   return { sent, rerender: (next: AppSnapshot) => rendered.rerender(view(next)) };

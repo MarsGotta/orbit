@@ -22,6 +22,7 @@ export const commandFeature = {
   "error_reports": "status",
   "handover": "assistant",
   "interrupt": "assistant",
+  "language_set": "status",
   "login_item": "local",
   "meeting_ask": "recording",
   "meeting_delete": "note",

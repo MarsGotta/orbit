@@ -197,6 +197,7 @@ fn initial_settings(permissions: PermissionSnapshot) -> SettingsSnapshot {
         onboarding_done: false,
         profile: Some(ProfileSettingsSnapshot { name: None }),
         error_reports: None,
+        language: None,
     }
 }
 

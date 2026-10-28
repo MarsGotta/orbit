@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { DaemonPort } from "../../bridge/port";
 import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { assistantsCopy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AssistantComposer } from "./AssistantComposer";
@@ -86,6 +87,7 @@ export function useWith(
 
 /** «Hablar con [Deimos]» above the box while the assistant is being chosen. */
 function TalkingTo({ agent, agents }: { agent: Agent; agents: readonly Agent[] }) {
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   return (
     <p className={styles.talkingTo}>
       <span>{assistantsCopy.talkingTo}</span>

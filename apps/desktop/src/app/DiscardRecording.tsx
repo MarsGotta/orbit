@@ -1,9 +1,10 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
 import { Button } from "../design/Button";
 import { useFeedback } from "../design/feedback";
-import { es } from "../i18n/es";
+
 import styles from "./DiscardRecording.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -28,6 +29,7 @@ export function useDiscardQuestion(meeting: MeetingSnapshot) {
 
 /** The quiet button under the card's own controls. */
 export function DiscardButton({ onAsk }: { onAsk: () => void }) {
+  const es = useCopy();
   return (
     <Button className={styles.ask} onClick={onAsk} size={28} variant="ghost">
       {es.discard.action}
@@ -48,6 +50,7 @@ export function DiscardQuestion({
   recordingId: string;
   send: Send;
 }) {
+  const es = useCopy();
   const confirm = useFeedback();
   return (
     <div aria-label={es.discard.question} className={styles.question} role="group">

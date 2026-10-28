@@ -1,15 +1,15 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { noticesForAssistant } from "../../i18n/es/notices";
-import { waits } from "../../i18n/es/waits";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import styles from "./AssistantView.module.css";
 
 type Send = (command: AppCommand) => unknown;
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 // The notices that say a turn ended without its answer, and why.
 const TURN_FAILURES = new Set([
@@ -40,7 +40,7 @@ export function turnFailure(
   if (chat.turn.some((message) => message.role === "assistant")) return null;
   if (messages.at(-1)?.id !== question.id) return null;
   if (!notice || !TURN_FAILURES.has(notice.code)) return null;
-  const entry = noticesForAssistant(es.chat.roles.assistant)[notice.code];
+  const entry = getCopy().extras.noticesForAssistant(es.chat.roles.assistant)[notice.code];
   const text = "text" in entry ? entry.text?.(notice.data ?? {}) : undefined;
   return text ?? es.assistant.turnFailed;
 }
@@ -59,7 +59,7 @@ export function ActivityLine({
   activity: AppSnapshot["chat"]["activity"];
   pending?: AppSnapshot["chat"]["pending"];
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   if (!activity) return null;
   const labels = {
     transcribing: es.assistant.transcribingVoice,
@@ -86,6 +86,7 @@ export function ActivityLine({
 
 /** The shape of a conversation while its page comes from the hub, and what it reads. */
 export function ThreadSkeleton() {
+  const waits = useCopy().extras.waits;
   return (
     <div className={styles.threadSkeleton}>
       <span className={styles.visuallyHidden} role="status">
@@ -113,7 +114,7 @@ export function TurnFailure({
   retry: string | null;
   send: Send;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div className={styles.failure} role="alert">
       <p>{text}</p>

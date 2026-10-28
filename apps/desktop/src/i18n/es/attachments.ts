@@ -1,10 +1,11 @@
+import { numberFormat } from "../locale";
 import type { Refusal } from "../../bridge/refusal";
 import { fields } from "./refusalDetails";
 
 const KIB = 1024;
 const MIB = 1024 * KIB;
 const GIB = 1024 * MIB;
-const decimals = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
+const decimals = numberFormat({ maximumFractionDigits: 1 });
 
 /**
  * A size as the person reads it: «512 B», «1,5 KB», «20 MB», «82,3 GB». In
@@ -12,7 +13,7 @@ const decimals = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
  * round number.
  */
 export function fileSize(bytes: number): string {
-  if (bytes < KIB) return `${bytes} B`;
+  if (bytes < KIB) return `${numberFormat().format(bytes)} B`;
   if (bytes < MIB) return `${decimals.format(bytes / KIB)} KB`;
   if (bytes < GIB) return `${decimals.format(bytes / MIB)} MB`;
   return `${decimals.format(bytes / GIB)} GB`;
@@ -59,7 +60,10 @@ function tooLarge(cause: Record<string, unknown>): string {
     return `${capitalised(quoted(cause.name))} ocupa ${size(cause.bytes)} y el máximo por fichero es ${max}.`;
   if (cause.ceiling === "session")
     return sessionCeilingText(cause.session_bytes, cause.bytes, cause.max_bytes);
-  const files = typeof cause.files === "number" ? `Los ${cause.files} adjuntos` : "Los adjuntos";
+  const files =
+    typeof cause.files === "number"
+      ? `Los ${numberFormat().format(cause.files)} adjuntos`
+      : "Los adjuntos";
   return `${files} de este mensaje ocupan ${size(cause.bytes)} y el máximo por mensaje es ${max}.`;
 }
 
@@ -86,7 +90,10 @@ function unreadable(cause: Record<string, unknown>): string {
 
 function refusedByAgent(cause: Record<string, unknown>): string {
   const name = typeof cause.name === "string" ? ` «${cause.name}»` : "";
-  const code = typeof cause.upstream_code === "number" ? ` (código ${cause.upstream_code})` : "";
+  const code =
+    typeof cause.upstream_code === "number"
+      ? ` (código ${numberFormat().format(cause.upstream_code)})`
+      : "";
   return `El agente no aceptó la imagen${name}${code}.`;
 }
 
@@ -140,7 +147,8 @@ export const attachmentsCopy = {
       WINDOW_TEXT_MISSING[cause] ??
       `No se pudo leer su texto (causa ${cause}); va solo la captura.`,
     windowTextRefused: (reason: string) => `Su texto no se adjuntó: ${reason}`,
-    pages: (pages: number) => (pages === 1 ? "1 página" : `${pages} páginas`),
+    pages: (pages: number) =>
+      pages === 1 ? "1 página" : `${numberFormat().format(pages)} páginas`,
     view: "Ver",
     viewImage: (name: string) => `Ver ${name}`,
     open: "Abrir",
@@ -158,6 +166,7 @@ export const attachmentsCopy = {
     image: "Imagen",
     pdf: "PDF",
     file: "Archivo",
-    position: (index: number, total: number) => `${index} de ${total}`,
+    position: (index: number, total: number) =>
+      `${numberFormat().format(index)} de ${numberFormat().format(total)}`,
   },
 } as const;

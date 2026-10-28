@@ -1,6 +1,7 @@
+import { getCopy } from "../../i18n";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { CSSProperties } from "react";
-import { es } from "../../i18n/es";
+
 import { DAY_MS, dayOf } from "./date";
 
 /** What the view adds to an event it draws: a write on its way,
@@ -144,8 +145,8 @@ export function responseLabel(
   event: CalendarEvent,
 ): { kind: "tentative" | "unanswered"; label: string } | undefined {
   if (event.self_response === "tentative")
-    return { kind: "tentative", label: es.calendar.selfResponse.tentative };
+    return { kind: "tentative", label: getCopy().calendar.selfResponse.tentative };
   if (event.self_response === "needs_action")
-    return { kind: "unanswered", label: es.calendar.selfResponse.needs_action };
+    return { kind: "unanswered", label: getCopy().calendar.selfResponse.needs_action };
   return undefined;
 }

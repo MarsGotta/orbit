@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { COLORS, typeLabel } from "./type-colors";
 import { MapNode } from "./MapNode";
 import { useState } from "react";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";
 
@@ -95,6 +96,7 @@ function Graph({
 }
 
 export function VaultMap({ notes }: { notes: VaultMeta[] }) {
+  const copy = useCopy().extras.vaultCopy;
   const [excluded, setExcluded] = useState<string[]>([]);
   const types = [...new Set(notes.map((note) => note.type))];
   const [selected, select] = useState("");

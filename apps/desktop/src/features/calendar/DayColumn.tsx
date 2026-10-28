@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useMemo } from "react";
-import { es } from "../../i18n/es";
+
 import { dayOf, timeLabel } from "./date";
 import { EventCard } from "./EventCard";
 import { type CalendarEvent, eventLook, toneOf } from "./eventLook";
@@ -112,14 +113,20 @@ export function DayColumn(props: DayColumnProps) {
       {(props.ghosts ?? []).map((segment) =>
         card(segment, { ...GHOST_PLACE, id: segment.event.id }),
       )}
-      {props.isToday && props.nowMinutes !== null && (
-        <div
-          aria-label={`${es.calendar.now}, ${timeLabel(props.nowMs, props.timezone)}`}
-          className={styles.nowLine}
-          role="img"
-          style={{ top: (props.nowMinutes / 60) * props.hourPx }}
-        />
-      )}
+      <NowLine {...props} />
     </div>
+  );
+}
+
+function NowLine(props: DayColumnProps) {
+  const es = useCopy();
+  if (!props.isToday || props.nowMinutes === null) return null;
+  return (
+    <div
+      aria-label={`${es.calendar.now}, ${timeLabel(props.nowMs, props.timezone)}`}
+      className={styles.nowLine}
+      role="img"
+      style={{ top: (props.nowMinutes / 60) * props.hourPx }}
+    />
   );
 }

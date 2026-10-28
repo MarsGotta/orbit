@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Icon } from "../design/Icon";
 import { useModalFocus } from "../design/use-modal-focus";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import { matchCommands, paletteGroups, type PaletteCommand } from "./palette-commands";
 import { AskRow, CommandRow } from "./PaletteRows";
 import styles from "./Palette.module.css";
@@ -87,7 +87,7 @@ function usePaletteState({ commands, onAsk, onOpenChange }: PaletteProps) {
 }
 
 function OpenPalette(props: PaletteProps) {
-  const copy = useSpanish().palette;
+  const copy = useCopy().palette;
   const state = usePaletteState(props);
   const panel = useModalFocus(true);
   const ids = useId();
@@ -150,7 +150,7 @@ function PaletteList(props: {
   optionId: (index: number) => string;
   state: ReturnType<typeof usePaletteState>;
 }) {
-  const copy = useSpanish().palette;
+  const copy = useCopy().palette;
   const { rows, current, choose, setSelected } = props.state;
   const option = (row: Row, index: number): ReactNode => (
     <button

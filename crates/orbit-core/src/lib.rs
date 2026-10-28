@@ -19,6 +19,7 @@ pub mod computer_control;
 pub mod device_bridge;
 pub mod failure;
 pub mod hub_storage;
+pub mod language;
 pub mod limits;
 pub mod meeting_audio;
 pub mod meeting_question;

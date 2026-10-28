@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
-import { es } from "../../i18n/es";
+
 import type { MenuRow } from "./menus";
 import styles from "./MarkdownEditor.module.css";
 
@@ -64,6 +65,7 @@ export function EditorMenu({
   rows: MenuRow[];
   title: string;
 }) {
+  const es = useCopy();
   const id = useId();
   return (
     <div className={styles.menu} style={{ top: place.bottom + 6 }}>

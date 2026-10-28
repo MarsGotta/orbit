@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 import type { FeatureId } from "../../bridge/generated";
 
 /** What a feature is called when its first state does not arrive. */
@@ -23,7 +24,7 @@ function seconds(ms: number): number {
 export const waits = {
   readingConversation: "Leyendo la conversación…",
   exceeded: (ceilingMs: number, code: string) =>
-    `No se pudo completar a tiempo: Orbit no contestó en ${seconds(ceilingMs)} s. Vuelve a intentarlo. Si se repite, comparte el código ${code} con quien gestiona tu hub.`,
+    `No se pudo completar a tiempo: Orbit no contestó en ${numberFormat().format(seconds(ceilingMs))} s. Vuelve a intentarlo. Si se repite, comparte el código ${code} con quien gestiona tu hub.`,
   firstState: (feature: FeatureId, ceilingMs: number) =>
-    `No se pudo leer ${featureNames[feature]} en ${seconds(ceilingMs)} s. Cierra Orbit y vuelve a abrirlo.`,
+    `No se pudo leer ${featureNames[feature]} en ${numberFormat().format(seconds(ceilingMs))} s. Cierra Orbit y vuelve a abrirlo.`,
 };

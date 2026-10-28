@@ -1,3 +1,4 @@
+import { dateTime, getLocale } from "../../i18n/locale";
 import { isoWeekForDay } from "../../local-time";
 
 export const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -50,7 +51,7 @@ export function rangeDays(range: { days: number; start_ms: number }, timezone: s
 
 /** «Octubre 2026». */
 export function monthTitle(day: number): string {
-  const value = new Intl.DateTimeFormat("es-ES", {
+  const value = dateTime({
     month: "long",
     timeZone: "UTC",
     year: "numeric",
@@ -65,7 +66,7 @@ export function weekNumber(day: number): number {
 
 /** «lun» and «14» for a day header. */
 export function dayHeading(day: number): { name: string; number: number } {
-  const name = new Intl.DateTimeFormat("es-ES", { timeZone: "UTC", weekday: "short" })
+  const name = dateTime({ timeZone: "UTC", weekday: "short" })
     .format(day * DAY_MS)
     .replace(".", "");
   return { name, number: civil(day).date };
@@ -73,14 +74,14 @@ export function dayHeading(day: number): { name: string; number: number } {
 
 /** «14 oct». */
 export function shortDate(day: number): { month: string; number: number } {
-  const month = new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" })
+  const month = dateTime({ month: "short", timeZone: "UTC" })
     .format(day * DAY_MS)
     .replace(".", "");
   return { month, number: civil(day).date };
 }
 
 function format(day: number, options: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat("es-ES", { ...options, timeZone: "UTC" })
+  return dateTime({ ...options, timeZone: "UTC" })
     .format(day * DAY_MS)
     .replace(".", "");
 }
@@ -94,12 +95,12 @@ export function weekdayName(day: number): string {
 
 /** «21 de octubre». */
 export function dayAndMonth(day: number): string {
-  return `${civil(day).date} de ${format(day, { month: "long" })}`;
+  return format(day, { day: "numeric", month: "long" });
 }
 
 /** «miércoles 21 de octubre». */
 export function dayName(day: number): string {
-  return `${weekdayName(day)} ${dayAndMonth(day)}`;
+  return format(day, { weekday: "long", day: "numeric", month: "long" }).replace(",", "");
 }
 
 /** «Miércoles, 21 de octubre». */
@@ -109,12 +110,18 @@ export function longDay(day: number): string {
 
 /** «Mié 21 oct». */
 export function shortDay(day: number): string {
-  const weekday = capitalized(format(day, { weekday: "short" }));
-  return `${weekday} ${civil(day).date} ${shortDate(day).month}`;
+  return capitalized(
+    format(day, { weekday: "short", day: "numeric", month: "short" }).replace(",", ""),
+  );
 }
 
 /** «21 – 23 de octubre», or «30 de octubre – 1 de noviembre» across months. */
 export function dayRange(first: number, last: number): string {
+  if (getLocale() !== "es-ES")
+    return dateTime({ day: "numeric", month: "long", timeZone: "UTC" }).formatRange(
+      first * DAY_MS,
+      last * DAY_MS,
+    );
   if (civil(first).month === civil(last).month)
     return `${civil(first).date} – ${dayAndMonth(last)}`;
   return `${dayAndMonth(first)} – ${dayAndMonth(last)}`;
@@ -219,16 +226,15 @@ export function eventSegments(
     }));
 }
 
-/** «9:00»: 24-hour clock, no leading zero on the hour. */
+/** A wall-clock hour in the chosen locale, independent of the calendar zone. */
 export function hourLabel(hour: number): string {
-  return `${hour}:00`;
+  return dateTime({ hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(hour * 3_600_000);
 }
 
 /** «9:00», «10:45»: the clock the user reads, in the zone the daemon publishes. */
 export function timeLabel(timestamp: number, timezone: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
+  return dateTime({
     hour: "numeric",
-    hourCycle: "h23",
     minute: "2-digit",
     timeZone: timezone,
   }).format(timestamp);

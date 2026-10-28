@@ -1,9 +1,10 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useState } from "react";
 import type { SkillSummary } from "../../../bridge/generated/SkillSummary";
 import { Button } from "../../../design/Button";
 import { Switch } from "../../../design/Switch";
 import styles from "./Agents.module.css";
-import { copy, type OrderProps } from "./parts";
+import { type OrderProps } from "./parts";
 
 type RowProps = Omit<OrderProps, "feedback"> & {
   skill: SkillSummary;
@@ -18,6 +19,7 @@ function DeleteQuestion(props: {
   onDelete: () => void;
   skill: string;
 }) {
+  const copy = useCopy().agents;
   return (
     <div className={styles.confirm} role="alert">
       <span>{copy.deleteQuestion(props.skill)}</span>
@@ -37,6 +39,7 @@ function DeleteQuestion(props: {
  * so there is nothing to undo.
  */
 export function SkillRow({ skill, editable, agentId, busy, order, onOpen }: RowProps) {
+  const copy = useCopy().agents;
   const [deleting, setDeleting] = useState(false);
   return (
     <div className={styles.skill}>

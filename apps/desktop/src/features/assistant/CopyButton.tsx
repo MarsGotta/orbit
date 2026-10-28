@@ -1,7 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import { copyText } from "../../bridge/clipboard";
 import { IconButton } from "../../design/IconButton";
-import { es } from "../../i18n/es";
+
 import styles from "./CopyButton.module.css";
 
 // «✓ Copiado» stays long enough to be read after the click, then the button
@@ -11,7 +13,7 @@ const COPIED_VISIBLE_MS = 1_800;
 type CopyState = { kind: "idle" } | { kind: "copied" } | { kind: "failed"; cause: string };
 
 /** Copies to the clipboard and says how it went: «Copiado», or why not. */
-export function useCopy() {
+export function useClipboardCopy() {
   const [state, setState] = useState<CopyState>({ kind: "idle" });
   useEffect(() => {
     if (state.kind !== "copied") return;
@@ -27,7 +29,7 @@ export function useCopy() {
 }
 
 export function copyStatus(state: CopyState): string | null {
-  if (state.kind === "failed") return es.chatActions.copyFailed(state.cause);
+  if (state.kind === "failed") return getCopy().chatActions.copyFailed(state.cause);
   return null;
 }
 
@@ -38,14 +40,16 @@ export function copyStatus(state: CopyState): string | null {
  */
 export function CopyButton({
   label,
-  tip = es.chatActions.copy,
+  tip,
   text,
 }: {
   label: string;
   tip?: string;
   text: () => string;
 }) {
-  const { copy, state } = useCopy();
+  const es = useCopy();
+  tip ??= es.chatActions.copy;
+  const { copy, state } = useClipboardCopy();
   const failure = copyStatus(state);
   return (
     <>

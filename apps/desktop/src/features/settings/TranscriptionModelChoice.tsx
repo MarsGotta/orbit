@@ -1,5 +1,5 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
-import { transcription as modelCopy } from "../../i18n/es/transcription";
 
 export function TranscriptionModelChoice({
   model,
@@ -8,6 +8,7 @@ export function TranscriptionModelChoice({
   model?: TranscriptionModel;
   onChange: (model?: TranscriptionModel) => void;
 }) {
+  const modelCopy = useCopy().extras.transcription;
   return (
     <>
       <label>

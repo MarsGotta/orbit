@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import styles from "./Shell.module.css";
 
 /**
@@ -99,7 +99,7 @@ export interface Crumb {
 
 /** «Ajustes / Privacidad y permisos»: only where a view has depth. */
 export function Breadcrumbs({ trail }: { trail: Crumb[] }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <nav aria-label={es.shell.breadcrumbsLabel} className={styles.crumbs}>
       <ol>

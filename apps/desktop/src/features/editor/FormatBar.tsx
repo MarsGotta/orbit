@@ -1,7 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { EditorView } from "@codemirror/view";
 import { Icon } from "../../design/Icon";
 import { Tooltip } from "../../design/Tooltip";
-import { es } from "../../i18n/es";
+
 import { toggleWrap } from "./editing";
 import type { EditorAssistant } from "./MarkdownEditor";
 import styles from "./MarkdownEditor.module.css";
@@ -9,13 +11,14 @@ import styles from "./MarkdownEditor.module.css";
 /** How far over the selected line the bar sits: its 38 points and a gap of 8 (prototype). */
 const BAR_ABOVE = 46;
 
-const MARKS = [
-  { glyph: "B", tip: es.editor.bold, open: "**", close: "**", kind: "bold" },
-  { glyph: "I", tip: es.editor.italic, open: "*", close: "*", kind: "italic" },
-  { glyph: "</>", tip: es.editor.inlineCode, open: "`", close: "`", kind: "mono" },
-  { glyph: "[[ ]]", tip: es.editor.linkTo, open: "[[", close: "]]", kind: "mono" },
-  { glyph: "A", tip: es.editor.highlight, open: "==", close: "==", kind: "highlight" },
-] as const;
+const marks = () =>
+  [
+    { glyph: "B", tip: getCopy().editor.bold, open: "**", close: "**", kind: "bold" },
+    { glyph: "I", tip: getCopy().editor.italic, open: "*", close: "*", kind: "italic" },
+    { glyph: "</>", tip: getCopy().editor.inlineCode, open: "`", close: "`", kind: "mono" },
+    { glyph: "[[ ]]", tip: getCopy().editor.linkTo, open: "[[", close: "]]", kind: "mono" },
+    { glyph: "A", tip: getCopy().editor.highlight, open: "==", close: "==", kind: "highlight" },
+  ] as const;
 
 /**
  * The bar over a selection: negrita, cursiva, código, enlazar a una nota,
@@ -33,6 +36,7 @@ export function FormatBar({
   selection: { from: number; to: number };
   view: () => EditorView | null;
 }) {
+  const es = useCopy();
   const onWrap = (open: string, close: string) => {
     const editor = view();
     if (editor) toggleWrap(editor, open, close);
@@ -45,7 +49,7 @@ export function FormatBar({
       role="toolbar"
       style={{ top: place.top - BAR_ABOVE, left: place.left }}
     >
-      {MARKS.map((mark) => (
+      {marks().map((mark) => (
         <Tooltip key={mark.tip} text={mark.tip}>
           <button
             aria-label={mark.tip}

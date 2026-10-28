@@ -1,8 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
-import { es } from "../../i18n/es";
-import { macPermissions } from "../../i18n/es/permissions";
+
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";
 
@@ -18,6 +18,8 @@ export function CalendarAccess({
   authorization: "not_determined" | "denied";
   send: Send;
 }) {
+  const macPermissions = useCopy().extras.macPermissions;
+  const es = useCopy();
   const [asked, setAsked] = useState(false);
   const denied = authorization === "denied";
   const ask = () => {

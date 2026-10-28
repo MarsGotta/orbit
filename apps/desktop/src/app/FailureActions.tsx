@@ -1,14 +1,16 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useCallback, type ReactNode } from "react";
 import { copyText } from "../bridge/clipboard";
 import { Button } from "../design/Button";
 import { useFeedback } from "../design/feedback";
 import { ViewErrorActions } from "../design/ViewError";
-import { es } from "../i18n/es";
-import type { Failure, Message } from "./interceptor";
+
+import { localizeMessage, type Failure, type Message } from "./interceptor";
 import styles from "./FailureActions.module.css";
 
 /** «Copiar el código» → «✓ Copiado»: only the code goes to the clipboard. */
 function CopyCode({ code }: { code: string }) {
+  const es = useCopy();
   const { feedback, track } = useFeedback();
   return (
     <Button
@@ -35,6 +37,7 @@ export function FailureActions({
   onRetry: (op: string) => void;
   op: string;
 }) {
+  const es = useCopy();
   return (
     <span className={styles.actions}>
       {failure.retry && (
@@ -49,6 +52,7 @@ export function FailureActions({
 
 /** What to do and the code, set apart in the help of a generic failure. */
 export function FailureHelp({ code }: { code: string }) {
+  const es = useCopy();
   return (
     <>
       {es.failure.helpBefore}
@@ -68,15 +72,16 @@ export function FailureActionsProvider({
   messages: readonly Message[];
   onRetry: (op: string) => void;
 }) {
+  const copy = useCopy();
   const actions = useCallback(
     (error: string) => {
-      const message = messages.find(
-        (candidate) => candidate.failure !== undefined && candidate.text === error,
-      );
+      const message = messages
+        .map(localizeMessage)
+        .find((candidate) => candidate.failure !== undefined && candidate.text === error);
       if (!message?.failure) return null;
       return <FailureActions failure={message.failure} onRetry={onRetry} op={message.op} />;
     },
-    [messages, onRetry],
+    [messages, onRetry, copy],
   );
   return <ViewErrorActions value={actions}>{children}</ViewErrorActions>;
 }

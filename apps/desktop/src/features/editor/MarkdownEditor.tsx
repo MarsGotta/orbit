@@ -1,7 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { EditorView } from "@codemirror/view";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { Tooltip } from "../../design/Tooltip";
-import { es } from "../../i18n/es";
+
 import { EditorMenu } from "./EditorMenu";
 import type { MenuKeys } from "./editor-keys";
 import { FormatBar } from "./FormatBar";
@@ -56,8 +58,8 @@ const NO_MENU: MenuKeys = { move: () => false, pick: () => false, dismiss: () =>
 
 function limitWords(count: number, refused: boolean, max?: number): string | null {
   if (max === undefined) return null;
-  if (refused || count >= max) return es.editor.atLimit(max);
-  if (max - count <= max * NEAR_LIMIT_SHARE) return es.editor.nearLimit(max - count, max);
+  if (refused || count >= max) return getCopy().editor.atLimit(max);
+  if (max - count <= max * NEAR_LIMIT_SHARE) return getCopy().editor.nearLimit(max - count, max);
   return null;
 }
 
@@ -79,6 +81,7 @@ function EditorBar({
   status: ReactNode;
   toggle: () => void;
 }) {
+  const es = useCopy();
   return (
     <div className={styles.bar} data-quiet={status == null || status === false || undefined}>
       <span aria-live="polite" className={styles.status}>
@@ -103,6 +106,7 @@ function EditorBar({
 }
 
 function HelpLine() {
+  const es = useCopy();
   return (
     <p aria-label={es.editor.helpLabel} className={styles.help}>
       {es.editor.help.map(([keys, what]) => (

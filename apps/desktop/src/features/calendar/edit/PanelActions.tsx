@@ -1,9 +1,11 @@
+import { getCopy } from "../../../i18n";
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useState } from "react";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
 import { Button } from "../../../design/Button";
 import { Popover } from "../../../design/Popover";
 import { Spinner } from "../../../design/Spinner";
-import { es } from "../../../i18n/es";
+
 import { isSeries } from "./commands";
 import { type Editing, isDirty, saveChoices } from "./useEventEditor";
 import styles from "./EventPanel.module.css";
@@ -15,9 +17,9 @@ interface ActionsProps {
 }
 
 function saveLabel(editing: Editing, span: CalendarSpan, choices: number): string {
-  if (editing.event === null) return es.calendar.edit.create;
-  if (choices === 1 && !isSeries(editing.event)) return es.calendar.edit.save;
-  return span === "this" ? es.calendar.edit.saveThis : es.calendar.edit.saveFuture;
+  if (editing.event === null) return getCopy().calendar.edit.create;
+  if (choices === 1 && !isSeries(editing.event)) return getCopy().calendar.edit.save;
+  return span === "this" ? getCopy().calendar.edit.saveThis : getCopy().calendar.edit.saveFuture;
 }
 
 /**
@@ -40,6 +42,7 @@ export function PanelActions({ editing, onDelete, onSave }: ActionsProps) {
 }
 
 function SaveArea({ editing, onSave }: Omit<ActionsProps, "onDelete">) {
+  const es = useCopy();
   const draft = editing.event === null;
   const dirty = isDirty(editing);
   if (editing.saving?.state === "pending")
@@ -89,6 +92,7 @@ function SaveArea({ editing, onSave }: Omit<ActionsProps, "onDelete">) {
 
 /** «Borrar»; in a series it asks which ones inside its own menu. */
 function DeleteButton({ editing, onDelete }: Omit<ActionsProps, "onSave">) {
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   if (editing.event === null || !isSeries(editing.event))
     return (

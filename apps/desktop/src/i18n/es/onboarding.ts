@@ -1,11 +1,13 @@
+import { numberFormat } from "../locale";
 import { listOf } from "./notes";
 import { macPermissions } from "./permissions";
 import { globalShortcuts } from "./shortcuts";
 
 const base = {
-  stepOf: (step: number, total: number, name: string) => `Paso ${step} de ${total} · ${name}`,
+  stepOf: (step: number, total: number, name: string) =>
+    `Paso ${numberFormat().format(step)} de ${numberFormat().format(total)} · ${name}`,
   stepsLabel: "Pasos",
-  stepLabel: (step: number, name: string) => `Paso ${step}: ${name}`,
+  stepLabel: (step: number, name: string) => `Paso ${numberFormat().format(step)}: ${name}`,
   stepNames: ["Bienvenida", "Tu hub", "Permisos", "Asistentes", "Tu IA", "Listo"],
   welcome: "Te damos la bienvenida a Orbit",
   welcomeBody:
@@ -36,7 +38,8 @@ const base = {
   hubUrlPlaceholder: "https://hub.example",
   code: "Código de emparejamiento",
   codeHelp: "Sirve una sola vez y caduca a los 5 minutos.",
-  codeDigits: (count: number) => `Tiene ${count} ${count === 1 ? "cifra" : "cifras"}; deben ser 6.`,
+  codeDigits: (count: number) =>
+    `Tiene ${numberFormat().format(count)} ${count === 1 ? "cifra" : "cifras"}; deben ser 6.`,
   deviceName: "Nombre de este Mac",
   pairFailed: "No se pudo emparejar",
   pairFailedHint:
@@ -81,7 +84,7 @@ const base = {
   hubUnpaired: "Sin emparejar. Hazlo cuando quieras en Ajustes › General.",
   allGranted: "Los cuatro concedidos",
   someGranted: (granted: number, missing: string[]) =>
-    `${granted} de 4 concedidos · falta ${listOf(missing)}`,
+    `${numberFormat().format(granted)} de 4 concedidos · falta ${listOf(missing)}`,
   assistantsReady: (names: string[]) => listOf(names),
   asPrimary: (name: string) => `${name} (principal)`,
   noAssistants: "Ninguno conectado todavía",

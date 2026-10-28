@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { CallPanelSnapshot } from "../../bridge/generated/CallPanelSnapshot";
@@ -6,8 +7,7 @@ import { secondsLeft } from "../../app/call-countdown";
 import { DiscardButton, DiscardQuestion, useDiscardQuestion } from "../../app/DiscardRecording";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+
 import { mmss } from "../../time-format";
 import { useNow } from "../../use-now";
 import styles from "./CallPanel.module.css";
@@ -21,6 +21,7 @@ type Recording = Extract<CallPanelSnapshot, { state: "recording" }>;
 
 /** «Llamada en Google Meet», with its event: record it or not now. */
 export function OfferCard({ panel, send }: { panel: Offer; send: PanelSend }) {
+  const es = useCopy();
   const record = useFeedback();
   return (
     <section aria-label={es.callDetection.panelLabel} className={styles.card}>
@@ -57,6 +58,7 @@ export function OfferCard({ panel, send }: { panel: Offer; send: PanelSend }) {
  * countdown does, unless «Seguir grabando».
  */
 export function EndingCard({ panel, send }: { panel: Ending; send: PanelSend }) {
+  const es = useCopy();
   const now = useNow(1_000);
   const keep = useFeedback();
   return (
@@ -86,7 +88,7 @@ export function EndingCard({ panel, send }: { panel: Ending; send: PanelSend }) 
 
 /** «Silenciar» / «Reactivar micrófono»: only her microphone, never the call. */
 function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: PanelSend }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   const muted = meeting.microphone_muted === true;
   return (
     <Button onClick={() => void send({ command: "microphone_mute", muted: !muted })} size={32}>
@@ -113,6 +115,7 @@ export function RecordingCard({
   send: PanelSend;
   voice: string | null;
 }) {
+  const es = useCopy();
   const now = useNow(1_000);
   const stop = useFeedback();
   const discard = useDiscardQuestion(meeting);
@@ -161,7 +164,8 @@ function PanelControls({
   send: PanelSend;
   stop: ReturnType<typeof useFeedback>;
 }) {
-  const copy = useSpanish();
+  const es = useCopy();
+  const copy = useCopy();
   return (
     <>
       <div className={styles.actions}>

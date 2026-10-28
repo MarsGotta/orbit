@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
 import { Button } from "../../design/Button";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { permissionRows } from "../../i18n/es/permissions";
+
 import { useRereadOnReturn } from "../settings/permission-reread";
 import { Step } from "./OnboardingSteps";
 import styles from "./OnboardingView.module.css";
@@ -41,7 +41,7 @@ function PermissionAction({
   permission,
   permissionKey,
 }: ActionProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const copy = es.onboarding;
   if (permission === "granted") return <span className={styles.granted}>{copy.allowed}</span>;
   if (permission === "unknown" || (permission === "not_determined" && asked === "macos"))
@@ -74,7 +74,8 @@ function PermissionAction({
 }
 
 export function PermissionsStep({ error = null, permissions, send }: Props) {
-  const copy = useSpanish().onboarding;
+  const permissionRows = useCopy().extras.permissionRows;
+  const copy = useCopy().onboarding;
   // What was asked, and the failure on screen when it was: a new one is this step's.
   const [asked, setAsked] = useState<{
     keys: Partial<Record<Key, "macos" | "settings">>;

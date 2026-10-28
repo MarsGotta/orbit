@@ -1,8 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { ChatPending } from "../../bridge/generated/ChatPending";
 import { Button } from "../../design/Button";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+
 import { Clarify, useAnswer, type Send } from "./Clarification";
 import styles from "./AssistantView.module.css";
 import own from "./PendingCard.module.css";
@@ -12,7 +13,7 @@ const ORDER = ["once", "session", "always"];
 
 /** An approval choice in Spanish; one Orbit does not know keeps its own name. */
 function choiceLabel(choice: string): string {
-  return (es.chat.choices as Record<string, string>)[choice] ?? choice;
+  return (getCopy().chat.choices as Record<string, string>)[choice] ?? choice;
 }
 
 /**
@@ -42,6 +43,7 @@ function Approval({
   pending: Extract<ChatPending, { kind: "approval" }>;
   answer: (approved: boolean, choice?: string) => void;
 }) {
+  const es = useCopy();
   const deletes = pending.deletes !== undefined;
   const { allow, deny } = ordered(pending.choices, deletes);
   const bare = pending.choices.length === 0;
@@ -98,7 +100,8 @@ export function PendingCard({
   /** The choice given to an approval, for the line that remembers it. */
   onDecided?: (choice: string) => void;
 }) {
-  const named = useSpanish();
+  const es = useCopy();
+  const named = useCopy();
   const titleId = useId();
   const approval = pending.kind === "approval";
   // One answer per request: its buttons wait while it travels and until the

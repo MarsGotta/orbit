@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { useModalFocus } from "../../design/use-modal-focus";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
-import { es } from "../../i18n/es";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { goTo } from "./assistant-route";
@@ -28,6 +28,8 @@ function Footer({
   close: () => void;
   onClose: () => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const { step, setStep, created } = flow;
   if (step === STEPS)
     return (
@@ -84,6 +86,8 @@ function AddHeader({
   titleId: string;
   onClose: () => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   return (
     <>
       <header className={styles.addHeader}>

@@ -1,3 +1,4 @@
+import { getLocale } from "../locale";
 /** The Markdown editor every note, answer, section, personality and template opens in. */
 export const editorCopy = {
   editor: {
@@ -70,8 +71,8 @@ export const editorCopy = {
     notSavedUnknown: "No se ha guardado. Lo escrito sigue aquí.",
     retrySave: "Reintentar",
     nearLimit: (left: number, max: number) =>
-      `Quedan ${left.toLocaleString("es-ES")} de ${max.toLocaleString("es-ES")} caracteres.`,
+      `Quedan ${left.toLocaleString(getLocale())} de ${max.toLocaleString(getLocale())} caracteres.`,
     atLimit: (max: number) =>
-      `Has llegado al máximo de ${max.toLocaleString("es-ES")} caracteres: lo que sigue no se escribe.`,
+      `Has llegado al máximo de ${max.toLocaleString(getLocale())} caracteres: lo que sigue no se escribe.`,
   },
 } as const;

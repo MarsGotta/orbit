@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import {
   conflictsOf,
   nameOf,
@@ -50,6 +51,7 @@ function useUndo(
 
 /** What the hub warned of: another dictionary of the meeting hears the word otherwise. */
 function Conflicts({ library, target }: { library?: NoteLibrarySnapshot | null; target: string }) {
+  const es = useCopy();
   return conflictsOf(library, target).map((conflict, index) => (
     <p className={styles.conflict} key={index}>
       {es.notes.conflict(
@@ -84,6 +86,7 @@ export function CorrectedBand({
   onUndone: () => void;
   onRedoSummary: () => void;
 }) {
+  const es = useCopy();
   const { undo, waiting, refused } = useUndo(correction, library, send, onUndone);
   const { wrong, correct, places, names } = correction;
   return (
@@ -126,6 +129,7 @@ export function CorrectedBand({
 
 /** «Corrección deshecha. «Orvit» ya no está en Nubaria y Hoteles Ribera.» */
 export function UndoneBand({ correction }: { correction: Correction }) {
+  const es = useCopy();
   return (
     <p className={styles.undone} role="status">
       {es.notes.undone(correction.wrong, correction.names)}

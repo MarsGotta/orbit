@@ -1,15 +1,17 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
 import { Loading } from "../../design/Spinner";
 import { Skeleton } from "../../design/Skeleton";
-import { es } from "../../i18n/es";
+
 import styles from "./Note.module.css";
 
 type Send = (command: AppCommand) => Promise<unknown>;
 
 /** A note on its way: its shape, and what is being read. */
 export function NoteLoading() {
+  const es = useCopy();
   return (
     <div aria-busy="true" className={styles.page}>
       <div className={styles.reading}>
@@ -24,6 +26,7 @@ export function NoteLoading() {
 
 /** Not drawn in the design: a note the hub could not give, with «Reintentar». */
 export function NoteReadFailure({ recordingId, send }: { recordingId: string; send: Send }) {
+  const es = useCopy();
   return (
     <div className={styles.centered} role="alert">
       <EmptyState
@@ -47,6 +50,7 @@ export function NoteReadFailure({ recordingId, send }: { recordingId: string; se
 
 /** A meeting that no longer exists (deleted, here or on another Mac). */
 export function NoteGone() {
+  const es = useCopy();
   return (
     <div className={styles.centered}>
       <EmptyState icon="notes" title={es.notes.noteGone}>

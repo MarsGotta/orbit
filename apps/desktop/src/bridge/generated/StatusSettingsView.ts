@@ -2,6 +2,7 @@
 import type { Agent } from "./Agent";
 import type { AttachmentLimits } from "./AttachmentLimits";
 import type { CalendarSettingsSnapshot } from "./CalendarSettingsSnapshot";
+import type { LanguageChoice } from "./LanguageChoice";
 import type { SettingsHubSnapshot } from "./SettingsHubSnapshot";
 import type { VersionSettingsSnapshot } from "./VersionSettingsSnapshot";
 
@@ -25,6 +26,10 @@ attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: bool
  * The error-report switch, when this build offers it.
  */
 error_reports?: boolean, 
+/**
+ * The per-Mac language choice; absent before the daemon reports it.
+ */
+language?: LanguageChoice, 
 /**
  * Retired compatibility field: zero means no duration ceiling.
  */

@@ -1,5 +1,7 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { CalendarEvent as EventBox } from "../../design/CalendarEvent";
-import { es } from "../../i18n/es";
+
 import { timeLabel } from "./date";
 import {
   type CalendarEvent,
@@ -29,9 +31,9 @@ interface EventCardProps {
 
 /** What the card says under its title: its hours, or what is happening to it. */
 function subtitle(event: CalendarEvent, look: EventLook, timezone: string): string {
-  if (event.ui?.saving === true) return es.calendar.write.saving;
-  if (look.recording) return es.calendar.recording;
-  return es.calendar.timeRange(
+  if (event.ui?.saving === true) return getCopy().calendar.write.saving;
+  if (look.recording) return getCopy().calendar.recording;
+  return getCopy().calendar.timeRange(
     timeLabel(event.start_ms, timezone),
     timeLabel(event.end_ms, timezone),
   );
@@ -43,6 +45,7 @@ function subtitle(event: CalendarEvent, look: EventLook, timezone: string): stri
  * the card shows while it is drafted, dragged, saved or recorded.
  */
 export function EventCard(props: EventCardProps) {
+  const es = useCopy();
   const { box, event, look, placement } = props;
   const ghost = event.ui?.dragging === true;
   return (

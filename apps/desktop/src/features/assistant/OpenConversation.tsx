@@ -1,6 +1,7 @@
+import { lookupCopy } from "../../i18n";
 import type { AppCommand } from "../../bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { StepWait } from "./AgentWork";
 import { ConversationHeader } from "./ConversationHeader";
@@ -57,7 +58,7 @@ function Tail({
   /** The thread is empty: the assistant's page already says what its session needs. */
   empty: boolean;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const { chat } = snapshot;
   const { messages } = history;
   const working = chat.work != null && chat.work.ended_at_ms == null && chat.work.items.length > 0;
@@ -73,7 +74,7 @@ function Tail({
       )}
       {chat.pending && <PendingCard onDecided={onDecided} pending={chat.pending} send={send} />}
       {decision !== null && chat.pending === null && (
-        <p className={styles.decision}>{es.assistant.decided[decision]}</p>
+        <p className={styles.decision}>{lookupCopy(es.assistant.decided, decision)}</p>
       )}
       <TurnEnd
         empty={empty}
@@ -107,7 +108,7 @@ function Thread({
   snapshot: AppSnapshot;
   with: With;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const { chat } = snapshot;
   const { messages } = history;
   const inFlight = turnInFlight(chat);

@@ -1,5 +1,6 @@
+import { getCopy } from "../../i18n";
 import type { Agent } from "../../bridge/generated/Agent";
-import { es } from "../../i18n/es";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { agentsOf } from "../assistant/agents";
 
@@ -20,7 +21,7 @@ export interface Cast {
 export function castOf(snapshot: AppSnapshot): Cast {
   const agents = agentsOf(snapshot);
   const hubAgent = agents.find((agent) => agent.account === undefined);
-  const hubName = hubAgent?.name ?? snapshot.settings.assistant_name ?? es.settings.deimos;
+  const hubName = hubAgent?.name ?? snapshot.settings.assistant_name ?? getCopy().settings.deimos;
   const primaryId = snapshot.settings.default_agent_id ?? null;
   const primaryName = agents.find((agent) => agent.id === primaryId)?.name ?? hubName;
   const others = agents.filter((agent) => agent.account !== undefined);

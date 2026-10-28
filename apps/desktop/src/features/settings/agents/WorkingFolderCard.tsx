@@ -1,8 +1,9 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useId, useState } from "react";
 import { Button } from "../../../design/Button";
 import { Field } from "../../../design/Field";
 import { Group } from "../layout";
-import { copy, FeedbackLine, type OrderProps } from "./parts";
+import { FeedbackLine, type OrderProps } from "./parts";
 
 /** The hub validates this path; the Mac never opens or inspects it. */
 export function WorkingFolderCard({
@@ -12,6 +13,7 @@ export function WorkingFolderCard({
   feedback,
   order,
 }: OrderProps & { path: string }) {
+  const copy = useCopy().agents;
   const [draft, setDraft] = useState(path);
   const errorId = useId();
   const refused = feedback?.place === "working_folder" && feedback.kind === "error";

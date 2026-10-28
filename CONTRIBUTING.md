@@ -3,7 +3,7 @@
 Thank you for considering a contribution. Orbit is a macOS companion app for a
 personal assistant running in [Hermes Agent](https://github.com/NousResearch/hermes-agent),
 with its own hub. It is beta software for macOS on Apple Silicon, and its
-interface is in Spanish.
+interface catalogue supports English and Spanish.
 
 [AGENTS.md](AGENTS.md) is the engineering contract: component boundaries, rules
 for effects, privacy and bounds, and the failure modes that have cost the most
@@ -174,8 +174,10 @@ scanners can recognize it.
 ## Language
 
 Code, identifiers, comments, commit messages and repository documentation are
-in English. The product's copy is in Spanish: what the user sees in the app and
-what the assistant reads (refusals and notices it relays). Developer tooling
+in English. Interface copy belongs in the typed English and Spanish catalogues. The app
+chooses its language in Settings › General, following the system by default.
+Inline feature copy and native/server messages are being migrated separately;
+see [interface language](docs/architecture/interface-language.md). Developer tooling
 (the gate, the scripts, the harness and the hub's operator messages) is in
 English.
 

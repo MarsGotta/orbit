@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 import { hourOf, sameDay, usageWindow, weekday } from "./assistantsFormat";
 
 // An assistant's settings, behind its gear, and «Añadir un asistente».
@@ -26,7 +27,7 @@ export const assistantsGearCopy = {
     "Lo configura quien gestiona tu hub. Su personalidad y lo que puede usar se cambian en Hermes; aquí lo ves tal como está.",
   usage: "Uso de tu plan",
   usageLine: (percent: number, window: string | undefined) =>
-    `${percent} % del uso ${usageWindow(window, true)}`,
+    `${numberFormat().format(percent)} % del uso ${usageWindow(window, true)}`,
   renews: (atMs: number, nowMs: number) => {
     const at = new Date(atMs);
     if (sameDay(at, new Date(nowMs))) return `Se renueva hoy a las ${hourOf(atMs)}`;
@@ -60,7 +61,7 @@ export const assistantsGearCopy = {
   backToConversation: "Volver a la conversación",
 
   // «Añadir un asistente».
-  addStep: (step: number) => `Añadir un asistente · paso ${step} de 4`,
+  addStep: (step: number) => `Añadir un asistente · paso ${numberFormat().format(step)} de 4`,
   kindTitle: "¿Con qué va a funcionar?",
   kindLead: "Cada asistente usa un servicio. Si ya pagas uno, puedes usar esa suscripción.",
   kindLabel: "Servicio",
@@ -80,7 +81,7 @@ export const assistantsGearCopy = {
       text: "Se crea en tu hub a partir de un perfil de Hermes. Después aparece en Orbit.",
       tag: "Hermes",
     },
-  } as Record<string, { title: string; text: string; tag: string }>,
+  } as const,
   notOffered:
     "Esta versión de tu hub no incluye el servicio. Publica de nuevo el hub para instalarlo.",
   connectTitle: (vendor: string) => `Conecta tu cuenta de ${vendor}`,

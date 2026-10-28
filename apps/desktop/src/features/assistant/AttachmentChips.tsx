@@ -1,14 +1,15 @@
-import { es } from "../../i18n/es";
-import { fileSize } from "../../i18n/es/attachments";
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
+
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { attachmentFailure, type DraftAttachment } from "./attachment-drafts";
 import styles from "./Attachments.module.css";
 
 function detail(draft: DraftAttachment): string {
-  if (draft.state === "uploading") return es.attachments.uploading;
+  if (draft.state === "uploading") return getCopy().attachments.uploading;
   if (draft.state === "ready") {
-    const size = fileSize(draft.attachment.bytes);
+    const size = getCopy().extras.fileSize(draft.attachment.bytes);
     return draft.note === undefined ? size : `${size} · ${draft.note}`;
   }
   return attachmentFailure(draft.refusal, draft.name);
@@ -22,6 +23,7 @@ export function AttachmentChips({
   drafts: DraftAttachment[];
   onRemove: (key: number) => void;
 }) {
+  const es = useCopy();
   if (drafts.length === 0) return null;
   return (
     <ul className={styles.chips}>
@@ -66,6 +68,7 @@ export function AttachButtons({
   onAttachWindow: () => void;
   supported: boolean;
 }) {
+  const es = useCopy();
   const reason = supported ? undefined : es.attachments.unsupported;
   return (
     <>

@@ -8,7 +8,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
 import { panelFocus } from "../../bridge/panel-port";
 import type { DaemonPort } from "../../bridge/port";
-import { AssistantCopy, useSpanish } from "../../i18n/AssistantCopy";
+import { CopyProvider, useCopy } from "../../i18n/CopyProvider";
 import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
 import { OrbitStoreProvider } from "../../state/use-in-flight";
 import { voiceStatusText } from "../../app/meeting-question/copy";
@@ -29,14 +29,15 @@ export function PanelApp({ port }: { port: DaemonPort }) {
   const [store] = useState(() => createOrbitStore(port, { notices: false }));
   const crash = useStore(store, (state) => state.crash);
   const assistantName = useStore(store, (state) => primaryAgentName(state.snapshot));
+  const language = useStore(store, (state) => state.snapshot?.settings.language);
   useOrbitConnection(useStore(store, (state) => state.connect));
   useCrashReporting(crash);
   return (
     <ViewBoundary onCrash={() => crash("ui_render_failed")}>
       <OrbitStoreProvider store={store}>
-        <AssistantCopy name={assistantName}>
+        <CopyProvider name={assistantName} choice={language}>
           <PanelContent port={port} store={store} />
-        </AssistantCopy>
+        </CopyProvider>
       </OrbitStoreProvider>
     </ViewBoundary>
   );
@@ -48,7 +49,7 @@ export function PanelApp({ port }: { port: DaemonPort }) {
  * and its answer, and otherwise the recording in progress.
  */
 function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) {
-  const es = useSpanish();
+  const es = useCopy();
   const [asking, setAsking] = useState(false);
   const links = usePanelLinks(port);
   const snapshot = useStore(store, (state) => state.snapshot);
@@ -114,7 +115,7 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
 /** «Di «Oye Deimos» y tu pregunta» while it listens; otherwise why not. */
 function voiceLine(
   status: VoiceStatusSnapshot | undefined,
-  es: ReturnType<typeof useSpanish>,
+  es: ReturnType<typeof useCopy>,
 ): string | null {
   if (status?.state === "listening") return es.floatingPanel.voiceHint;
   return voiceStatusText(status, es);

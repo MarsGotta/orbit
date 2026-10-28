@@ -1,8 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId, type FormEvent, type ReactNode } from "react";
 import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
 import { Field } from "../../design/Field";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { permissionRows } from "../../i18n/es/permissions";
+
 import { readyAgents, type Cast } from "./cast";
 import type { PairingState } from "./OnboardingView";
 import styles from "./OnboardingView.module.css";
@@ -31,7 +31,7 @@ export function Step({
 
 /** What Orbit does, the steps to come and that everything stops at once. */
 export function WelcomeStep({ cast }: { cast: Cast }) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   const plan = copy.plan(
     cast.hubName,
     cast.others.map((agent) => agent.name),
@@ -77,7 +77,7 @@ export interface PairFormProps {
 }
 
 export function PairStep(props: PairFormProps) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   const { pairing } = props;
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -145,7 +145,8 @@ interface ReadyProps {
 
 /** What is set up, in green, and what is missing, in amber, with what to do about it. */
 function useSummary({ cast, deviceName, host, paired, permissions }: ReadyProps) {
-  const copy = useSpanish().onboarding;
+  const permissionRows = useCopy().extras.permissionRows;
+  const copy = useCopy().onboarding;
   const missing = permissionRows
     .filter(([key]) => permissions[key] !== "granted")
     .map(([, permission]) => permission.label);
@@ -173,7 +174,7 @@ function useSummary({ cast, deviceName, host, paired, permissions }: ReadyProps)
 }
 
 export function ReadyStep(props: ReadyProps) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   const summary = useSummary(props);
   const shortcutsTitle = useId();
   return (

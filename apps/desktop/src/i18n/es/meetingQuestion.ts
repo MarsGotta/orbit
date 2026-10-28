@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // Deimos during the meeting — «Preguntar a Deimos», its answer in
 // the floating panel, and «Oye Deimos». A question without answer
 // says what to do; its codes and sizes stay in the log.
@@ -7,7 +8,7 @@ const base = {
 
     placeholder: "¿Qué dijo Lucía del presupuesto?",
     windowLabel: "Contexto de la reunión",
-    window: (minutes: number) => `Últimos ${minutes} min`,
+    window: (minutes: number) => `Últimos ${numberFormat().format(minutes)} min`,
     send: "Preguntar",
     cancel: "Cancelar",
     close: "Cerrar",
@@ -72,7 +73,7 @@ export function meetingQuestionCopy(assistantName: string) {
         ...base.meetingQuestion.voice,
         listening: `«Oye ${assistantName}» te escucha`,
         downloading: (percent: number) =>
-          `«Oye ${assistantName}» aún no escucha: descargando el reconocimiento de voz (${percent} %)`,
+          `«Oye ${assistantName}» aún no escucha: descargando el reconocimiento de voz (${numberFormat().format(percent)} %)`,
         off: (why: string) => `«Oye ${assistantName}» no escucha: ${why}`,
         // «Oye …» was heard and no question followed: why, and what to do.
         abandoned: {
@@ -82,7 +83,8 @@ export function meetingQuestionCopy(assistantName: string) {
         },
         short: {
           listening: `«Oye ${assistantName}» escucha`,
-          downloading: (percent: number) => `«Oye ${assistantName}» ${percent} %`,
+          downloading: (percent: number) =>
+            `«Oye ${assistantName}» ${numberFormat().format(percent)} %`,
           off: `«Oye ${assistantName}» no escucha`,
         },
       },

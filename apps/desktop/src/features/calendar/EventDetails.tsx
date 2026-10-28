@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
@@ -5,7 +6,7 @@ import type { CalendarSpan } from "../../bridge/generated/CalendarSpan";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
-import { es } from "../../i18n/es";
+
 import type { EventForm } from "./edit/form";
 import { lockedReason } from "./edit/notices";
 import { PanelActions } from "./edit/PanelActions";
@@ -46,6 +47,7 @@ export interface EventDetailsProps {
  * cannot change shows the lock and why, and no fields.
  */
 export function EventDetails(props: EventDetailsProps) {
+  const es = useCopy();
   const { editing } = props;
   const event = editing.event;
   const locked = event === null ? null : lockedReason(event, props.calendars);
@@ -102,6 +104,7 @@ export function EventDetails(props: EventDetailsProps) {
 }
 
 function PanelHead(props: { calendar: Calendars[number] | undefined; onClose: () => void }) {
+  const es = useCopy();
   return (
     <header className={styles.head}>
       {props.calendar !== undefined && (
@@ -128,6 +131,7 @@ function PanelHead(props: { calendar: Calendars[number] | undefined; onClose: ()
 }
 
 function EditableHeading(props: EventDetailsProps) {
+  const es = useCopy();
   const { editing } = props;
   const draft = editing.event === null;
   // A draft opens with its dates and hours; an event shows them in a line
@@ -171,6 +175,7 @@ function LockedHeading({
   locked: NonNullable<ReturnType<typeof lockedReason>>;
   timezone: string;
 }) {
+  const es = useCopy();
   const reason =
     locked === "organizer"
       ? es.calendar.edit.readOnly.organizer(event.organizer?.name ?? null)

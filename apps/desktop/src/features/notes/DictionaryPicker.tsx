@@ -1,7 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import { es } from "../../i18n/es";
 
 // What Ajustes › Reuniones still takes from here: the note itself chooses
 // its dictionary in «Cómo escribe Orbit esta nota» (NoteSettingsMenu.tsx).
@@ -11,6 +11,7 @@ export function sendDictionary(send: (command: AppCommand) => void, request: Dic
 }
 
 export function DictionaryFeedback({ library }: { library?: NoteLibrarySnapshot | null }) {
+  const es = useCopy();
   const state = library?.dictionaries;
   return (
     <>

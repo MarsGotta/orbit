@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
 import { Button } from "../../design/Button";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { Group, List, Row } from "../settings/layout";
 import { message, request, type VaultPort } from "./api";
 import { noteRoute } from "./route";
@@ -49,6 +50,7 @@ export function FormatSettings({
   port?: VaultPort;
   saved: (value: VaultSettings) => void;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const { linkStyle, setLinkStyle, model, busy, feedback, save } = useFormat({
     configuration,
     port,
@@ -89,6 +91,7 @@ export function FormatSettings({
 }
 
 function Maintainer({ model }: { model: string }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <Group
       help="Un trabajo del hub con su propio modelo. No se ejecuta en esta fase."

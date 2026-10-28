@@ -1,19 +1,21 @@
+import { numberFormat } from "../locale";
+import { listFormat } from "../locale";
 import { duration } from "./duration";
 import { globalShortcuts } from "./shortcuts";
 
 const pendingLabel = "lo pendiente de la última vez";
 
-export const briefing = {
+const base = {
   briefing: {
     morning: "Buenos días",
     afternoon: "Buenas tardes",
     night: "Buenas noches",
     // Without the Mac's zone the hour of the day is not known.
     hello: "Hola",
-    week: (week: number) => `semana ${week}`,
+    week: (week: number) => `semana ${numberFormat().format(week)}`,
     daySentence: (meetings: number, focusMinutes: number) => {
       if (meetings === 0) return "Hoy no tienes reuniones.";
-      const count = meetings === 1 ? "1 reunión" : `${meetings} reuniones`;
+      const count = meetings === 1 ? "1 reunión" : `${numberFormat().format(meetings)} reuniones`;
       return focusMinutes === 0
         ? `Hoy tienes ${count} y ningún hueco libre para concentrarte.`
         : `Hoy tienes ${count} y ${duration(focusMinutes)} libres para concentrarte.`;
@@ -21,8 +23,7 @@ export const briefing = {
     nextStartsIn: (minutes: number) => `Siguiente · empieza en ${duration(minutes)}`,
     nextNow: "Ahora · en curso",
     videoCall: "videollamada",
-    withPeople: (names: string[]) =>
-      `Con ${new Intl.ListFormat("es", { type: "conjunction" }).format(names)}`,
+    withPeople: (names: string[]) => `Con ${listFormat({ type: "conjunction" }).format(names)}`,
     previousTitle: (title: string) => `Nota anterior: ${title}`,
     joinRecord: "Unirse y grabar",
     // An event with no video call has nothing to join.
@@ -54,7 +55,6 @@ export const briefing = {
     finish: "Terminar",
     during: "Durante la reunión",
     askAloud: "Preguntar en voz alta",
-    heyDeimos: "«Oye Deimos…»",
     askSilently: "Preguntar sin hablar",
     pttShortcut: globalShortcuts.ptt,
     finishAnywhere: "Terminar desde cualquier app",
@@ -67,7 +67,11 @@ export const briefing = {
     noteReady: "Nota lista",
     recording: "Grabando",
     peopleCount: (count: number) =>
-      count === 0 ? "Solo tú" : count === 1 ? "1 persona" : `${count} personas`,
+      count === 0
+        ? "Solo tú"
+        : count === 1
+          ? "1 persona"
+          : `${numberFormat().format(count)} personas`,
     readingAgenda: "Leyendo tu agenda…",
     agendaFailed: "No se pudo leer tu agenda.",
     noMeetingsTitle: "Nada en tu agenda hoy",
@@ -94,3 +98,7 @@ export const briefing = {
       "No se pudo leer la zona horaria del Mac, así que Hoy no puede situar tus reuniones.",
   },
 } as const;
+
+export function briefingCopy(assistantName: string) {
+  return { briefing: { ...base.briefing, heyDeimos: `«Oye ${assistantName}…»` } } as const;
+}

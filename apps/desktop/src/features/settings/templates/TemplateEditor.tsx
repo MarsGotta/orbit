@@ -1,8 +1,9 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { AppCommand } from "../../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import { Button } from "../../../design/Button";
-import { es } from "../../../i18n/es";
+
 import { refusalText } from "../../../app/library-refusal";
 import { MarkdownEditor } from "../../editor/MarkdownEditor";
 import { type RemovedTemplate, type TemplateDraft, removedTemplate } from "./template-draft";
@@ -21,6 +22,7 @@ function EditorNotices({
   targetId: string;
   template: NoteTemplateDetailSnapshot;
 }) {
+  const es = useCopy();
   const shown = library.items.find((item) => item.id === targetId);
   // A copy of one of Orbit's names it before the hub has answered.
   const origin =
@@ -53,6 +55,7 @@ function TemplateFields({
   draft: TemplateDraft;
   flush: () => void;
 }) {
+  const es = useCopy();
   return (
     <>
       <label className={styles.field}>
@@ -102,6 +105,7 @@ export function TemplateEditor({
   send: (command: AppCommand) => unknown;
   template: NoteTemplateDetailSnapshot;
 }) {
+  const es = useCopy();
   const { draft, change, discard, flush, targetId } = useTemplateEditor(template, send, onCopied);
   const bounds = library.bounds;
   const own = !template.builtin || targetId() !== template.id;

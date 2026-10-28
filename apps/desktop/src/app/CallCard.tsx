@@ -1,7 +1,7 @@
 import type { AppCommand } from "../bridge/generated";
 import type { CallSnapshot } from "../bridge/generated/CallSnapshot";
 import { Button } from "../design/Button";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import { mmss } from "../time-format";
 import { useNow } from "../use-now";
 import styles from "./SidebarCard.module.css";
@@ -26,7 +26,7 @@ export function CallCard({
   call: CallSnapshot;
   send: (command: AppCommand) => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const now = useNow(1_000);
   const screen = call.seeing_screen ? es.callCard.seesScreen : es.callCard.noScreen;
   return (

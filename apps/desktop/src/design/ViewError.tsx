@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { createContext, useContext, type ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import styles from "./ViewError.module.css";
 
 /**
@@ -18,6 +19,7 @@ export interface ViewErrorProps {
  * renders one: a command that fails must never look like nothing happened.
  */
 export function ViewError({ error }: ViewErrorProps) {
+  const es = useCopy();
   const actions = useContext(ViewErrorActions);
   if (!error) return null;
   return (

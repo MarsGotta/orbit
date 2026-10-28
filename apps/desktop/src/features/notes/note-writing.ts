@@ -1,5 +1,6 @@
+import { getCopy } from "../../i18n";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { es } from "../../i18n/es";
+
 import type { AppView } from "../../state/app-view";
 import { agentFor } from "../assistant/agents";
 import { insertIntoComposer } from "../assistant/composer-insert";
@@ -49,15 +50,15 @@ function peopleOf(snapshot: AppView, note: OpenNoteSnapshot): Person[] {
     people.push({ name: clean, detail });
   };
   for (const guest of note.event?.attendees ?? []) {
-    if (!guest.is_self) add(guest.name, es.editor.invited);
+    if (!guest.is_self) add(guest.name, getCopy().editor.invited);
   }
   for (const speaker of note.speakers) {
     if (!isUnnamedSpeaker(speaker) && speaker.name !== note.owner_name)
-      add(speaker.name, es.editor.spoke);
+      add(speaker.name, getCopy().editor.spoke);
   }
   for (const event of snapshot.calendar.events) {
     for (const guest of event.attendees ?? []) {
-      if (guest.is_self !== true) add(guest.name, es.editor.known);
+      if (guest.is_self !== true) add(guest.name, getCopy().editor.known);
     }
   }
   return people;
@@ -92,7 +93,7 @@ export function noteWriting(
         openWithPrincipal(
           send,
           principal?.id,
-          `${es.editor.keepWritingAsk}\n\n${quoteFragment(text.slice(-KEEP_WRITING_CHARS))}`,
+          `${getCopy().editor.keepWritingAsk}\n\n${quoteFragment(text.slice(-KEEP_WRITING_CHARS))}`,
         ),
     },
   };

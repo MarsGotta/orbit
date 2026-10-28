@@ -1,8 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, SessionPage } from "../../bridge/reads";
-import { es } from "../../i18n/es";
 
 export type SessionsState = {
   items: ChatSessionSummary[];
@@ -23,12 +24,12 @@ function fromAnswer(answer: SessionPage, previous: SessionsState, first: boolean
           ? answer.refusal.total
           : previous.total,
       loading: false,
-      error: es.assistant.sessionsFailed,
+      error: getCopy().assistant.sessionsFailed,
     };
   // An answer that says nothing leaves the list unread, not empty: it is a
   // failed read, which «Reintentar» asks again.
   if (answer.state === "unknown")
-    return { ...previous, loading: false, error: es.assistant.sessionsFailed };
+    return { ...previous, loading: false, error: getCopy().assistant.sessionsFailed };
   const seen = new Set(first ? [] : previous.items.map((session) => session.id));
   const items = first ? [] : [...previous.items];
   for (const session of answer.value.items) {
@@ -55,6 +56,7 @@ export function useAssistantSessions(
   streaming: boolean,
   read?: DaemonPort["readSessionsPage"],
 ) {
+  const es = useCopy();
   const [state, setState] = useState<SessionsState>({
     items: [],
     total: null,

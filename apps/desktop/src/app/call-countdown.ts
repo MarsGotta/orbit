@@ -1,4 +1,4 @@
-import { es } from "../i18n/es";
+import { getCopy } from "../i18n";
 
 // The countdown of a recording a call started, once the call ended.
 // Shared by the floating panel and the recording card of the sidebar.
@@ -10,5 +10,5 @@ export function secondsLeft(endsAtMs: number, nowMs: number): number {
 
 /** The countdown line of a recording the call started, once the call ended. */
 export function endingLabel(endsAtMs: number, nowMs: number): string {
-  return es.callDetection.ending(secondsLeft(endsAtMs, nowMs));
+  return getCopy().callDetection.ending(secondsLeft(endsAtMs, nowMs));
 }

@@ -6,14 +6,14 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Loading } from "../../design/Spinner";
 import { TextLink } from "../../design/TextLink";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useNow } from "../../use-now";
 import { PendingCard } from "../assistant/PendingCard";
 import { MarkdownView } from "../notes/MarkdownView";
 import { Remaining } from "./CallPanel";
 import styles from "./CallPanel.module.css";
 
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 /**
  * The question to Deimos and what follows it: Deimos thinking, what Deimos
@@ -34,7 +34,7 @@ export function PanelAnswer({
   question: MeetingQuestionSnapshot;
   send: (command: AppCommand) => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const inFlight = question.stage === "thinking" || question.stage === "responding";
   const asked = inFlight && pending ? pending : null;
   const finished = question.stage === "answered" || question.stage === "failed";
@@ -156,7 +156,7 @@ function Approval({
   pending: Extract<ChatPending, { kind: "approval" }>;
   send: (command: AppCommand) => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const labels: Record<string, string> = es.floatingPanel.choices;
   // An agent that names no choices offers allowing once or refusing, sent
   // without a choice as a 0.9.0 Mac does.

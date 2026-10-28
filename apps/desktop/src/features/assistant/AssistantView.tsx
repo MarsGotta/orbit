@@ -6,7 +6,7 @@ import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
 import { Icon } from "../../design/Icon";
 import { Toast } from "../../design/Toast";
 import { ViewError } from "../../design/ViewError";
-import { AssistantCopy, useSpanish } from "../../i18n/AssistantCopy";
+import { CopyProvider, useCopy } from "../../i18n/CopyProvider";
 import { useNow } from "../../use-now";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AddAssistant } from "./AddAssistant";
@@ -38,7 +38,7 @@ interface AssistantViewProps {
 
 /** A Mac without its hub: how to talk to the agent, and the way to pair. */
 function Unpaired() {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div className={styles.unpaired}>
       <span className={styles.unpairedIcon}>
@@ -121,7 +121,7 @@ function AssistantScreen({
   nowMs,
   ...props
 }: AssistantViewProps & { route: AssistantRoute; nowMs: number }) {
-  const es = useSpanish();
+  const es = useCopy();
   const { error, send, snapshot } = props;
   const { call, chat } = snapshot;
   const talk = useWith(props, route, nowMs);
@@ -187,13 +187,13 @@ function AssistantScreen({
 export default function AssistantView(props: AssistantViewProps) {
   // Outside this view every text names the primary; here, the conversation's agent.
   return (
-    <AssistantCopy name={conversationAgentName(props.snapshot)}>
+    <CopyProvider name={conversationAgentName(props.snapshot)}>
       {props.snapshot.chat.availability?.state === "unknown" ? (
         <UnknownAssistant snapshot={props.snapshot} />
       ) : (
         <Routed {...props} />
       )}
-    </AssistantCopy>
+    </CopyProvider>
   );
 }
 

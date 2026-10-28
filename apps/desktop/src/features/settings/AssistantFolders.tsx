@@ -1,14 +1,14 @@
+import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "../../i18n";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { AssistantFoldersSnapshot } from "../../bridge/generated/AssistantFoldersSnapshot";
 import type { FolderAccess } from "../../bridge/generated/FolderAccess";
 import type { FolderView } from "../../bridge/generated/FolderView";
 import { Button } from "../../design/Button";
-import { es as base } from "../../i18n/es";
+
 import { Group, List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";
-
-const copy = base.folders;
 
 type Send = (command: AppCommand) => unknown;
 
@@ -16,22 +16,22 @@ type Send = (command: AppCommand) => unknown;
 export function accessText(access: FolderAccess): string {
   switch (access.state) {
     case "accessible":
-      return copy.accessible;
+      return getCopy().folders.accessible;
     case "unknown":
-      return copy.unknown;
+      return getCopy().folders.unknown;
     case "unavailable": {
       const cause = access.cause;
       switch (cause.kind) {
         case "bookmark_unresolvable":
-          return copy.missing;
+          return getCopy().folders.missing;
         case "not_a_folder":
-          return copy.notAFolder;
+          return getCopy().folders.notAFolder;
         case "access_denied":
-          return copy.accessDenied;
+          return getCopy().folders.accessDenied;
         case "path_too_long":
-          return copy.tooLong(cause.bytes, cause.max_bytes);
+          return getCopy().folders.tooLong(cause.bytes, cause.max_bytes);
         case "bookmark_too_large":
-          return copy.bookmarkTooLarge(cause.bytes, cause.max_bytes);
+          return getCopy().folders.bookmarkTooLarge(cause.bytes, cause.max_bytes);
       }
     }
   }
@@ -47,14 +47,18 @@ export function folderPlace(path: string): { name: string; place: string } {
   let inside = parts.slice(0, -1);
   if (inside[0] === "Users" && inside.length >= 2) inside = inside.slice(2);
   else if (inside[0] === "Volumes" && inside.length >= 2)
-    inside = [copy.disk(inside[1] ?? ""), ...inside.slice(2)];
+    inside = [getCopy().folders.disk(inside[1] ?? ""), ...inside.slice(2)];
   const shown = inside.map(
-    (part) => copy.homeFolders[part as keyof typeof copy.homeFolders] ?? part,
+    (part) =>
+      getCopy().folders.homeFolders[
+        part as keyof ReturnType<typeof getCopy>["folders"]["homeFolders"]
+      ] ?? part,
   );
   return { name, place: [...shown, name].join(" › ") };
 }
 
 function FolderRow({ folder, send }: { folder: FolderView; send: (command: AppCommand) => void }) {
+  const copy = useCopy().folders;
   const { name, place } = folderPlace(folder.path);
   const state = folder.access.state;
   return (
@@ -83,6 +87,7 @@ function FolderRow({ folder, send }: { folder: FolderView; send: (command: AppCo
 
 /** «Añadir carpeta»: «Abriendo…» until the daemon has the order; disabled, it says why. */
 function AddFolder({ reason, send }: { reason?: string; send: Send }) {
+  const copy = useCopy().folders;
   const [opening, setOpening] = useState(false);
   return (
     <div className={styles.padded}>
@@ -110,10 +115,11 @@ function addReason(
   daemonReady: boolean,
   privacyStopped: boolean,
 ): string | undefined {
-  if (!daemonReady) return copy.notReady;
-  if (privacyStopped) return base.settings.stoppedTitle;
-  if (folders.state === "unreadable") return copy.unreadable;
-  if (folders.max > 0 && folders.folders.length >= folders.max) return copy.full(folders.max);
+  if (!daemonReady) return getCopy().folders.notReady;
+  if (privacyStopped) return getCopy().settings.stoppedTitle;
+  if (folders.state === "unreadable") return getCopy().folders.unreadable;
+  if (folders.max > 0 && folders.folders.length >= folders.max)
+    return getCopy().folders.full(folders.max);
   return undefined;
 }
 
@@ -134,6 +140,7 @@ export function AssistantFolders({
   privacyStopped: boolean;
   send: Send;
 }) {
+  const copy = useCopy().folders;
   const known = folders?.state === "known";
   const count =
     known && folders.max > 0 ? copy.count(folders.folders.length, folders.max) : undefined;

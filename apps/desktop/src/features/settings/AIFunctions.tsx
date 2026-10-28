@@ -1,20 +1,21 @@
+import { lookupCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AiFunction } from "../../bridge/generated/AiFunction";
 import type { AiProvider } from "../../bridge/generated/AiProvider";
-import { aiCopy as copy } from "../../i18n/es/ai";
+
 import { Group, List, Row } from "./layout";
 import type { useAISettings } from "./use-ai-settings";
 import styles from "./SettingsView.module.css";
 
 type View = ReturnType<typeof useAISettings>;
-function FunctionRow({
-  fn,
-  providers,
-  view,
-}: {
+interface FunctionRowProps {
   fn: AiFunction;
   providers: AiProvider[];
   view: View;
-}) {
+}
+
+function FunctionRow({ fn, providers, view }: FunctionRowProps) {
+  const copy = useCopy().extras.aiCopy;
   const options = providers.flatMap((provider) =>
     provider.models
       .filter((model) => model.capabilities.includes(fn.capability))
@@ -27,10 +28,10 @@ function FunctionRow({
   const selected = JSON.stringify([fn.provider_id, fn.model]);
   const operator = JSON.stringify(["operator", "default"]);
   return (
-    <Row title={copy.functions[fn.id] ?? fn.id} help={fn.privacy}>
+    <Row title={lookupCopy(copy.functions, fn.id) ?? fn.id} help={fn.privacy}>
       <div className={`${styles.select} ${styles.aiSelect}`}>
         <select
-          aria-label={copy.functions[fn.id] ?? fn.id}
+          aria-label={lookupCopy(copy.functions, fn.id) ?? fn.id}
           disabled={view.busy}
           value={fn.provider_id === "operator" ? operator : selected}
           onChange={(e) => {

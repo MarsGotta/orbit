@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
 import { ListColumn } from "../../app/shell-slots";
@@ -5,8 +6,7 @@ import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Skeleton } from "../../design/Skeleton";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { goTo } from "./assistant-route";
 import { Conversations, useRows } from "./ConversationList";
@@ -36,7 +36,7 @@ function Footer({
   more: () => void;
   retry: () => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div aria-live="polite" className={styles.footer}>
       {state.loaded && state.loading && <Loading size={12}>{es.assistant.loadingSessions}</Loading>}
@@ -72,7 +72,8 @@ export function AssistantSessions({
   send: (command: AppCommand) => unknown;
   read?: DaemonPort["readSessionsPage"];
 }) {
-  const es = useSpanish();
+  const assistantsCopy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const { chat } = snapshot;
   const { state, more, retry } = useAssistantSessions(
     chat.session_id ?? undefined,

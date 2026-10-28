@@ -1,11 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId, type ReactNode } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Button } from "../../design/Button";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy, vendorOf } from "../../i18n/es/assistants";
+
 import { colorOf } from "../assistant/assistants";
 import { SignInWaiting } from "../assistant/SignInNotice";
 import { useSignIn } from "../assistant/use-sign-in";
@@ -19,7 +19,7 @@ type Send = (command: AppCommand) => Promise<unknown>;
 
 /** The hub's own assistant: ready once this Mac is paired, or «Emparejar el hub». */
 function HubState({ paired, onPair }: { paired: boolean; onPair: () => void }) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   if (paired) return <span className={styles.granted}>{copy.readyWithHub}</span>;
   return (
     <span className={styles.rowActions}>
@@ -51,7 +51,9 @@ function SubscriptionRow({
   port?: AgentPort;
   send: Send;
 }) {
-  const copy = useSpanish().onboarding;
+  const vendorOf = useCopy().extras.vendorOf;
+  const assistantsCopy = useCopy().extras.assistantsCopy;
+  const copy = useCopy().onboarding;
   const vendor = vendorOf(agent.service) ?? assistantsCopy.serviceName(agent.service) ?? agent.name;
   const signedIn = agent.account === "signed_in";
   const signIn = useSignIn({ port, send, vendor, name: agent.name, signedIn });
@@ -102,6 +104,7 @@ function AssistantRow({
   cast: Cast;
   children: { detail?: ReactNode; state: ReactNode; below?: ReactNode };
 }) {
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   const service = assistantsCopy.serviceFull(agent.service ?? "hermes");
   const known = cast.agents.find((each) => each.id === agent.id);
   return (
@@ -126,7 +129,7 @@ function AssistantRow({
 
 /** «Asistente principal»: one of those ready, kept by the hub. */
 function PrimaryChoice({ cast, paired, port }: { cast: Cast; paired: boolean; port?: AgentPort }) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   const titleId = useId();
   const ready = readyAgents(cast, paired).filter((agent) => agent.id !== "");
   const primary = usePrimary(port, cast.agents, cast.primaryId);
@@ -195,7 +198,7 @@ export function AssistantsStep({
   port?: AgentPort;
   send: Send;
 }) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   const hubAgents = cast.agents.filter((agent) => agent.account === undefined);
   // Before the hub has said its agents, its own assistant by the name it last had.
   const hubRows = hubAgents.length > 0 ? hubAgents : [{ id: "", name: cast.hubName }];

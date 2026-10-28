@@ -1,14 +1,16 @@
+import { presentExceeded } from "./exceeded";
+export { exceededReport } from "./exceeded";
+import { getCopy } from "../i18n";
 import type { AppCommand, FeatureId } from "../bridge/generated";
 import type { Notice } from "../bridge/generated/Notice";
 import type { NoticeCode } from "../bridge/generated/NoticeCode";
 import { noticeClass } from "../bridge/generated/noticeClasses";
 import type { Report } from "../bridge/port";
 import type { Refusal } from "../bridge/refusal";
-import { noticesForAssistant, type NoticeAction, type NoticeData } from "../i18n/es/notices";
-import { failures, type FailedNoticeCode } from "../i18n/es/failures";
+import type { NoticeAction, NoticeData } from "../i18n";
+import type { FailedNoticeCode } from "../i18n";
 import { failureCode, genericFailure, repeatable, failure, worded, type Failure } from "./failure";
-import { refusalEntries } from "../i18n/es/refusalEntries";
-import { waits } from "../i18n/es/waits";
+
 import { closedData, token } from "./report-data";
 import type { ViewId } from "../state/ui";
 
@@ -68,7 +70,7 @@ export function newOp(): string {
   return crypto.randomUUID();
 }
 
-interface Presented {
+export interface Presented {
   op: string;
   class: VisibleClass | "silent";
   text: string;
@@ -79,12 +81,14 @@ interface Presented {
 }
 
 function noticeFailure(code: FailedNoticeCode): string {
-  return failures.failure.notices[code];
+  return getCopy().extras.failures.failure.notices[code];
 }
 
 function presentNotice(notice: Notice, assistantName?: string): Presented {
   const op = notice.op ?? newOp();
-  const notices = noticesForAssistant(assistantName);
+  const notices = getCopy().extras.noticesForAssistant(
+    assistantName ?? getCopy().shell.assistantName,
+  );
   const entry =
     notice.code !== "unknown" && Object.hasOwn(notices, notice.code)
       ? notices[notice.code]
@@ -111,7 +115,9 @@ function presentNotice(notice: Notice, assistantName?: string): Presented {
 }
 
 function refusalEntry(refusal: Refusal) {
-  return Object.hasOwn(refusalEntries, refusal.code) ? refusalEntries[refusal.code] : undefined;
+  return Object.hasOwn(getCopy().extras.refusalEntries, refusal.code)
+    ? getCopy().extras.refusalEntries[refusal.code]
+    : undefined;
 }
 
 /** The report line of a refusal: its own code and class, no text. */
@@ -135,7 +141,7 @@ function presentRefusal(op: string, refusal: Refusal, command?: AppCommand): Pre
   const entry = refusalEntry(refusal);
   const report = refusalReport(op, refusal);
   if (!entry || entry.class === "failed") {
-    const what = command ? failures.failure.commands[command.command] : undefined;
+    const what = command ? getCopy().extras.failures.failure.commands[command.command] : undefined;
     const result = worded(failure(op, report, what), entry?.text?.(refusal));
     if (!command || !repeatable(refusal)) return result;
     return { ...result, failure: { ...result.failure, retry: command } };
@@ -149,50 +155,14 @@ function presentRefusal(op: string, refusal: Refusal, command?: AppCommand): Pre
   };
 }
 
-/** The report line of a wait past its ceiling: its stage, subject and numbers. */
-export function exceededReport(incoming: Exceeded): Report {
-  return {
-    op: incoming.op,
-    code: "ui_wait_exceeded",
-    class: "failed",
-    source: "ui",
-    data: closedData({
-      stage: incoming.stage,
-      code: incoming.subject,
-      elapsed_ms: incoming.elapsedMs,
-      timeout_ms: incoming.ceilingMs,
-    }),
-  };
-}
-
-/**
- * A wait past its ceiling is a failure that says how long it waited. A
- * working message the daemon never closed is only logged: what it described
- * has ended and its outcome was said by its own code.
- */
-function presentExceeded(incoming: Exceeded): Presented {
-  const report = exceededReport(incoming);
-  if (incoming.stage === "working") return { op: incoming.op, class: "silent", text: "", report };
-  const text =
-    incoming.stage === "first_state"
-      ? waits.firstState(incoming.feature, incoming.ceilingMs)
-      : waits.exceeded(incoming.ceilingMs, failureCode(incoming.op));
-  return {
-    op: incoming.op,
-    class: "failed",
-    text,
-    failure: { code: failureCode(incoming.op) },
-    report,
-  };
-}
-
 function present(incoming: Incoming, context: Context, assistantName?: string): Presented {
   if (incoming.kind === "notice") return presentNotice(incoming.notice, assistantName);
   if (incoming.kind === "refusal")
     return presentRefusal(incoming.op, incoming.refusal, context.command);
   if (incoming.kind === "exceeded") return presentExceeded(incoming);
   const { op, code } = incoming;
-  const what = code === "ui_render_failed" ? failures.failure.renderFailed : undefined;
+  const what =
+    code === "ui_render_failed" ? getCopy().extras.failures.failure.renderFailed : undefined;
   return failure(op, { op, code, class: "failed", source: "ui", data: {} }, what);
 }
 
@@ -220,6 +190,11 @@ export function receive(
     return { messages: kept, report: shown.report };
   }
   const message: Message = { op: shown.op, class: shown.class, text: shown.text, ...context };
+  const stable =
+    incoming.kind === "notice"
+      ? { ...incoming, notice: { ...incoming.notice, op: shown.op } }
+      : incoming;
+  wording.set(message, () => present(stable, context, assistantName));
   if (incoming.kind === "refusal") message.refusalCode = incoming.refusal.code;
   if (shown.action) message.action = shown.action;
   if (shown.actions) message.actions = shown.actions;
@@ -247,4 +222,19 @@ export function freshNotices(recent: Notice[], last: number | null) {
     last === null ? numbered.slice(-1) : numbered.filter((notice) => (notice.sequence ?? 0) > last);
   const newest = numbered.at(-1)?.sequence;
   return { fresh, last: newest === undefined ? last : Math.max(last ?? 0, newest) };
+}
+
+// Retain the code while its message lives, without adding payloads to reports
+// or extending their lifetime after dismissal. Rewording executes no effects.
+const wording = new WeakMap<Message, () => Presented>();
+export function localizeMessage(message: Message): Message {
+  const shown = wording.get(message)?.();
+  if (!shown) return message;
+  return {
+    ...message,
+    text: shown.text,
+    action: shown.action,
+    actions: shown.actions,
+    failure: shown.failure,
+  };
 }

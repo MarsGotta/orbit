@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
-import { es } from "../../i18n/es";
+
 import { MAX_ZOOM, MIN_ZOOM } from "./preferences";
 import { MAX_GRID_DAYS } from "./range";
 import type { CalendarRangeControls } from "./useCalendarRange";
@@ -12,6 +13,7 @@ import styles from "./CalendarView.module.css";
  * week starts, the zoom, fourteen days and the keys. This Mac only.
  */
 export function ViewOptions({ controls }: { controls: CalendarRangeControls }) {
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   const { preferences, update } = controls;
   return (
@@ -59,6 +61,7 @@ export function ViewOptions({ controls }: { controls: CalendarRangeControls }) {
 }
 
 function WeekStart({ controls }: { controls: CalendarRangeControls }) {
+  const es = useCopy();
   const { preferences, update } = controls;
   return (
     <fieldset className={styles.menuGroup}>
@@ -79,6 +82,7 @@ function WeekStart({ controls }: { controls: CalendarRangeControls }) {
 }
 
 function Zoom({ controls }: { controls: CalendarRangeControls }) {
+  const es = useCopy();
   const { preferences } = controls;
   return (
     <div className={styles.zoom}>

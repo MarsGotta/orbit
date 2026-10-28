@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 export const recording = {
   // «Silenciar»: the recording's or the call's microphone, never the other
   // side of the call. The card says it once the Mac confirmed it.
@@ -28,7 +29,7 @@ export const recording = {
     titleLabel: "Título",
     untitled: (time: string) => `Reunión ${time}`,
     suggestStarts: (title: string, minutes: number) =>
-      `Usar «${title}», que empieza en ${minutes} min`,
+      `Usar «${title}», que empieza en ${numberFormat().format(minutes)} min`,
     suggestStarted: (title: string, time: string) => `Usar «${title}», que empezó a las ${time}`,
     titleHint: "Aparecerá en Reuniones con este nombre.",
     sourceLabel: "Qué audio grabar",
@@ -78,13 +79,14 @@ export const recording = {
     record: "Grabar",
     notNow: "Ahora no",
     stop: "Parar",
-    ending: (seconds: number) => `La llamada terminó · Dejo de grabar en ${seconds} s`,
+    ending: (seconds: number) =>
+      `La llamada terminó · Dejo de grabar en ${numberFormat().format(seconds)} s`,
     keep: "Seguir grabando",
     // The floating panel's own cards.
     recordingAt: (elapsed: string) => `Grabando · ${elapsed}`,
     pausedAt: (elapsed: string) => `En pausa · ${elapsed}`,
     ended: "La llamada terminó",
-    endingIn: (seconds: number) => `Dejo de grabar en ${seconds} s`,
+    endingIn: (seconds: number) => `Dejo de grabar en ${numberFormat().format(seconds)} s`,
     recordPending: "Empezando…",
     stopPending: "Parando…",
     keepPending: "Siguiendo…",

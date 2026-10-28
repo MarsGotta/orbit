@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { type CSSProperties } from "react";
-import { es } from "../../i18n/es";
+
 import { dayOf } from "./date";
 import { type LaneEdit, useLaneGestures, withLanePreview } from "./edit/useLaneGestures";
 import { type CalendarEvent, toneOf, toneStyle } from "./eventLook";
@@ -32,6 +33,7 @@ function lastDay(event: CalendarEvent, timezone: string): number {
  * the lane is always there, so a drag across it drafts a new event.
  */
 export function AllDayLane(props: AllDayLaneProps) {
+  const es = useCopy();
   const gestures = useLaneGestures(props.edit, props.events, props.days, props.timezone);
   const events = withLanePreview(props.events, gestures.preview, es.calendar.edit.newEvent);
   const byId = new Map(events.map((event) => [event.id, event]));
@@ -78,6 +80,7 @@ export function AllDayLane(props: AllDayLaneProps) {
 }
 
 function Bar(props: AllDayLaneProps & { bar: AllDayBar; event: CalendarEvent }) {
+  const es = useCopy();
   const { bar, event } = props;
   const sides =
     props.edit !== undefined &&

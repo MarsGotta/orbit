@@ -1,9 +1,14 @@
+import { numberFormat } from "../locale";
 import { macPermissions } from "./permissions";
 import { settingsLists } from "./settingsLists";
 import { globalShortcuts } from "./shortcuts";
 
 const base = {
   settings: {
+    spanish: "Español",
+    english: "English",
+    language: "Idioma",
+    systemLanguage: "Como el sistema",
     title: "Ajustes",
     leads: {
       general: "Tu cuenta, este Mac y el aspecto de Orbit.",
@@ -15,7 +20,8 @@ const base = {
         "Cómo se escriben las notas de tus reuniones y qué palabras corrige la transcripción. Lo que pasa después a tu vault está en Ajustes › Notas.",
     },
     index: "Secciones de ajustes",
-    missing: (count: number) => (count === 1 ? "Falta 1" : `Faltan ${count}`),
+    missing: (count: number) =>
+      count === 1 ? "Falta 1" : `Faltan ${numberFormat().format(count)}`,
     appVersion: (version: string) => `Orbit ${version}`,
     exit: "Salir de Orbit",
     /** Closes Orbit in order and opens it again: the helper starts with it. */
@@ -98,7 +104,8 @@ const base = {
     theirSettings: "Sus ajustes",
     theirSettingsLabel: (name: string) => `Ajustes de ${name}`,
     sessionExpired: "La sesión caducó",
-    usage: (percent: number, window: string) => `${percent} % del uso ${window}`,
+    usage: (percent: number, window: string) =>
+      `${numberFormat().format(percent)} % del uso ${window}`,
     primaryHelp:
       "Responde en el panel flotante, en «Preguntar» de las notas y cuando dices «Oye…» sin nombre. A los demás les llamas por su nombre.",
     primaryLabel: "Principal",

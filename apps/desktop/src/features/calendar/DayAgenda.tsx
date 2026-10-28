@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
-import { es } from "../../i18n/es";
+
 import { dayAndMonth, dayOf, longDay, startOfDay, timeLabel, weekdayName } from "./date";
 import { type CalendarEvent, eventsByDay, inAllDayLane, toneOf, toneStyle } from "./eventLook";
 import styles from "./DayAgenda.module.css";
@@ -25,6 +26,7 @@ const LOADING_ROWS = ["70%", "55%", "62%"];
  * octubre», its events in order and «Abrir este día».
  */
 export function DayAgenda(props: DayAgendaProps) {
+  const es = useCopy();
   const today = props.day === dayOf(props.nowMs, props.timezone);
   const weekday = weekdayName(props.day);
   const events = eventsByDay(props.events, [props.day], props.timezone).get(props.day) ?? [];

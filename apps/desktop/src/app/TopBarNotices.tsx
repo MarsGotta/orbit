@@ -1,8 +1,9 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import { Popover } from "../design/Popover";
 import { Spinner } from "../design/Spinner";
-import { es } from "../i18n/es";
+
 import type { NoticeFix, TopBarNotice } from "./status-problem";
 import styles from "./TopBar.module.css";
 
@@ -74,6 +75,7 @@ export function TopBarNotices({
   notices: TopBarNotice[];
   actions: NoticeActions;
 }) {
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   const [first, ...rest] = notices;
   if (!first) return null;

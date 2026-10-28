@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
+
 import { SETTINGS_SECTIONS, type SettingsSection } from "../../state/ui";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantSection } from "./AssistantSection";
@@ -41,6 +42,7 @@ function Section({
   snapshot,
   section,
 }: SettingsViewProps & { section: SettingsSection }) {
+  const es = useCopy();
   switch (section) {
     case "general":
       return (
@@ -81,6 +83,7 @@ function Section({
  * («Ajustes / Privacidad y permisos»), as the route does.
  */
 export default function SettingsView(props: SettingsViewProps) {
+  const es = useCopy();
   const [own, setOwn] = useState<SettingsSection>(props.section ?? "general");
   const current = props.section ?? own;
   const open = props.onSection ?? setOwn;

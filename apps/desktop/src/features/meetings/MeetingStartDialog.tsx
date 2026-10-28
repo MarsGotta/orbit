@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useId, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { Dialog } from "../../design/Dialog";
 import { Field } from "../../design/Field";
-import { es } from "../../i18n/es";
+
 import { AudioSourceField } from "./AudioSourceField";
 import { StartBlocker } from "./StartBlocker";
 import { clock, startBlocker, titleSuggestion } from "./start-options";
@@ -28,6 +29,7 @@ export interface MeetingStartDialogProps {
  * window closes; a refusal is said inside it.
  */
 export function MeetingStartDialog(props: MeetingStartDialogProps) {
+  const es = useCopy();
   const { onClose, send, snapshot, error, onErrorDismiss } = props;
   const [now] = useState(() => Date.now());
   const [title, setTitle] = useState("");
@@ -92,6 +94,7 @@ function TitleField(props: {
   placeholder: string;
   suggestion: { title: string; label: string } | null;
 }) {
+  const es = useCopy();
   const { title, onTitle, placeholder, suggestion } = props;
   return (
     <div className={styles.title}>
@@ -129,6 +132,7 @@ function StartFooter(props: {
   onStart: (() => void) | null;
   pending: boolean;
 }) {
+  const es = useCopy();
   const { describedBy, disabled, onCancel, onStart, pending } = props;
   return (
     <>

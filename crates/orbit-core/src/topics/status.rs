@@ -43,4 +43,7 @@ pub struct Value {
     /// a daemon from before the switch says nothing, which reads the same.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error_reports: Option<bool>,
+    /// The per-Mac language choice; absent before the daemon reports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub language: Option<crate::language::LanguageChoice>,
 }

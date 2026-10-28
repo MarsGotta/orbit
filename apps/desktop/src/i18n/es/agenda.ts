@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 import { agendaEdit } from "./agendaEdit";
 
 export const agenda = {
@@ -8,19 +9,19 @@ export const agenda = {
     today: "Hoy",
     // The views, how to move through them and how each card reads.
     day: "Día",
-    days: (count: number) => `${count} días`,
+    days: (count: number) => `${numberFormat().format(count)} días`,
     month: "Mes",
     agenda: "Agenda",
     agendaSubtitle: "Los próximos días, en lista",
-    weekNumber: (week: number) => `semana ${week}`,
+    weekNumber: (week: number) => `semana ${numberFormat().format(week)}`,
     previous: {
       day: "Día anterior",
-      days: (count: number) => `${count} días antes`,
+      days: (count: number) => `${numberFormat().format(count)} días antes`,
       month: "Mes anterior",
     },
     next: {
       day: "Día siguiente",
-      days: (count: number) => `${count} días después`,
+      days: (count: number) => `${numberFormat().format(count)} días después`,
       month: "Mes siguiente",
     },
     viewMenu: "Vista del calendario",
@@ -34,17 +35,18 @@ export const agenda = {
     sunday: "Domingo",
     zoomIn: "Acercar",
     zoomOut: "Alejar",
-    zoomValue: (percent: number) => `Zoom ${percent} %`,
+    zoomValue: (percent: number) => `Zoom ${numberFormat().format(percent)} %`,
     allDayLane: "Todo el día",
     expandAllDay: "Mostrar todos los eventos de día completo",
     collapseAllDay: "Mostrar una fila de día completo",
-    moreEvents: (count: number) => `${count} más`,
+    moreEvents: (count: number) => `${numberFormat().format(count)} más`,
     agendaToday: "HOY",
     freeToday: "Hoy no tienes nada",
     recording: "Grabando…",
     unanswered: "Sin responder",
     timeRange: (start: string, end: string) => `${start} – ${end}`,
-    guests: (count: number) => (count === 1 ? "1 invitado" : `${count} invitados`),
+    guests: (count: number) =>
+      count === 1 ? "1 invitado" : `${numberFormat().format(count)} invitados`,
     videoCall: "Con videollamada",
     untilDay: (weekday: string) => `Hasta el ${weekday}`,
     // The month: the day picked and its agenda.
@@ -55,7 +57,7 @@ export const agenda = {
     dayCell: (day: string, count: number) =>
       count === 0
         ? `${day}, sin eventos`
-        : `${day}, ${count === 1 ? "1 evento" : `${count} eventos`}`,
+        : `${day}, ${count === 1 ? "1 evento" : `${numberFormat().format(count)} eventos`}`,
     // The event panel.
     joinRecord: "Unirse y grabar",
     recordOnly: "Solo grabar",
@@ -81,7 +83,7 @@ export const agenda = {
     },
     unansweredHere: "Sin responder · responde en Calendario",
     yours: "Es tuyo",
-    guestsTitle: (count: number) => `Invitados · ${count}`,
+    guestsTitle: (count: number) => `Invitados · ${numberFormat().format(count)}`,
     you: (name: string) => `${name} (tú)`,
     organizes: "Organiza",
     guestResponse: {
@@ -92,9 +94,10 @@ export const agenda = {
       none: "",
     },
     // This count is only for the calendar view; reading and sharing use all calendars.
-    macCalendars: (count: number) => (count === 1 ? "1 calendario" : `${count} calendarios`),
+    macCalendars: (count: number) =>
+      count === 1 ? "1 calendario" : `${numberFormat().format(count)} calendarios`,
     visibleCalendars: (visible: number, total: number) =>
-      `${visible} de ${total} ${total === 1 ? "calendario" : "calendarios"}`,
+      `${numberFormat().format(visible)} de ${numberFormat().format(total)} ${total === 1 ? "calendario" : "calendarios"}`,
     visibleCalendarsLabel: "Calendarios visibles",
     showAllCalendars: "Mostrar todos",
     now: "Ahora",

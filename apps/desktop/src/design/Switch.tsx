@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import type { ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { useRequested, type CheckedChange } from "./requested";
 import styles from "./Switch.module.css";
 
@@ -18,6 +19,7 @@ export interface SwitchProps {
 }
 
 export function Switch(props: SwitchProps) {
+  const es = useCopy();
   const { checked, children, disabled, label, onCheckedChange, waitsForSystem } = props;
   const { waiting, request } = useRequested(checked, onCheckedChange);
   const held = waitsForSystem === true && waiting;

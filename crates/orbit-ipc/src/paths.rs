@@ -10,6 +10,8 @@ use std::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
+    #[serde(skip)]
+    pub language: orbit_core::language::LanguageChoice,
     pub version: u8,
     pub device_name: String,
     /// Last name learned from the hub, retained across offline starts in
@@ -87,6 +89,7 @@ pub struct HubAgents {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            language: Default::default(),
             version: 1,
             device_name: "Mi Mac".into(),
             assistant_name: None,
@@ -199,6 +202,7 @@ impl Paths {
             settings.assistant_name = learned.assistant_name;
             settings.hub_agents = learned.agents;
         }
+        settings.language = self.load_language()?;
         Ok(settings)
     }
 
@@ -206,6 +210,7 @@ impl Paths {
     /// two files never loses a name that was only in `config.toml`.
     pub fn save_settings(&self, settings: &Settings) -> Result<()> {
         self.initialize()?;
+        self.save_language(settings.language)?;
         if settings.assistant_name.is_some()
             || settings.hub_agents.is_some()
             || self.hub_agents().exists()

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { CallSnapshot } from "../../bridge/generated/CallSnapshot";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { AssistantCopy } from "../../i18n/AssistantCopy";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
 import AssistantView from "./AssistantView";
 import { callLimits } from "./CallView";
@@ -67,13 +67,13 @@ function snapshot(current: CallSnapshot | null): AppView {
 function show(current: CallSnapshot | null) {
   const sent: AppCommand[] = [];
   const view = (value: CallSnapshot | null) => (
-    <AssistantCopy name="Atlas">
+    <CopyProvider name="Atlas">
       <AssistantView
         error={null}
         send={(command) => sent.push(command)}
         snapshot={snapshot(value)}
       />
-    </AssistantCopy>
+    </CopyProvider>
   );
   const rendered = render(view(current));
   return { sent, rerender: (value: CallSnapshot | null) => rendered.rerender(view(value)) };

@@ -438,3 +438,46 @@ async fn session_messages_read_names_why_it_cannot_read() -> Result<(), Box<dyn 
     daemon.shutdown(&paths).await?;
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn language_choice_is_published_and_survives_a_daemon_restart() -> Result<(), Box<dyn Error>>
+{
+    use orbit_core::language::LanguageChoice;
+    let directory = tempfile::tempdir()?;
+    let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
+    for expected in [LanguageChoice::System, LanguageChoice::English] {
+        let daemon = TestDaemon::start(directory.path(), &paths).await?;
+        wait_until_recovered(&daemon).await?;
+        let (_, mut topics) = orbit_ipc::subscribe_topics(&paths, vec![TopicId::Status]).await?;
+        let value = tokio::time::timeout(READ_BUDGET, async {
+            loop {
+                let frame = topics.next_topic().await?;
+                if let TopicData::Status(Knowledge::Present { value, .. }) = frame.data {
+                    break Ok::<_, anyhow::Error>(value);
+                }
+            }
+        })
+        .await??;
+        assert_eq!(value.language, Some(expected));
+        if expected == LanguageChoice::System {
+            let reply = orbit_ipc::request(
+                &paths,
+                OrbitCommand::LanguageSet {
+                    language: LanguageChoice::English,
+                },
+            )
+            .await?;
+            assert!(reply.ok);
+            let changed = tokio::time::timeout(READ_BUDGET, topics.next_topic()).await??;
+            match changed.data {
+                TopicData::Status(Knowledge::Present { value, .. }) => {
+                    assert_eq!(value.language, Some(LanguageChoice::English));
+                }
+                other => panic!("unexpected topic: {other:?}"),
+            }
+        }
+        drop(topics);
+        daemon.shutdown(&paths).await?;
+    }
+    Ok(())
+}

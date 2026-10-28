@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
 import { Button } from "../../design/Button";
 import { Field } from "../../design/Field";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { readFilter, type VaultPort } from "./api";
 import { noteRoute } from "./route";
 import { ProjectCards, RecentActivity } from "./HomeCards";
@@ -12,6 +13,7 @@ import { useVaultRead } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 function Search({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }) {
+  const copy = useCopy().extras.vaultCopy;
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [number, setNumber] = useState(1);
@@ -108,6 +110,7 @@ function SearchResults({
 }
 
 function DueTasks({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }) {
+  const copy = useCopy().extras.vaultCopy;
   const { answer, error } = useVaultRead(port, { ...readFilter("tasks"), state: "open" });
   const start = localToday();
   const end = new Date(`${start}T12:00:00`);
@@ -146,6 +149,7 @@ export function VaultHome({
   catalog: VaultCatalog;
   configuration: VaultSettings;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const name =
     configuration.vault || (configuration.path.split("/").filter(Boolean).pop() ?? "Vault");
   return (

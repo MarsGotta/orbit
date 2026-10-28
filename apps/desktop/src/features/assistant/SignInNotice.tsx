@@ -1,9 +1,11 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { Button } from "../../design/Button";
 import { ViewNotice } from "../../design/ViewNotice";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { healthOf } from "./assistants";
 import { useSignIn, type SignInView } from "./use-sign-in";
@@ -30,6 +32,7 @@ function PasteCode({
   view: Extract<SignInView, { state: "waiting" }>;
   onSubmit: (code: string) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const [code, setCode] = useState("");
   const id = useId();
   return (
@@ -82,6 +85,7 @@ export function SignInWaiting({
   onCode: (code: string) => void;
   onCancel: () => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <>
       <span className={styles.block}>{copy.waitingText(vendor)}</span>
@@ -111,12 +115,17 @@ function noticeTitle(
   vendor: string,
 ): string {
   if (place === "settings")
-    return reason === "expired" ? copy.expiredBanner(vendor) : copy.signedOut(vendor);
-  return reason === "expired" ? copy.signInAgainTitle(vendor) : copy.signInFirstTitle(vendor);
+    return reason === "expired"
+      ? getCopy().extras.assistantsCopy.expiredBanner(vendor)
+      : getCopy().extras.assistantsCopy.signedOut(vendor);
+  return reason === "expired"
+    ? getCopy().extras.assistantsCopy.signInAgainTitle(vendor)
+    : getCopy().extras.assistantsCopy.signInFirstTitle(vendor);
 }
 
 /** Signed in from here: as whom, and whether another assistant already uses that account. */
 function SignedIn({ agent, agents }: { agent: Agent; agents: readonly Agent[] }) {
+  const copy = useCopy().extras.assistantsCopy;
   const other = sharedAccount(agent, agents);
   return (
     <p className={styles.connected} role="status">
@@ -135,8 +144,10 @@ function noticeText(
   view: SignInView,
 ): string {
   if (view.state === "idle" && view.ended !== undefined) return view.ended;
-  if (place === "settings") return copy.expiredBannerText(agent.name);
-  return reason === "expired" ? copy.signInAgainText(agent.name) : copy.signInFirstText(agent.name);
+  if (place === "settings") return getCopy().extras.assistantsCopy.expiredBannerText(agent.name);
+  return reason === "expired"
+    ? getCopy().extras.assistantsCopy.signInAgainText(agent.name)
+    : getCopy().extras.assistantsCopy.signInFirstText(agent.name);
 }
 
 /**
@@ -161,6 +172,7 @@ export function SignInNotice({
   send: (command: AppCommand) => unknown;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const health = healthOf(agent, nowMs);
   const vendor = health.kind === "sign_in" ? health.vendor : "";
   const signedIn = agent.account === "signed_in";

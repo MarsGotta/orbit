@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
 import type { VaultRoute } from "./route";
 import { useState } from "react";
 import { TopBarLeading } from "../../app/shell-slots";
 import { Button } from "../../design/Button";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { readFilter, type VaultPort } from "./api";
 import { ConnectionCard } from "./ConnectionCard";
 import { useVaultConfiguration, useVaultRead } from "./use-vault-read";
@@ -87,6 +88,7 @@ function Reading({
   configuration: VaultSettings;
   owner?: string;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const route = useVaultRoute();
   const [number, setNumber] = useState(1);
   const { answer, error, retry } = useVaultRead(port, readFilter("catalog", "", number));
@@ -137,6 +139,7 @@ function Reading({
 }
 
 export default function VaultView({ port, owner }: { port?: VaultPort; owner?: string }) {
+  const copy = useCopy().extras.vaultCopy;
   const { configuration, setConfiguration, error, retry } = useVaultConfiguration(port);
   const route = useVaultRoute();
   if (configuration?.configured === true)

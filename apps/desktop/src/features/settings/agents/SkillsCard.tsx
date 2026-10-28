@@ -1,9 +1,10 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useState } from "react";
 import type { SkillsConfig } from "../../../bridge/generated/SkillsConfig";
 import { Group, List } from "../layout";
 import styles from "./Agents.module.css";
 import { NewSkill } from "./NewSkill";
-import { copy, FeedbackLine, NotEditable, type OrderProps } from "./parts";
+import { FeedbackLine, NotEditable, type OrderProps } from "./parts";
 import { type OpenSkill, SkillEditor } from "./SkillEditor";
 import { SkillRow } from "./SkillRow";
 import type { Feedback, useAgentConfig } from "./use-agent-config";
@@ -55,6 +56,7 @@ export function SkillsCard({
   read: Config["skill"];
   say: Config["say"];
 }) {
+  const copy = useCopy().agents;
   const { open, setOpen, refusal, openSkill } = useSkillWindow(props.feedback, read, skills);
   async function save(name: string, content: string): Promise<boolean> {
     const call = { call: "skill_save", agent_id: props.agentId, name, content } as const;

@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 import { count, text, type Numbers } from "./refusalNumbers";
 
 /**
@@ -17,7 +18,7 @@ export const assistantRefusals: Record<string, (n: Numbers) => string | undefine
       const characters = count(n, "characters");
       const max = count(n, "max_characters");
       if (characters === undefined || max === undefined) return undefined;
-      return `${what} tiene ${characters} caracteres; el máximo es ${max}.`;
+      return `${what} tiene ${numberFormat().format(characters)} caracteres; el máximo es ${numberFormat().format(max)}.`;
     }
     if (rule === "control_characters")
       return `${what} lleva caracteres de control; ${field === "description" ? "escríbela" : "escríbelo"} en una línea.`;
@@ -42,13 +43,13 @@ export const assistantRefusals: Record<string, (n: Numbers) => string | undefine
     const agents = count(n, "count");
     const max = count(n, "max");
     if (agents === undefined || max === undefined) return undefined;
-    return `Tu hub ya tiene ${agents} asistentes; el máximo es ${max}.`;
+    return `Tu hub ya tiene ${numberFormat().format(agents)} asistentes; el máximo es ${numberFormat().format(max)}.`;
   },
   agent_not_removable: () => "Este asistente lo da tu hub: solo quien lo gestiona puede quitarlo.",
   agent_folder_not_removed: (n) => {
     const errno = count(n, "errno");
     if (errno === undefined) return undefined;
-    return `El hub no pudo borrar la carpeta del asistente (errno ${errno}), así que sigue aquí. Avisa a quien gestiona tu hub.`;
+    return `El hub no pudo borrar la carpeta del asistente (errno ${numberFormat().format(errno)}), así que sigue aquí. Avisa a quien gestiona tu hub.`;
   },
   sign_in_unsupported: () =>
     "Este asistente no inicia sesión desde Orbit: lo configura quien gestiona tu hub.",
@@ -59,16 +60,16 @@ export const assistantRefusals: Record<string, (n: Numbers) => string | undefine
   sign_in_code_invalid: (n) => {
     const characters = count(n, "characters");
     if (characters === undefined) return undefined;
-    return `Ese código no es el de la página (${characters} caracteres). Cópialo entero, con su «#».`;
+    return `Ese código no es el de la página (${numberFormat().format(characters)} caracteres). Cópialo entero, con su «#».`;
   },
   sign_out_failed: (n) => {
     const status = count(n, "exit_status");
     if (status === undefined) return undefined;
-    return `La herramienta del proveedor no cerró la sesión (código de salida ${status}). Vuelve a intentarlo.`;
+    return `La herramienta del proveedor no cerró la sesión (código de salida ${numberFormat().format(status)}). Vuelve a intentarlo.`;
   },
   sign_out_timeout: (n) => {
     const timeout = count(n, "timeout_ms");
     if (timeout === undefined) return undefined;
-    return `La herramienta del proveedor no cerró la sesión en ${Math.round(timeout / 1000)} s. Vuelve a intentarlo.`;
+    return `La herramienta del proveedor no cerró la sesión en ${numberFormat().format(Math.round(timeout / 1000))} s. Vuelve a intentarlo.`;
   },
 };

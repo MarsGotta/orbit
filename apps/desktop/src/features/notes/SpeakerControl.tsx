@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback } from "react";
 import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
 import { Popover } from "../../design/Popover";
-import { es } from "../../i18n/es";
+
 import { SpeakerMenu } from "./SpeakerMenu";
 import { SpeakerName } from "./TranscriptSegment";
 import styles from "./Note.module.css";
@@ -25,6 +26,7 @@ export function SpeakerControl({
   turn: NoteTurnSnapshot;
   onApply: (name: string, scope: SpeakerRenameScope, turns: number) => Promise<unknown>;
 }) {
+  const es = useCopy();
   const index = turn.index;
   const change = useCallback((next: boolean) => setOpen(next ? index : null), [index, setOpen]);
   return (

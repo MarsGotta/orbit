@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { CSSProperties } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
-import { es } from "../../i18n/es";
+
 import { notRequested, templateOf } from "./note-progress";
 import { shortName } from "./notes-format";
 import type { Send } from "./send";
@@ -16,6 +17,7 @@ import styles from "./Note.module.css";
 
 /** «Quién habló»: one bar, each person's share in their colour. */
 function WhoSpoke({ note }: { note: OpenNoteSnapshot }) {
+  const es = useCopy();
   const speakers = note.speakers.filter((speaker) => speaker.share_pct > 0);
   if (speakers.length === 0) return null;
   return (
@@ -53,6 +55,7 @@ function List({ items, title }: { items: string[]; title: string }) {
 }
 
 function Superseded({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   if (note.summary?.superseded_available !== true) return null;
   return (
     <p className={styles.band}>
@@ -78,6 +81,7 @@ function Unwritten({
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
 }) {
+  const es = useCopy();
   if (notRequested(note)) return <p className={styles.quiet}>{es.noteScreen.notRequested}</p>;
   const id = templateOf(note);
   const template = library?.items.find((item) => item.id === id)?.name ?? id;
@@ -104,6 +108,7 @@ export function SummaryTab({
   send: Send;
   writing?: NoteWriting;
 }) {
+  const es = useCopy();
   const summary = note.summary;
   const { sections, change, flush, recovered, unsaved } = useSectionEdits(note, send);
   if (!summary)

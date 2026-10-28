@@ -1,12 +1,13 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useState } from "react";
 import type { PersonalityConfig } from "../../../bridge/generated/PersonalityConfig";
-import { es } from "../../../i18n/es";
+
 import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
 import { Button } from "../../../design/Button";
 import type { useFeedback } from "../../../design/feedback";
 import { Group } from "../layout";
 import styles from "./Agents.module.css";
-import { ByteCount, copy, FeedbackLine, NotEditable, type OrderProps } from "./parts";
+import { ByteCount, FeedbackLine, NotEditable, type OrderProps } from "./parts";
 import PersonalityEditor from "./PersonalityEditor";
 import { utf8Bytes } from "./skill-file";
 
@@ -66,6 +67,8 @@ export function PersonalityCard({
   /** Held by the panel: a saved text remounts this card before the hub's answer is told. */
   saving: ReturnType<typeof useFeedback>;
 }) {
+  const copy = useCopy().agents;
+  const es = useCopy();
   const { draft, opened, recovered, save, setDraft } = usePersonalityDraft(
     personality,
     agentId,

@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // Templates and their assignment to a series. A refusal says
 // what the user can do, when they can do something; the hub's codes, numbers and
 // retry times stay in the log.
@@ -42,11 +43,14 @@ export const library = {
     context: "De qué va esta reunión y qué importa",
     contextHint: "Qué es esta reunión y qué importa en ella.",
     sections: "Secciones de la nota",
-    sectionCount: (count: number, max: number) => `${count} de ${max}`,
-    sectionName: (index: number) => `Nombre de la sección ${index + 1}`,
-    sectionInstructions: (index: number) => `Instrucciones de la sección ${index + 1}`,
+    sectionCount: (count: number, max: number) =>
+      `${numberFormat().format(count)} de ${numberFormat().format(max)}`,
+    sectionName: (index: number) => `Nombre de la sección ${numberFormat().format(index + 1)}`,
+    sectionInstructions: (index: number) =>
+      `Instrucciones de la sección ${numberFormat().format(index + 1)}`,
     addSection: "Añadir sección",
-    sectionsFull: (max: number) => `${max} secciones como máximo. Quita una para añadir otra.`,
+    sectionsFull: (max: number) =>
+      `${numberFormat().format(max)} secciones como máximo. Quita una para añadir otra.`,
     removeSection: (name: string) => `Quitar «${name}»`,
     dragSection: (name: string) => `Mover «${name}»: arrástrala o usa las flechas arriba y abajo`,
     builtinHint: "Es de Orbit: si la cambias, se guarda una copia tuya.",

@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Skeleton } from "../../design/Skeleton";
-import { es } from "../../i18n/es";
+
 import type { Send } from "./send";
 import styles from "./Note.module.css";
 
@@ -23,6 +24,7 @@ export function DoneBand({
   text: string;
   onRedoSummary: () => void;
 }) {
+  const es = useCopy();
   return (
     <p className={styles.doneBand} role="status">
       <span aria-hidden="true" className={styles.doneMark}>
@@ -40,6 +42,7 @@ export function DoneBand({
 
 /** «Pulsa un nombre…», or «La transcripción va apareciendo…» while it fills. */
 export function Hint({ note }: { note: OpenNoteSnapshot }) {
+  const es = useCopy();
   return (
     <p className={styles.quiet}>
       {arriving(note) ? es.notes.transcriptArriving : es.notes.transcriptHelp}
@@ -48,6 +51,7 @@ export function Hint({ note }: { note: OpenNoteSnapshot }) {
 }
 
 export function TranscriptState({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   if (note.transcript.error != null && note.transcript.error !== "") {
     return (
       <div className={styles.inlineFailure} role="alert">
@@ -74,6 +78,7 @@ export function CorrectButton({
   text: string;
   onCorrect: (text: string, anchor: HTMLElement) => void;
 }) {
+  const es = useCopy();
   return (
     <Button
       className={styles.correctButton}
@@ -89,6 +94,7 @@ export function CorrectButton({
 
 /** The end of a transcript still filling: skeleton lines. */
 export function Arriving() {
+  const es = useCopy();
   return (
     <div aria-label={es.notes.moreTranscript} className={styles.arriving} role="img">
       <Skeleton height={10} widths={["100px", "80%"]} />

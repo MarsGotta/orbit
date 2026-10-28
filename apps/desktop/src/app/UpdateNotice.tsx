@@ -1,8 +1,8 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { UpdateSnapshot } from "../bridge/generated/UpdateSnapshot";
 import { Toast } from "../design/Toast";
-import { es } from "../i18n/es";
 
 const DISMISSED_VERSION = "orbit.update.dismissed-version";
 
@@ -21,6 +21,7 @@ export function UpdateNotice({
   update: UpdateSnapshot;
   send: (command: AppCommand) => unknown;
 }) {
+  const es = useCopy();
   const [dismissed, setDismissed] = useState(dismissedVersion);
   const version = update.version;
   const blocked = Boolean(update.install_blocked);

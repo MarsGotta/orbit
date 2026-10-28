@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
 import { ListColumn, useShellSlots } from "../../app/shell-slots";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { noteRoute, type VaultRoute } from "./route";
 import styles from "./VaultColumn.module.css";
 import { VaultFolder as Folder } from "./VaultFolder";
@@ -72,6 +73,7 @@ function Contents({
   configuration: VaultSettings;
   route: VaultRoute;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   if (!configuration.configured) return <p className={styles.empty}>{copy.emptyAside}</p>;
   const name =
     configuration.vault || (configuration.path.split("/").filter(Boolean).pop() ?? "Vault");
@@ -126,6 +128,7 @@ export function VaultColumn(props: {
   configuration: VaultSettings;
   route: VaultRoute;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const slots = useShellSlots();
   const contents = (
     <div className={styles.contents}>

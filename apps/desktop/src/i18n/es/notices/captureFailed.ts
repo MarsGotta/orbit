@@ -1,3 +1,4 @@
+import { numberFormat } from "../../locale";
 import type { Entries, NoticeData } from "./types";
 
 /**
@@ -26,7 +27,7 @@ function cause(data: NoticeData): string {
 
 function fragments(count: unknown): string | null {
   if (typeof count !== "number" || count <= 0) return null;
-  return count === 1 ? "1 fragmento" : `${count} fragmentos`;
+  return count === 1 ? "1 fragmento" : `${numberFormat().format(count)} fragmentos`;
 }
 
 /** What was kept of a recording, and what to do while the meeting goes on. */
@@ -55,13 +56,18 @@ function lostFilesText(data: NoticeData): string {
   const unfinished = count(data.incomplete);
   const lost = damaged + missing + unfinished;
   const parts = [
-    damaged > 0 ? `${damaged} ${damaged === 1 ? "dañado" : "dañados"}` : null,
-    missing > 0 ? `${missing} que ${missing === 1 ? "faltaba" : "faltaban"}` : null,
-    unfinished > 0 ? `${unfinished} a medio escribir` : null,
+    damaged > 0
+      ? `${numberFormat().format(damaged)} ${damaged === 1 ? "dañado" : "dañados"}`
+      : null,
+    missing > 0
+      ? `${numberFormat().format(missing)} que ${missing === 1 ? "faltaba" : "faltaban"}`
+      : null,
+    unfinished > 0 ? `${numberFormat().format(unfinished)} a medio escribir` : null,
   ].filter((part) => part !== null);
-  const files = lost === 1 ? "1 archivo de audio" : `${lost} archivos de audio`;
+  const files =
+    lost === 1 ? "1 archivo de audio" : `${numberFormat().format(lost)} archivos de audio`;
   const which = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-  return `Al abrirse, Orbit no pudo recuperar ${files} de este Mac${which}; recuperó ${count(data.recovered)}.`;
+  return `Al abrirse, Orbit no pudo recuperar ${files} de este Mac${which}; recuperó ${numberFormat().format(count(data.recovered))}.`;
 }
 
 /** Why a seal failed, by the cause the daemon gives it (`seal_cause.rs`). */

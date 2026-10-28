@@ -1,13 +1,15 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useCallback, useState } from "react";
 import { useStore } from "zustand";
 import type { DaemonPort } from "../bridge/port";
-import { es } from "../i18n/es";
+
 import { createOrbitStore } from "../state/orbit-store";
 import { useCrashReporting } from "./use-crash-reporting";
 import { useOrbitConnection } from "./useOrbitConnection";
 
 /** The main window's store, connected, with uncaught errors routed to the interceptor. */
 export function useAppStore(port: DaemonPort) {
+  const es = useCopy();
   const [store] = useState(() => createOrbitStore(port));
   const storeCrash = useStore(store, (state) => state.crash);
   useOrbitConnection(useStore(store, (state) => state.connect));

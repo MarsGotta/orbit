@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 import { TopBarLeading, Breadcrumbs } from "../../app/shell-slots";
 import { Button } from "../../design/Button";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { readFilter, type VaultPort } from "./api";
 import { AboutNote } from "./AboutNote";
 import { typeLabel } from "./type-colors";
@@ -27,6 +28,7 @@ function useMarkdownShortcut(path: string, markdown: boolean) {
   }, [path, markdown]);
 }
 function RawNote({ note }: { note: VaultNote }) {
+  const copy = useCopy().extras.vaultCopy;
   const prefix = note.raw.endsWith(note.body)
     ? note.raw.slice(0, note.raw.length - note.body.length)
     : "";
@@ -39,6 +41,7 @@ function RawNote({ note }: { note: VaultNote }) {
   );
 }
 function NoteBar({ note, title, markdown }: { note: VaultNote; title: string; markdown: boolean }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <TopBarLeading>
       <div className={styles.top}>
@@ -79,6 +82,7 @@ function ReadNote({
   port?: VaultPort;
   markdown: boolean;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const title =
     typeof note.frontmatter.title === "string"
       ? note.frontmatter.title

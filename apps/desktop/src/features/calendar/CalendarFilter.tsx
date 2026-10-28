@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useState } from "react";
 import { Popover } from "../../design/Popover";
-import { es } from "../../i18n/es";
+
 import { calendarTone, toneStyle } from "./eventLook";
 import styles from "./CalendarView.module.css";
 
@@ -19,6 +20,7 @@ interface CalendarFilterProps {
  * only. Deimos and the rest of Orbit go on reading every calendar.
  */
 export function CalendarFilter(props: CalendarFilterProps) {
+  const es = useCopy();
   const [open, setOpen] = useState(false);
   // Calendars not listed yet: nothing to choose and nothing to say.
   if (props.calendars.length === 0) return null;

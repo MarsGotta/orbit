@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { type ReactNode, useRef, useState } from "react";
-import { es } from "../../i18n/es";
+
 import type { Match } from "./transcript-search";
 import { type Span, wordAt } from "./word-forms";
 import { offsetAtPoint, textOffset } from "./word-at-point";
@@ -103,6 +104,7 @@ function selecting(paragraph: HTMLElement): boolean {
  * selected and «Corregir «…»» opens the same menu.
  */
 export function TurnText(props: TurnTextProps) {
+  const es = useCopy();
   const { text, matches, focused, fixed, picked, onPick, anchorRef } = props;
   const paragraph = useRef<HTMLParagraphElement>(null);
   const [hover, setHover] = useState<Span | null>(null);

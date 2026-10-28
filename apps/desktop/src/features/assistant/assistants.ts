@@ -1,6 +1,6 @@
+import { getCopy } from "../../i18n";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { AssistantColor } from "../../design/AssistantAvatar";
-import { assistantsCopy as copy, vendorOf } from "../../i18n/es/assistants";
 
 /**
  * What an assistant can do now, from what the hub last said of it
@@ -20,7 +20,10 @@ export function healthOf(agent: Agent, nowMs: number): Health {
     return {
       kind: "sign_in",
       reason: agent.account,
-      vendor: vendorOf(agent.service) ?? copy.serviceName(agent.service) ?? agent.name,
+      vendor:
+        getCopy().extras.vendorOf(agent.service) ??
+        getCopy().extras.assistantsCopy.serviceName(agent.service) ??
+        agent.name,
     };
   if (agent.limit !== undefined) {
     const until = agent.limit.until_ms;
@@ -45,9 +48,11 @@ export function colorOf(agent: Agent, agents: readonly Agent[]): AssistantColor 
 /** The amber words at the right of its row in «Tus asistentes», when something is wrong. */
 export function rowWarning(agent: Agent, nowMs: number): string | null {
   const health = healthOf(agent, nowMs);
-  if (health.kind === "sign_in") return copy.rowSignIn;
+  if (health.kind === "sign_in") return getCopy().extras.assistantsCopy.rowSignIn;
   if (health.kind === "limit")
-    return health.until === undefined ? copy.rowLimit : copy.rowUntil(health.until);
+    return health.until === undefined
+      ? getCopy().extras.assistantsCopy.rowLimit
+      : getCopy().extras.assistantsCopy.rowUntil(health.until);
   return null;
 }
 
@@ -65,12 +70,17 @@ export function statusLine(
       return {
         tone: "warn",
         text:
-          health.reason === "expired" ? copy.expired(health.vendor) : copy.signedOut(health.vendor),
+          health.reason === "expired"
+            ? getCopy().extras.assistantsCopy.expired(health.vendor)
+            : getCopy().extras.assistantsCopy.signedOut(health.vendor),
       };
     case "limit":
       return {
         tone: "warn",
-        text: health.until === undefined ? copy.limitUnknown : copy.limitUntil(health.until, nowMs),
+        text:
+          health.until === undefined
+            ? getCopy().extras.assistantsCopy.limitUnknown
+            : getCopy().extras.assistantsCopy.limitUntil(health.until, nowMs),
       };
     case "unknown":
       return null;
@@ -78,9 +88,18 @@ export function statusLine(
       if (agent.usage !== undefined)
         return {
           tone: "ok",
-          text: copy.availableUsage(Math.round(agent.usage.used_percent), agent.usage.window),
+          text: getCopy().extras.assistantsCopy.availableUsage(
+            Math.round(agent.usage.used_percent),
+            agent.usage.window,
+          ),
         };
-      return { tone: "ok", text: agent.service === "hermes" ? copy.availableHub : copy.available };
+      return {
+        tone: "ok",
+        text:
+          agent.service === "hermes"
+            ? getCopy().extras.assistantsCopy.availableHub
+            : getCopy().extras.assistantsCopy.available,
+      };
   }
 }
 
@@ -88,8 +107,10 @@ export function statusLine(
 export function composerBlock(agent: Agent | undefined, nowMs: number): string | null {
   if (agent === undefined) return null;
   const health = healthOf(agent, nowMs);
-  if (health.kind === "sign_in") return copy.composerSignIn(agent.name, health.vendor);
-  if (health.kind === "limit") return copy.composerLimit(agent.name, health.until);
+  if (health.kind === "sign_in")
+    return getCopy().extras.assistantsCopy.composerSignIn(agent.name, health.vendor);
+  if (health.kind === "limit")
+    return getCopy().extras.assistantsCopy.composerLimit(agent.name, health.until);
   return null;
 }
 

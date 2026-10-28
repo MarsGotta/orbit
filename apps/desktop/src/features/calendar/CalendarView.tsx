@@ -1,8 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
-import { macPermissions } from "../../i18n/es/permissions";
-import { es } from "../../i18n/es";
+
 import { CalendarBody } from "./CalendarBody";
 import { CalendarEmpty, CalendarLoading, ConnectCalendar } from "./CalendarStates";
 import { useCalendarView } from "./useCalendarView";
@@ -19,6 +19,8 @@ interface CalendarViewProps {
 /// the Mac has not said yet, the view shows the calendar loading — never
 /// «denied», and never a blank view.
 export default function CalendarView({ error, send, snapshot }: CalendarViewProps) {
+  const es = useCopy();
+  const macPermissions = useCopy().extras.macPermissions;
   const authorization = snapshot.calendar.authorization;
   if (snapshot.calendar.reading.blocker === "privacy_stopped") {
     return (
@@ -79,6 +81,7 @@ export default function CalendarView({ error, send, snapshot }: CalendarViewProp
 }
 
 function CalendarContent({ error, send, snapshot }: CalendarViewProps) {
+  const es = useCopy();
   const calendar = snapshot.calendar;
   const view = useCalendarView(calendar, snapshot.system_timezone ?? "", send);
   const visibility = useCalendarVisibility(calendar.calendars);

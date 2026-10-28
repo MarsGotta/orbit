@@ -71,6 +71,10 @@ pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error_reports: Option<bool>,
+    /// The per-Mac language choice; absent before the daemon reports it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub language: Option<orbit_core::language::LanguageChoice>,
     /// Retired compatibility field: zero means no duration ceiling.
     pub call_minutes: u16,
 }
@@ -158,6 +162,7 @@ fn unread_settings(calendar_total: Option<u32>) -> StatusSettingsView {
         },
         privacy_stopped: false,
         error_reports: None,
+        language: None,
         call_minutes: 0,
     }
 }
@@ -193,6 +198,7 @@ fn show_status(
     view.settings.addable_agents = value.addable_agents.clone();
     view.settings.attachments = value.attachments;
     view.settings.error_reports = value.error_reports;
+    view.settings.language = value.language;
 }
 
 /// The hub this Mac is paired with, as Ajustes shows it.
@@ -292,6 +298,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
     snapshot.settings.versions = view.settings.versions.clone();
     snapshot.settings.privacy_stopped = view.settings.privacy_stopped;
     snapshot.settings.error_reports = view.settings.error_reports;
+    snapshot.settings.language = view.settings.language;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

@@ -32,6 +32,7 @@ impl ProjectTopic for Projector {
                 account: state.views.account.clone(),
                 privacy_stopped: state.privacy_stopped(),
                 helper_connected: state.helper_connected(),
+                language: source.runtime.map(|runtime| runtime.settings.language),
                 error_reports: source
                     .runtime
                     .and_then(|runtime| runtime.error_reports.choice()),

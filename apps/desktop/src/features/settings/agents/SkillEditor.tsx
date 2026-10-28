@@ -1,9 +1,10 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { Button } from "../../../design/Button";
 import { Dialog } from "../../../design/Dialog";
-import { es } from "../../../i18n/es";
+
 import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
 import styles from "./Agents.module.css";
-import { ByteCount, copy } from "./parts";
+import { ByteCount } from "./parts";
 import { skillName, utf8Bytes } from "./skill-file";
 
 /** A `SKILL.md` open to read or edit: one of the agent's, or a new one. */
@@ -19,6 +20,8 @@ function EditorActions(props: {
   pending: boolean;
   readOnly: boolean;
 }) {
+  const copy = useCopy().agents;
+  const es = useCopy();
   if (props.readOnly)
     return (
       <Button onClick={props.onClose} size={36}>
@@ -53,6 +56,7 @@ function NameAndSize({
   maxBytes: number;
   name: string | null;
 }) {
+  const copy = useCopy().agents;
   return (
     <div className={styles.footer}>
       <span className={name === null ? styles.alert : styles.count}>
@@ -65,6 +69,7 @@ function NameAndSize({
 
 /** A draft brought back from an earlier run, and the hub's refusal of the last save. */
 function EditorLines({ recovered, refusal }: { recovered: boolean; refusal: string | null }) {
+  const es = useCopy();
   return (
     <>
       {recovered && (
@@ -139,6 +144,7 @@ export function SkillEditor({
   onSave: (name: string, content: string) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const copy = useCopy().agents;
   const draft = useSkillDraft(draftKey, skill, onSave, onClose);
   const { close, content } = draft;
   const name = skill.mode === "existing" ? skill.name : skillName(content);

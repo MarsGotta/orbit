@@ -1,6 +1,7 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { CalendarFrequency } from "../../../bridge/generated/CalendarFrequency";
 import { Switch } from "../../../design/Switch";
-import { es } from "../../../i18n/es";
+
 import { DAY_MS } from "../date";
 import { type EventForm, type Repeat, withAllDay, withStart } from "./form";
 import { allDaySpan, atWall, coveredDays } from "./geometry";
@@ -17,6 +18,7 @@ interface WhenProps {
 /** When: dates and hours (a new start keeps the length), the all-day switch and
  *  the repetition. */
 export function PanelWhen({ form, onChange, timezone }: WhenProps) {
+  const es = useCopy();
   return (
     <fieldset className={styles.when}>
       <legend className={styles.label}>{es.calendar.edit.when}</legend>
@@ -41,6 +43,7 @@ export function PanelWhen({ form, onChange, timezone }: WhenProps) {
 }
 
 function TimedDates({ form, onChange, timezone }: WhenProps) {
+  const es = useCopy();
   const startDate = dateValue(form.startMs, timezone);
   const endDate = dateValue(form.endMs, timezone);
   const setStart = (start: number | null) => {
@@ -93,6 +96,7 @@ function TimedDates({ form, onChange, timezone }: WhenProps) {
 }
 
 function AllDayDates({ form, onChange, timezone }: WhenProps) {
+  const es = useCopy();
   const { first, last } = coveredDays(form, timezone);
   const value = (day: number) => dateValue(day * DAY_MS, "UTC");
   const set = (nextFirst: number, nextLast: number) =>
@@ -125,6 +129,7 @@ function AllDayDates({ form, onChange, timezone }: WhenProps) {
 const FREQUENCIES: CalendarFrequency[] = ["daily", "weekly", "monthly", "yearly"];
 
 function RepeatField({ onChange, repeat }: { onChange: (repeat: Repeat) => void; repeat: Repeat }) {
+  const es = useCopy();
   const choice = repeat.kind === "rule" ? repeat.frequency : repeat.kind;
   const options = es.calendar.edit.repeatOptions;
   return (
@@ -169,6 +174,7 @@ function IntervalField({
   onChange: (repeat: Repeat) => void;
   repeat: Extract<Repeat, { kind: "rule" }>;
 }) {
+  const es = useCopy();
   return (
     <label className={styles.interval}>
       <span>{es.calendar.edit.every}</span>

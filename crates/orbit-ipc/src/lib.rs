@@ -1,4 +1,5 @@
 mod ipc;
+mod language_settings;
 mod paths;
 pub mod permissions;
 pub mod report;

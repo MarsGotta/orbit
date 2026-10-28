@@ -1,8 +1,9 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
 import { Switch } from "../../../design/Switch";
-import { accessGroups } from "../../../i18n/es/agents";
+
 import { Group, List, Row } from "../layout";
-import { copy, FeedbackLine, NotEditable, type OrderProps } from "./parts";
+import { FeedbackLine, NotEditable, type OrderProps } from "./parts";
 
 /**
  * «Qué puede usar»: one switch per group of Orbit's tools, each named by
@@ -17,6 +18,8 @@ export function AccessCard({
   feedback,
   order,
 }: OrderProps & { access: AccessConfig; explained: boolean }) {
+  const copy = useCopy().agents;
+  const accessGroups = useCopy().extras.accessGroups;
   return (
     <Group help={copy.accessHelp} label={copy.access}>
       {!explained && <NotEditable cause={access.cause} editable={access.editable} />}

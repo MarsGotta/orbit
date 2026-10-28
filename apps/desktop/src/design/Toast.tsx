@@ -1,3 +1,4 @@
+import { useCopy } from "../i18n/CopyProvider";
 import {
   useCallback,
   useEffect,
@@ -8,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { NoticeClass } from "../bridge/generated/NoticeClass";
-import { es } from "../i18n/es";
+
 import { Spinner } from "./Spinner";
 import { useCornerPlace } from "./toast-queue";
 import styles from "./Toast.module.css";
@@ -46,6 +47,7 @@ export interface ToastProps {
 
 /** One presentation and lifecycle for the interceptor and local confirmations. */
 export function Toast({ persistent, ...props }: ToastProps) {
+  const es = useCopy();
   const { embedded, kind = "done", action, onClose, onUndo } = props;
   const [visible, setVisible] = useState(true);
   const [stack, setStack] = useState<HTMLElement | null>(null);
@@ -88,6 +90,7 @@ export function Toast({ persistent, ...props }: ToastProps) {
 }
 
 function ToastBody(props: ToastProps & { kind: ToastKind; dismiss: () => void }) {
+  const es = useCopy();
   const { message, detail, kind, action, onUndo, dismiss } = props;
   return (
     <>
@@ -118,6 +121,7 @@ function ToastBody(props: ToastProps & { kind: ToastKind; dismiss: () => void })
 
 /** «Deshacer 9s»: the real undo, offered while the notice lasts. */
 function UndoButton({ onUndo, dismiss }: { onUndo: () => void; dismiss: () => void }) {
+  const es = useCopy();
   const [count, setCount] = useState(ACTIONABLE_VISIBLE_MS / 1_000);
   useEffect(() => {
     const interval = window.setInterval(() => {

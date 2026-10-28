@@ -1,6 +1,8 @@
-import type { EditorView, ViewUpdate } from "@codemirror/view";
+import { editorLanguage } from "./editor-language";
+import { useCopy } from "../../i18n/CopyProvider";
+import { placeholder, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
-import { es } from "../../i18n/es";
+
 import {
   createEditor,
   editableOf,
@@ -39,6 +41,7 @@ interface Reading {
  * the name and read-only are reconfigured in place.
  */
 export function useMarkdownEditor(options: EditorOptions, menu: () => MenuKeys) {
+  const es = useCopy();
   const holder = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const latest = useRef(options);
@@ -108,6 +111,7 @@ function useOutsideChanges(
   parts: EditorParts,
   raw: boolean,
 ) {
+  const es = useCopy();
   const { label, readOnly, suggestion, value } = options;
   useEffect(() => {
     const editor = view.current;
@@ -123,11 +127,13 @@ function useOutsideChanges(
   useEffect(() => {
     view.current?.dispatch({
       effects: [
+        parts.copy.reconfigure(editorLanguage.of(es)),
         parts.preview.reconfigure(previewOf(raw)),
         parts.label.reconfigure(labelOf(raw ? es.editor.rawLabel(label) : label)),
+        parts.placeholder.reconfigure(placeholder(options.placeholder ?? es.editor.placeholder)),
       ],
     });
-  }, [view, parts, label, raw]);
+  }, [view, parts, label, raw, es, options.placeholder]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: parts.editable.reconfigure(editableOf(readOnly === true)) });

@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar, type AssistantColor } from "../../design/AssistantAvatar";
@@ -6,7 +8,7 @@ import { EditMenu } from "../../design/EditMenu";
 import type { Feedback } from "../../design/feedback";
 import { Icon } from "../../design/Icon";
 import { Switch } from "../../design/Switch";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";
 import { assistantHash } from "./assistant-route";
@@ -23,9 +25,13 @@ interface Profile {
 
 /** The words under the primary switch: what will happen, with whom it is now. */
 function primaryHelp(chosen: boolean, isPrimary: boolean, current?: Agent): string {
-  if (isPrimary) return `${copy.primaryIs} ${copy.primaryKeep}`;
-  if (chosen) return current === undefined ? copy.primaryIs : copy.primaryWill(current.name);
-  return current === undefined ? "" : copy.primaryNow(current.name);
+  if (isPrimary)
+    return `${getCopy().extras.assistantsCopy.primaryIs} ${getCopy().extras.assistantsCopy.primaryKeep}`;
+  if (chosen)
+    return current === undefined
+      ? getCopy().extras.assistantsCopy.primaryIs
+      : getCopy().extras.assistantsCopy.primaryWill(current.name);
+  return current === undefined ? "" : getCopy().extras.assistantsCopy.primaryNow(current.name);
 }
 
 /** What is being written, whether it is a valid change, and «Guardar» that sends all four. */
@@ -68,6 +74,7 @@ function useProfileDraft(agent: Agent, agents: readonly Agent[], primaryId?: str
 
 /** «Más ajustes»: the gear's page, from the pencil. */
 function MoreSettings({ agentId, onClose }: { agentId: string; onClose: () => void }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <Button
       onClick={() => {
@@ -95,6 +102,7 @@ function PrimaryField({
   current?: Agent;
   onChange: (primary: boolean) => void;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <div className={styles.primaryRow}>
       <Switch checked={chosen} disabled={isPrimary} label={copy.primary} onCheckedChange={onChange}>
@@ -113,7 +121,7 @@ function PrimaryField({
  * case and accents) cannot be saved; Esc and a press outside save nothing;
  * ↵ in the name saves. A primary stays one until another is made primary.
  */
-export function ProfileMenu(props: {
+interface ProfileMenuProps {
   agent: Agent;
   agents: readonly Agent[];
   primaryId?: string;
@@ -123,7 +131,10 @@ export function ProfileMenu(props: {
   showMore: boolean;
   onClose: () => void;
   onSaved: () => void;
-}) {
+}
+
+export function ProfileMenu(props: ProfileMenuProps) {
+  const copy = useCopy().extras.assistantsCopy;
   const { agent, agents, primaryId, anchor, port, showMore, onClose, onSaved } = props;
   const { draft, change, problem, changed, feedback, refusal, save } = useProfileDraft(
     agent,

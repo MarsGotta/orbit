@@ -1,7 +1,9 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { SignInAttempt } from "../../bridge/generated/SignInAttempt";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";
 
@@ -61,14 +63,14 @@ export function viewOf(
     case "cancelled":
       return {
         state: "idle",
-        ended: copy.signInEnded("cancelled", words.vendor, words.name),
+        ended: getCopy().extras.assistantsCopy.signInEnded("cancelled", words.vendor, words.name),
         failed: false,
       };
     case "failed":
     case "unknown":
       return {
         state: "idle",
-        ended: copy.signInEnded(attempt.cause, words.vendor, words.name),
+        ended: getCopy().extras.assistantsCopy.signInEnded(attempt.cause, words.vendor, words.name),
         failed: true,
       };
   }
@@ -116,20 +118,17 @@ function useAttempt(signedIn: boolean) {
  * and answers the address (and a code); the Mac opens the browser and waits.
  * The token never reaches the Mac. Cancelling leaves the agent as it was.
  */
-export function useSignIn({
-  port,
-  send,
-  vendor,
-  name,
-  signedIn,
-}: {
+interface SignInOptions {
   port?: AgentPort;
   send: Send;
   vendor: string;
   name: string;
   /** The hub already says the account is signed in. */
   signedIn: boolean;
-}) {
+}
+
+export function useSignIn({ port, send, vendor, name, signedIn }: SignInOptions) {
+  const copy = useCopy().extras.assistantsCopy;
   const { view, show, agentId, timer } = useAttempt(signedIn);
   const words = { vendor, name };
   const ended = (text: string, failed = true) => {

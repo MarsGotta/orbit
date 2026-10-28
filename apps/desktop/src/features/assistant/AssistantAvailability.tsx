@@ -1,10 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
 import { Skeleton } from "../../design/Skeleton";
 import { Loading } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+
 import type { AppView } from "../../state/app-view";
 import styles from "./AssistantView.module.css";
 
@@ -13,7 +13,7 @@ import styles from "./AssistantView.module.css";
  * says what it reads: an unknown is neither empty nor a failure.
  */
 export function UnknownAssistant({ snapshot }: { snapshot: AppView }) {
-  const copy = useSpanish();
+  const copy = useCopy();
   if (snapshot.chat.availability?.state !== "unknown") return null;
   return (
     <section aria-busy="true" className={styles.view}>
@@ -38,6 +38,7 @@ export function useAssistantCall({
   paired: boolean;
   hubConnection: HubLinkConnection;
 }) {
+  const es = useCopy();
   const [callRequested, setCallRequested] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const { call, chat } = snapshot;

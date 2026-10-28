@@ -1,8 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppCommand } from "../../bridge/generated";
 import { AttentionRow } from "../../design/AttentionRow";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
-import { macPermissions } from "../../i18n/es/permissions";
+
 import type { StartBlocker as Blocker } from "./start-options";
 
 /** What stops the recording, once, with the button that fixes it. */
@@ -13,6 +13,8 @@ export function StartBlocker({
   blocker: Blocker;
   send: (command: AppCommand) => void;
 }) {
+  const es = useCopy();
+  const macPermissions = useCopy().extras.macPermissions;
   if (blocker === "privacy_stopped") {
     return (
       <AttentionRow

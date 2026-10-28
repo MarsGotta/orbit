@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // The window: the sidebar with its recording and call cards, the top bar
 // with its notices, and what the window says before Orbit answers.
 import { duration } from "./duration";
@@ -22,7 +23,7 @@ function sidebarCopy(assistantName: string) {
       vault: "Notas",
       assistant: "Asistente",
       settings: "Ajustes",
-      inProgress: (count: number) => `${count} en curso`,
+      inProgress: (count: number) => `${numberFormat().format(count)} en curso`,
       needsYou: "Te necesita",
       localUser: "Tú",
       ask: `Preguntar a ${assistantName}`,
@@ -76,7 +77,7 @@ function recordingCopy(assistantName: string) {
       fieldLabel: "Tu pregunta",
       placeholder: "¿Qué se decidió sobre el presupuesto?",
       windows: "Escucha los últimos",
-      window: (minutes: number) => `${minutes} min`,
+      window: (minutes: number) => `${numberFormat().format(minutes)} min`,
       voiceHint: `O di «Oye ${assistantName}» en voz alta`,
       send: "Preguntar",
       close: "Cerrar",
@@ -117,13 +118,15 @@ const noticesCopy = {
     fix: "Arreglar",
     rearm: "Reactivar",
     rearming: "Reactivando…",
-    more: (count: number) => `+${count}`,
-    moreLabel: (count: number) => (count === 1 ? "Ver 1 aviso más" : `Ver ${count} avisos más`),
+    more: (count: number) => `+${numberFormat().format(count)}`,
+    moreLabel: (count: number) =>
+      count === 1 ? "Ver 1 aviso más" : `Ver ${numberFormat().format(count)} avisos más`,
     all: "Avisos",
   },
   appState: {
     starting: "Conectando con Orbit…",
-    startingHint: (seconds: number) => `Si tarda más de ${seconds} segundos, te diremos qué pasa.`,
+    startingHint: (seconds: number) =>
+      `Si tarda más de ${numberFormat().format(seconds)} segundos, te diremos qué pasa.`,
     slow: "Orbit está tardando más de lo normal",
     slowText:
       "Puede que se haya quedado bloqueado. Ciérralo y vuelve a abrirlo: tus grabaciones guardadas están a salvo.",

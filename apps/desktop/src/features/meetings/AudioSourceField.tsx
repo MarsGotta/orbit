@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { MeetingApplicationSnapshot } from "../../bridge/generated/MeetingApplicationSnapshot";
 import { Button } from "../../design/Button";
 import { RadioList } from "../../design/RadioList";
 import { Loading } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import type { AudioSource } from "./start-options";
 import styles from "./MeetingStartDialog.module.css";
 
@@ -27,6 +28,7 @@ export interface AudioSourceFieldProps {
 
 /** «Qué audio grabar»: three sources, each explained; an application by its chip. */
 export function AudioSourceField(props: AudioSourceFieldProps) {
+  const es = useCopy();
   const { source, onSource, known } = props;
   const options = [
     { value: "system", label: es.meeting.sourceSystem, help: es.meeting.sourceSystemHelp },
@@ -68,6 +70,7 @@ function Applications({
   onSearchAgain,
   statusId,
 }: AudioSourceFieldProps) {
+  const es = useCopy();
   if (known === "searching") {
     return (
       <div className={styles.below} id={statusId}>

@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultTask } from "../../bridge/generated/VaultTask";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
 import { Button } from "../../design/Button";
 import { Segmented } from "../../design/Segmented";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { readFilter, type VaultPort } from "./api";
 import { localToday, TaskRows, taskTitle } from "./TaskRows";
 import { useVaultRead } from "./use-vault-read";
@@ -47,6 +48,7 @@ function Filters({
   owner: string;
   counts: Partial<Record<string, number>> | undefined;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const options = [
     ["open", "Abiertas"],
     ["mine", "Mías"],
@@ -121,6 +123,7 @@ export function VaultTasks({
   embedded = false,
   initialState,
 }: Props) {
+  const copy = useCopy().extras.vaultCopy;
   const [by, setBy] = useState<Grouping>("person");
   const [state, setState] = useState(initialState ?? (embedded ? "all" : "open"));
   const [number, setNumber] = useState(1);

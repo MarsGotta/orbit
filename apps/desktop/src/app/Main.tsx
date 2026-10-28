@@ -1,8 +1,9 @@
+import { useCopy } from "../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { lazy as reactLazy, Suspense, useEffect } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
-import { es } from "../i18n/es";
+
 import { routeFor, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
 import styles from "./Main.module.css";
 import { Breadcrumbs, TopBarLeading } from "./shell-slots";
@@ -57,6 +58,7 @@ export interface MainProps {
 }
 
 function LoadingView() {
+  const es = useCopy();
   return <div className={styles.loading}>{es.shell.loadingView}</div>;
 }
 
@@ -73,6 +75,7 @@ function View({
   view,
   settingsSection,
 }: MainProps) {
+  const es = useCopy();
   if (view === "briefing")
     return <BriefingView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
   if (view === "calendar") {
@@ -92,34 +95,12 @@ function View({
     const reads = { readMessages: readSessionMessages, readSessions: readSessionsPage };
     return <AssistantView agent={agent} error={error} send={send} snapshot={snapshot} {...reads} />;
   }
-  if (view === "settings") {
-    // SettingsView shows the section the route names (`#/settings/{section}`).
-    // SettingsView's index opens a section through the router, so the URL and the index agree.
-    const onSection = (section: SettingsSection) => useUiStore.getState().openSettings(section);
-    const settings = {
-      agent,
-      vault,
-      error,
-      onReopenOnboarding,
-      send,
-      snapshot,
-      section: settingsSection,
-      onSection,
-    };
+  if (view === "settings")
     return (
-      <>
-        <TopBarLeading>
-          <Breadcrumbs
-            trail={[
-              { label: es.shell.settings, href: routeFor("settings") },
-              { label: es.shell.settingsSections[settingsSection] },
-            ]}
-          />
-        </TopBarLeading>
-        <SettingsView {...settings} />
-      </>
+      <SettingsRoute
+        {...{ agent, vault, error, onReopenOnboarding, send, snapshot, settingsSection }}
+      />
     );
-  }
   return <BriefingView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
 }
 
@@ -146,5 +127,46 @@ export function Main(props: MainProps) {
         </ViewBoundary>
       </Suspense>
     </main>
+  );
+}
+
+function SettingsRoute({
+  agent,
+  vault,
+  error,
+  onReopenOnboarding,
+  send,
+  snapshot,
+  settingsSection,
+}: Pick<
+  MainProps,
+  "agent" | "vault" | "error" | "onReopenOnboarding" | "send" | "snapshot" | "settingsSection"
+>) {
+  const es = useCopy();
+  // SettingsView shows the section the route names (`#/settings/{section}`).
+  // SettingsView's index opens a section through the router, so the URL and the index agree.
+  const onSection = (section: SettingsSection) => useUiStore.getState().openSettings(section);
+  const settings = {
+    agent,
+    vault,
+    error,
+    onReopenOnboarding,
+    send,
+    snapshot,
+    section: settingsSection,
+    onSection,
+  };
+  return (
+    <>
+      <TopBarLeading>
+        <Breadcrumbs
+          trail={[
+            { label: es.shell.settings, href: routeFor("settings") },
+            { label: es.shell.settingsSections[settingsSection] },
+          ]}
+        />
+      </TopBarLeading>
+      <SettingsView {...settings} />
+    </>
   );
 }

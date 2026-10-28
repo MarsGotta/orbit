@@ -164,7 +164,7 @@ describe("a call the Mac could not make", () => {
     ],
     [
       { code: "too_large", resource: "hub_response", bytes: 2000000, max_bytes: 1048576 },
-      "La respuesta del hub ocupa 2000000 bytes; el máximo es 1048576.",
+      "La respuesta del hub ocupa 2.000.000 bytes; el máximo es 1.048.576.",
     ],
   ])("says %o", (given, text) => {
     expect(agentFailureText(given)).toBe(text);

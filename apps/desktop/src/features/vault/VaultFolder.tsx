@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { noteRoute, type VaultRoute } from "./route";
 import styles from "./VaultColumn.module.css";
 
@@ -15,6 +16,7 @@ export function VaultFolder({
   route: VaultRoute;
   count: number | null;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const [expanded, setExpanded] = useState(
     notes.some((note) => ["person", "project"].includes(note.role)),
   );

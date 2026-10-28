@@ -1,6 +1,7 @@
+import { getCopy, type Catalogue } from "../i18n";
 import type { AppCommand } from "../bridge/generated";
 import type { IconName } from "../design/Icon";
-import { es as defaultCopy } from "../i18n/es";
+
 import type { ErrorOrigin } from "../state/orbit-store";
 import type { ViewId } from "../state/ui";
 
@@ -38,7 +39,7 @@ const views: readonly [ViewId, IconName][] = [
   ["settings", "settings"],
 ];
 
-type Copy = typeof defaultCopy;
+type Copy = Catalogue;
 
 /** Acciones: record, call, a voice note and, when there is one, the next meeting. */
 function actionCommands(actions: PaletteActions, copy: Copy["palette"]): PaletteCommand[] {
@@ -93,7 +94,7 @@ function actionCommands(actions: PaletteActions, copy: Copy["palette"]): Palette
 export function paletteCommands(
   actions: PaletteActions,
   /** The words, with the conversation agent's name. */
-  es: Copy = defaultCopy,
+  es: Copy = getCopy(),
 ): PaletteCommand[] {
   const copy = es.palette;
   return [

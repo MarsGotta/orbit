@@ -1,6 +1,7 @@
+import { editorLanguage } from "./editor-language";
+import { getCopy } from "../../i18n";
 import { type Extension, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
-import { es } from "../../i18n/es";
 
 /**
  * What an assistant wrote for the note, shown under the line it was asked
@@ -53,6 +54,7 @@ function settle(view: EditorView, accepted: boolean): void {
 }
 
 class SuggestionBlock extends WidgetType {
+  readonly copy = getCopy();
   constructor(
     readonly placed: Placed,
     readonly settled: (accepted: boolean) => void,
@@ -60,10 +62,14 @@ class SuggestionBlock extends WidgetType {
     super();
   }
   eq(other: SuggestionBlock): boolean {
-    return other.placed.text === this.placed.text && other.placed.author === this.placed.author;
+    return (
+      other.placed.text === this.placed.text &&
+      other.placed.author === this.placed.author &&
+      other.copy === this.copy
+    );
   }
   toDOM(view: EditorView): HTMLElement {
-    const by = es.editor.writtenBy(this.placed.author);
+    const by = getCopy().editor.writtenBy(this.placed.author);
     const block = document.createElement("div");
     block.className = "cm-md-suggestion";
     block.setAttribute("role", "group");
@@ -77,8 +83,8 @@ class SuggestionBlock extends WidgetType {
     const actions = document.createElement("div");
     actions.className = "cm-md-suggestion-actions";
     for (const [label, accepted] of [
-      [es.editor.accept, true],
-      [es.editor.discard, false],
+      [getCopy().editor.accept, true],
+      [getCopy().editor.discard, false],
     ] as const) {
       const button = document.createElement("button");
       button.type = "button";
@@ -102,7 +108,7 @@ class SuggestionBlock extends WidgetType {
 export function suggestionBlock(settled: (accepted: boolean) => void): Extension {
   return [
     placedSuggestion,
-    EditorView.decorations.compute([placedSuggestion], (state): DecorationSet => {
+    EditorView.decorations.compute([placedSuggestion, editorLanguage], (state): DecorationSet => {
       const placed = state.field(placedSuggestion);
       if (placed === null) return Decoration.none;
       const widget = new SuggestionBlock(placed, settled);

@@ -1,7 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Switch } from "../../design/Switch";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { Group, List, Row } from "../settings/layout";
 export function LaterSettings() {
+  const copy = useCopy().extras.vaultCopy;
   const switches = [
     ["Fichas de personas", true],
     ["Proyectos y dependencias", true],
@@ -51,6 +53,7 @@ export function LaterSettings() {
 }
 
 function ReviewDefaults() {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <Group help={copy.phaseTwo} label="Revisión del vault">
       <List>

@@ -1,5 +1,6 @@
+import { numberFormat } from "../../locale";
 import { macPermissions } from "../permissions";
-import { systemPrivacy, worded, type Entries, type NoticeData } from "./types";
+import { systemPrivacy, worded, type Entries, NoticeData } from "./types";
 
 /** Why a cut happened, in the person's words; an unknown code is shown as it is. */
 const CUT_CAUSES: Record<string, string> = {
@@ -28,7 +29,9 @@ function cutCause(data: NoticeData): string {
 function missing(data: NoticeData): string {
   if (typeof data.elapsed_ms !== "number") return "";
   const seconds = Math.round(data.elapsed_ms / 1_000);
-  return seconds < 1 ? "; falta menos de 1 s de audio" : `; faltan ${seconds} s de audio`;
+  return seconds < 1
+    ? "; falta menos de 1 s de audio"
+    : `; faltan ${numberFormat().format(seconds)} s de audio`;
 }
 
 /** Recording, the Mac's audio and the helper. */
@@ -45,7 +48,7 @@ export const capture = {
       if (data.fragments === 0) {
         const tries =
           typeof data.attempt === "number" && data.attempt > 0
-            ? ` tras ${data.attempt} ${data.attempt === 1 ? "intento" : "intentos"}`
+            ? ` tras ${numberFormat().format(data.attempt)} ${data.attempt === 1 ? "intento" : "intentos"}`
             : "";
         return `La grabación se cortó al empezar (${cutCause(data)}) y no pudo seguir${tries}: no llegó a grabar nada. Si la reunión sigue, empieza otra grabación.`;
       }
@@ -56,7 +59,7 @@ export const capture = {
     class: "done",
     text: (data) =>
       typeof data.elapsed_ms === "number"
-        ? `Se perdió el audio ${data.elapsed_ms < 1_000 ? "menos de 1 s" : `${Math.round(data.elapsed_ms / 1_000)} s`} al cambiar la ruta de audio; la grabación sigue.`
+        ? `Se perdió el audio ${data.elapsed_ms < 1_000 ? "menos de 1 s" : `${numberFormat().format(Math.round(data.elapsed_ms / 1_000))} s`} al cambiar la ruta de audio; la grabación sigue.`
         : "Se perdió el audio al cambiar la ruta de audio; no se pudo medir la duración del hueco. La grabación sigue.",
   },
   voice_note_cancelled_by_audio_route: worded(

@@ -1,9 +1,11 @@
+import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 import { mmss } from "../../time-format";
 
 // Reuniones: the list of meetings and the transcript of one. Each meeting
 // has a note; «Notas» names the vault that comes later (decided 2026-10-22).
-const count = (value: number, one: string, many: string) => `${value} ${value === 1 ? one : many}`;
+const count = (value: number, one: string, many: string) =>
+  `${numberFormat().format(value)} ${value === 1 ? one : many}`;
 
 /** «Bruno», «Bruno y Celia», «Bruno, Celia y Dora». */
 export function listOf(items: string[]): string {
@@ -66,20 +68,20 @@ export const notes = {
     finalPassAside: " · puedes seguir con lo tuyo",
     remaining: (ms: number) => {
       const minutes = Math.ceil(ms / 60_000);
-      return minutes <= 1 ? "menos de 1 min" : `unos ${minutes} min`;
+      return minutes <= 1 ? "menos de 1 min" : `unos ${numberFormat().format(minutes)} min`;
     },
     retranscribed: "Transcripción rehecha.",
     retranscribedRedo: "Transcripción rehecha. Rehaz el resumen para que la nota la use.",
     finalPassFailed: (code: string | null, timeoutMs?: number, providerStatus?: number) => {
       if (code && transcriptionRefusals[code])
-        return `${transcriptionRefusals[code]}${providerStatus === undefined ? "" : ` (HTTP ${providerStatus})`} Se conserva la transcripción anterior.`;
+        return `${transcriptionRefusals[code]}${providerStatus === undefined ? "" : ` (HTTP ${numberFormat().format(providerStatus)})`} Se conserva la transcripción anterior.`;
       if (code === "final_pass_incomplete")
         return "La transcripción nueva perdía partes de la anterior, así que se conserva la anterior.";
       if (code === "final_pass_timeout") {
         const budget =
           timeoutMs == null
             ? "lo que permite el hub"
-            : `los ${new Intl.NumberFormat("es", { maximumFractionDigits: 1 }).format(timeoutMs / 60000)} minutos que permite el hub`;
+            : `los ${numberFormat({ maximumFractionDigits: 1 }).format(timeoutMs / 60000)} minutos que permite el hub`;
         return `La transcripción nueva tardó más de ${budget}; se conserva la anterior.`;
       }
       return `No se pudo completar la nueva transcripción; se conserva la anterior.${code ? ` (${code})` : ""}`;
@@ -89,7 +91,9 @@ export const notes = {
       const source = track === "mic_local" ? "del micrófono" : "de la reunión";
       const from = atMs === null ? "" : ` desde ${mmss(atMs)}`;
       const length =
-        durationMs === null ? "" : ` durante ${Math.max(1, Math.round(durationMs / 1_000))} s`;
+        durationMs === null
+          ? ""
+          : ` durante ${numberFormat().format(Math.max(1, Math.round(durationMs / 1_000)))} s`;
       return `Falta el audio ${source}${from}${length}: no llegó al hub y esa parte no está en la transcripción.`;
     },
     // «Silenciar»: a stretch where the microphone was muted, from the meeting's start.
@@ -98,9 +102,9 @@ export const notes = {
     // A completed pass that kept spans of the live draft where the new text
     // lost them or looped: not a failure, the better of the two was used.
     keptDraft: (spans: number) =>
-      `En ${spans} ${spans === 1 ? "tramo" : "tramos"} se mantuvo la transcripción en vivo, que era mejor.`,
+      `En ${numberFormat().format(spans)} ${spans === 1 ? "tramo" : "tramos"} se mantuvo la transcripción en vivo, que era mejor.`,
     unmatchedSpeakerNames: (value: number) =>
-      `${value} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
+      `${numberFormat().format(value)} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
     // The harness reads the transcript from this line on (scripts/e2e-mac/checks.py).
     transcriptHelp:
       "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión.",
@@ -122,7 +126,7 @@ export const notes = {
       pt: "Português",
       de: "Deutsch",
       it: "Italiano",
-    } as Record<string, string>,
+    } as const,
     // The same languages inside a sentence: «en español con Nubaria».
     languagesInSentence: {
       es: "español",
@@ -132,7 +136,7 @@ export const notes = {
       pt: "portugués",
       de: "alemán",
       it: "italiano",
-    } as Record<string, string>,
+    } as const,
 
     // Who speaks.
     nameIt: "· ponle nombre",
@@ -145,7 +149,9 @@ export const notes = {
     wherePut: (name: string) => `¿Dónde pongo «${name}»?`,
     onlyThisTurn: (at: string) => `Solo en este turno (${at})`,
     allSpeakerTurns: (turns: number, name: string) =>
-      turns === 1 ? `En todos los turnos de ${name}` : `En los ${turns} turnos de ${name}`,
+      turns === 1
+        ? `En todos los turnos de ${name}`
+        : `En los ${numberFormat().format(turns)} turnos de ${name}`,
     back: "Atrás",
     applySpeaker: "Aplicar",
     renamed: (turns: number) => `Cambiado en ${count(turns, "turno", "turnos")}.`,
@@ -155,11 +161,13 @@ export const notes = {
     pressToCorrect: "Pulsa para corregir",
     correct: (word: string) => `Corregir «${word}»`,
     timesHere: (times: number) =>
-      times === 1 ? "Sale 1 vez en esta reunión." : `Sale ${times} veces en esta reunión.`,
+      times === 1
+        ? "Sale 1 vez en esta reunión."
+        : `Sale ${numberFormat().format(times)} veces en esta reunión.`,
     shouldSay: "Debe decir",
     // A dictionary corrects every place it is said: the hub has no
     // correction for one place alone, so this cannot be unticked.
-    correctEvery: (times: number) => `Corregir las ${times} veces`,
+    correctEvery: (times: number) => `Corregir las ${numberFormat().format(times)} veces`,
     addTo: "Se añade a · puedes elegir varios",
     chooseDictionaries: "Elige uno o varios",
     thisMeeting: "esta reunión",

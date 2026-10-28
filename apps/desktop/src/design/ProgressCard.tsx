@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import type { ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { Button } from "./Button";
 import { Spinner } from "./Spinner";
 import styles from "./ProgressCard.module.css";
@@ -18,6 +19,7 @@ export interface ProgressCardProps {
 
 /** A long piece of work the person started and can leave running, as it goes. */
 export function ProgressCard({ children, remaining, percent, failed, onClose }: ProgressCardProps) {
+  const es = useCopy();
   const shown = percent === undefined ? null : Math.max(0, Math.min(100, percent));
   return (
     <div className={styles.card} data-tone={failed ? "warn" : "work"} role="status">

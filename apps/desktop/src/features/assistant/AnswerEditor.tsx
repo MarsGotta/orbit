@@ -3,10 +3,10 @@ import type { AppCommand } from "../../bridge/generated";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { useModalFocus } from "../../design/use-modal-focus";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { asTextOver, useLocalDraft } from "../../state/local-drafts";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
-import { useCopy, copyStatus } from "./CopyButton";
+import { useClipboardCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";
 
 interface AnswerEditorProps {
@@ -19,7 +19,7 @@ interface AnswerEditorProps {
 
 /** «Editar la respuesta», what it is for, and ×. */
 function EditorHeader({ onClose, titleId }: { onClose: () => void; titleId: string }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <header className={styles.header}>
       <h2 id={titleId}>{es.chatActions.editorTitle}</h2>
@@ -53,8 +53,8 @@ function EditorFooter({
   send: AnswerEditorProps["send"];
   text: string;
 }) {
-  const es = useSpanish();
-  const { copy, state } = useCopy();
+  const es = useCopy();
+  const { copy, state } = useClipboardCopy();
   const [sending, setSending] = useState(false);
   const failure = copyStatus(state);
   return (
@@ -122,7 +122,7 @@ function useKeptAnswer(messageId: string, markdown: string) {
 }
 
 export default function AnswerEditor({ markdown, messageId, onClose, send }: AnswerEditorProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const panel = useModalFocus(true);
   const titleId = useId();
   const kept = useKeptAnswer(messageId, markdown);

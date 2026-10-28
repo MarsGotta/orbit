@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useEffect, useState } from "react";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
-import { es } from "../../i18n/es";
+
 import { sent, type Send } from "./send";
 import type { Fix } from "./transcript-fix";
 import type { Correction } from "./WordMenu";
@@ -19,6 +20,7 @@ export interface Picked {
 
 /** The menus open, the bands after them, and the correction laid over the turns. */
 export function useTranscriptChanges(note: OpenNoteSnapshot, send: Send, clearWords: () => void) {
+  const es = useCopy();
   const [menu, setMenu] = useState<number | null>(null);
   const [renamed, setRenamed] = useState<string | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);

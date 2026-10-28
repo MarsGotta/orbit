@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { FormatSettings } from "./VaultFormatSettings";
 import { LaterSettings } from "./VaultLaterSettings";
 import { Button } from "../../design/Button";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { SectionHeading } from "../settings/layout";
 import type { VaultPort } from "./api";
 import { ConnectionCard } from "./ConnectionCard";
@@ -9,6 +10,7 @@ import { useVaultConfiguration } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 export function VaultSettingsView({ port }: { port?: VaultPort }) {
+  const copy = useCopy().extras.vaultCopy;
   const { configuration, setConfiguration, error, retry } = useVaultConfiguration(port);
   return (
     <>

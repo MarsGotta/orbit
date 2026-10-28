@@ -1,11 +1,13 @@
+import { dateTime } from "../../i18n/locale";
+import { getCopy } from "../../i18n";
 import type { ComputerControlSnapshot } from "../../bridge/generated/ComputerControlSnapshot";
 import type { EngineSnapshot } from "../../bridge/generated/EngineSnapshot";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es as base } from "../../i18n/es";
+import { useCopy } from "../../i18n/CopyProvider";
+
 import { List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";
 
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 /// Nothing here switches anything on: what lets the assistant see and use
 /// this Mac is the permission the user grants in macOS. With the engine
@@ -38,14 +40,14 @@ export function engineProblem(engine: EngineSnapshot | undefined, copy: Copy): s
 /// on this path waits for an approval, so no word here says so; any word the
 /// daemon does not send today reads as an end nobody saw.
 function outcomeOf(outcome: string): { text: string; tone?: "ok" | "warn" } {
-  if (outcome === "performed") return { text: base.fullControl.performed, tone: "ok" };
-  if (outcome === "cancelled") return { text: base.fullControl.cancelled };
-  if (outcome === "failed") return { text: base.fullControl.failed, tone: "warn" };
-  return { text: base.fullControl.unknown, tone: "warn" };
+  if (outcome === "performed") return { text: getCopy().fullControl.performed, tone: "ok" };
+  if (outcome === "cancelled") return { text: getCopy().fullControl.cancelled };
+  if (outcome === "failed") return { text: getCopy().fullControl.failed, tone: "warn" };
+  return { text: getCopy().fullControl.unknown, tone: "warn" };
 }
 
-const clock = new Intl.DateTimeFormat("es-ES", { hour: "numeric", minute: "2-digit" });
-const day = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+const clock = dateTime({ hour: "numeric", minute: "2-digit" });
+const day = dateTime({ day: "numeric", month: "short" });
 
 /** «Hoy, 9:52», «Ayer, 18:05» or «21 oct, 9:00», by the day on this Mac. */
 export function historyTime(atMs: number, nowMs: number): string {
@@ -55,16 +57,16 @@ export function historyTime(atMs: number, nowMs: number): string {
   const days = Math.round((today.getTime() - new Date(at).setHours(0, 0, 0, 0)) / 86_400_000);
   const date =
     days === 0
-      ? base.settings.today
+      ? getCopy().settings.today
       : days === 1
-        ? base.settings.yesterday
+        ? getCopy().settings.yesterday
         : day.format(at).replace(".", "");
   return `${date}, ${clock.format(at)}`;
 }
 
 /** What the assistant did on this Mac, newest as the daemon sends it. */
 export function ControlHistory({ control }: { control?: ComputerControlSnapshot }) {
-  const es = useSpanish();
+  const es = useCopy();
   const problem = engineProblem(control?.engine, es);
   if (control === undefined || control.engine.state === "unknown") return <SkeletonRows rows={2} />;
   const unreadable =

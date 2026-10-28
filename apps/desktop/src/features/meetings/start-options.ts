@@ -1,7 +1,8 @@
+import { dateTime } from "../../i18n/locale";
+import { getCopy } from "../../i18n";
 import type { MeetingAudio } from "../../bridge/generated/MeetingAudio";
 import { effectiveTimezone } from "../../local-time";
 import type { AppView } from "../../state/app-view";
-import { es } from "../../i18n/es";
 
 export type AudioSource = "system" | "microphone" | "application";
 
@@ -15,9 +16,7 @@ export function selectedAudio(source: AudioSource, pid: number | null): MeetingA
 /** 9:05, in the zone the Mac published (the ambient one if it published none). */
 export function clock(atMs: number, publishedZone: string): string {
   const timeZone = effectiveTimezone(publishedZone) ?? undefined;
-  return new Intl.DateTimeFormat("es-ES", { hour: "numeric", minute: "2-digit", timeZone }).format(
-    atMs,
-  );
+  return dateTime({ hour: "numeric", minute: "2-digit", timeZone }).format(atMs);
 }
 
 // An event further ahead than an hour is another meeting, not the one being
@@ -34,11 +33,11 @@ export function titleSuggestion(
   if (!next || next.title.trim() === "" || next.end_ms <= nowMs) return null;
   if (next.start_ms <= nowMs) {
     const started = clock(next.start_ms, snapshot.system_timezone);
-    return { title: next.title, label: es.meeting.suggestStarted(next.title, started) };
+    return { title: next.title, label: getCopy().meeting.suggestStarted(next.title, started) };
   }
   if (next.start_ms - nowMs > SUGGEST_AHEAD_MS) return null;
   const minutes = Math.ceil((next.start_ms - nowMs) / 60_000);
-  return { title: next.title, label: es.meeting.suggestStarts(next.title, minutes) };
+  return { title: next.title, label: getCopy().meeting.suggestStarts(next.title, minutes) };
 }
 
 /** What stops any recording now, said once as a row with the button that fixes it. */

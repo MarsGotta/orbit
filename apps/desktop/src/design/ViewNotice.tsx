@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import type { ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { Button } from "./Button";
 import styles from "./ViewNotice.module.css";
 
@@ -17,6 +18,7 @@ export interface ViewNoticeProps {
 
 /** A notice inside a view, with the button that fixes it on its right. */
 export function ViewNotice({ title, children, actionLabel, onAction, waiting }: ViewNoticeProps) {
+  const es = useCopy();
   return (
     <div className={styles.notice} role="status">
       <span aria-hidden="true" className={styles.dot} />

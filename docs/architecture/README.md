@@ -11,7 +11,8 @@ disagree, correct the documentation against the code.
 - **Decisions are pure**, in `crates/orbit-core`; effects are adapters.
 
 Details: [process chain](process-chain.md), [local storage](storage.md),
-[transcripts](transcripts.md), [continuous voice](continuous-voice.md),
+[interface language](interface-language.md), [transcripts](transcripts.md),
+[continuous voice](continuous-voice.md),
 [installation](../INSTALL.md) and [self-hosting](../self-hosting.md).
 
 ## Components
@@ -21,7 +22,7 @@ hub's encrypted working copy, its reading index and the `notes` tool group.
 
 | Component | Location | Owns | Must not do |
 |---|---|---|---|
-| UI | `apps/desktop/src`, React/Vite in WKWebView | Views and Spanish product copy in `src/i18n/` | Business decisions, hub traffic, `@tauri-apps/*` imports outside `src/bridge/` |
+| UI | `apps/desktop/src`, React/Vite in WKWebView | Views and English/Spanish catalogue copy in `src/i18n/` | Business decisions, hub traffic, `@tauri-apps/*` imports outside `src/bridge/` |
 | Tauri shell | `apps/desktop/src-tauri` | App instance, window, tray, floating call panel, commands and daemon thread | Business rules or separate signal handlers |
 | app-core | `crates/orbit-app-core` | In-memory daemon client, topic subscriptions, reads, commands, view projections, generated TypeScript and updater (release manifest and installer download) | Open the store, talk to the hub or depend on Tauri |
 | Daemon | `crates/orbit-daemon` | Capture, durable state/jobs, helper/engine lifecycle, hub connection, Keychain, privacy stop and assistant bridge | Cache hub meetings/notes/conversations, decide presentation or hold provider credentials |

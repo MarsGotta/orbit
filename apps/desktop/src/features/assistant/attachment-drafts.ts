@@ -1,11 +1,9 @@
+import { getCopy } from "../../i18n";
 import type { AddedAttachment } from "../../bridge/generated/AddedAttachment";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import type { WindowText } from "../../bridge/generated/WindowText";
 import { refusalOf, type Refusal } from "../../bridge/refusal";
-import { es } from "../../i18n/es";
-import { attachmentRefusalText } from "../../i18n/es/attachments";
-import { refusalEntries } from "../../i18n/es/refusalEntries";
 
 /**
  * A file on its way into the next message, as its chip shows it. A ready
@@ -84,13 +82,13 @@ export function uploadedRefusal(
 
 /** Why a file could not be attached or loaded, naming it and its numbers. */
 export function attachmentFailure(failure: Refusal, name: string): string {
-  if (failure.code === "attachment") return attachmentRefusalText(failure);
-  if (failure.code === "hub_unreachable") return es.attachments.hubUnreachable(name);
-  const entry = Object.hasOwn(refusalEntries, failure.code)
-    ? refusalEntries[failure.code]
+  if (failure.code === "attachment") return getCopy().extras.attachmentRefusalText(failure);
+  if (failure.code === "hub_unreachable") return getCopy().attachments.hubUnreachable(name);
+  const entry = Object.hasOwn(getCopy().extras.refusalEntries, failure.code)
+    ? getCopy().extras.refusalEntries[failure.code]
     : undefined;
   if (entry !== undefined && entry.class !== "failed") return entry.text(failure);
-  return entry?.text?.(failure) ?? es.attachments.failed(name, failure.code);
+  return entry?.text?.(failure) ?? getCopy().attachments.failed(name, failure.code);
 }
 
 /** A file the hub keeps, as a chip: ready, or refused for this message's ceilings. */
@@ -134,8 +132,8 @@ export function settled(
 /** Why a window's capture went without its text; nothing when it did not. */
 export function windowTextNote(text: WindowText | undefined, name: string): string | undefined {
   if (text === undefined || text.state === "attached") return undefined;
-  if (text.state === "missing") return es.attachments.windowTextMissing(text.cause);
-  return es.attachments.windowTextRefused(
+  if (text.state === "missing") return getCopy().attachments.windowTextMissing(text.cause);
+  return getCopy().attachments.windowTextRefused(
     attachmentFailure(refusalOf({ refusal: text.refusal }), name),
   );
 }

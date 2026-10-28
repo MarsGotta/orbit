@@ -3,7 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import { questionBytes } from "../../app/meeting-question/copy";
 import { Button } from "../../design/Button";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import styles from "./CallPanel.module.css";
 
 /**
@@ -22,7 +22,7 @@ export function PanelAsk({
   onDone: () => void;
   send: (command: AppCommand) => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const fieldId = useId();
   const [question, setQuestion] = useState("");
   const [minutes, setMinutes] = useState(ask.default_minutes);
@@ -82,7 +82,7 @@ function WindowChoice({
   onChoose: (minutes: number) => void;
   windows: MeetingAskSnapshot["windows"];
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div aria-label={es.floatingPanel.listenLast} className={styles.windows} role="radiogroup">
       <span aria-hidden="true">{es.floatingPanel.listenLast}</span>

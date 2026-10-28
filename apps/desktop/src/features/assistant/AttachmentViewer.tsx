@@ -1,10 +1,12 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import type { Attachment } from "../../bridge/generated/Attachment";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Loading } from "../../design/Spinner";
 import { useModalFocus } from "../../design/use-modal-focus";
-import { es } from "../../i18n/es";
+
 import { useAttachmentUrl } from "./AttachmentGallery";
 import { CopyImage, OpenButtons } from "./ViewerActions";
 import { fileFacts } from "./MessageAttachments";
@@ -12,10 +14,10 @@ import styles from "./Viewer.module.css";
 
 const kindName = (attachment: Attachment) =>
   attachment.kind === "image"
-    ? es.attachments.image
+    ? getCopy().attachments.image
     : attachment.kind === "pdf"
-      ? es.attachments.pdf
-      : es.attachments.file;
+      ? getCopy().attachments.pdf
+      : getCopy().attachments.file;
 
 /** The image large, or the PDF in WebKit's own viewer; «Cargando…» until it arrives. */
 function Stage({
@@ -25,6 +27,7 @@ function Stage({
   attachment: Attachment;
   onBytes: (bytes: ArrayBuffer | null) => void;
 }) {
+  const es = useCopy();
   const pdf = attachment.kind === "pdf";
   const loaded = useAttachmentUrl(attachment, pdf ? "application/pdf" : attachment.mime);
   const bytes = loaded.state === "ready" ? loaded.bytes : null;
@@ -50,6 +53,7 @@ function Arrow({
   onMove: (index: number) => void;
   side: "previous" | "next";
 }) {
+  const es = useCopy();
   const label = side === "previous" ? es.attachments.previous : es.attachments.next;
   return (
     <button
@@ -75,6 +79,7 @@ function Dots({
   index: number;
   onMove: (index: number) => void;
 }) {
+  const es = useCopy();
   return (
     <nav aria-label={es.attachments.all} className={styles.dots}>
       {items.map((item, position) => (
@@ -105,6 +110,7 @@ function ViewerHeader({
   position: string;
   titleId: string;
 }) {
+  const es = useCopy();
   return (
     <header className={styles.header}>
       <div className={styles.title}>
@@ -145,6 +151,7 @@ export function AttachmentViewer({
   onClose: () => void;
   onMove: (index: number) => void;
 }) {
+  const es = useCopy();
   const panel = useModalFocus(true);
   const titleId = useId();
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);

@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
@@ -5,7 +6,7 @@ import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
 import { Loading } from "../../design/Spinner";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
+
 import type { AppView } from "../../state/app-view";
 import { MeetingsColumn } from "./MeetingsColumn";
 import { NoteDetail } from "./NoteDetail";
@@ -54,6 +55,7 @@ function useNoteRoute(notes: NotesSnapshot, send: Send) {
 }
 
 function IndexFailure({ send }: { send: Send }) {
+  const es = useCopy();
   return (
     <div className={styles.centered} role="alert">
       <p className={styles.centeredText}>{es.notes.indexFailed}</p>
@@ -75,6 +77,7 @@ function Unopened({
   onRecord: () => void;
   send: Send;
 }) {
+  const es = useCopy();
   const index = notes.index;
   if (notes.list.length > 0) {
     return (
@@ -160,6 +163,7 @@ function opened({
 /** Reuniones: the list in the window's list column (`MeetingsColumn`), and
  * here the open meeting, or why there is none. */
 export default function NotesView({ error, onRecord, send, snapshot }: NotesViewProps) {
+  const es = useCopy();
   useNotesMidnightRefresh(send);
   const notes = snapshot.notes ?? { list: [], open: null };
   const { routeId, readMatches } = useNoteRoute(notes, send);

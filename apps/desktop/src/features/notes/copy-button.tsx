@@ -1,6 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
-import { es } from "../../i18n/es";
 
 /**
  * Every «Copiar» of the note says «✓ Copiado» once the text is on the
@@ -15,6 +15,7 @@ export function CopyButton({
   size?: 28 | 36;
   text: () => string;
 }) {
+  const es = useCopy();
   const { feedback, track } = useFeedback();
   return (
     <Button

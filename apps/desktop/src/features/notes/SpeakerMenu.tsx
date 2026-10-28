@@ -1,3 +1,5 @@
+import { people, type Person } from "./speaker-people";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useRef, useState } from "react";
 import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
 import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
@@ -6,35 +8,9 @@ import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameSco
 import { Button } from "../../design/Button";
 import { useFeedback } from "../../design/feedback";
 import { RadioList } from "../../design/RadioList";
-import { es } from "../../i18n/es";
-import { formatTimestamp, isUnnamedSpeaker } from "./notes-format";
+
+import { formatTimestamp } from "./notes-format";
 import styles from "./Note.module.css";
-
-interface Person {
-  name: string;
-  subtitle: string;
-}
-
-const fold = (text: string) => text.trim().toLocaleLowerCase("es");
-
-/** Guests suggest names; only the hub decides what a rename changes. */
-function people(note: OpenNoteSnapshot, query: string): Array<[string, Person[]]> {
-  const search = fold(query);
-  const match = (person: Person) => fold(`${person.name} ${person.subtitle}`).includes(search);
-  const guests = (note.event?.attendees ?? [])
-    .filter((guest) => !guest.is_self)
-    .map((guest) => ({ name: guest.name || guest.email, subtitle: guest.email }))
-    .filter(match);
-  const speakers = note.speakers
-    .filter((speaker) => !isUnnamedSpeaker(speaker))
-    .map((speaker) => ({ name: speaker.name, subtitle: "" }))
-    .filter(match);
-  const groups: Array<[string, Person[]]> = [
-    [es.notes.guests, guests],
-    [es.notes.recordingSpeakers, speakers],
-  ];
-  return groups.filter(([, list]) => list.length > 0);
-}
 
 function Options({
   groups,
@@ -47,6 +23,7 @@ function Options({
   onAdd: () => void;
   onPick: (name: string) => void;
 }) {
+  const es = useCopy();
   return (
     <div className={styles.speakerOptions}>
       {groups.map(([label, list]) => (
@@ -89,6 +66,7 @@ function Pick({
   speakerName: string;
   onPick: (name: string) => void;
 }) {
+  const es = useCopy();
   const [query, setQuery] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const groups = people(note, query);
@@ -135,6 +113,7 @@ function Scope({
   onBack: () => void;
   onApply: (scope: SpeakerRenameScope, turns: number) => Promise<unknown>;
 }) {
+  const es = useCopy();
   const [scope, setScope] = useState<"turn" | "voice">("turn");
   const { feedback, track } = useFeedback();
   const turns = note.transcript.turns.filter(

@@ -1,3 +1,4 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { Agent } from "../../../bridge/generated/Agent";
 import { Button } from "../../../design/Button";
 import { useFeedback } from "../../../design/feedback";
@@ -5,7 +6,7 @@ import { Skeleton } from "../../../design/Skeleton";
 import { SkeletonRows } from "../layout";
 import { AccessCard } from "./AccessCard";
 import styles from "./Agents.module.css";
-import { copy } from "./parts";
+
 import { PersonalityCard } from "./PersonalityCard";
 import { WorkingFolderCard } from "./WorkingFolderCard";
 import { SkillsCard } from "./SkillsCard";
@@ -13,6 +14,7 @@ import { type AgentPort, useAgentConfig } from "./use-agent-config";
 
 /** The configuration still coming from the hub: its shape, and what is being read. */
 function Loading({ name }: { name: string }) {
+  const copy = useCopy().agents;
   return (
     <div aria-busy="true" className={styles.panel}>
       <p className={styles.kind} role="status">
@@ -33,6 +35,7 @@ function Loading({ name }: { name: string }) {
  * and what the agent's kind does not allow is shown with its cause.
  */
 export function AgentCards({ agent, target }: { agent: AgentPort; target: Agent }) {
+  const copy = useCopy().agents;
   const { view, feedback, busy, reload, order, skill, say } = useAgentConfig(agent, target.id);
   const personalitySave = useFeedback();
   if (view.state === "loading") return <Loading name={target.name} />;

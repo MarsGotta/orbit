@@ -3,7 +3,7 @@ import type { AgentWork } from "../../bridge/generated/AgentWork";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
 import { Icon } from "../../design/Icon";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { AgentWorkView, AnswerHead, type StepWait, workSummary } from "./AgentWork";
 import { AssistantAnswer } from "./AssistantAnswer";
 import { AttachmentGallery } from "./AttachmentGallery";
@@ -32,7 +32,7 @@ function UserMessage({
   send: VoiceNoteProps["send"];
   voiceAudio?: VoiceNoteAudioSnapshot;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <article aria-label={es.assistant.yourMessage} className={styles.user}>
       {message.attachments !== undefined && message.attachments.length > 0 && (
@@ -73,7 +73,7 @@ function Answer({
   retry: string | null;
   send: VoiceNoteProps["send"];
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <article aria-label={es.assistant.answerLabel} className={styles.answer}>
       {head}
@@ -134,7 +134,7 @@ export function MessageList({
   /** What the running step of the turn in flight waits for. */
   wait?: StepWait;
 } & Answering) {
-  const es = useSpanish();
+  const es = useCopy();
   const asked = work == null ? -1 : messages.findIndex((message) => message.id === work.turn_id);
   const answered = asked >= 0 && messages[asked + 1]?.role === "assistant";
   // An ended turn's work is folded even while the next one runs.

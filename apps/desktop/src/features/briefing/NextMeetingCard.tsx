@@ -1,6 +1,8 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import { timeLabel } from "../calendar/date";
 import { PersonalReminder } from "./PersonalReminder";
 import { PreviousActions } from "./PreviousActions";
@@ -21,7 +23,7 @@ const hasUrl = (url: string | null): url is string => url !== null && url !== ""
 /** «11:00 – 11:45 · videollamada». */
 export function meetingWhen(meeting: BriefingNextSnapshot, timezone: string): string {
   const range = `${timeLabel(meeting.start_ms, timezone)} – ${timeLabel(meeting.end_ms, timezone)}`;
-  return hasUrl(meeting.url) ? `${range} · ${es.briefing.videoCall}` : range;
+  return hasUrl(meeting.url) ? `${range} · ${getCopy().briefing.videoCall}` : range;
 }
 
 /**
@@ -30,6 +32,7 @@ export function meetingWhen(meeting: BriefingNextSnapshot, timezone: string): st
  * earlier note. Below the line, what was left open and a personal reminder.
  */
 export function NextMeetingCard({ meeting, send, nowMs, timezone, online }: Props) {
+  const es = useCopy();
   const minutes = Math.max(0, Math.ceil((meeting.start_ms - nowMs) / 60_000));
   const label = meeting.start_ms <= nowMs ? es.briefing.nextNow : es.briefing.nextStartsIn(minutes);
   const record = () => {
@@ -86,6 +89,7 @@ export function NextMeetingCard({ meeting, send, nowMs, timezone, online }: Prop
 
 /** One line of what the last note of this series said; nothing when there is none. */
 function LastTime({ previous }: { previous: BriefingNextSnapshot["previous"] }) {
+  const es = useCopy();
   const context =
     previous?.summary != null && previous.summary !== ""
       ? previous.summary
@@ -96,6 +100,7 @@ function LastTime({ previous }: { previous: BriefingNextSnapshot["previous"] }) 
 }
 
 function Attendees({ meeting }: { meeting: BriefingNextSnapshot }) {
+  const es = useCopy();
   if (meeting.attendees.length === 0) return null;
   return (
     <div className={styles.people}>

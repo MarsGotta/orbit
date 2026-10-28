@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 // Several assistants in the app: «Tus asistentes», each one's conversation,
 // the pencil, the gear, signing in, the plan's limit and «Añadir un asistente».
 // Every text names the assistant by the name the person gave it; the service
@@ -71,7 +72,7 @@ export const assistantsCopy = {
   available: "Disponible",
   availableHub: "Disponible · con tu hub",
   availableUsage: (percent: number, window: string | undefined) =>
-    `Disponible · ${percent} % del uso ${usageWindow(window)}`,
+    `Disponible · ${numberFormat().format(percent)} % del uso ${usageWindow(window)}`,
   signedOut: (vendor: string) => `Sin sesión iniciada en ${vendor}`,
   expired: (vendor: string) => `La sesión de ${vendor} caducó`,
   limitUntil: (atMs: number, nowMs: number) => `En su límite hasta ${whenBack(atMs, nowMs)}`,
@@ -137,10 +138,11 @@ export const assistantsCopy = {
   nameHint: (name: string) => `Le llamas con «Oye ${name}».`,
   nameEmpty: "Ponle un nombre: es como le llamas.",
   nameTaken: "Ya tienes otro asistente que se llama así.",
-  nameLong: (max: number) => `Como mucho ${max} caracteres.`,
+  nameLong: (max: number) => `Como mucho ${numberFormat().format(max)} caracteres.`,
   description: "Descripción",
   descriptionHint: "Se ve al elegir con quién hablar.",
-  counter: (count: number, max: number) => `${count} / ${max}`,
+  counter: (count: number, max: number) =>
+    `${numberFormat().format(count)} / ${numberFormat().format(max)}`,
   color: "Color",
   colors: ["Violeta", "Azul", "Verde", "Ámbar"] as const,
   primary: "Asistente principal",

@@ -1,6 +1,7 @@
+import { getCopy } from "../../i18n";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { type CSSProperties, useEffect, useMemo, useRef } from "react";
-import { es } from "../../i18n/es";
+
 import { AllDayLane } from "./AllDayLane";
 import { DayColumn, type DaySegment } from "./DayColumn";
 import {
@@ -50,9 +51,9 @@ export function gridDays(range: Range, timezone: string, showWeekends: boolean):
 }
 
 export function gridLabel(range: Range): string {
-  if (range.view === "day") return es.calendar.day;
-  if (range.view === "days") return es.calendar.days(range.days);
-  return es.calendar.week;
+  if (range.view === "day") return getCopy().calendar.day;
+  if (range.view === "days") return getCopy().calendar.days(range.days);
+  return getCopy().calendar.week;
 }
 
 /** The timed events of each day in view, cut at midnight. */

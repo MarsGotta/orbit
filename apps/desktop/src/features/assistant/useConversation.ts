@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
-import { es } from "../../i18n/es";
+
 import {
   conversationView,
   turnInFlight,
@@ -51,11 +52,11 @@ function useNewestReads(inFlight: boolean) {
  * turn ends; older ones on demand.
  */
 export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
-  const sessionId = chat.session_id;
+  const es = useCopy();
+  const { session_id: sessionId } = chat;
   const [stored, setStored] = useState<ChatMessage[]>([]);
   const [older, setOlder] = useState<AssistantCursor | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { loading, failed, setLoading, setFailed } = useReadFlags();
   const [newestToken, readNewestAgain] = useNewestReads(turnInFlight(chat));
   // The conversation whose newest page answered, and whether it was read:
   // until then nothing is known about it, which is not «no messages».
@@ -71,10 +72,10 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
         // A failure says so, without its cause; so does an answer that says
         // nothing, which leaves the conversation unread, not empty.
         if (answer.state !== "present") {
-          setError(es.assistant.historyFailed);
+          setFailed(true);
           return;
         }
-        setError(null);
+        setFailed(false);
         rememberHandover(sessionId, answer.value.handed_over_from?.agent_id);
         setStored((known) => withNewest(known, answer.value.items));
         setOlder((cursor) => (newestToken === 0 ? answer.value.next : cursor));
@@ -82,7 +83,7 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
       .catch(() => {
         if (!current) return;
         setAnswered({ sessionId, read: false });
-        setError(es.assistant.historyFailed);
+        setFailed(true);
       });
     return () => {
       current = false;
@@ -92,15 +93,15 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
   const loadOlder = useCallback(() => {
     if (!read || sessionId === null || older === null || loading) return;
     setLoading(true);
-    setError(null);
+    setFailed(false);
     void read(sessionId, older)
       .then((answer) => {
-        if (answer.state === "absent") setError(es.assistant.historyFailed);
+        if (answer.state === "absent") setFailed(true);
         if (answer.state !== "present") return;
         setStored((known) => withOlder(known, answer.value.items));
         setOlder(answer.value.next);
       })
-      .catch(() => setError(es.assistant.historyFailed))
+      .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [loading, older, read, sessionId]);
 
@@ -122,8 +123,14 @@ export function useConversation(chat: AppSnapshot["chat"], read?: Reader) {
      * nothing to read, is read.
      */
     firstPage: first,
-    error,
+    error: failed ? es.assistant.historyFailed : null,
     /** Reads the newest page again, after a failed read. */
     retry: readNewestAgain,
   };
+}
+
+function useReadFlags() {
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return { loading, failed, setLoading, setFailed };
 }

@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Suspense, lazy, useEffect, useRef, useState, type RefObject } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import { Button } from "../../design/Button";
 import { IconButton } from "../../design/IconButton";
-import { es } from "../../i18n/es";
+
 import { ChatMarkdown } from "./ChatMarkdown";
 import { insertIntoComposer } from "./composer-insert";
 import { quoteFragment } from "./conversation-markdown";
@@ -61,6 +62,7 @@ function ListenButton({
   text: () => string;
   send: AnswerProps["send"];
 }) {
+  const es = useCopy();
   const playing = speaking === id;
   return (
     <IconButton
@@ -80,6 +82,7 @@ function ListenButton({
 
 /** «Responder a esto»: quotes the selected part of the answer in the composer. */
 function ReplyToThis({ fragment, onDone }: { fragment: string; onDone: () => void }) {
+  const es = useCopy();
   return (
     <Button
       onClick={() => {
@@ -103,6 +106,7 @@ function ReplyToThis({ fragment, onDone }: { fragment: string; onDone: () => voi
  * None of these sends anything by itself.
  */
 export function AssistantAnswer({ busy, listenable, message, retry, send, speaking }: AnswerProps) {
+  const es = useCopy();
   const content = useRef<HTMLDivElement>(null);
   const { fragment, observe, setFragment } = useFragment(content);
   const [editing, setEditing] = useState(false);

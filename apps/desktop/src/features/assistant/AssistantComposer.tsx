@@ -2,7 +2,7 @@ import { useId, type ReactNode } from "react";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { mmss } from "../../time-format";
 import { AttachButtons, AttachmentChips } from "./AttachmentChips";
 import { useComposer, type ComposerProps, type Controls } from "./use-composer";
@@ -14,7 +14,7 @@ import styles from "./AssistantView.module.css";
  * begins the recording strip, so the release of a held press still reaches it.
  */
 function MicrophoneButton({ controls }: { controls: Controls }) {
-  const es = useSpanish();
+  const es = useCopy();
   const { voice } = controls;
   return (
     <Button
@@ -45,7 +45,7 @@ function MicrophoneButton({ controls }: { controls: Controls }) {
 
 /** A note too short to send says its length and the minimum, here where it was recorded. */
 function TooShort({ chat }: { chat: ChatSnapshot }) {
-  const es = useSpanish();
+  const es = useCopy();
   const short = chat.voice.too_short;
   if (!short) return null;
   return (
@@ -57,7 +57,7 @@ function TooShort({ chat }: { chat: ChatSnapshot }) {
 
 /** «Adjuntar», «Adjuntar ventana», the microphone and «Enviar»; while a note records, its strip. */
 function Toolbar({ controls, reasonId }: { controls: Controls; reasonId: string }) {
-  const es = useSpanish();
+  const es = useCopy();
   const recording = controls.voice.recording;
   return (
     <div className={styles.toolbar}>
@@ -110,7 +110,7 @@ function Toolbar({ controls, reasonId }: { controls: Controls; reasonId: string 
  * and «Enviar nota de voz».
  */
 export function AssistantComposer(props: ComposerProps & { talkingTo?: ReactNode }) {
-  const es = useSpanish();
+  const es = useCopy();
   const controls = useComposer(props, es);
   const reasonId = useId();
   const recording = controls.voice.recording;

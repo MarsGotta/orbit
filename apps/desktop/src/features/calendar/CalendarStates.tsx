@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState, type ReactNode } from "react";
 import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
@@ -5,7 +6,7 @@ import type { IconName } from "../../design/Icon";
 import { Skeleton } from "../../design/Skeleton";
 import { Loading } from "../../design/Spinner";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
+
 import styles from "./CalendarView.module.css";
 
 /** What the calendar shows instead of itself: why, and the one action that fixes it. */
@@ -39,6 +40,7 @@ export function ConnectCalendar(props: {
   error: string | null;
   onConnect: () => Promise<unknown>;
 }) {
+  const es = useCopy();
   const [asking, setAsking] = useState(false);
   return (
     <CalendarEmpty
@@ -74,6 +76,7 @@ const HEADER_WIDTHS = ["40%"];
  * «denied» before macOS says so.
  */
 export function CalendarLoading({ error }: { error: string | null }) {
+  const es = useCopy();
   return (
     <section aria-busy="true" className={styles.view}>
       <ViewError error={error} />

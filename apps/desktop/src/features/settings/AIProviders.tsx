@@ -1,14 +1,16 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AiProvider } from "../../bridge/generated/AiProvider";
 import type { AiModel } from "../../bridge/generated/AiModel";
 import { Button } from "../../design/Button";
-import { aiCopy as copy } from "../../i18n/es/ai";
+
 import { Group, List, Row } from "./layout";
 import { AIProviderEditor } from "./AIProviderEditor";
 import type { useAISettings } from "./use-ai-settings";
 
 type View = ReturnType<typeof useAISettings>;
 function ModelCorrection({ provider, view }: { provider: AiProvider; view: View }) {
+  const copy = useCopy().extras.aiCopy;
   const [models, setModels] = useState<AiModel[]>(provider.models);
   return (
     <details>
@@ -61,13 +63,13 @@ function ModelCorrection({ provider, view }: { provider: AiProvider; view: View 
     </details>
   );
 }
-export function AIProviders({
-  view,
-  initiallyOpen = false,
-}: {
+interface AIProvidersProps {
   view: View;
   initiallyOpen?: boolean;
-}) {
+}
+
+export function AIProviders({ view, initiallyOpen = false }: AIProvidersProps) {
+  const copy = useCopy().extras.aiCopy;
   const [editing, setEditing] = useState<AiProvider | "new" | null>(initiallyOpen ? "new" : null);
   return (
     <Group label="Proveedores">

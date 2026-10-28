@@ -1,5 +1,6 @@
+import { numberFormat } from "../../locale";
 import { fileSize } from "../attachments";
-import { openSettings, type Entries, type NoticeData } from "./types";
+import { openSettings, type Entries, NoticeData } from "./types";
 
 /** Bytes as the hub's other storage notices say them: «10 GB». */
 function size(bytes: unknown): string | undefined {
@@ -8,7 +9,8 @@ function size(bytes: unknown): string | undefined {
 
 /** «HTTP 409, recording_finalized»: the status and the hub's own code. */
 function answer(data: NoticeData): string {
-  const status = typeof data.status === "number" ? `HTTP ${data.status}` : "sin estado";
+  const status =
+    typeof data.status === "number" ? `HTTP ${numberFormat().format(data.status)}` : "sin estado";
   return typeof data.code === "string" ? `${status}, ${data.code}` : status;
 }
 

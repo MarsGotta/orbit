@@ -1,7 +1,8 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { ReactNode } from "react";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Icon } from "../../design/Icon";
-import { es } from "../../i18n/es";
+
 import { CopyButton } from "./copy-button";
 import { transcriptText } from "./notes-format";
 import type { useTranscriptSearch } from "./use-transcript-search";
@@ -18,6 +19,7 @@ export function Toolbar({
   /** «Rehacer transcripción» and its question. */
   redo: ReactNode;
 }) {
+  const es = useCopy();
   return (
     <div className={styles.transcriptTools}>
       <div className={styles.searchField} role="search">
@@ -52,6 +54,7 @@ export function Toolbar({
 /** The parts of the meeting whose audio never reached the hub: said with when
  *  and for how long, since the transcript has nothing there. */
 export function MissingAudio({ note }: { note: OpenNoteSnapshot }) {
+  const es = useCopy();
   return (
     <>
       {(note.transcript.missing_audio ?? []).map((hole) => (
@@ -65,6 +68,7 @@ export function MissingAudio({ note }: { note: OpenNoteSnapshot }) {
 
 /** «Silenciar»: each stretch where the microphone was muted, in one calm line. */
 export function MutedMicrophone({ note }: { note: OpenNoteSnapshot }) {
+  const es = useCopy();
   return (
     <>
       {(note.transcript.muted_microphone ?? []).map((span) => (

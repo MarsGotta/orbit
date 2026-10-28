@@ -1,11 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId, type KeyboardEvent } from "react";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Button } from "../../design/Button";
 import { moveWithArrows } from "../../design/roving";
 import { Spinner } from "../../design/Spinner";
 import { Switch } from "../../design/Switch";
-import { accessGroups } from "../../i18n/es/agents";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import { NAME_MAX } from "./assistants";
 import { ColorChoice } from "./ProfileFields";
 import { sharedAccount, SignInWaiting } from "./SignInNotice";
@@ -14,6 +14,7 @@ import styles from "./AssistantPages.module.css";
 
 /** Step 1: «¿Con qué va a funcionar?». */
 export function KindStep({ flow, offered }: { flow: AddFlow; offered: boolean }) {
+  const copy = useCopy().extras.assistantsCopy;
   const { kind, setKind } = flow;
   return (
     <>
@@ -53,6 +54,7 @@ export function KindStep({ flow, offered }: { flow: AddFlow; offered: boolean })
 
 /** Step 2 for Hermes: it is not added from Orbit. */
 export function HubStep() {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <>
       <h2 className={styles.addTitle}>{copy.hubKindTitle}</h2>
@@ -67,6 +69,7 @@ export function HubStep() {
 
 /** What the box of step 2 holds: the button, the hub preparing it, the wait, or «✓ Conectado». */
 function ConnectBox({ flow }: { flow: AddFlow }) {
+  const copy = useCopy().extras.assistantsCopy;
   const { mine, agents, signIn, vendor } = flow;
   const { view } = signIn;
   if (flow.connected && mine !== undefined) {
@@ -113,6 +116,7 @@ function ConnectBox({ flow }: { flow: AddFlow }) {
 
 /** Step 2 with a subscription: «Conecta tu cuenta de …». */
 export function ConnectStep({ flow }: { flow: AddFlow }) {
+  const copy = useCopy().extras.assistantsCopy;
   return (
     <>
       <h2 className={styles.addTitle}>{copy.connectTitle(flow.vendor)}</h2>
@@ -126,6 +130,8 @@ export function ConnectStep({ flow }: { flow: AddFlow }) {
 
 /** Step 3: «Ponle nombre», its colour and what it may use. */
 export function NameStep({ flow, shown }: { flow: AddFlow; shown: string }) {
+  const copy = useCopy().extras.assistantsCopy;
+  const accessGroups = useCopy().extras.accessGroups;
   const { name, setName, color, setColor, access, setAccess, problem } = flow;
   const id = useId();
   const hint =
@@ -185,6 +191,7 @@ export function NameStep({ flow, shown }: { flow: AddFlow; shown: string }) {
 
 /** Step 4: «… está listo». */
 export function ReadyStep({ flow, shown }: { flow: AddFlow; shown: string }) {
+  const copy = useCopy().extras.assistantsCopy;
   const line = copy.serviceFull(flow.kind);
   return (
     <div className={styles.ready}>

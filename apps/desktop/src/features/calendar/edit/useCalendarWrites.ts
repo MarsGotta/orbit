@@ -1,9 +1,10 @@
+import { getCopy } from "../../../i18n";
 import { useCallback, useRef, useState } from "react";
 import type { AppCommand } from "../../../bridge/generated";
 import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
 import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
-import { es } from "../../../i18n/es";
+
 import type { CalendarEvent } from "../eventLook";
 import {
   createCommand,
@@ -15,7 +16,7 @@ import {
   updateCommand,
 } from "./commands";
 import { type EventForm, inputOf } from "./form";
-import { blockedNotice, deletedToast, type Notice, undoEntryOf } from "./notices";
+import { blockedNotice, deletedToast, Notice, undoEntryOf } from "./notices";
 import { type PendingWrite, withPending } from "./pending";
 import { usePendingWrites, type WriteSettled } from "./usePendingWrites";
 import { undoPending } from "./undoPending";
@@ -125,12 +126,12 @@ interface ActionParts {
 function undoActions({ memory, setDeleted, setNotice, write }: ActionParts) {
   const runUndo = (entry: UndoEntry) => {
     if (entry.kind === "impossible") {
-      setNotice({ kind: "info", text: es.calendar.write.cannotUndo(entry.title) });
+      setNotice({ kind: "info", text: getCopy().calendar.write.cannotUndo(entry.title) });
       return;
     }
     write(undoPending(entry, memory.events), (id) => undoCommand(entry, id));
     // After the write, which clears the last notice: this one is the undo's.
-    setNotice({ kind: "info", text: es.calendar.write.undoing(entry.title) });
+    setNotice({ kind: "info", text: getCopy().calendar.write.undoing(entry.title) });
   };
   return {
     undoDeleted: (requestId: string) => {
@@ -141,7 +142,7 @@ function undoActions({ memory, setDeleted, setNotice, write }: ActionParts) {
     },
     undoLast: () => {
       const last = memory.stack.pop();
-      if (!last) return setNotice({ kind: "info", text: es.calendar.write.nothingToUndo });
+      if (!last) return setNotice({ kind: "info", text: getCopy().calendar.write.nothingToUndo });
       forget(memory, last.requestId);
       setDeleted(null);
       runUndo(last.entry);
@@ -164,7 +165,7 @@ function writeActions(parts: ActionParts) {
       write(draft, (request) => deleteCommand(request, target, span));
       setDeleted(null);
       // On its way: no «Deshacer» yet, there is nothing to undo.
-      setNotice({ kind: "info", text: es.calendar.write.deleting(event.title) });
+      setNotice({ kind: "info", text: getCopy().calendar.write.deleting(event.title) });
     },
     update: (
       event: CalendarEvent,

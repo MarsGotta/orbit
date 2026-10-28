@@ -1,7 +1,8 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { AppCommand } from "../../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import { refusalText, seriesRefusals } from "../../../app/library-refusal";
-import { es } from "../../../i18n/es";
+
 import styles from "./EventTemplate.module.css";
 import { useHeldChoice } from "../../../state/use-held-choice";
 
@@ -21,6 +22,7 @@ export function EventTemplate({
   library: NoteLibrarySnapshot | null | undefined;
   send: (command: AppCommand) => Promise<unknown> | void;
 }) {
+  const es = useCopy();
   return (
     <section aria-label={es.library.noteTemplate} className={styles.section}>
       <TemplateState calendarItemId={calendarItemId} library={library} send={send} />
@@ -37,6 +39,7 @@ function TemplateState({
   library: NoteLibrarySnapshot | null | undefined;
   send: (command: AppCommand) => Promise<unknown> | void;
 }) {
+  const es = useCopy();
   if (library?.templates.state === "failed") {
     return (
       <p className={styles.single} role="status">
@@ -76,6 +79,7 @@ function TemplateSelect({
   library: NoteLibrarySnapshot;
   send: (command: AppCommand) => Promise<unknown> | void;
 }) {
+  const es = useCopy();
   // The template chosen stays shown until the library is read again with it.
   const template = useHeldChoice(assigned, send);
   return (

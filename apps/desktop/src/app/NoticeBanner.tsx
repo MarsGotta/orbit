@@ -1,5 +1,7 @@
+import { useCopy } from "../i18n/CopyProvider";
+import { localizeMessage } from "./interceptor";
 import { Toast } from "../design/Toast";
-import type { NoticeAction } from "../i18n/es/notices";
+import type { NoticeAction } from "../i18n";
 import { FailureActions, FailureHelp } from "./FailureActions";
 import type { Message } from "./interceptor";
 export interface NoticeBannerProps {
@@ -12,9 +14,10 @@ export interface NoticeBannerProps {
 
 /** Floating messages, one per op; problems remain until the person closes them. */
 export function NoticeBanner({ messages, onAction, onDismiss, onRetry }: NoticeBannerProps) {
+  useCopy();
   return (
     <>
-      {messages.map(({ op, class: kind, text, action, actions, failure }) => (
+      {messages.map(localizeMessage).map(({ op, class: kind, text, action, actions, failure }) => (
         <Toast
           key={op}
           kind={kind}

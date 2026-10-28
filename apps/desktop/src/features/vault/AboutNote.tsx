@@ -1,9 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { NoteFacts } from "./NoteFacts";
 import { useState } from "react";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 import { Button } from "../../design/Button";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { readFilter, type VaultPort } from "./api";
 import { internalTarget } from "./markdown-tree";
 import { noteRoute } from "./route";
@@ -12,6 +13,7 @@ import { useVaultRead } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 function Sources({ note }: { note: VaultNote }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <section>
       <h3>
@@ -53,6 +55,7 @@ function Backlinks({
   catalog: VaultCatalog;
   port?: VaultPort;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   const [number, setNumber] = useState(1);
   const { answer, error, retry } = useVaultRead(port, readFilter("backlinks", note.path, number));
   const page = answer?.outcome === "page" ? answer.page : null;
@@ -112,6 +115,7 @@ export function AboutNote({
   catalog: VaultCatalog;
   port?: VaultPort;
 }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <aside aria-label={copy.about} className={styles.about}>
       <NoteFacts note={note} />
@@ -123,6 +127,7 @@ export function AboutNote({
 }
 
 function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
+  const copy = useCopy().extras.vaultCopy;
   const [number, setNumber] = useState(1);
   const { answer, error } = useVaultRead(
     port,

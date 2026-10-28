@@ -1,11 +1,13 @@
+import { dateTime } from "../../i18n/locale";
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Skeleton } from "../../design/Skeleton";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy, shortDay } from "../../i18n/es/assistants";
+
 import { useNow } from "../../use-now";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { assistantHash } from "./assistant-route";
@@ -31,14 +33,13 @@ export function dayOf(atMs: number, nowMs: number): string {
   if (sameDay(at, now)) return "Hoy";
   if (sameDay(at, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return "Ayer";
   return at.getFullYear() === now.getFullYear()
-    ? shortDay(atMs)
-    : `${shortDay(atMs)} ${at.getFullYear()}`;
+    ? getCopy().extras.shortDay(atMs)
+    : `${getCopy().extras.shortDay(atMs)} ${at.getFullYear()}`;
 }
 
-const clock = new Intl.DateTimeFormat("es-ES", {
+const clock = dateTime({
   hour: "2-digit",
   minute: "2-digit",
-  hourCycle: "h23",
 });
 
 export interface Row {
@@ -54,7 +55,7 @@ export interface Row {
 
 /** The rows of the list: each listed one, and the open one before the hub lists it. */
 export function useRows(snapshot: AppSnapshot, items: ChatSessionSummary[]): Row[] {
-  const es = useSpanish();
+  const es = useCopy();
   const lines = useFirstLines();
   const { chat } = snapshot;
   const agents = agentsOf(snapshot);
@@ -104,7 +105,8 @@ function ConversationRow({
   send: (command: AppCommand) => unknown;
   now: number;
 }) {
-  const es = useSpanish();
+  const assistantsCopy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const when = sessionWhen(row.at, now);
   const name = named ? row.agent?.name : undefined;
   return (

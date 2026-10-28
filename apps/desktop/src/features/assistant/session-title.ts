@@ -1,3 +1,4 @@
+import { dateTime } from "../../i18n/locale";
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&
@@ -11,15 +12,14 @@ const sameDay = (a: Date, b: Date) =>
 export function sessionWhen(atMs: number, nowMs: number): string {
   const at = new Date(atMs);
   const now = new Date(nowMs);
-  const time = new Intl.DateTimeFormat("es-ES", {
+  const time = dateTime({
     hour: "2-digit",
     minute: "2-digit",
-    hourCycle: "h23",
   }).format(at);
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
   if (sameDay(at, now)) return `Hoy, ${time}`;
   if (sameDay(at, yesterday)) return `Ayer, ${time}`;
-  const day = new Intl.DateTimeFormat("es-ES", {
+  const day = dateTime({
     day: "numeric",
     month: "short",
     ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),

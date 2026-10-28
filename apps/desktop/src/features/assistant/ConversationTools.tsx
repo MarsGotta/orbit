@@ -3,7 +3,7 @@ import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor } from "../../bridge/reads";
 import { Button } from "../../design/Button";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { copyText } from "../../bridge/clipboard";
 import { conversationView, withOlder } from "./conversation";
 import { conversationMarkdown, lastCodeBlock } from "./conversation-markdown";
@@ -75,7 +75,7 @@ const SAID_MS = 1_800;
  * the hub gave, or why not), and ⌘⇧C for the last code block.
  */
 export function ConversationTools({ inFlight, messages, read, sessionId, turn }: ToolsProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const [status, setStatus] = useState<{ text: string; done: boolean } | null>(null);
   useEffect(() => {
     if (status === null || !status.done) return;

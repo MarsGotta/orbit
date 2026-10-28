@@ -1,8 +1,9 @@
+import { getCopy } from "../../i18n";
 import { Fragment } from "react";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingAgendaSnapshot } from "../../bridge/generated/BriefingAgendaSnapshot";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
-import { es } from "../../i18n/es";
+
 import { useUiStore } from "../../state/ui";
 import { timeLabel } from "../calendar/date";
 import styles from "./BriefingView.module.css";
@@ -19,9 +20,9 @@ const ended = (row: BriefingAgendaSnapshot, nowMs: number) =>
 
 /** What a row says on its right: recording, its note ready, or who goes. */
 function datum(row: BriefingAgendaSnapshot, recording: boolean, noteReady: boolean): string {
-  if (recording) return es.briefing.recording;
-  if (noteReady) return es.briefing.noteReady;
-  if (row.people_count !== undefined) return es.briefing.peopleCount(row.people_count);
+  if (recording) return getCopy().briefing.recording;
+  if (noteReady) return getCopy().briefing.noteReady;
+  if (row.people_count !== undefined) return getCopy().briefing.peopleCount(row.people_count);
   return row.people_label;
 }
 

@@ -1,7 +1,7 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useId, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { PermissionsStep } from "./OnboardingAccessSteps";
 import { castOf } from "./cast";
@@ -128,7 +128,7 @@ function usePairForm(props: Props, appName: string) {
 
 export function OnboardingView(props: Props) {
   const { onComplete, send, snapshot } = props;
-  const es = useSpanish();
+  const es = useCopy();
   const [step, setStep] = useState(() => (props.startAtPair === true ? 2 : 1));
   const { pairing, fields } = usePairForm(props, es.appName);
   const formId = useId();

@@ -1,8 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import { vaultCopy as copy } from "../../i18n/es/vault";
+
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";
 export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <section>
       <h2>{copy.projects}</h2>
@@ -32,6 +34,7 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
   );
 }
 export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
+  const copy = useCopy().extras.vaultCopy;
   return (
     <section>
       <h2>{copy.recent}</h2>

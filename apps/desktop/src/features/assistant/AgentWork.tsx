@@ -1,15 +1,14 @@
+import { getCopy } from "../../i18n";
 import { useState, type ReactNode } from "react";
 import type { AgentWork } from "../../bridge/generated/AgentWork";
 import type { WorkItem } from "../../bridge/generated/WorkItem";
 import type { WorkStepStatus } from "../../bridge/generated/WorkStepStatus";
 import { Icon } from "../../design/Icon";
 import { Spinner } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es } from "../../i18n/es";
+import { useCopy } from "../../i18n/CopyProvider";
+
 import { useNow } from "../../use-now";
 import styles from "./AssistantView.module.css";
-
-const copy = es.assistant.work;
 
 /** «40 s», «1 min 12 s», «2 min»: as the macOS notification writes it. */
 export function durationText(ms: number): string {
@@ -36,10 +35,10 @@ type Worked = Pick<AgentWork, "started_at_ms" | "ended_at_ms" | "tools" | "subje
 export function workSummary(work: Worked): string {
   const took =
     work.ended_at_ms == null ? null : durationText(work.ended_at_ms - work.started_at_ms);
-  if (work.tools === 0) return took === null ? "" : copy.worked(took);
+  if (work.tools === 0) return took === null ? "" : getCopy().assistant.work.worked(took);
   const parts: string[] = [];
-  if (work.subjects.length > 0) parts.push(copy.used(listText(work.subjects)));
-  parts.push(copy.steps(work.tools));
+  if (work.subjects.length > 0) parts.push(getCopy().assistant.work.used(listText(work.subjects)));
+  parts.push(getCopy().assistant.work.steps(work.tools));
   if (took !== null) parts.push(took);
   return parts.join(" · ");
 }
@@ -64,7 +63,7 @@ function StepMark({ item, wait }: { item: WorkItem; wait: StepWait }) {
 
 /** Each step with its mark: ✓ done, the running one turning, × failed or refused. */
 function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
-  const es = useSpanish();
+  const es = useCopy();
   const steps = items.filter(isStep);
   if (steps.length === 0) return null;
   return (
@@ -96,6 +95,7 @@ function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
 }
 
 function Plan({ plan }: { plan: WorkItem }) {
+  const copy = useCopy().assistant.work;
   const status: Record<WorkStepStatus, string> = copy.stepStatus;
   return (
     <ol aria-label={plan.label} className={styles.plan}>
@@ -110,6 +110,7 @@ function Plan({ plan }: { plan: WorkItem }) {
 }
 
 function Reasoning({ items }: { items: WorkItem[] }) {
+  const copy = useCopy().assistant.work;
   const said = items.filter((item) => item.kind === "reasoning" && item.label !== "");
   if (said.length === 0) return null;
   return (
@@ -124,7 +125,7 @@ function Reasoning({ items }: { items: WorkItem[] }) {
 
 /** The line above an answer: the agent's name and, after it, its work. */
 export function AnswerHead({ children }: { children?: ReactNode }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div className={styles.answerHead}>
       <strong>{es.chat.roles.assistant}</strong>
@@ -153,6 +154,7 @@ export function AgentWorkView({
   inFlight: boolean;
   wait?: StepWait;
 }) {
+  const copy = useCopy().assistant.work;
   const now = useNow(inFlight ? 1_000 : null);
   const [open, setOpen] = useState(false);
   const plan = [...work.items].reverse().find((item) => item.kind === "plan");

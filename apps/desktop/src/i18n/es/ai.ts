@@ -1,3 +1,4 @@
+import { formatQuantity } from "../locale";
 export const aiCopy = {
   title: "IA",
   lead: "Tus proveedores y el modelo que hace cada cosa. Las claves se guardan cifradas en el hub.",
@@ -8,14 +9,14 @@ export const aiCopy = {
     meeting_notes: "Resumen y nota de la reunión",
     vault: "Destilado y revisión de Notas",
     assistants: "Asistentes compatibles con OpenAI",
-  } as Record<string, string>,
+  } as const,
   capabilities: {
     text: "Texto",
     tools: "Herramientas",
     transcription: "Transcripción",
     word_timestamps: "Tiempos por palabra",
     speech: "Voz",
-  } as Record<string, string>,
+  } as const,
   unavailable: "No se pudo leer la configuración de IA. Comprueba la conexión con tu hub.",
   saved: "Guardado en el hub",
   providerName: "Nombre del proveedor",
@@ -53,16 +54,16 @@ export function aiRefusalText(
   const n = refusal.numbers;
   switch (refusal.code) {
     case "ai_provider_timeout":
-      return `El proveedor no terminó la comprobación en ${String(n.timeout_ms)} ms.`;
+      return `El proveedor no terminó la comprobación en ${formatQuantity(n.timeout_ms)} ms.`;
     case "ai_provider_http_error":
       return `El proveedor devolvió HTTP ${String(n.provider_status)}; comprueba su saldo, cuota o disponibilidad.`;
     case "ai_catalog_size":
-      return `El catálogo tiene ${String(n.count)} modelos; debe tener entre 1 y ${String(n.max_count)}.`;
+      return `El catálogo tiene ${formatQuantity(n.count)} modelos; debe tener entre 1 y ${formatQuantity(n.max_count)}.`;
     case "ai_providers_full":
-      return `Hay ${String(n.count)} proveedores; el máximo es ${String(n.max_count)}.`;
+      return `Hay ${formatQuantity(n.count)} proveedores; el máximo es ${formatQuantity(n.max_count)}.`;
     case "ai_response_too_large":
     case "ai_registry_full":
-      return `La configuración o respuesta ocupa ${String(n.bytes)} bytes; el máximo es ${String(n.max_bytes)}.`;
+      return `La configuración o respuesta ocupa ${formatQuantity(n.bytes)} bytes; el máximo es ${formatQuantity(n.max_bytes)}.`;
     default:
       return Object.hasOwn(aiRefusals, refusal.code)
         ? `${aiRefusals[refusal.code]}${n.provider_status === undefined ? "" : ` (HTTP ${String(n.provider_status)})`}.`

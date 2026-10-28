@@ -1,7 +1,9 @@
+import { getCopy } from "../../../i18n";
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
 import type { CalendarAvailability } from "../../../bridge/generated/CalendarAvailability";
 import { Segmented } from "../../../design/Segmented";
-import { es } from "../../../i18n/es";
+
 import { calendarTone, toneStyle } from "../eventLook";
 import type { EventForm } from "./form";
 import styles from "./EventPanel.module.css";
@@ -21,6 +23,7 @@ interface FieldsProps {
 
 /** Place, notes, calendar, «Avisarme» and «Mostrarme como». */
 export function PanelFields(props: FieldsProps) {
+  const es = useCopy();
   const { form, onChange } = props;
   return (
     <div className={styles.fields}>
@@ -57,6 +60,7 @@ export function PanelFields(props: FieldsProps) {
 
 /** Only the calendars that admit events, each with its color. */
 function CalendarField({ calendars, form, onChange }: Omit<FieldsProps, "draft">) {
+  const es = useCopy();
   const writable = calendars.filter(
     (calendar) => calendar.can_edit !== false || calendar.id === form.calendarId,
   );
@@ -88,13 +92,12 @@ function CalendarField({ calendars, form, onChange }: Omit<FieldsProps, "draft">
 
 /** The usual reminders, and any other the event already has. */
 function reminderChoices(read: readonly number[]): [number, string][] {
-  const usual = es.calendar.edit.reminderOptions.map(([minutes, label]): [number, string] => [
-    minutes,
-    label,
-  ]);
+  const usual = getCopy().calendar.edit.reminderOptions.map(
+    ([minutes, label]): [number, string] => [minutes, label],
+  );
   const other = read
     .filter((minutes) => !usual.some(([value]) => value === minutes))
-    .map((minutes): [number, string] => [minutes, es.calendar.edit.minutesBefore(minutes)]);
+    .map((minutes): [number, string] => [minutes, getCopy().calendar.edit.minutesBefore(minutes)]);
   return [...usual, ...other].sort((left, right) => left[0] - right[0]);
 }
 
@@ -102,6 +105,7 @@ function ReminderHint({
   form,
   alarmsNotEditable = 0,
 }: Omit<FieldsProps, "calendars" | "onChange">) {
+  const es = useCopy();
   if (form.alarms === null && alarmsNotEditable > 0)
     return <p className={styles.hint}>{es.calendar.edit.remindersTooMany}</p>;
   if (alarmsNotEditable > 0)
@@ -110,6 +114,7 @@ function ReminderHint({
 }
 
 function Reminders(props: Omit<FieldsProps, "calendars">) {
+  const es = useCopy();
   const { form, onChange } = props;
   const chosen = form.alarms ?? [];
   // More than Orbit edits: none is touched from here (a write would drop some).
@@ -145,6 +150,7 @@ function Reminders(props: Omit<FieldsProps, "calendars">) {
 
 /** «Ocupada» or «Libre»; a calendar that keeps no availability shows nothing. */
 function Availability({ form, onChange }: Omit<FieldsProps, "calendars" | "draft">) {
+  const es = useCopy();
   if (form.availability === null || form.availability === "not_supported") return null;
   return (
     <div className={styles.availability}>

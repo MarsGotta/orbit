@@ -26,6 +26,7 @@ macro_rules! device_orders {
         Command::Pair { .. }
             | Command::Status
             | Command::ErrorReports { .. }
+            | Command::LanguageSet { .. }
             | Command::Report { .. }
             | Command::PrivacyStop
             | Command::Shutdown

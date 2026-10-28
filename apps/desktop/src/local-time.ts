@@ -1,7 +1,8 @@
+import { dateTime } from "./i18n/locale";
 export function effectiveTimezone(publishedTimezone: string): string | null {
   if (!publishedTimezone) return null;
   try {
-    new Intl.DateTimeFormat("es-ES", { timeZone: publishedTimezone }).format(0);
+    dateTime({ timeZone: publishedTimezone }).format(0);
     return publishedTimezone;
   } catch {
     return null;

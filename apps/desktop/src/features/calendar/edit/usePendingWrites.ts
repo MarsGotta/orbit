@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
 import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
 import type { CalendarEvent } from "../eventLook";
-import { failureNotice, type Notice } from "./notices";
+import { failureNotice, Notice } from "./notices";
 import { nextDeadline, type PendingWrite, reconcile } from "./pending";
 
 interface Hooks {

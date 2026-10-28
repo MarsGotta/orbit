@@ -12,6 +12,16 @@ impl Runtime {
                 device_name,
             } => self.pair_command(hub_url, code, device_name).await?,
             Command::Status => self.status_command()?,
+            Command::LanguageSet { language } => {
+                let settings = Settings {
+                    language,
+                    ..self.settings.clone()
+                };
+                self.paths
+                    .save_settings(&settings)
+                    .context("Could not save language")?;
+                self.settings = settings;
+            }
             Command::ErrorReports { enabled } => self.set_error_reports(enabled)?,
             // Already in the app's report log: it only goes to the client.
             Command::Report { report } => self

@@ -29,6 +29,7 @@ const commands: Record<AppCommand["command"], string> = {
   call_keep: "seguir en la llamada",
   chat: "enviar el mensaje",
   clarify: "enviar tu respuesta",
+  language_set: "cambiar el idioma",
   error_reports: "cambiar los informes de errores",
   handover: "seguir la conversación con otro asistente",
   interrupt: "detener la respuesta",

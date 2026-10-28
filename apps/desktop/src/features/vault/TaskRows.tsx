@@ -1,3 +1,4 @@
+import { dateTime } from "../../i18n/locale";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
 import type { VaultTask } from "../../bridge/generated/VaultTask";
 import { noteRoute } from "./route";
@@ -18,7 +19,7 @@ export function displayDate(value: string) {
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" }).format(date);
+    : dateTime({ day: "numeric", month: "short" }).format(date);
 }
 
 export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMeta[] }) {

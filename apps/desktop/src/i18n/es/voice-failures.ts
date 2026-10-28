@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 
 /** Why a voice note was not transcribed, in the words and weight the user reads. */
@@ -32,13 +33,15 @@ const STOPPED_BEFORE_TRANSCRIPTION: Record<string, string> = {
 /** The numbers a failed transcription carries, in the order the user reads them. */
 function failureNumbers(failure: VoiceFailure): string[] {
   const numbers = [`código ${failure.code}`];
-  if (failure.hub_status != null) numbers.push(`hub ${failure.hub_status}`);
-  if (failure.provider_status != null) numbers.push(`proveedor ${failure.provider_status}`);
-  if (failure.timeout_ms != null) numbers.push(`límite ${failure.timeout_ms / 1000} s`);
+  if (failure.hub_status != null) numbers.push(`hub ${numberFormat().format(failure.hub_status)}`);
+  if (failure.provider_status != null)
+    numbers.push(`proveedor ${numberFormat().format(failure.provider_status)}`);
+  if (failure.timeout_ms != null)
+    numbers.push(`límite ${numberFormat().format(failure.timeout_ms / 1000)} s`);
   if (failure.bytes != null && failure.max_bytes != null)
     numbers.push(`${failure.bytes} de ${failure.max_bytes} bytes`);
   if (failure.attempts != null && failure.attempts > 1)
-    numbers.push(`${failure.attempts} intentos`);
+    numbers.push(`${numberFormat().format(failure.attempts)} intentos`);
   return numbers;
 }
 

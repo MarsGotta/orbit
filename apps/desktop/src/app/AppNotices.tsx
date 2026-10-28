@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { NoticeAction } from "../i18n/es/notices";
+import type { NoticeAction } from "../i18n";
 import type { AppContentProps } from "./App";
 import { ToastStack } from "../design/Toast";
 import { MeetingNoteNotice } from "../features/notes/MeetingNoteNotice";

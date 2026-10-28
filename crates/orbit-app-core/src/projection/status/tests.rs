@@ -18,6 +18,7 @@ fn status_topic(hub: Connection, privacy_stopped: bool) -> TopicData {
             privacy_stopped,
             helper_connected: true,
             error_reports: None,
+            language: None,
         },
         as_of_ms: None,
     })

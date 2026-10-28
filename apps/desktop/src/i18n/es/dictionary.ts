@@ -1,3 +1,4 @@
+import { numberFormat } from "../locale";
 export const dictionary = {
   dictionary: {
     label: "Diccionario",
@@ -21,8 +22,9 @@ export const dictionary = {
     // Above the cards: several per meeting, and how words get in.
     several:
       "Una reunión o una serie puede usar varios diccionarios a la vez. Las palabras se añaden al corregirlas en una transcripción: pulsa una palabra y elige «Corregir».",
-    words: (count: number) => (count === 1 ? "1 palabra" : `${count} palabras`),
-    seeAll: (count: number) => `Ver las ${count} palabras`,
+    words: (count: number) =>
+      count === 1 ? "1 palabra" : `${numberFormat().format(count)} palabras`,
+    seeAll: (count: number) => `Ver las ${numberFormat().format(count)} palabras`,
     removeEntry: "Quitar",
     remove: (term: string) => `Quitar ${term}`,
     refused: (code: string, detail: string, numbers: Record<string, number>) => {
@@ -59,7 +61,7 @@ export const dictionary = {
         used_bytes: "bytes ocupados",
       };
       const values = Object.entries(numbers)
-        .map(([key, value]) => `${labels[key] ?? key}: ${value}`)
+        .map(([key, value]) => `${labels[key] ?? key}: ${numberFormat().format(value)}`)
         .join(", ");
       return `${causes[code] ?? detail}${values ? ` (${values})` : ""}.`;
     },

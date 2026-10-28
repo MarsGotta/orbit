@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Button } from "../../design/Button";
-import { es } from "../../i18n/es";
+
 import styles from "./CalendarView.module.css";
 
 interface CalendarFeedbackProps {
@@ -12,6 +13,7 @@ interface CalendarFeedbackProps {
  * is told in the header; with the agenda read, nothing.
  */
 export function CalendarFeedback({ error, onRetry }: CalendarFeedbackProps) {
+  const es = useCopy();
   if (error === null || error === "") return null;
   return (
     <div className={styles.alert} role="alert">

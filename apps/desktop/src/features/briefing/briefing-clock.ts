@@ -1,3 +1,4 @@
+import { dateTime } from "../../i18n/locale";
 import { useEffect, useState } from "react";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
 
@@ -13,7 +14,7 @@ export function localHour(nowMs: number, timezone: string): number {
 }
 
 export function localDateLabel(nowMs: number, timezone: string): string {
-  const date = new Intl.DateTimeFormat("es-ES", {
+  const date = dateTime({
     weekday: "long",
     day: "numeric",
     month: "long",

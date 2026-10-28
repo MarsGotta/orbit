@@ -1,10 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { ReactNode } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Icon } from "../../design/Icon";
 import { MultiSelect } from "../../design/MultiSelect";
 import { Switch } from "../../design/Switch";
-import { es } from "../../i18n/es";
+
 import { useUiStore } from "../../state/ui";
 import { chosen, dictionaryOptions, meetingDictionaries } from "./dictionary-choice";
 import { languageName } from "./notes-format";
@@ -52,6 +53,7 @@ type FieldProps = {
 };
 
 function TemplateField({ draft, library, note, set }: FieldProps) {
+  const es = useCopy();
   const templates = library?.templates.state === "available" ? library.items : [];
   const known = templates.some((item) => item.id === draft.template);
   return (
@@ -83,6 +85,7 @@ function TemplateField({ draft, library, note, set }: FieldProps) {
 }
 
 function LanguageField({ draft, set }: FieldProps) {
+  const es = useCopy();
   const language = draft.language;
   if (language === null) return null;
   const languages = LANGUAGES.includes(language) ? LANGUAGES : [...LANGUAGES, language];
@@ -103,6 +106,7 @@ function LanguageField({ draft, set }: FieldProps) {
 
 /** Several dictionaries at once (annex, change 6); dictionaries are made by correcting words. */
 function DictionaryField({ draft, library, note, set }: FieldProps) {
+  const es = useCopy();
   const meeting = meetingDictionaries(note);
   if (meeting === null) return null;
   if (library?.dictionaries?.state !== "available")
@@ -125,6 +129,7 @@ function DictionaryField({ draft, library, note, set }: FieldProps) {
 }
 
 export function Fields(props: FieldProps) {
+  const es = useCopy();
   return (
     <div className={styles.menuFields}>
       <TemplateField {...props} />

@@ -1,11 +1,11 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { ReactNode } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { TopBarLeading } from "../../app/shell-slots";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { healthOf } from "./assistants";
@@ -14,7 +14,7 @@ import { AssistantIdentity } from "./AssistantIdentity";
 import { sessionWhen } from "./session-title";
 import styles from "./AssistantView.module.css";
 
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 /** What the header says the agent is doing, or when the conversation began. */
 function headerState(chat: AppSnapshot["chat"], began: number | null, es: Copy): string {
@@ -42,7 +42,8 @@ function HeaderTitle({
   port?: AgentPort;
   snapshot: AppSnapshot;
 }) {
-  const es = useSpanish();
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const { chat } = snapshot;
   const health = agent === undefined ? null : healthOf(agent, Date.now());
   const limit = health?.kind === "limit" ? health : null;
@@ -112,7 +113,7 @@ export function ConversationHeader({
   send: (command: AppCommand) => unknown;
   snapshot: AppSnapshot;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const { chat } = snapshot;
   return (
     <TopBarLeading>

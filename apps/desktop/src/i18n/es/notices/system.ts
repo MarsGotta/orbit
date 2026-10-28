@@ -1,22 +1,27 @@
+import { numberFormat } from "../../locale";
 import { fileSize } from "../attachments";
-import { openSettings, rearm, worded, type Entries, type NoticeData } from "./types";
+import { openSettings, rearm, worded, type Entries, NoticeData } from "./types";
 
 /** A folder chosen in the panel that Orbit did not keep, with its cause and numbers. */
 function folderNotAdded(data: NoticeData): string {
   const { code, cause, count, max, bytes, max_bytes: maxBytes, status } = data;
   if (code === "too_many" && typeof max === "number") {
-    const asked = typeof count === "number" ? ` (sería la ${count}.ª)` : "";
-    return `No se añadió la carpeta: ya hay ${max} carpetas, el máximo${asked}. Quita una para añadir otra.`;
+    const asked = typeof count === "number" ? ` (sería la ${numberFormat().format(count)}.ª)` : "";
+    return `No se añadió la carpeta: ya hay ${numberFormat().format(max)} carpetas, el máximo${asked}. Quita una para añadir otra.`;
   }
   if (cause === "path_too_long" && typeof bytes === "number" && typeof maxBytes === "number")
-    return `No se añadió la carpeta: su ruta ocupa ${bytes} bytes y Orbit admite ${maxBytes}.`;
+    return `No se añadió la carpeta: su ruta ocupa ${numberFormat().format(bytes)} bytes y Orbit admite ${numberFormat().format(maxBytes)}.`;
   if (cause === "bookmark_too_large" && typeof bytes === "number" && typeof maxBytes === "number")
-    return `No se añadió la carpeta: el marcador que macOS hizo de ella ocupa ${bytes} bytes y Orbit guarda hasta ${maxBytes}.`;
+    return `No se añadió la carpeta: el marcador que macOS hizo de ella ocupa ${numberFormat().format(bytes)} bytes y Orbit guarda hasta ${numberFormat().format(maxBytes)}.`;
   if (code === "storage_failed")
     return "No se añadió la carpeta: Orbit no pudo guardarla en este Mac. Vuelve a añadirla.";
   if (code === "assistant_folder_panel_busy")
     return "El panel para elegir una carpeta ya está abierto.";
-  const why = [code, cause, typeof status === "number" ? `error ${status}` : undefined]
+  const why = [
+    code,
+    cause,
+    typeof status === "number" ? `error ${numberFormat().format(status)}` : undefined,
+  ]
     .filter((part) => part !== undefined)
     .join(", ");
   return `No se pudo añadir la carpeta: el panel de macOS no la entregó${why ? ` (${why})` : ""}. Vuelve a intentarlo.`;
@@ -56,10 +61,10 @@ export const system = {
         typeof data.status !== "number"
           ? "sin comunicar el estado de salida"
           : data.code === "signal"
-            ? `señal ${data.status}`
+            ? `señal ${numberFormat().format(data.status)}`
             : data.code === "exit"
-              ? `código ${data.status}`
-              : `estado de espera ${data.status}`;
+              ? `código ${numberFormat().format(data.status)}`
+              : `estado de espera ${numberFormat().format(data.status)}`;
       return `${process} terminó sin que Orbit lo pidiera (${status}). Orbit volverá a iniciarlo. No se repetirá ninguna acción de entrada.`;
     },
   },
@@ -120,9 +125,12 @@ export const system = {
     text: (data) => {
       const at =
         typeof data.at_ms === "number"
-          ? ` (${Math.floor(data.at_ms / 60_000)}:${String(Math.floor(data.at_ms / 1_000) % 60).padStart(2, "0")})`
+          ? ` (${numberFormat().format(Math.floor(data.at_ms / 60_000))}:${String(Math.floor(data.at_ms / 1_000) % 60).padStart(2, "0")})`
           : "";
-      const turns = typeof data.turns === "number" ? ` y ahora tiene ${data.turns} turnos` : "";
+      const turns =
+        typeof data.turns === "number"
+          ? ` y ahora tiene ${numberFormat().format(data.turns)} turnos`
+          : "";
       return `Ese turno${at} ya no está: la transcripción cambió desde que la abriste${turns}. Ábrela de nuevo.`;
     },
   },
@@ -131,7 +139,7 @@ export const system = {
     class: "fixable",
     text: (data) =>
       typeof data.count === "number" && typeof data.total === "number"
-        ? `No se puede rehacer la transcripción: el audio de ${data.count} de ${data.total} grupos no se puede leer.`
+        ? `No se puede rehacer la transcripción: el audio de ${numberFormat().format(data.count)} de ${numberFormat().format(data.total)} grupos no se puede leer.`
         : "No se puede rehacer la transcripción: parte del audio no se puede leer.",
   },
 } satisfies Partial<Entries>;

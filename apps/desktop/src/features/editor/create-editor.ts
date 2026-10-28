@@ -1,3 +1,5 @@
+import { editorLanguage } from "./editor-language";
+import { getCopy } from "../../i18n";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import { Language } from "@codemirror/language";
@@ -35,6 +37,8 @@ export class EditorParts {
   readonly preview = new Compartment();
   readonly label = new Compartment();
   readonly editable = new Compartment();
+  readonly placeholder = new Compartment();
+  readonly copy = new Compartment();
 }
 
 export interface EditorSetup {
@@ -84,7 +88,8 @@ export function createEditor(setup: EditorSetup): EditorView {
         keymap.of([...defaultKeymap, ...historyKeymap]),
         notesMarkdown,
         EditorView.lineWrapping,
-        placeholder(setup.placeholder),
+        parts.placeholder.of(placeholder(setup.placeholder)),
+        parts.copy.of(editorLanguage.of(getCopy())),
         parts.preview.of(previewOf(false)),
         parts.label.of(labelOf(setup.label)),
         parts.editable.of(editableOf(setup.readOnly)),

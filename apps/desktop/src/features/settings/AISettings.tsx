@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
-import { aiCopy as copy } from "../../i18n/es/ai";
+
 import { agentsOf } from "../assistant/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AIFunctions } from "./AIFunctions";
@@ -8,6 +9,7 @@ import { Group, List, Row, SectionHeading } from "./layout";
 import { useAISettings } from "./use-ai-settings";
 
 export function AISettings({ agent, snapshot }: { agent?: AgentPort; snapshot?: AppView }) {
+  const copy = useCopy().extras.aiCopy;
   const view = useAISettings(agent);
   const subscriptions =
     snapshot === undefined

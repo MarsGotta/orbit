@@ -3,7 +3,7 @@ import { asText, useLocalDraft } from "../../state/local-drafts";
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
-import type { useSpanish } from "../../i18n/AssistantCopy";
+import type { useCopy } from "../../i18n/CopyProvider";
 import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
 import { useComposerInsert } from "./composer-insert";
 import { turnInFlight } from "./conversation";
@@ -24,7 +24,7 @@ export interface ComposerProps {
   agentBlocked?: string | null;
 }
 
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 /**
  * Why nothing can be sent now, or null when it can. Writing is never

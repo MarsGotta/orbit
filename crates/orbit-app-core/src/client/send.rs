@@ -315,6 +315,7 @@ mod tests {
                         privacy_stopped: true,
                         helper_connected: false,
                         error_reports: None,
+                        language: None,
                     },
                     as_of_ms: None,
                 }),

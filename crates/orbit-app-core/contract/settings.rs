@@ -112,5 +112,9 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub error_reports: Option<bool>,
+        /// The per-Mac language choice; absent before the daemon reports it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub language: Option<orbit_core::language::LanguageChoice>,
     }
 }

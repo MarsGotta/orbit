@@ -14,7 +14,7 @@ describe("a folder chosen in the panel that Orbit did not keep", () => {
         max_bytes: 16_384,
       }),
     ).toBe(
-      "No se añadió la carpeta: el marcador que macOS hizo de ella ocupa 16398 bytes y Orbit guarda hasta 16384.",
+      "No se añadió la carpeta: el marcador que macOS hizo de ella ocupa 16.398 bytes y Orbit guarda hasta 16.384.",
     );
     expect(
       entry.text({

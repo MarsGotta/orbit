@@ -4,7 +4,7 @@ import { RecordButton } from "../design/Button";
 import { SidebarItem } from "../design/SidebarItem";
 import { agentFor } from "../features/assistant/agents";
 import { noteRowState } from "../features/notes/note-row";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { routeFor, type ViewId } from "../state/ui";
 import { CallCard } from "./CallCard";
@@ -37,7 +37,7 @@ function assistantWorking(snapshot: AppSnapshot): boolean {
 
 /** While a recording or a call goes on, its card takes the place of «Grabar reunión». */
 function Live({ onRecord, send, snapshot }: Omit<SidebarProps, "view">) {
-  const es = useSpanish();
+  const es = useCopy();
   const recording = snapshot.meeting.phase !== "idle";
   const call = snapshot.call;
   if (!recording && !call)
@@ -60,7 +60,7 @@ function Live({ onRecord, send, snapshot }: Omit<SidebarProps, "view">) {
  * reunión»), the four sections by name, Ajustes and the person.
  */
 export function Sidebar(props: SidebarProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const { snapshot, view } = props;
   const working = inProgress(snapshot);
   const name = snapshot.settings.profile?.name?.trim() || es.shell.localUser;

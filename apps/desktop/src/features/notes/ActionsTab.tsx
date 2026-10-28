@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Checkbox } from "../../design/Checkbox";
-import { es } from "../../i18n/es";
+
 import { actionsMarkdown, groupActions } from "./action-groups";
 import { CopyButton } from "./copy-button";
 import { sent, type Send } from "./send";
@@ -11,6 +12,7 @@ import styles from "./Note.module.css";
  * with «Guardando…» beside it until the hub has it; it never turns back by itself.
  */
 export function ActionsTab({ note, send }: { note: OpenNoteSnapshot; send: Send }) {
+  const es = useCopy();
   if (note.actions.length === 0) {
     return (
       <p className={styles.quiet}>

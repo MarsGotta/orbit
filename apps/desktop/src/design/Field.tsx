@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useId, type InputHTMLAttributes } from "react";
-import { es } from "../i18n/es";
+
 import styles from "./Field.module.css";
 
 export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
@@ -12,6 +13,7 @@ export interface FieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 }
 
 export function Field({ label, help, size = 36, saved, id, className, ...props }: FieldProps) {
+  const es = useCopy();
   const fallbackId = useId();
   const inputId = id ?? fallbackId;
   const helpId = `${inputId}-help`;

@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from "react";
-import { es } from "../i18n/es";
+
 import type { Feedback } from "./feedback";
 import { Spinner } from "./Spinner";
 import styles from "./Button.module.css";
@@ -36,13 +37,16 @@ export function Button({
   variant = "outline",
   disabledReason,
   feedback,
-  pendingLabel = es.controls.saving,
-  doneLabel = es.controls.saved,
+  pendingLabel,
+  doneLabel,
   onClick,
   disabled,
   "aria-describedby": describedBy,
   ...props
 }: ButtonProps) {
+  const es = useCopy();
+  pendingLabel ??= es.controls.saving;
+  doneLabel ??= es.controls.saved;
   const reasonId = useId();
   const classes = [styles.button, styles[variant], styles[`size${size}`], className]
     .filter(Boolean)

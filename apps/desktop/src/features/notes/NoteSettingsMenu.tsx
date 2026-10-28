@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useRef, useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
@@ -5,7 +6,7 @@ import { Button } from "../../design/Button";
 import { type Feedback, useFeedback } from "../../design/feedback";
 import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
-import { es } from "../../i18n/es";
+
 import { languageName } from "./notes-format";
 import {
   type Choice,
@@ -36,6 +37,7 @@ function Footer({
   onApply: () => void;
   onClose: () => void;
 }) {
+  const es = useCopy();
   return (
     <div className={styles.menuActions}>
       <Button onClick={onClose} size={32} variant="ghost">
@@ -110,6 +112,7 @@ export function NoteSettingsMenu({
   onRewrite: (templateName: string, work: Promise<unknown>) => void;
   send: Send;
 }) {
+  const es = useCopy();
   const menu = useNoteSettings(note, library, send, onRewrite);
   return (
     <Popover

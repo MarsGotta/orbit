@@ -1,8 +1,7 @@
-import { es } from "../../../i18n/es";
+import { useCopy } from "../../../i18n/CopyProvider";
+
 import styles from "./Agents.module.css";
 import type { Feedback, Place, useAgentConfig } from "./use-agent-config";
-
-export const copy = es.agents;
 
 /** What every part that gives orders needs. */
 export interface OrderProps {
@@ -25,6 +24,7 @@ export function FeedbackLine({
   place: Place;
   errorsOnly?: boolean;
 }) {
+  const copy = useCopy().agents;
   if (feedback?.place !== place) return null;
   if (feedback.kind === "error")
     return (
@@ -42,11 +42,13 @@ export function FeedbackLine({
 
 /** What the agent's kind does not let Orbit change, and why. */
 export function NotEditable({ editable, cause }: { editable: boolean; cause: string | null }) {
+  const copy = useCopy().agents;
   return editable ? null : <p className={styles.hint}>{copy.notEditable(cause)}</p>;
 }
 
 /** Bytes against the hub's ceiling; over it, both sizes. */
 export function ByteCount({ bytes, max }: { bytes: number; max: number }) {
+  const copy = useCopy().agents;
   const over = bytes > max;
   return (
     <span aria-live="polite" className={over ? styles.alert : styles.count}>

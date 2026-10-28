@@ -1,3 +1,5 @@
+import { numberFormat } from "../locale";
+import { getLocale } from "../locale";
 /** What the chat says about copying, retrying, listening and editing an answer. */
 const base = {
   chatActions: {
@@ -21,11 +23,11 @@ const base = {
     deletes: (paths?: number) =>
       paths === undefined
         ? "Borra archivos. No se puede deshacer."
-        : `Borra ${paths} ${paths === 1 ? "archivo" : "archivos"}. No se puede deshacer.`,
+        : `Borra ${numberFormat().format(paths)} ${paths === 1 ? "archivo" : "archivos"}. No se puede deshacer.`,
     deletesOneAtATime: "Un comando que borra solo se permite de uno en uno.",
     copyConversation: "Copiar conversación",
     conversationPartial: (copied: number, total: number) =>
-      `Se copiaron ${copied} de ${total} mensajes: el hub no dio el resto.`,
+      `Se copiaron ${numberFormat().format(copied)} de ${numberFormat().format(total)} mensajes: el hub no dio el resto.`,
     lastCodeCopied: "✓ Último bloque de código copiado",
     noCodeBlock: "No hay ningún bloque de código en la conversación.",
     you: "Tú",
@@ -33,7 +35,7 @@ const base = {
     editorTitle: "Editar la respuesta",
     editorTextLabel: "Texto de la respuesta",
     charactersCopied: (count: number) =>
-      `${count.toLocaleString("es-ES")} caracteres · se copia como Markdown`,
+      `${count.toLocaleString(getLocale())} caracteres · se copia como Markdown`,
     copiedConversation: "✓ Copiada",
     close: "Cerrar",
     closeEditor: "Cerrar el editor",

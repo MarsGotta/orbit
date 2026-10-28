@@ -1,18 +1,18 @@
+import { getCopy, type Catalogue } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef } from "react";
 import type { AppCommand, PermissionState } from "../../bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { Button } from "../../design/Button";
 import { Switch } from "../../design/Switch";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { es as base } from "../../i18n/es";
-import { permissionRows } from "../../i18n/es/permissions";
+
 import { Group, List, Row } from "./layout";
 import { useRereadOnReturn } from "./permission-reread";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
 type Settings = AppSnapshot["settings"];
-type PermissionKey = (typeof permissionRows)[number][0];
+type PermissionKey = Catalogue["extras"]["permissionRows"][number][0];
 
 const MISSING: readonly PermissionState[] = ["denied", "not_granted", "not_determined"];
 
@@ -28,7 +28,9 @@ function permissionsKnown(settings: Settings): boolean {
  */
 export function missingPermissions(settings: Settings): number {
   if (!permissionsKnown(settings)) return 0;
-  return permissionRows.filter(([key]) => MISSING.includes(settings.permissions[key])).length;
+  return getCopy().extras.permissionRows.filter(([key]) =>
+    MISSING.includes(settings.permissions[key]),
+  ).length;
 }
 
 /**
@@ -66,6 +68,7 @@ function MicrophoneSwitch({
   send: Send;
   state: PermissionState;
 }) {
+  const base = useCopy();
   const request = useMicrophoneRequest(send, state);
   return (
     <div className={styles.inRow}>
@@ -96,7 +99,8 @@ function PermissionRow({
   send: Send;
   state: PermissionState;
 }) {
-  const es = useSpanish();
+  const permissionRows = useCopy().extras.permissionRows;
+  const es = useCopy();
   const copy = es.permissionRows[name];
   const pane = permissionRows.find(([key]) => key === name)?.[1].pane;
   const missing = known && MISSING.includes(state);
@@ -147,6 +151,8 @@ function PermissionRow({
  * «Comprobando…», never «Sin permiso».
  */
 export function SystemPermissions({ send, settings }: { send: Send; settings: Settings }) {
+  const base = useCopy();
+  const permissionRows = useCopy().extras.permissionRows;
   const known = permissionsKnown(settings);
   // Back from System Settings, what is missing is read again from macOS.
   useRereadOnReturn(send, missingPermissions(settings) > 0);

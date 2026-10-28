@@ -1,16 +1,16 @@
+import { rowState } from "./assistant-row-state";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
-import { assistantsCopy } from "../../i18n/es/assistants";
-import { usageWindow } from "../../i18n/es/assistantsFormat";
-import { es as base } from "../../i18n/es";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useNow } from "../../use-now";
 import { assistantHash } from "../assistant/assistant-route";
-import { colorOf, healthOf } from "../assistant/assistants";
+import { colorOf } from "../assistant/assistants";
 import { agentsOf } from "../assistant/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantFolders } from "./AssistantFolders";
@@ -19,34 +19,8 @@ import { Group, List, Row, SectionHeading } from "./layout";
 import { usePrimary } from "./use-primary";
 import styles from "./SettingsView.module.css";
 
-const copy = base.settings;
-
 // A limit's time passes while the section is open: read the clock each minute.
 const REPAINT_MS = 60_000;
-
-/** What its row says at the right: what stops it, in amber, or its plan's usage. */
-function rowState(agent: Agent, nowMs: number): { text: string; warn: boolean } | null {
-  const health = healthOf(agent, nowMs);
-  if (health.kind === "sign_in")
-    return {
-      text: health.reason === "expired" ? copy.sessionExpired : assistantsCopy.rowSignIn,
-      warn: true,
-    };
-  if (health.kind === "limit")
-    return {
-      text:
-        health.until === undefined
-          ? assistantsCopy.rowLimit
-          : assistantsCopy.rowUntil(health.until),
-      warn: true,
-    };
-  if (agent.usage !== undefined)
-    return {
-      text: copy.usage(Math.round(agent.usage.used_percent), usageWindow(agent.usage.window)),
-      warn: false,
-    };
-  return null;
-}
 
 /** Leaves Ajustes for the Asistente's own screens. */
 function goTo(hash: string) {
@@ -55,6 +29,8 @@ function goTo(hash: string) {
 
 /** One row per assistant with its service and state, «Sus ajustes» to its gear, and «Añadir asistente». */
 function AssistantRows({ snapshot }: { snapshot: AppSnapshot }) {
+  const copy = useCopy().settings;
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   const titleId = useId();
   const nowMs = useNow(REPAINT_MS);
   const agents = agentsOf(snapshot);
@@ -121,6 +97,8 @@ function PrimaryChoice({
   port?: AgentPort;
   primaryId: string | null | undefined;
 }) {
+  const copy = useCopy().settings;
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   const id = useId();
   const primary = usePrimary(port, agents, primaryId);
   return (
@@ -177,6 +155,9 @@ export function AssistantSection({
   send: (command: AppCommand) => unknown;
   snapshot: AppSnapshot;
 }) {
+  const copy = useCopy().settings;
+  const base = useCopy();
+  const assistantsCopy = useCopy().extras.assistantsCopy;
   const agents = agentsOf(snapshot);
   return (
     <>

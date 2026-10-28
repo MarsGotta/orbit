@@ -1,7 +1,8 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import { Popover } from "../../../design/Popover";
 import styles from "./Agents.module.css";
-import { copy } from "./parts";
+
 import { folderSkill } from "./skill-file";
 
 /** The two ways to start a skill, in a menu anchored to «Nueva habilidad». */
@@ -14,6 +15,7 @@ function NewSkillMenu({
   onImport: () => void;
   onScratch: () => void;
 }) {
+  const copy = useCopy().agents;
   const [open, setOpen] = useState(false);
   const choose = (action: () => void) => {
     setOpen(false);
@@ -58,6 +60,7 @@ export function NewSkill({
   onOpen: (content: string) => void;
   onCause: (text: string) => void;
 }) {
+  const copy = useCopy().agents;
   const folder = useRef<HTMLInputElement>(null);
   useEffect(() => {
     // WebKit's panel chooses folders only with this attribute, which

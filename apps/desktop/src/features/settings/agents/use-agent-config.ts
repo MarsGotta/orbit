@@ -1,9 +1,10 @@
+import { getCopy } from "../../../i18n";
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentAnswer } from "../../../bridge/generated/AgentAnswer";
 import type { AgentCall } from "../../../bridge/generated/AgentCall";
 import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
 import type { SkillDocument } from "../../../bridge/generated/SkillDocument";
-import { agentFailureText, agentRefusalText } from "../../../i18n/es/agents";
 
 /** The daemon's one call for an agent's configuration (`orbit_agent`). */
 export type AgentPort = (call: AgentCall) => Promise<AgentAnswer>;
@@ -47,9 +48,9 @@ async function ask(agent: AgentPort, call: AgentCall): Promise<Result> {
       case "sign_in":
         return { kind: "done" };
       case "refused":
-        return { kind: "error", text: agentRefusalText(outcome.refusal) };
+        return { kind: "error", text: getCopy().extras.agentRefusalText(outcome.refusal) };
       case "failed":
-        return { kind: "error", text: agentFailureText(outcome.refusal) };
+        return { kind: "error", text: getCopy().extras.agentFailureText(outcome.refusal) };
     }
   } catch (error: unknown) {
     return { kind: "error", text: thrownText(error) };
@@ -66,7 +67,7 @@ function configView(result: Result): ConfigView {
   if (result.kind === "error") return { state: "failed", text: result.text };
   return {
     state: "failed",
-    text: agentFailureText({ code: "hub_reply_invalid", field: "outcome" }),
+    text: getCopy().extras.agentFailureText({ code: "hub_reply_invalid", field: "outcome" }),
   };
 }
 
@@ -88,6 +89,7 @@ function useAlive() {
  * screen shows: the hub is the single source.
  */
 export function useAgentConfig(agent: AgentPort, agentId: string) {
+  const agentFailureText = useCopy().extras.agentFailureText;
   const [view, setView] = useState<ConfigView>({ state: "loading" });
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busy, setBusy] = useState(false);

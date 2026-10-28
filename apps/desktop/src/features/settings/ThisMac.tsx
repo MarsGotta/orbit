@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { Button } from "../../design/Button";
 import { Skeleton } from "../../design/Skeleton";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { Row } from "./layout";
 import styles from "./SettingsView.module.css";
 
@@ -30,7 +30,7 @@ export function ThisMac({
   settings: Settings;
   statusKnown: boolean;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const [confirming, setConfirming] = useState(false);
   const hub = settings.hub;
   const revoked = hub.connection === "revoked";

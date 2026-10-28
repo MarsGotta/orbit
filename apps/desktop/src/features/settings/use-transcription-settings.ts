@@ -1,11 +1,14 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
 import type { TranscriptionSettings as Settings } from "../../bridge/generated/TranscriptionSettings";
-import { agentFailureText, agentRefusalText } from "../../i18n/es/agents";
-import { transcription as copy } from "../../i18n/es/transcription";
+
 import type { AgentPort } from "./agents/use-agent-config";
 
 export function useTranscriptionSettings({ agent }: { agent?: AgentPort }) {
+  const agentRefusalText = useCopy().extras.agentRefusalText;
+  const agentFailureText = useCopy().extras.agentFailureText;
+  const copy = useCopy().extras.transcription;
   const [settings, setSettings] = useState<Settings | null>(null);
   const [model, setModel] = useState<TranscriptionModel>("whisper");
   const [key, setKey] = useState("");

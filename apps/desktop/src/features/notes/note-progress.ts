@@ -1,8 +1,8 @@
+import { getCopy } from "../../i18n";
 import type { NoteProgressSnapshot } from "../../bridge/generated/NoteProgressSnapshot";
 import type { NoteStepSnapshot } from "../../bridge/generated/NoteStepSnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import type { AppCommand } from "../../bridge/generated";
-import { es } from "../../i18n/es";
 
 export type StepKey = keyof NoteProgressSnapshot;
 export const STEP_KEYS: StepKey[] = ["upload", "transcript", "summary"];
@@ -14,7 +14,7 @@ export function isRecording(progress: NoteProgressSnapshot): boolean {
 
 /** «Audio guardado», «Transcribiendo…», «Escribir el resumen»: each step as it stands. */
 export function stepLabel(key: StepKey, step: NoteStepSnapshot): string {
-  return es.noteScreen.steps[key][step.state];
+  return getCopy().noteScreen.steps[key][step.state];
 }
 
 /** The template a note is written with again: its own, its series', or General. */
@@ -39,18 +39,18 @@ export function noteFailure(note: OpenNoteSnapshot): NoteFailure | null {
   const { transcript, summary } = note.progress;
   if (transcript.state === "failed" || note.transcript.failed_groups > 0) {
     return {
-      title: es.noteScreen.transcriptFailed,
-      body: es.noteScreen.transcriptFailedBody,
+      title: getCopy().noteScreen.transcriptFailed,
+      body: getCopy().noteScreen.transcriptFailedBody,
       retry: { command: "transcript_retry", recording_id: note.recording_id },
     };
   }
   if (summary.state === "failed") {
     return {
-      title: es.noteScreen.noteFailed,
+      title: getCopy().noteScreen.noteFailed,
       body:
         summary.cause?.kind === "not_configured"
-          ? es.noteScreen.notConfigured
-          : es.noteScreen.noteFailedBody,
+          ? getCopy().noteScreen.notConfigured
+          : getCopy().noteScreen.noteFailedBody,
       retry: {
         command: "note_regenerate",
         recording_id: note.recording_id,

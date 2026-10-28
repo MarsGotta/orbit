@@ -2,11 +2,11 @@ import { useState } from "react";
 import { currentHubConnection } from "../bridge/hub-state";
 import { Icon } from "../design/Icon";
 import { toggleTheme, useTheme } from "../design/theme";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { useShellSlots } from "./shell-slots";
 import { settleHub, topBarNotices } from "./status-problem";
-import { TopBarNotices, type NoticeActions } from "./TopBarNotices";
+import { TopBarNotices, NoticeActions } from "./TopBarNotices";
 import styles from "./TopBar.module.css";
 
 export interface TopBarProps extends NoticeActions {
@@ -24,7 +24,7 @@ function useSettledHub(snapshot: AppSnapshot) {
 }
 
 function ThemeToggle() {
-  const es = useSpanish();
+  const es = useCopy();
   const dark = useTheme() === "dark";
   return (
     <button
@@ -43,7 +43,7 @@ function ThemeToggle() {
  * view's own trail where it has depth; the notice of the moment; the theme.
  */
 export function TopBar({ onOpenPalette, snapshot, send, onPair }: TopBarProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const slots = useShellSlots();
   const notices = topBarNotices(snapshot, useSettledHub(snapshot));
   return (

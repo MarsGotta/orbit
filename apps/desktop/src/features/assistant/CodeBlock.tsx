@@ -1,5 +1,6 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
-import { es } from "../../i18n/es";
+
 import { CopyButton } from "./CopyButton";
 import type { CodeToken } from "./highlight";
 import styles from "./ChatMarkdown.module.css";
@@ -115,6 +116,7 @@ export function shellCommands(language: string | null, code: string): string[] |
 
 /** A command for the person to run: a `$` line each, and «Copiar comando» without the `$`. */
 function CommandBlock({ commands }: { commands: string[] }) {
+  const es = useCopy();
   return (
     <figure aria-label={es.chatActions.command} className={styles.command}>
       <pre>
@@ -158,6 +160,7 @@ export function CodeBlock({
   language: string | null;
   meta?: string | null;
 }) {
+  const es = useCopy();
   const info = fenceInfo(language, meta);
   const lines = useHighlight(code, colour ? info.language : null);
   const commands = info.file === null ? shellCommands(info.language, code) : null;

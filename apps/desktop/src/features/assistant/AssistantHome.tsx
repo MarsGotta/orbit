@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { useId } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { Agent } from "../../bridge/generated/Agent";
@@ -6,8 +7,7 @@ import type { DaemonPort } from "../../bridge/port";
 import { AssistantAvatar } from "../../design/AssistantAvatar";
 import { Icon } from "../../design/Icon";
 import { Skeleton } from "../../design/Skeleton";
-import { useSpanish } from "../../i18n/AssistantCopy";
-import { assistantsCopy as copy } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { assistantHash } from "./assistant-route";
@@ -63,7 +63,8 @@ function Earlier({
   read?: DaemonPort["readSessionsPage"];
   send: Send;
 }) {
-  const es = useSpanish();
+  const copy = useCopy().extras.assistantsCopy;
+  const es = useCopy();
   const titleId = useId();
   const lines = useFirstLines();
   const { state } = useAssistantSessions(undefined, false, read);
@@ -130,6 +131,7 @@ export function AssistantHome({
   send: Send;
   nowMs: number;
 }) {
+  const copy = useCopy().extras.assistantsCopy;
   const agents = agentsOf(snapshot);
   const startersId = useId();
   const primaryId = snapshot.settings.default_agent_id;

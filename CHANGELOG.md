@@ -2,12 +2,18 @@
 
 All notable changes to Orbit are documented in this file. The format is based
 on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and Orbit uses
-[semantic versioning](https://semver.org/spec/v2.0.0.html). The app's interface
-is in Spanish; the labels quoted below are the ones it shows.
+[semantic versioning](https://semver.org/spec/v2.0.0.html). The app supports
+English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
 ### Changed
+
+- Add English and Spanish catalogue copy with a live language choice in
+  Settings › General. Follow the first supported system language by default,
+  persist the choice on this Mac, and format dates and numbers with its locale.
+  The test harness pins its isolated app to Spanish. Inline feature copy and
+  native menus, notifications and speech follow in later work.
 
 - Vault files use English defaults and Obsidian Tasks syntax. Each vault can
   define type roles, folders and field aliases in `SCHEMA.md` frontmatter;

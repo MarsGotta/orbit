@@ -1,5 +1,5 @@
 import type { NoticeCode } from "../bridge/generated/NoticeCode";
-import type { NoticeData } from "../i18n/es/notices";
+import type { NoticeData } from "../i18n";
 import type { AppView } from "./app-view";
 
 /**

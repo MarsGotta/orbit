@@ -1,7 +1,8 @@
-import { esAssistant } from "../es-assistant";
+import { numberFormat } from "../locale";
+import { assistantBase } from "./assistantBase";
 import { voiceFailureDetail, voiceFailureText } from "./voice-failures";
 
-const secondsFormat = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
+const secondsFormat = numberFormat({ maximumFractionDigits: 2 });
 
 /** Milliseconds as seconds, the Spanish way: 90 is «0,09». */
 function seconds(ms: number): string {
@@ -22,10 +23,11 @@ const base = {
       always: "Siempre",
       deny: "No permitir",
     },
-    questionOf: (position: number, total: number) => `Pregunta ${position} de ${total}`,
+    questionOf: (position: number, total: number) =>
+      `Pregunta ${numberFormat().format(position)} de ${numberFormat().format(total)}`,
   },
   assistant: {
-    ...esAssistant,
+    ...assistantBase,
     transcribingVoice: "Transcribiendo tu voz…",
 
     transcribing: "Transcribiendo…",
@@ -53,7 +55,7 @@ const base = {
       working: (duration: string) => `Trabajando · ${duration}`,
       worked: (duration: string) => `Trabajó ${duration}`,
       used: (subjects: string) => `Usó ${subjects}`,
-      steps: (count: number) => (count === 1 ? "1 paso" : `${count} pasos`),
+      steps: (count: number) => (count === 1 ? "1 paso" : `${numberFormat().format(count)} pasos`),
       reasoning: "Razonamiento",
       stepStatus: {
         pending: "Pendiente",
@@ -124,7 +126,11 @@ export function assistantCopy(assistantName: string) {
       newShort: "Nueva",
       now: "Ahora",
       messageCount: (count: number) =>
-        count === 0 ? "Sin mensajes" : count === 1 ? "1 mensaje" : `${count} mensajes`,
+        count === 0
+          ? "Sin mensajes"
+          : count === 1
+            ? "1 mensaje"
+            : `${numberFormat().format(count)} mensajes`,
       // The header of the open conversation.
       waitsPermission: "espera tu permiso",
       asksSomething: "te hace una pregunta",
@@ -158,7 +164,7 @@ export function assistantCopy(assistantName: string) {
         session: "Lo permitiste en esta conversación.",
         always: "Lo permitiste siempre.",
         deny: "No lo permitiste.",
-      } as Record<string, string>,
+      } as const,
       stepWaits: "espera tu permiso",
       stepDenied: "no lo permitiste",
       // A Mac without its hub.

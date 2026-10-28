@@ -1,5 +1,6 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useEffect, useId, type ReactNode } from "react";
-import { es } from "../i18n/es";
+
 import { Icon } from "./Icon";
 import { useModalFocus } from "./use-modal-focus";
 import styles from "./Dialog.module.css";
@@ -20,6 +21,7 @@ const FIELDS = "input:not(:disabled), textarea:not(:disabled), select:not(:disab
  * goes to its first field (or first button) and back to whatever opened it.
  */
 export function Dialog({ title, subtitle, children, footer, onClose }: DialogProps) {
+  const es = useCopy();
   const titleId = useId();
   const subtitleId = useId();
   const panel = useModalFocus(true);

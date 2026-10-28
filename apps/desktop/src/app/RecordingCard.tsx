@@ -1,8 +1,9 @@
+import { dateTime } from "../i18n/locale";
 import type { AppCommand } from "../bridge/generated";
 import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
 import { Button } from "../design/Button";
 import { Spinner } from "../design/Spinner";
-import { useSpanish } from "../i18n/AssistantCopy";
+import { useCopy } from "../i18n/CopyProvider";
 import { effectiveTimezone } from "../local-time";
 import { settingsRoute } from "../state/ui";
 import { mmss } from "../time-format";
@@ -16,7 +17,7 @@ import styles from "./SidebarCard.module.css";
 
 /** «Preguntar a Deimos» reads its answer: `false` when the daemon refused it. */
 type Send = (command: AppCommand) => unknown;
-type Copy = ReturnType<typeof useSpanish>;
+type Copy = ReturnType<typeof useCopy>;
 
 /** What it records and until when: «Audio del sistema · hasta las 12:00». */
 function audioLine(meeting: MeetingSnapshot, timezone: string, es: Copy): string {
@@ -27,7 +28,7 @@ function audioLine(meeting: MeetingSnapshot, timezone: string, es: Copy): string
       : es.recordingCard.audio[meeting.audio];
   if (meeting.ends_at_ms === null) return audio;
   const zone = effectiveTimezone(timezone) ?? undefined;
-  const time = new Intl.DateTimeFormat("es-ES", {
+  const time = dateTime({
     hour: "numeric",
     minute: "2-digit",
     timeZone: zone,
@@ -62,7 +63,7 @@ function stateLabel(meeting: MeetingSnapshot, es: Copy): string {
 }
 
 function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
-  const es = useSpanish();
+  const es = useCopy();
   const discard = useDiscardQuestion(meeting);
   if (meeting.phase === "finishing") return null;
   if (discard.asking && meeting.recording_id !== null) {
@@ -94,7 +95,7 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
 
 /** «Silenciar» / «Reactivar micrófono»: only her microphone, never the call. */
 function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
-  const es = useSpanish();
+  const es = useCopy();
   const muted = meeting.microphone_muted === true;
   return (
     <Button onClick={() => send({ command: "microphone_mute", muted: !muted })} size={32}>
@@ -105,7 +106,7 @@ function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: Send })
 
 /** «Micrófono silenciado», once the Mac confirmed it. */
 function MutedLine({ meeting }: { meeting: MeetingSnapshot }) {
-  const es = useSpanish();
+  const es = useCopy();
   if (meeting.microphone_muted !== true) return null;
   return <div className={styles.meta}>{es.microphoneMute.muted}</div>;
 }
@@ -123,7 +124,7 @@ export function RecordingCard({
   send: Send;
   timezone: string;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const active = meeting.phase !== "idle";
   const now = useNow(active ? 1_000 : null);
   const recorded = useRecordedTime(meeting, now);

@@ -1,9 +1,14 @@
+import { numberFormat } from "../locale";
 // The note of a meeting. Each step says where it stands and, when it failed,
 // what to do; the hub's codes and numbers stay in the log.
 import { listOf } from "./notes";
 
 const left = (value: number) =>
-  value === 0 ? "Todo hecho" : value === 1 ? "Queda 1 tarea" : `Quedan ${value} tareas`;
+  value === 0
+    ? "Todo hecho"
+    : value === 1
+      ? "Queda 1 tarea"
+      : `Quedan ${numberFormat().format(value)} tareas`;
 
 const base = {
   noteScreen: {
@@ -12,9 +17,11 @@ const base = {
     changesOnMac: "Hay cambios guardados en este Mac que el hub aún no tiene. Se envían solos.",
     whileRecording: "La nota se escribe al terminar la grabación.",
     withPeople: (names: string[]) => listOf([...names, "tú"]),
-    minutes: (value: number) => `${value} min`,
+    minutes: (value: number) => `${numberFormat().format(value)} min`,
     hours: (hours: number, minutes: number) =>
-      minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`,
+      minutes === 0
+        ? `${numberFormat().format(hours)} h`
+        : `${numberFormat().format(hours)} h ${numberFormat().format(minutes)} min`,
 
     // How Orbit writes this note: proposals 8 and 9, nothing rewritten on a
     // mere change.
@@ -25,7 +32,11 @@ const base = {
         ...(language === null ? [] : [language]),
         ...(dictionaries === 0
           ? []
-          : [dictionaries === 1 ? "1 diccionario" : `${dictionaries} diccionarios`]),
+          : [
+              dictionaries === 1
+                ? "1 diccionario"
+                : `${numberFormat().format(dictionaries)} diccionarios`,
+            ]),
       ].join(" · "),
     howTitle: "Cómo escribe Orbit esta nota",
     // «Borrar reunión», in the note's menu, confirmed in place.
@@ -47,7 +58,8 @@ const base = {
     rewriteNote: "Reescribir la nota",
     rewriting: (template: string) =>
       `Reescribiendo la nota con «${template}». Tu versión anterior queda guardada.`,
-    retranscribing: (done: number, total: number) => `Transcribiendo de nuevo… ${done} de ${total}`,
+    retranscribing: (done: number, total: number) =>
+      `Transcribiendo de nuevo… ${numberFormat().format(done)} de ${numberFormat().format(total)}`,
     templatesUnread: "Las plantillas aún no se han leído del hub.",
     templatesFailed: "No se pudieron leer las plantillas del hub.",
     dictionariesUnread: "Los diccionarios aún no se han leído del hub.",
@@ -98,7 +110,7 @@ const base = {
     partsLabel: "Partes de la nota",
     summaryTab: "Resumen",
     actionsTab: "Acciones",
-    actionsTabCount: (value: number) => `Acciones · ${value}`,
+    actionsTabCount: (value: number) => `Acciones · ${numberFormat().format(value)}`,
     transcriptTab: "Transcripción",
     privateTab: "Notas privadas",
 
@@ -108,7 +120,7 @@ const base = {
     decisions: "Decisiones",
     openTopics: "Temas abiertos",
     whoSpoke: "Quién habló",
-    share: (name: string, percent: number) => `${name} ${percent} %`,
+    share: (name: string, percent: number) => `${name} ${numberFormat().format(percent)} %`,
     supersededAvailable: "Al reescribir la nota se apartó tu versión anterior.",
     restoreSuperseded: "Recuperar mi versión",
     edit: "Editar",

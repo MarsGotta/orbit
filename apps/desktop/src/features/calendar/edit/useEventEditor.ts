@@ -1,7 +1,8 @@
+import { getCopy } from "../../../i18n";
 import { useEffect } from "react";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
 import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import { es } from "../../../i18n/es";
+
 import type { CalendarEvent } from "../eventLook";
 import { isSeries, updatedTarget } from "./commands";
 import { changesOf, changesRepeat, type EventForm, formOf, hasChanges } from "./form";
@@ -60,7 +61,8 @@ export function drawn(form: EventForm, event: CalendarEvent | null): CalendarEve
     calendar_id: form.calendarId,
     end_ms: form.endMs,
     start_ms: form.startMs,
-    title: form.title.trim() === "" && event === null ? es.calendar.edit.newEvent : form.title,
+    title:
+      form.title.trim() === "" && event === null ? getCopy().calendar.edit.newEvent : form.title,
     ...(event === null ? { ui: { draft: true } } : {}),
   };
 }

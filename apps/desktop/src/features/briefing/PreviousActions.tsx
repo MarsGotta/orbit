@@ -1,16 +1,18 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { BriefingPreviousActions } from "../../bridge/generated/BriefingPreviousActions";
 import { Checkbox } from "../../design/Checkbox";
 import { Loading } from "../../design/Spinner";
-import { es } from "../../i18n/es";
+
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";
 
 /** Why the earlier note's tasks are not known, in the words of its state. */
 function notWritten(noteState: string | null): string {
-  if (noteState === "failed") return es.briefing.pendingNoteFailed;
+  if (noteState === "failed") return getCopy().briefing.pendingNoteFailed;
   if (noteState !== null && ["waiting_transcript", "queued", "generating"].includes(noteState))
-    return es.briefing.pendingWriting;
-  return es.briefing.pendingNoNote;
+    return getCopy().briefing.pendingWriting;
+  return getCopy().briefing.pendingNoNote;
 }
 
 /**
@@ -25,6 +27,7 @@ export function PreviousActions({
   actions: BriefingPreviousActions;
   send: Send;
 }) {
+  const es = useCopy();
   return (
     <div className={styles.pending}>
       <h3>{es.briefing.pending}</h3>
@@ -34,6 +37,7 @@ export function PreviousActions({
 }
 
 function PendingBody({ actions, send }: { actions: BriefingPreviousActions; send: Send }) {
+  const es = useCopy();
   switch (actions.state) {
     case "unknown":
       return actions.cause === "series_not_read" ? (

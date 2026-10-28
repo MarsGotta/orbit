@@ -1,9 +1,10 @@
+import { numberFormat } from "../../locale";
 import { ATTACHMENT_NOT_FOUND, fileSize, sessionCeilingText, tooManyText } from "../attachments";
 import type { Entries, NoticeData } from "./types";
 
 type Value = NoticeData[keyof NoticeData];
 
-const decimals = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
+const decimals = numberFormat({ maximumFractionDigits: 1 });
 
 /** A notice's number, which the hub sends as a decimal string. */
 function amount(value: Value): number | undefined {
@@ -32,7 +33,7 @@ function seconds(value: Value): string {
 /** « (HTTP 503)», or nothing when the hub did not say. */
 function http(value: Value): string {
   const parsed = amount(value);
-  return parsed === undefined ? "" : ` (HTTP ${parsed})`;
+  return parsed === undefined ? "" : ` (HTTP ${numberFormat().format(parsed)})`;
 }
 
 const ASK_ADMIN = "Vuelve a intentarlo; si se repite, avisa a quien gestiona tu hub.";

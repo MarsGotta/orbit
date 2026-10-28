@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from "react";
 import {
   addAttachment,
@@ -7,7 +9,7 @@ import {
 } from "../../bridge/attachments";
 import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
 import { refusalOf } from "../../bridge/refusal";
-import { es } from "../../i18n/es";
+
 import { useTrack } from "../../state/use-in-flight";
 import { localRefusal, settled, type DraftAttachment } from "./attachment-drafts";
 
@@ -75,7 +77,7 @@ function pasteInto(
   if (images.length > 0) {
     event.preventDefault();
     for (const image of images) {
-      const name = image.name !== "" ? image.name : es.attachments.pastedImage;
+      const name = image.name !== "" ? image.name : getCopy().attachments.pastedImage;
       void readBytes(image).then((bytes) => addBytes(name, bytes));
     }
     return;
@@ -85,11 +87,12 @@ function pasteInto(
   const text = event.clipboardData.getData("text/plain");
   if (text.length <= PASTED_TEXT_ATTACHMENT_CHARS) return;
   event.preventDefault();
-  addBytes(es.attachments.pastedText, new TextEncoder().encode(text));
+  addBytes(getCopy().attachments.pastedText, new TextEncoder().encode(text));
 }
 
 /** The chips of the next message: what is uploading, ready or refused. */
 export function useAttachmentDrafts(limits: AttachmentLimits | undefined) {
+  const es = useCopy();
   const [drafts, setDrafts] = useState<DraftAttachment[]>([]);
   // Several files arrive at once; each is checked against the ones before it.
   const current = useRef<DraftAttachment[]>([]);

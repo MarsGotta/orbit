@@ -1,6 +1,8 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { Button } from "../../design/Button";
 import { TextLink } from "../../design/TextLink";
-import { es } from "../../i18n/es";
+
 import type { lockedReason } from "./edit/notices";
 import { type CalendarEvent, placePreview } from "./eventLook";
 import styles from "./edit/EventPanel.module.css";
@@ -15,6 +17,7 @@ export function EventRecord(props: {
   onJoin: (event: CalendarEvent, url: string) => void;
   onRecord: (event: CalendarEvent) => void;
 }) {
+  const es = useCopy();
   const { event } = props;
   const conference = event.conference_url ?? null;
   const link = conference !== null ? placePreview({ ...event, location: null }) : null;
@@ -59,13 +62,13 @@ function answerOf(
 ): { text: string; tone: Tone } | null {
   switch (event.self_response ?? "none") {
     case "accepted":
-      return { text: es.calendar.selfResponse.accepted, tone: "ok" };
+      return { text: getCopy().calendar.selfResponse.accepted, tone: "ok" };
     case "tentative":
-      return { text: es.calendar.selfResponse.tentative, tone: "warn" };
+      return { text: getCopy().calendar.selfResponse.tentative, tone: "warn" };
     case "needs_action":
-      return { text: es.calendar.unansweredHere, tone: "warn" };
+      return { text: getCopy().calendar.unansweredHere, tone: "warn" };
     case "declined":
-      return { text: es.calendar.selfResponse.declined, tone: "muted" };
+      return { text: getCopy().calendar.selfResponse.declined, tone: "muted" };
     case "none":
       break;
   }
@@ -73,7 +76,7 @@ function answerOf(
   // no guests in a calendar they can write to.
   const ownByGuests = (event.attendees?.length ?? 0) === 0 && locked !== "read_only";
   return event.organizer?.is_self === true || ownByGuests
-    ? { text: es.calendar.yours, tone: "plain" }
+    ? { text: getCopy().calendar.yours, tone: "plain" }
     : null;
 }
 
@@ -87,16 +90,16 @@ function isOrganizer(attendee: Attendee, event: CalendarEvent): boolean {
 }
 
 function guestStatus(attendee: Attendee, event: CalendarEvent): { text: string; tone: Tone } {
-  if (isOrganizer(attendee, event)) return { text: es.calendar.organizes, tone: "plain" };
+  if (isOrganizer(attendee, event)) return { text: getCopy().calendar.organizes, tone: "plain" };
   switch (attendee.response ?? "none") {
     case "accepted":
-      return { text: es.calendar.guestResponse.accepted, tone: "ok" };
+      return { text: getCopy().calendar.guestResponse.accepted, tone: "ok" };
     case "tentative":
-      return { text: es.calendar.guestResponse.tentative, tone: "warn" };
+      return { text: getCopy().calendar.guestResponse.tentative, tone: "warn" };
     case "declined":
-      return { text: es.calendar.guestResponse.declined, tone: "muted" };
+      return { text: getCopy().calendar.guestResponse.declined, tone: "muted" };
     case "needs_action":
-      return { text: es.calendar.guestResponse.needs_action, tone: "muted" };
+      return { text: getCopy().calendar.guestResponse.needs_action, tone: "muted" };
     case "none":
       return { text: "", tone: "muted" };
   }
@@ -107,6 +110,7 @@ export function EventPeople(props: {
   event: CalendarEvent;
   locked: ReturnType<typeof lockedReason>;
 }) {
+  const es = useCopy();
   const { event } = props;
   const answer = answerOf(event, props.locked);
   const attendees = event.attendees ?? [];

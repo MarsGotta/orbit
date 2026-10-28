@@ -1,10 +1,10 @@
+import { getCopy } from "../../i18n";
 import type { MeetingQuestionCause } from "../../bridge/generated/MeetingQuestionCause";
 import type { VoiceOffCause } from "../../bridge/generated/VoiceOffCause";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
-import { es } from "../../i18n/es";
 
 /** Each cause of a question without answer, as what to do. */
-export function causeText(cause: MeetingQuestionCause, copy = es): string {
+export function causeText(cause: MeetingQuestionCause, copy = getCopy()): string {
   const causes = copy.meetingQuestion.causes;
   switch (cause.cause) {
     case "privacy_stopped":
@@ -38,7 +38,10 @@ export function causeText(cause: MeetingQuestionCause, copy = es): string {
  * why, as the user can act on it; `null` outside a recording or while it gets
  * ready (nothing to say).
  */
-export function voiceStatusText(status: VoiceStatusSnapshot | undefined, copy = es): string | null {
+export function voiceStatusText(
+  status: VoiceStatusSnapshot | undefined,
+  copy = getCopy(),
+): string | null {
   if (!status) return null;
   switch (status.state) {
     case "listening":
@@ -55,7 +58,7 @@ export function voiceStatusText(status: VoiceStatusSnapshot | undefined, copy = 
 }
 
 /** The short form for the pill; the full sentence goes in its title. */
-export function voiceStatusShort(status: VoiceStatusSnapshot, copy = es): string | null {
+export function voiceStatusShort(status: VoiceStatusSnapshot, copy = getCopy()): string | null {
   switch (status.state) {
     case "listening":
     case "abandoned":
@@ -70,7 +73,7 @@ export function voiceStatusShort(status: VoiceStatusSnapshot, copy = es): string
 }
 
 function offText(why: VoiceOffCause): string {
-  const reasons = es.meetingQuestion.voice.why;
+  const reasons = getCopy().meetingQuestion.voice.why;
   switch (why.cause) {
     case "privacy_stopped":
       return reasons.privacyStopped;
@@ -136,7 +139,7 @@ export function linkHost(url: string): string {
 export function linkText(piece: { text: string; url: string }): string {
   return piece.text === piece.url
     ? piece.text
-    : es.meetingQuestion.linkWithHost(piece.text, linkHost(piece.url));
+    : getCopy().meetingQuestion.linkWithHost(piece.text, linkHost(piece.url));
 }
 
 /** UTF-8 bytes of the question, the unit the daemon's ceiling counts. */

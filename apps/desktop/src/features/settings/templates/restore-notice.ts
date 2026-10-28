@@ -1,6 +1,7 @@
+import { getCopy } from "../../../i18n";
 import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import { es } from "../../../i18n/es";
+
 import type { RemovedTemplate } from "./template-draft";
 
 /**
@@ -46,8 +47,8 @@ export function restoreNotice(
   // Past its ceiling an undo still on its way is not known to finish: the
   // list says what there is.
   return restoring.expired === true
-    ? { kind: "status", text: es.library.restoreUnknownAfterRestart(name) }
-    : { kind: "status", text: es.library.restoring(name) };
+    ? { kind: "status", text: getCopy().library.restoreUnknownAfterRestart(name) }
+    : { kind: "status", text: getCopy().library.restoring(name) };
 }
 
 /** What the undo came to, or `null` while it is still on its way. */
@@ -61,7 +62,7 @@ function settledNotice(
   const refused = library?.refusals.find(
     (refusal) => refusal.target_kind === "template" && refusal.target_id === id,
   );
-  if (refused) return { kind: "alert", text: es.library.restoreRefused(name) };
+  if (refused) return { kind: "alert", text: getCopy().library.restoreRefused(name) };
   const shown = library?.items.find((item) => item.id === id);
   const answer = library?.restores.find((restore) => restore.request_id === restoring.requestId);
   if (answer === undefined && restoring.interrupted)
@@ -69,16 +70,16 @@ function settledNotice(
   if (answer === undefined) {
     const newError = error !== null && error !== restoring.errorBefore;
     return restoring.settled && newError && shown === undefined
-      ? { kind: "alert", text: es.library.restoreRefused(name) }
+      ? { kind: "alert", text: getCopy().library.restoreRefused(name) }
       : null;
   }
   if (shown === undefined || shown.pending) return null;
-  if (series === null) return { kind: "status", text: es.library.restored(name) };
+  if (series === null) return { kind: "status", text: getCopy().library.restored(name) };
   const refusedSeries = seriesRefused(series, id, library);
   if (refusedSeries === null) return null;
   return refusedSeries > 0
-    ? { kind: "alert", text: es.library.restoredSomeSeriesNot(name) }
-    : { kind: "status", text: es.library.restored(name) };
+    ? { kind: "alert", text: getCopy().library.restoredSomeSeriesNot(name) }
+    : { kind: "status", text: getCopy().library.restored(name) };
 }
 
 /**
@@ -91,9 +92,9 @@ function withoutAnswer(
   shown: { pending: boolean } | undefined,
 ): RestoreNotice | null {
   if (shown === undefined)
-    return { kind: "status", text: es.library.restoreUnknownAfterRestart(name) };
+    return { kind: "status", text: getCopy().library.restoreUnknownAfterRestart(name) };
   if (shown.pending) return null;
-  return { kind: "status", text: es.library.restored(name) };
+  return { kind: "status", text: getCopy().library.restored(name) };
 }
 
 /**

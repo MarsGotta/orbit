@@ -1,6 +1,7 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { CSSProperties } from "react";
 import type { BriefingAgendaSnapshot } from "../../bridge/generated/BriefingAgendaSnapshot";
-import { es } from "../../i18n/es";
+
 import { timeLabel } from "../calendar/date";
 import { localMinutes } from "./briefing-clock";
 import styles from "./BriefingView.module.css";
@@ -29,6 +30,7 @@ export function DayTimeline(props: {
   nowMs: number;
   timezone: string;
 }) {
+  const es = useCopy();
   const { agenda, nowMs, timezone } = props;
   const now = localMinutes(nowMs, timezone);
   const onBand = now >= FROM && now <= FROM + SPAN;

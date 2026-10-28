@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
@@ -5,7 +7,7 @@ import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { Breadcrumbs, TopBarLeading } from "../../app/shell-slots";
 import { Tabs } from "../../design/Tabs";
 import { ViewError } from "../../design/ViewError";
-import { es } from "../../i18n/es";
+
 import { ActionsTab } from "./ActionsTab";
 import { NoteHeader } from "./NoteHeader";
 import { NoteProgress } from "./NoteProgress";
@@ -29,13 +31,15 @@ function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
 function tabsOf(note: OpenNoteSnapshot): { id: NoteTab; label: string }[] {
   const open = note.actions.filter((action) => !action.done).length;
   return [
-    { id: "summary", label: es.noteScreen.summaryTab },
+    { id: "summary", label: getCopy().noteScreen.summaryTab },
     {
       id: "actions",
-      label: note.summary ? es.noteScreen.actionsTabCount(open) : es.noteScreen.actionsTab,
+      label: note.summary
+        ? getCopy().noteScreen.actionsTabCount(open)
+        : getCopy().noteScreen.actionsTab,
     },
-    { id: "transcript", label: es.noteScreen.transcriptTab },
-    { id: "private", label: es.noteScreen.privateTab },
+    { id: "transcript", label: getCopy().noteScreen.transcriptTab },
+    { id: "private", label: getCopy().noteScreen.privateTab },
   ];
 }
 
@@ -94,6 +98,7 @@ export function NoteDetail(
     row?: NoteListItem;
   },
 ) {
+  const es = useCopy();
   const { error, library, note, row, send } = props;
   const [tab, setTab] = useNoteTab(note);
   const rewriting = useRewriting(note, send);

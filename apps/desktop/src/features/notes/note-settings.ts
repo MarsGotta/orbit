@@ -1,7 +1,8 @@
+import { getCopy } from "../../i18n";
 import type { AppCommand } from "../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { es } from "../../i18n/es";
+
 import { meetingDictionaries, takesLists } from "./dictionary-choice";
 import { templateOf } from "./note-progress";
 import { languageName } from "./notes-format";
@@ -48,7 +49,7 @@ export function templateName(
 export function howLabel(note: OpenNoteSnapshot, library?: NoteLibrarySnapshot | null): string {
   const template = note.summary?.template_name ?? templateName(library, templateOf(note), note);
   const language = note.transcript.language;
-  return es.noteScreen.howLabel(
+  return getCopy().noteScreen.howLabel(
     template,
     language === null ? null : languageName(language),
     meetingDictionaries(note)?.length ?? 0,
@@ -138,13 +139,13 @@ export function refusals(note: OpenNoteSnapshot, library?: NoteLibrarySnapshot |
   return [
     ...mine.map(
       (refusal) =>
-        es.noteScreen.seriesRefused(refusal.code) ??
+        getCopy().noteScreen.seriesRefused(refusal.code) ??
         (refusal.code.startsWith("dictionar")
-          ? es.dictionary.refused(refusal.code, "", refusal.numbers ?? {})
-          : es.library.refused(refusal.code)),
+          ? getCopy().dictionary.refused(refusal.code, "", refusal.numbers ?? {})
+          : getCopy().library.refused(refusal.code)),
     ),
     ...dictionaries.map((failure) =>
-      es.dictionary.refused(failure.code, failure.detail, failure.numbers),
+      getCopy().dictionary.refused(failure.code, failure.detail, failure.numbers),
     ),
   ];
 }

@@ -1,8 +1,9 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
 import { Button } from "../../../design/Button";
 import { Toast } from "../../../design/Toast";
-import { es } from "../../../i18n/es";
+
 import { failureNotice } from "./notices";
 
 function failed(write: WriteOutcome): boolean {
@@ -24,6 +25,7 @@ export function UnseenWriteOutcomes({
   onOpenCalendar: () => void;
   writes?: WriteOutcome[];
 }) {
+  const es = useCopy();
   // Every ended write already said, here or by the open view. The head
   // carries a few recent outcomes, so this holds no more than it does.
   const said = useRef(new Set<string>());

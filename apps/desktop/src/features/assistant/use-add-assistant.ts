@@ -1,9 +1,11 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { AccessGroups } from "../../bridge/generated/AccessGroups";
 import type { Agent } from "../../bridge/generated/Agent";
 import type { AssistantColor } from "../../design/AssistantAvatar";
-import { assistantsCopy as copy, vendorOf } from "../../i18n/es/assistants";
+
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";
@@ -27,7 +29,7 @@ const DEFAULT_ACCESS: AccessGroups = {
 
 /** The service's own name, made unique among the others: it is how it is called until renamed. */
 export function provisionalName(kind: Kind, agents: readonly Agent[]): string {
-  const base = copy.kinds[kind]?.tag ?? kind;
+  const base = getCopy().extras.assistantsCopy.kinds[kind]?.tag ?? kind;
   for (let index = 1; ; index += 1) {
     const name = index === 1 ? base : `${base} ${index}`;
     if (profileProblem(name, "", agents) === null) return name;
@@ -57,7 +59,8 @@ async function addProvisional(
     access: DEFAULT_ACCESS,
   });
   if (!result.ok) return { refusal: result.text };
-  if (result.outcome.outcome !== "added") return { refusal: copy.notOffered };
+  if (result.outcome.outcome !== "added")
+    return { refusal: getCopy().extras.assistantsCopy.notOffered };
   return { agentId: result.outcome.agent_id, name };
 }
 
@@ -103,17 +106,16 @@ function useProgress() {
  * sign-in begins (it needs one to sign in); leaving before «Crear asistente»
  * removes it again, so nothing half made stays among «Tus asistentes».
  */
-export function useAddAssistant(
-  snapshot: AppSnapshot,
-  port: AgentPort | undefined,
-  send: (command: AppCommand) => unknown,
-) {
+type Send = (command: AppCommand) => unknown;
+
+export function useAddAssistant(snapshot: AppSnapshot, port: AgentPort | undefined, send: Send) {
+  const copy = useCopy().extras.assistantsCopy;
   const agents = agentsOf(snapshot);
   const choices = useChoices(agents);
   const { kind, name, color, access } = choices;
   const { created, setCreated, busy, setBusy, refusal, setRefusal } = useProgress();
   const mine = agents.find((agent) => agent.id === created);
-  const vendor = vendorOf(kind) ?? copy.kinds[kind]?.tag ?? kind;
+  const vendor = getCopy().extras.vendorOf(kind) ?? copy.kinds[kind]?.tag ?? kind;
   const signIn = useSignIn({
     port,
     send,

@@ -1,13 +1,13 @@
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import { Button } from "../../design/Button";
 import { Spinner } from "../../design/Spinner";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import { causeText } from "./copy";
 import { AnswerText } from "./QuestionCard";
 import styles from "./AskMenu.module.css";
 
 function Again({ onAgain, note }: { onAgain: () => void; note?: string }) {
-  const es = useSpanish();
+  const es = useCopy();
   return (
     <div className={styles.footer}>
       {note && <span className={styles.hint}>{note}</span>}
@@ -34,7 +34,7 @@ export function AskAnswer({
   onAgain: () => void;
   openUrl: (url: string) => void;
 }) {
-  const es = useSpanish();
+  const es = useCopy();
   const stage = question?.stage ?? "thinking";
   const busy = stage === "thinking" || stage === "responding";
   return (

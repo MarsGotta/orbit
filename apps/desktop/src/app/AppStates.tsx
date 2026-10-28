@@ -1,8 +1,9 @@
+import { useCopy } from "../i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import { Button } from "../design/Button";
 import { Icon } from "../design/Icon";
 import { Spinner } from "../design/Spinner";
-import { es } from "../i18n/es";
+
 import styles from "./AppStates.module.css";
 
 /**
@@ -16,6 +17,7 @@ export const SLOW_START_MS = 15_000;
 
 /** Before Orbit's first state: connecting, and past the wait, what to do. */
 export function Starting({ onClose }: { onClose: () => void }) {
+  const es = useCopy();
   const [slow, setSlow] = useState(false);
   useEffect(() => {
     const timer = window.setTimeout(() => setSlow(true), SLOW_START_MS);
@@ -49,6 +51,7 @@ export function Starting({ onClose }: { onClose: () => void }) {
 
 /** Orbit stopped answering, or the window could not reach it at all. */
 export function NotResponding({ onClose }: { onClose: () => void }) {
+  const es = useCopy();
   return (
     <main className={styles.screen}>
       <div className={styles.box} role="alert">

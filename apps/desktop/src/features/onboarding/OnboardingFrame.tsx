@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { BrandMark } from "../../design/Brand";
 import { Button } from "../../design/Button";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { useCopy } from "../../i18n/CopyProvider";
 import type { PairingState } from "./OnboardingView";
 import styles from "./OnboardingView.module.css";
 
@@ -47,7 +47,7 @@ interface FrameProps {
  * seen; one not reached yet is closed), and «Atrás» below.
  */
 export function OnboardingFrame({ action, children, goTo, onSkipAll, step, steps }: FrameProps) {
-  const es = useSpanish();
+  const es = useCopy();
   const copy = es.onboarding;
   const mac = navigator.userAgent.includes("Mac");
   const overlay = useCoveredInert();
@@ -112,7 +112,7 @@ interface ActionProps {
 
 /** «Empezar», «Emparejar» (or «Emparejar después»), «Continuar» or «Empezar a usar Orbit». */
 export function StepAction({ formId, next, onComplete, pairing, step, steps }: ActionProps) {
-  const copy = useSpanish().onboarding;
+  const copy = useCopy().onboarding;
   if (step === 1)
     return (
       <Button onClick={next} size={40} variant="accent">

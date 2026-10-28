@@ -1,5 +1,5 @@
+import { getCopy } from "../../i18n";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import { es } from "../../i18n/es";
 
 /** How a row's line reads: red while recording or failed, muted while work goes on. */
 export type RowTone = "live" | "working" | "failed" | "plain";
@@ -13,15 +13,15 @@ export interface RowState {
 function stateLine(note: NoteListItem): RowState {
   switch (note.state) {
     case "recording":
-      return { text: es.noteScreen.listRecording, tone: "live" };
+      return { text: getCopy().noteScreen.listRecording, tone: "live" };
     case "uploading":
-      return { text: es.noteScreen.listUploading, tone: "working" };
+      return { text: getCopy().noteScreen.listUploading, tone: "working" };
     case "transcribing":
-      return { text: es.noteScreen.listTranscribing, tone: "working" };
+      return { text: getCopy().noteScreen.listTranscribing, tone: "working" };
     case "ready":
-      return { text: es.noteScreen.listTranscribed, tone: "plain" };
+      return { text: getCopy().noteScreen.listTranscribed, tone: "plain" };
     case "failed":
-      return { text: es.noteScreen.listTranscriptFailed, tone: "failed" };
+      return { text: getCopy().noteScreen.listTranscriptFailed, tone: "failed" };
   }
 }
 
@@ -34,12 +34,12 @@ export function noteRowState(note: NoteListItem): RowState {
   if (note.state === "recording" || note.state === "uploading") return stateLine(note);
   switch (note.headline?.phase) {
     case "transcribing":
-      return { text: es.noteScreen.listTranscribing, tone: "working" };
+      return { text: getCopy().noteScreen.listTranscribing, tone: "working" };
     case "writing":
-      return { text: es.noteScreen.listWriting, tone: "working" };
+      return { text: getCopy().noteScreen.listWriting, tone: "working" };
     case "failed":
     case "not_configured":
-      return { text: es.noteScreen.listFailed, tone: "failed" };
+      return { text: getCopy().noteScreen.listFailed, tone: "failed" };
     case "ready":
       return { text: note.headline.preview, tone: "plain" };
     case undefined:

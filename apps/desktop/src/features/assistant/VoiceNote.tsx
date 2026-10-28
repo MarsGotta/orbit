@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { AppCommand } from "../../bridge/generated/AppCommand";
 import type { VoiceNote as VoiceNoteSnapshot } from "../../bridge/generated/VoiceNote";
@@ -6,8 +8,7 @@ import { Button } from "../../design/Button";
 import { ConfirmCard } from "../../design/ConfirmCard";
 import { Icon } from "../../design/Icon";
 import { mmss } from "../../time-format";
-import { es } from "../../i18n/es";
-import { providerRefusedAudio } from "../../i18n/es/voice-failures";
+
 import styles from "./AssistantView.module.css";
 
 export interface VoiceNoteProps {
@@ -28,7 +29,9 @@ function play(media: HTMLMediaElement | null): void {
 function voiceTranscript(voice: VoiceNoteSnapshot): string {
   return (
     voice.transcript ??
-    (voice.failure ? es.assistant.voiceFailure(voice.failure) : es.assistant.transcribing)
+    (voice.failure
+      ? getCopy().assistant.voiceFailure(voice.failure)
+      : getCopy().assistant.transcribing)
   );
 }
 
@@ -40,6 +43,8 @@ function voiceTranscript(voice: VoiceNoteSnapshot): string {
  * a question in place.
  */
 function VoiceTranscript({ messageId, send, voice }: Omit<VoiceNoteProps, "audio">) {
+  const providerRefusedAudio = useCopy().extras.providerRefusedAudio;
+  const es = useCopy();
   const [anchor, setAnchor] = useState<HTMLButtonElement | null>(null);
   const [asking, setAsking] = useState(false);
   const failure = voice.transcript == null ? voice.failure : null;
@@ -159,6 +164,7 @@ function usePlayback(
 }
 
 export function VoiceNote({ audio, messageId, send, voice }: VoiceNoteProps) {
+  const es = useCopy();
   const { audioRef, playing, setPlaying, source, toggle } = usePlayback(messageId, send, audio);
   const [progress, setProgress] = useState(0);
   const available = voice.audio_available ?? false;

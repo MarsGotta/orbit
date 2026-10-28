@@ -1,5 +1,6 @@
+import { getCopy } from "../../i18n";
 import type { CalendarRecurrence } from "../../bridge/generated/CalendarRecurrence";
-import { es } from "../../i18n/es";
+
 import { dayOf, shortDay, timeLabel } from "./date";
 import type { Repeat } from "./edit/form";
 import { coveredDays } from "./edit/geometry";
@@ -12,14 +13,17 @@ export function whenText(
   if (span.allDay) {
     const { first, last } = coveredDays(span, timezone);
     const days = first === last ? shortDay(first) : `${shortDay(first)} – ${shortDay(last)}`;
-    return `${days} · ${es.calendar.allDayLower}`;
+    return `${days} · ${getCopy().calendar.allDayLower}`;
   }
   const start = timeLabel(span.startMs, timezone);
   const end = timeLabel(span.endMs, timezone);
   const first = dayOf(span.startMs, timezone);
   const last = dayOf(span.endMs - 1, timezone);
-  if (first === last) return `${shortDay(first)} · ${es.calendar.timeRange(start, end)}`;
-  return es.calendar.timeRange(`${shortDay(first)} · ${start}`, `${shortDay(last)} · ${end}`);
+  if (first === last) return `${shortDay(first)} · ${getCopy().calendar.timeRange(start, end)}`;
+  return getCopy().calendar.timeRange(
+    `${shortDay(first)} · ${start}`,
+    `${shortDay(last)} · ${end}`,
+  );
 }
 
 /** «Se repite: cada semana, los miércoles». */
@@ -28,16 +32,16 @@ export function repeatText(
 ) {
   const every =
     rule.interval === 1
-      ? es.calendar.edit.repeatOptions[rule.frequency].toLowerCase()
-      : `${es.calendar.edit.every.toLowerCase()} ${rule.interval} ${es.calendar.edit.units[rule.frequency](rule.interval)}`;
+      ? getCopy().calendar.edit.repeatOptions[rule.frequency].toLowerCase()
+      : `${getCopy().calendar.edit.every.toLowerCase()} ${rule.interval} ${getCopy().calendar.edit.units[rule.frequency](rule.interval)}`;
   const days = (rule.days_of_week ?? [])
     .filter((day) => day.week === undefined)
-    .map((day) => es.calendar.everyWeekday[day.day]);
+    .map((day) => getCopy().calendar.everyWeekday[day.day]);
   const listed =
     days.length <= 1
       ? days.join("")
-      : `${days.slice(0, -1).join(", ")} ${es.calendar.and} ${days.at(-1) ?? ""}`;
-  return es.calendar.repeats(listed === "" ? every : `${every}, ${listed}`);
+      : `${days.slice(0, -1).join(", ")} ${getCopy().calendar.and} ${days.at(-1) ?? ""}`;
+  return getCopy().calendar.repeats(listed === "" ? every : `${every}, ${listed}`);
 }
 
 export function repeatOfForm(repeat: Repeat): string | null {

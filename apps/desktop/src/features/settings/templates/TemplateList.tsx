@@ -1,8 +1,9 @@
+import { useCopy } from "../../../i18n/CopyProvider";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import { Button } from "../../../design/Button";
 import { Icon } from "../../../design/Icon";
-import { es } from "../../../i18n/es";
+
 import styles from "./Templates.module.css";
 
 /** Orbit's templates first, then the user's own; how many of theirs fit. */
@@ -17,6 +18,7 @@ export function TemplateList({
   onOpen: (template: NoteTemplateDetailSnapshot) => void;
   selected: string | null;
 }) {
+  const es = useCopy();
   const ordered = [
     ...library.items.filter((template) => template.builtin),
     ...library.items.filter((template) => !template.builtin),

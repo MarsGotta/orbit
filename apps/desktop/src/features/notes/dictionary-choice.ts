@@ -1,10 +1,10 @@
+import { getCopy } from "../../i18n";
 import type { Dictionary } from "../../bridge/generated/Dictionary";
 import type { DictionaryConflict } from "../../bridge/generated/DictionaryConflict";
 import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import type { MultiSelectOption } from "../../design/MultiSelect";
-import { es } from "../../i18n/es";
 
 // Which dictionaries a meeting uses, and the orders that change them, for a
 // hub that takes several (its meeting documents carry `dictionary_ids`) and
@@ -84,7 +84,7 @@ export function refusalOf(
   target: string,
 ): string | undefined {
   const failure = (library?.dictionary_failures ?? []).find((one) => one.target === target);
-  return failure && es.dictionary.refused(failure.code, failure.detail, failure.numbers);
+  return failure && getCopy().dictionary.refused(failure.code, failure.detail, failure.numbers);
 }
 
 /** What the hub warned of when it took the order. */
@@ -144,10 +144,10 @@ export function dictionaryOptions(
   return dictionaries(library).map((dictionary) => ({
     id: dictionary.id,
     name: dictionary.name,
-    detail: es.notes.dictionaryDetail(
+    detail: getCopy().notes.dictionaryDetail(
       dictionary.series.map((series) => series.title),
       dictionary.terms.length,
     ),
-    tag: meeting.includes(dictionary.id) ? es.notes.thisMeeting : undefined,
+    tag: meeting.includes(dictionary.id) ? getCopy().notes.thisMeeting : undefined,
   }));
 }

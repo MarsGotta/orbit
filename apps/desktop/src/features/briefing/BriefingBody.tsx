@@ -1,8 +1,9 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
 import { Button } from "../../design/Button";
 import { EmptyState } from "../../design/EmptyState";
-import { es } from "../../i18n/es";
+
 import { nextMeeting } from "./briefing-clock";
 import { BriefingLoading } from "./BriefingLoading";
 import { BriefingSections, briefingAgendaStatus, type AgendaStatus } from "./BriefingSections";
@@ -70,6 +71,7 @@ function AgendaUnknown({
   send: Send;
   status: Exclude<AgendaStatus, { state: "known" }>;
 }) {
+  const es = useCopy();
   switch (status.state) {
     case "reading":
       return <BriefingLoading />;
@@ -90,6 +92,7 @@ function AgendaUnknown({
 }
 
 function NoMeetings({ onRecord, zero }: { onRecord: () => void; zero: boolean }) {
+  const es = useCopy();
   return (
     <section className={styles.card}>
       <EmptyState
@@ -109,6 +112,7 @@ function NoMeetings({ onRecord, zero }: { onRecord: () => void; zero: boolean })
 
 /** Without the Mac's zone no hour can be placed: recording still can be. */
 export function ZoneFailed({ onRecord }: { onRecord: () => void }) {
+  const es = useCopy();
   return (
     <div className={styles.actions}>
       <Button onClick={onRecord} size={40} variant="accent">
