@@ -1,6 +1,8 @@
 //! The note library read, page after page, into `notes.library`.
 use super::*;
+use crate::presentation::read_issue;
 use orbit_core::{notes::LibraryItem, reads::ReadRequest, topics::Cursor};
+use serde_json::json;
 
 /// Why the library could not be read, or its items.
 async fn library_items(daemon: &LocalClient) -> Result<Vec<LibraryItem>, String> {
@@ -14,13 +16,14 @@ async fn library_items(daemon: &LocalClient) -> Result<Vec<LibraryItem>, String>
                 cursor: cursor.clone(),
             },
         )
-        .await
-        .map_err(|cause| format!("No se pudo leer la biblioteca de plantillas: {cause}"))?;
+        .await?;
         for raw in page.items {
-            items.push(
-                serde_json::from_value::<LibraryItem>(raw)
-                    .map_err(|error| format!("Elemento de la biblioteca no válido: {error}"))?,
-            );
+            items.push(serde_json::from_value::<LibraryItem>(raw).map_err(|error| {
+                read_issue(
+                    "read_library_invalid",
+                    json!({"diagnostic": error.to_string()}),
+                )
+            })?);
         }
         match page.next {
             Some(next) if !visited.contains(&next) => {
@@ -28,10 +31,9 @@ async fn library_items(daemon: &LocalClient) -> Result<Vec<LibraryItem>, String>
                 cursor = Some(next);
             }
             Some(_) => {
-                return Err(format!(
-                    "Cursor repetido tras {} de {} elementos de la biblioteca",
-                    items.len(),
-                    page.total
+                return Err(read_issue(
+                    "read_library_cursor",
+                    json!({"count": items.len(), "total": page.total}),
                 ));
             }
             None => return Ok(items),

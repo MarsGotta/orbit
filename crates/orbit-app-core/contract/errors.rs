@@ -37,13 +37,27 @@ app_type! {
     pub struct AppError {
         pub code: String,
         pub message: String,
-        #[serde(skip)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(skip)]
         pub refusal: Option<Box<Refusal>>,
     }
 }
 
 impl AppError {
+    pub fn operation(code: &str, diagnostic: impl Into<String>) -> Self {
+        let message = diagnostic.into();
+        Self {
+            code: code.into(),
+            message: message.clone(),
+            refusal: Some(Box::new(Refusal::Internal {
+                cause: orbit_core::refusal::InternalCause::AppOperation {
+                    code: code.into(),
+                    error: message,
+                },
+            })),
+        }
+    }
+
     pub fn from_daemon(error: &(dyn std::error::Error + 'static)) -> Self {
         Self::with_cause(Self::daemon(error.to_string()), error)
     }
@@ -62,80 +76,52 @@ impl AppError {
             }
             cause = error.source();
         }
-        result.refusal = refusal;
+        if refusal.is_some() {
+            result.refusal = refusal;
+        }
         result
     }
 
     pub fn daemon(message: impl Into<String>) -> Self {
-        Self {
-            code: "daemon_error".into(),
-            refusal: None,
-            message: format!("daemon_error: {}", message.into()),
-        }
+        Self::operation("daemon_error", format!("daemon_error: {}", message.into()))
     }
 
     pub fn unavailable() -> Self {
-        Self {
-            code: "daemon_unavailable".into(),
-            refusal: None,
-            message: "daemon_unavailable".into(),
-        }
+        Self::operation("daemon_unavailable", "daemon_unavailable")
     }
 
     pub fn calendar(message: impl Into<String>) -> Self {
-        Self {
-            code: "calendar_error".into(),
-            refusal: None,
-            message: format!("calendar_error: {}", message.into()),
-        }
+        Self::operation(
+            "calendar_error",
+            format!("calendar_error: {}", message.into()),
+        )
     }
 
     pub fn update(message: impl Into<String>) -> Self {
-        Self {
-            code: "update_error".into(),
-            refusal: None,
-            message: format!("update_error: {}", message.into()),
-        }
+        Self::operation("update_error", format!("update_error: {}", message.into()))
     }
 
     pub fn settings(message: impl Into<String>) -> Self {
-        Self {
-            code: "settings_error".into(),
-            refusal: None,
-            message: format!("settings_error: {}", message.into()),
-        }
+        Self::operation(
+            "settings_error",
+            format!("settings_error: {}", message.into()),
+        )
     }
 
     pub fn desktop_only() -> Self {
-        Self {
-            code: "desktop_command".into(),
-            refusal: None,
-            message: "desktop_command".into(),
-        }
+        Self::operation("desktop_command", "desktop_command")
     }
 
     pub fn client_command() -> Self {
-        Self {
-            code: "client_command".into(),
-            refusal: None,
-            message: "client_command".into(),
-        }
+        Self::operation("client_command", "client_command")
     }
 
     pub fn note_unavailable() -> Self {
-        Self {
-            code: "note_unavailable".into(),
-            refusal: None,
-            message: "note_unavailable".into(),
-        }
+        Self::operation("note_unavailable", "note_unavailable")
     }
 
     pub fn speaker_undo_unavailable() -> Self {
-        Self {
-            code: "speaker_undo_unavailable".into(),
-            refusal: None,
-            message: "speaker_undo_unavailable".into(),
-        }
+        Self::operation("speaker_undo_unavailable", "speaker_undo_unavailable")
     }
 }
 

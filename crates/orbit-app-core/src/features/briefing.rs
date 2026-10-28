@@ -44,7 +44,8 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .copied()
         .map(|event| next_event(event, note_lookup.as_ref()))
         .collect::<Vec<_>>();
-    let notes = input.local.notes.as_ref();
+    let localized_notes = input.localized_notes();
+    let notes = localized_notes.as_ref();
     let series = notes.and_then(|notes| notes.series_previous.as_deref());
     let reminder = notes.and_then(|notes| notes.reminder.as_deref());
     // The next meeting is also the day's entry for it, the same in both.
@@ -87,9 +88,24 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     })
 }
 
+fn agenda_source_state(
+    input: &FeatureInput<'_>,
+    calendar: &crate::CalendarSnapshot,
+    page_loaded: bool,
+    zone: Option<&LocalZone>,
+) -> BriefingSourceState {
+    input
+        .copy
+        .source(raw_agenda_source_state(input, calendar, page_loaded, zone))
+}
+
+fn notes_source_state(input: &FeatureInput<'_>, available: bool) -> BriefingSourceState {
+    input.copy.source(raw_notes_source_state(input, available))
+}
+
 /// Whether the agenda can say what today holds: a current head whose read
 /// arrived, in a known local zone, over a window that covers today.
-fn agenda_source_state(
+fn raw_agenda_source_state(
     input: &FeatureInput<'_>,
     calendar: &crate::CalendarSnapshot,
     page_loaded: bool,
@@ -192,7 +208,7 @@ fn available_notes<'a>(input: &FeatureInput<'a>) -> Option<&'a [crate::NoteListI
 
 /// Whether the notes can say which meetings have a previous one: the
 /// topic, and the list the client read.
-fn notes_source_state(input: &FeatureInput<'_>, list_available: bool) -> BriefingSourceState {
+fn raw_notes_source_state(input: &FeatureInput<'_>, list_available: bool) -> BriefingSourceState {
     let notes_cell = input.topics.topic(TopicId::Notes);
     if let Some(stale) = stale_state(notes_cell) {
         return stale;

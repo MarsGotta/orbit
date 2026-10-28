@@ -2999,6 +2999,7 @@ name = "orbit-desktop"
 version = "0.12.9"
 dependencies = [
  "anyhow",
+ "objc2-foundation",
  "orbit-app-core",
  "orbit-core",
  "orbit-daemon",

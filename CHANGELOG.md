@@ -7,6 +7,8 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+- The Mac menu bar, application menus, notifications and Rust presentation copy follow the interface language and update when it changes.
+
 ### Changed
 
 - Add English and Spanish catalogue copy with a live language choice in

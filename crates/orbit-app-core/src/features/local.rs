@@ -19,7 +19,13 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         profile: (*input.local.profile).clone(),
         login_item: (*input.local.login_item).clone(),
         update: UpdateSnapshot {
-            install_blocked: crate::UpdateService::installation_blocker(input.topics),
+            install_blocked: crate::UpdateService::installation_blocker_reason(input.topics).map(
+                |reason| {
+                    input
+                        .copy
+                        .text(crate::PresentationText::UpdateBlocked(reason))
+                },
+            ),
             ..(*input.local.update).clone()
         },
         onboarding_done: input.local.onboarding_done,

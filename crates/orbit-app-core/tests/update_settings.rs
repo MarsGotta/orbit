@@ -533,8 +533,8 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
     })?;
     observe(&mut topics, &recording, 2)?;
     assert!(
-        UpdateService::installation_blocker(&topics)
-            .is_some_and(|reason| reason.contains("grabación"))
+        UpdateService::installation_blocker_reason(&topics)
+            == Some(orbit_app_core::UpdateBlocker::Recording)
     );
     recording["knowledge"]["value"]["recording"] = json!(null);
     observe(&mut topics, &recording, 3)?;
@@ -542,8 +542,8 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
         json!({"started_at_ms":1,"phase":"listening","id":"fixture","expires_at_ms":2,"turns":0});
     observe(&mut topics, &assistant, 2)?;
     assert!(
-        UpdateService::installation_blocker(&topics)
-            .is_some_and(|reason| reason.contains("llamada"))
+        UpdateService::installation_blocker_reason(&topics)
+            == Some(orbit_app_core::UpdateBlocker::Call)
     );
     assistant["knowledge"]["value"]["call"]["value"] = json!(null);
     observe(&mut topics, &assistant, 3)?;
@@ -551,9 +551,13 @@ fn installation_waits_for_recording_call_and_known_state() -> Result<(), Box<dyn
     assistant["knowledge"]["value"]["call"] =
         json!({"state":"unknown","why":{"reading":{"since_ms":123}}});
     observe(&mut topics, &assistant, 4)?;
-    let reason = UpdateService::installation_blocker(&topics).ok_or("missing pending cause")?;
-    assert!(reason.contains("leyendo"), "{reason}");
-    assert!(reason.contains("123"), "{reason}");
+    assert_eq!(
+        UpdateService::installation_blocker_reason(&topics),
+        Some(orbit_app_core::UpdateBlocker::Pending {
+            topic: orbit_core::topics::TopicId::Assistant,
+            why: orbit_core::topics::Pending::Reading { since_ms: 123 },
+        })
+    );
     topics.ended("fixture disconnected".into());
     assert!(
         UpdateService::installation_blocker(&topics).is_some(),
@@ -611,10 +615,10 @@ fn only_a_live_capture_holds_the_update() -> Result<(), Box<dyn Error>> {
                 muted_spans: Vec::new(),
             })?;
         observe(&mut topics, &recording)?;
-        let blocker = UpdateService::installation_blocker(&topics);
+        let blocker = UpdateService::installation_blocker_reason(&topics);
         assert_eq!(blocker.is_some(), blocks, "{phase:?}: {blocker:?}");
         if blocks {
-            assert!(blocker.is_some_and(|reason| reason.contains("grabación")));
+            assert_eq!(blocker, Some(orbit_app_core::UpdateBlocker::Recording));
         }
     }
     Ok(())

@@ -15,7 +15,9 @@ pub(crate) use status::project_update;
 mod agenda;
 pub(crate) use agenda::*;
 mod recording;
-pub(crate) use recording::{pending_inventory_detail, project_meeting_topic};
+#[cfg(test)]
+use recording::project_meeting_topic;
+pub(crate) use recording::project_meeting_topic_with_copy;
 mod assistant;
 
 #[cfg(test)]

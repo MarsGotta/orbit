@@ -1,5 +1,6 @@
 use super::FeatureInput;
 use crate::AppSnapshot;
+use crate::presentation::read_issue;
 use orbit_core::{
     Connection,
     calendar::CalendarOccurrence,
@@ -7,6 +8,7 @@ use orbit_core::{
     topics::{Cursor, Knowledge, TopicData, TopicId, agenda::Value},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use ts_rs::TS;
 
 pub type View = crate::CalendarSnapshot;
@@ -39,6 +41,7 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
     view.writes.clear();
     let mut page_loaded = false;
     let Some(topic) = input.topics.topic(TopicId::Agenda) else {
+        input.copy.optional_detail(&mut view.reading.detail);
         return (view, false);
     };
     if let TopicData::Agenda(knowledge) = &topic.knowledge {
@@ -50,6 +53,7 @@ pub(crate) fn project_with_read(input: &FeatureInput<'_>) -> (View, bool) {
             }
         }
     }
+    input.copy.optional_detail(&mut view.reading.detail);
     (view, page_loaded)
 }
 
@@ -284,14 +288,17 @@ fn cached_calendars(
         let page = match input.topics.read(&request, TopicId::Agenda) {
             Some(Knowledge::Present { value, .. }) => value,
             Some(Knowledge::Absent { refusal }) => {
-                return Err(format!("AgendaCalendars: {refusal}"));
+                return Err(refusal.to_string());
             }
             Some(Knowledge::Unknown { .. }) | None => return Ok(None),
         };
         for (index, raw) in page.items.iter().enumerate() {
             let entry: orbit_core::calendar::CalendarEntry = serde_json::from_value(raw.clone())
                 .map_err(|error| {
-                    format!("AgendaCalendars: calendario {index} ilegible: {error}")
+                    read_issue(
+                        "read_calendars_invalid",
+                        json!({"index": index, "diagnostic": error.to_string()}),
+                    )
                 })?;
             calendars.push(crate::CalendarItemSnapshot {
                 // The calendar's real color; the palette token only
@@ -312,13 +319,14 @@ fn cached_calendars(
                 visited.push(next.clone());
                 cursor = Some(next.clone());
             }
-            Some(_) => return Err("AgendaCalendars: cursor repetido o de otra lectura".into()),
+            Some(_) => {
+                return Err(read_issue("read_calendars_cursor", json!({})));
+            }
             None => {
                 if u64::try_from(calendars.len()).ok() != Some(page.total) {
-                    return Err(format!(
-                        "AgendaCalendars: {} calendarios leídos de {} anunciados",
-                        calendars.len(),
-                        page.total
+                    return Err(read_issue(
+                        "read_calendars_count",
+                        json!({"count": calendars.len(), "total": page.total}),
                     ));
                 }
                 return Ok(Some(calendars));
@@ -655,7 +663,8 @@ mod tests {
     }
 
     #[test]
-    fn refused_and_unreadable_calendar_listings_carry_their_causes() {
+    fn refused_and_unreadable_calendar_listings_carry_their_causes()
+    -> Result<(), Box<dyn std::error::Error>> {
         let snapshot = crate::AppSnapshot::default();
         let mut topics = TopicCache::default();
         topics.observe_at(
@@ -716,19 +725,37 @@ mod tests {
                 as_of_ms: None,
             },
         ));
-        let unreadable = project(&FeatureInput::new(&snapshot, &topics));
+        let unreadable = project(&FeatureInput::new(&snapshot, &topics).with_copy(
+            crate::PresentationCopy {
+                render: |text| {
+                    if let crate::PresentationText::ReadFailure { code, facts } = text {
+                        serde_json::json!({"code": code, "facts": facts}).to_string()
+                    } else {
+                        "unexpected_presentation_text".into()
+                    }
+                },
+            },
+        ));
         assert_eq!(
             unreadable.reading.state,
             crate::CalendarReadingState::Unavailable
         );
-        assert!(
+        let detail: serde_json::Value = serde_json::from_str(
             unreadable
                 .reading
                 .detail
                 .as_deref()
-                .is_some_and(|cause| cause.contains("AgendaCalendars: calendario 0 ilegible"))
+                .ok_or("read cause missing")?,
+        )?;
+        assert_eq!(detail["code"], "read_calendars_invalid");
+        assert_eq!(detail["facts"]["index"], 0);
+        assert!(
+            detail["facts"]["diagnostic"]
+                .as_str()
+                .is_some_and(|cause| cause.contains("reference"))
         );
         assert!(unreadable.calendars.is_empty());
+        Ok(())
     }
 
     #[test]

@@ -14,7 +14,7 @@ use tauri::{
 const CLOCK_TICK: Duration = Duration::from_secs(1);
 
 /// What the menu bar shows, from the latest frames.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct TrayState {
     /// A recording that «Terminar grabación» can finish, timed as the
     /// sidebar's card times it.
@@ -33,6 +33,22 @@ struct TrayState {
     /// The system's appearance, which the menu bar follows.
     appearance: Appearance,
     update: Option<UpdateOffer>,
+    language: orbit_core::language::ResolvedLanguage,
+}
+
+impl Default for TrayState {
+    fn default() -> Self {
+        Self {
+            recording: None,
+            discardable: false,
+            asking_discard: false,
+            microphone_muted: None,
+            needs_you: false,
+            appearance: Appearance::default(),
+            update: None,
+            language: orbit_core::language::ResolvedLanguage::English,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -186,6 +202,24 @@ fn show<R: tauri::Runtime>(icon: &TrayIcon<R>, before: &Look, after: &Look) -> t
     Ok(())
 }
 
+/// Computes and applies one redraw. The state commits only after the native
+/// renderer succeeds, allowing a later frame to retry a failed menu update.
+fn render_change<E>(
+    state: &mut TrayState,
+    change: impl FnOnce(&mut TrayState, i64),
+    now: i64,
+    render: impl FnOnce(Option<&[Entry]>, &Look, &Look) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut after = state.clone();
+    change(&mut after, now);
+    let before_entries = entries(state);
+    let after_entries = entries(&after);
+    let menu = (before_entries != after_entries).then_some(after_entries.as_slice());
+    render(menu, &look(state, now), &look(&after, now))?;
+    *state = after;
+    Ok(())
+}
+
 /// Applies `change` to what the menu bar shows and redraws what changed.
 fn refresh<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
@@ -196,15 +230,18 @@ fn refresh<R: tauri::Runtime>(
     };
     let now = now_ms();
     let mut shown = tray.shown.lock().unwrap_or_else(PoisonError::into_inner);
-    let before = shown.state.clone();
-    change(&mut shown.state, now);
-    let after = &shown.state;
-    let menu_entries = entries(after);
-    if entries(&before) != menu_entries {
-        tray.icon.set_menu(Some(menu(app, &menu_entries)?))?;
-    }
-    show(&tray.icon, &look(&before, now), &look(after, now))?;
-    if after.recording.is_some() && !shown.ticking {
+    render_change(
+        &mut shown.state,
+        change,
+        now,
+        |menu_entries, before, after| {
+            if let Some(menu_entries) = menu_entries {
+                tray.icon.set_menu(Some(menu(app, menu_entries)?))?;
+            }
+            show(&tray.icon, before, after)
+        },
+    )?;
+    if shown.state.recording.is_some() && !shown.ticking {
         shown.ticking = true;
         tick(app.clone());
     }
@@ -248,6 +285,13 @@ pub(crate) fn refresh_update<R: tauri::Runtime>(
     refresh(app, |state, _| state.update = offer)
 }
 
+pub(crate) fn refresh_language<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    language: orbit_core::language::ResolvedLanguage,
+) -> tauri::Result<()> {
+    refresh(app, |state, _| state.language = language)
+}
+
 pub(crate) fn refresh_recording<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     meeting: &MeetingSnapshot,
@@ -286,6 +330,7 @@ pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
         .map_or_else(Appearance::default, Appearance::from);
     let state = TrayState {
         appearance,
+        language: crate::language::current(app),
         ..TrayState::default()
     };
     let rest = look(&state, 0).image;

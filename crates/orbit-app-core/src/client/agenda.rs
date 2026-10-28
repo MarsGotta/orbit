@@ -180,14 +180,14 @@ impl DaemonClient {
                     return result;
                 }
                 if changes.changed().await.is_err() {
-                    return Err(AppError::calendar("Se perdió la suscripción al tema agenda."));
+                    return Err(AppError::calendar("The agenda topic subscription was lost."));
                 }
             }
         })
         .await
         .map_err(|_| {
             AppError::calendar(format!(
-                "el tema agenda no confirmó la ventana {start_unix_ms}..{end_unix_ms} con un read_id nuevo en {} ms",
+                "The agenda topic did not confirm window {start_unix_ms}..{end_unix_ms} with a new read_id within {} ms",
                 READ_WAIT.as_millis()
             ))
         })?
@@ -205,12 +205,12 @@ fn window_refusal(window: CalendarWindow) -> String {
     let outside = |instant: i64| !(MIN_UNIX_MS..=MAX_UNIX_MS).contains(&instant);
     if outside(start) || outside(end) {
         format!(
-            "ventana de calendario con un instante inválido: start_ms={start}, end_ms={end}; \
-             cada instante debe estar entre {MIN_UNIX_MS} y {MAX_UNIX_MS}"
+            "calendar window has an invalid instant: start_ms={start}, end_ms={end}; \
+             each instant must be between {MIN_UNIX_MS} and {MAX_UNIX_MS}"
         )
     } else {
         format!(
-            "ventana de calendario vacía: end_ms={end} no supera a start_ms={start} \
+            "empty calendar window: end_ms={end} does not exceed start_ms={start} \
              ({} ms)",
             end.saturating_sub(start)
         )
@@ -370,7 +370,7 @@ impl AgendaPage {
         }
         if response.read != Some(request.id()) {
             let cause = format!(
-                "{name}: respuesta para {:?}, se pidió {:?}",
+                "{name}: response for {:?}, requested {:?}",
                 response.read,
                 request.id()
             );
@@ -429,7 +429,7 @@ mod completion_tests {
             start_unix_ms: orbit_core::calendar::MAX_UNIX_MS + 1,
             end_unix_ms: orbit_core::calendar::MAX_UNIX_MS + 2,
         });
-        assert!(invalid.contains("instante inválido"), "{invalid}");
+        assert!(invalid.contains("invalid instant"), "{invalid}");
         assert!(invalid.contains("start_ms=253402300800000"), "{invalid}");
         assert!(invalid.contains("253402300799999"), "{invalid}");
         let empty = window_refusal(CalendarWindow {
@@ -437,7 +437,7 @@ mod completion_tests {
             end_unix_ms: 400,
         });
         assert!(
-            empty.contains("end_ms=400 no supera a start_ms=1000"),
+            empty.contains("end_ms=400 does not exceed start_ms=1000"),
             "{empty}"
         );
         assert!(empty.contains("(-600 ms)"), "{empty}");

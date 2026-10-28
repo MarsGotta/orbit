@@ -16,6 +16,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
             knowledge,
             input.topics,
             &cell.freshness,
+            input.copy,
         )));
     }
     Some(Box::new(unknown_view(FeatureAvailability::missing(
@@ -33,6 +34,7 @@ fn from_topic(
     knowledge: &Knowledge<control::Value>,
     topics: &crate::topics::TopicCache,
     freshness: &TopicFreshness,
+    copy: crate::PresentationCopy,
 ) -> crate::ComputerControlSnapshot {
     let value = match knowledge {
         Knowledge::Present { value, .. } => value,
@@ -50,27 +52,7 @@ fn from_topic(
         Knowledge::Absent { refusal } => (&[][..], refusal.to_string()),
         Knowledge::Unknown { .. } => (&[][..], String::new()),
     };
-    let (engine_tools, engine_tools_error) = match topics.read(
-        &orbit_core::reads::ReadRequest::EngineTools { cursor: None },
-        TopicId::Control,
-    ) {
-        Some(Knowledge::Present { value, .. }) => {
-            let names = value
-                .items
-                .iter()
-                .map(|item| item.as_str().map(str::to_owned))
-                .collect::<Option<Vec<_>>>();
-            match names {
-                Some(names) => (names, None),
-                None => (
-                    Vec::new(),
-                    Some("El catálogo del motor contiene un nombre no válido.".into()),
-                ),
-            }
-        }
-        Some(Knowledge::Absent { refusal }) => (Vec::new(), Some(refusal.to_string())),
-        Some(Knowledge::Unknown { .. }) | None => (Vec::new(), None),
-    };
+    let (engine_tools, engine_tools_error) = engine_tools(topics, copy);
     let folders = folders_snapshot(&value.folders);
     crate::ComputerControlSnapshot {
         folders,
@@ -257,6 +239,36 @@ fn includes_screen_recording(permission: &Permission) -> bool {
         permission,
         Permission::ScreenRecording | Permission::ScreenAndAccessibility
     )
+}
+
+fn engine_tools(
+    topics: &crate::topics::TopicCache,
+    copy: crate::PresentationCopy,
+) -> (Vec<String>, Option<String>) {
+    match topics.read(
+        &orbit_core::reads::ReadRequest::EngineTools { cursor: None },
+        TopicId::Control,
+    ) {
+        Some(Knowledge::Present { value, .. }) => {
+            let names = value
+                .items
+                .iter()
+                .map(|item| item.as_str().map(str::to_owned))
+                .collect::<Option<Vec<_>>>();
+            match names {
+                Some(names) => (names, None),
+                None => (
+                    Vec::new(),
+                    Some(copy.detail(&crate::presentation::read_issue(
+                        "read_engine_tools_invalid",
+                        serde_json::json!({}),
+                    ))),
+                ),
+            }
+        }
+        Some(Knowledge::Absent { refusal }) => (Vec::new(), Some(refusal.to_string())),
+        Some(Knowledge::Unknown { .. }) | None => (Vec::new(), None),
+    }
 }
 
 #[cfg(test)]

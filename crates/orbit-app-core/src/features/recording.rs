@@ -44,7 +44,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         if let TopicData::Recording(knowledge) = &topic.knowledge {
             match knowledge {
                 Knowledge::Present { value, .. } => {
-                    meeting = crate::projection::project_meeting_topic(value);
+                    meeting = crate::projection::project_meeting_topic_with_copy(value, input.copy);
                     availability = match &topic.freshness {
                         TopicFreshness::Current => FeatureAvailability::Current,
                         TopicFreshness::Stale { since_ms } => FeatureAvailability::Stale {
@@ -62,7 +62,9 @@ pub fn project(input: &FeatureInput<'_>) -> View {
                     availability = FeatureAvailability::unknown_pending(why);
                     forget_call_and_applications(
                         &mut meeting,
-                        crate::projection::pending_inventory_detail(why),
+                        input
+                            .copy
+                            .text(crate::PresentationText::AudioPending(why.clone())),
                     );
                 }
             }
@@ -70,9 +72,9 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     } else {
         forget_call_and_applications(
             &mut meeting,
-            crate::projection::pending_inventory_detail(
-                &orbit_core::topics::Pending::NotObservedYet,
-            ),
+            input.copy.text(crate::PresentationText::AudioPending(
+                orbit_core::topics::Pending::NotObservedYet,
+            )),
         );
     }
     let (call, call_availability) = project_call(input);
@@ -252,17 +254,18 @@ pub enum RecordingCommand {
     },
 }
 
-pub(crate) fn map_command(
+pub(crate) fn map_command_with_copy(
     command: RecordingCommand,
     calendar: &crate::CalendarSnapshot,
     clock: &crate::calendar::LocalClock,
+    copy: crate::PresentationCopy,
 ) -> Result<orbit_core::protocol::Command, crate::AppError> {
     use orbit_core::protocol::{Command as DaemonCommand, MeetingAudio};
     let utc_offset_ms = matches!(&clock.timezone_name, Ok(name) if !name.trim().is_empty())
         .then(|| clock.zone.offset_ms_at(clock.now_ms));
     Ok(match command {
         RecordingCommand::MeetingStart { title } => DaemonCommand::MeetingStart {
-            title: orbit_core::protocol::recording_title(title, clock.now_ms, utc_offset_ms),
+            title: copy.recording_title(title, clock.now_ms, utc_offset_ms),
             audio: MeetingAudio::System,
             duration_minutes: None,
             event: None,
@@ -281,7 +284,7 @@ pub(crate) fn map_command(
                             && event.occurrence_start_ms == Some(reference.occurrence_start_ms)
                     }),
                     format!(
-                        "«{}» (ocurrencia {} ms)",
+                        "{} (occurrence {} ms)",
                         reference.calendar_item_id, reference.occurrence_start_ms
                     ),
                 )),
@@ -293,16 +296,13 @@ pub(crate) fn map_command(
                 }),
             };
             let event = selected.map(|(event, reference)| {
-                event.ok_or_else(|| crate::AppError {
-                    code: "meeting_event_not_found".into(),
-                    message: format!("No se encuentra el evento {reference} entre los {} eventos leídos; actualiza el calendario.", calendar.events.len()),
-                    refusal: None,
-                })
+                event.ok_or_else(|| crate::AppError::operation("meeting_event_not_found",
+                    serde_json::json!({"reference": reference, "count": calendar.events.len()}).to_string()))
             }).transpose()?;
             let audio = audio.unwrap_or_default();
             DaemonCommand::MeetingStart {
                 title: event.map_or_else(
-                    || orbit_core::protocol::recording_title(title, clock.now_ms, utc_offset_ms),
+                    || copy.recording_title(title, clock.now_ms, utc_offset_ms),
                     |event| event.title.clone(),
                 ),
                 audio,
@@ -332,6 +332,30 @@ pub(crate) fn map_command(
             }
         }
     })
+}
+
+#[cfg(test)]
+pub(crate) fn map_command(
+    command: RecordingCommand,
+    calendar: &crate::CalendarSnapshot,
+    clock: &crate::calendar::LocalClock,
+) -> Result<orbit_core::protocol::Command, crate::AppError> {
+    map_command_with_copy(
+        command,
+        calendar,
+        clock,
+        crate::PresentationCopy {
+            render: |text| match text {
+                crate::PresentationText::MeetingTitle { time } => time
+                    .as_ref()
+                    .map_or_else(|| "Reunión".into(), |time| format!("Reunión {time}")),
+                crate::PresentationText::UpdateBlocked(_)
+                | crate::PresentationText::AudioPending(_)
+                | crate::PresentationText::ReadFailure { .. }
+                | crate::PresentationText::AskAbout { .. } => format!("{text:?}"),
+            },
+        },
+    )
 }
 
 /// A missing or stale recording topic is unknown. The topic has no linked
@@ -582,7 +606,10 @@ mod mapping_tests {
         assert_eq!(error.code, "meeting_event_not_found");
         assert!(error.message.contains("committee"));
         assert!(error.message.contains("1790000000000"));
-        assert!(error.message.contains("1 eventos"));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&error.message)?["count"],
+            1
+        );
         Ok(())
     }
 
@@ -629,7 +656,10 @@ mod mapping_tests {
         };
         assert_eq!(error.code, "meeting_event_not_found");
         assert!(error.message.contains("missing"));
-        assert!(error.message.contains("0 eventos"));
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&error.message)?["count"],
+            0
+        );
         Ok(())
     }
 }
@@ -780,7 +810,7 @@ mod topic_tests {
             view.meeting
                 .applications_detail
                 .as_deref()
-                .is_some_and(|text| text.contains("observado"))
+                .is_some_and(|text| text == "AudioPending(NotObservedYet)")
         );
     }
 

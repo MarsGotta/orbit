@@ -232,10 +232,10 @@ fn redirect_target(
         .get(reqwest::header::LOCATION)
         .ok_or_else(|| invalid_redirect(url.as_str(), "falta Location"))?
         .to_str()
-        .map_err(|_| invalid_redirect(url.as_str(), "Location no es texto HTTP válido"))?;
+        .map_err(|_| invalid_redirect(url.as_str(), "Location is not valid HTTP text"))?;
     let target = url
         .join(location)
-        .map_err(|_| invalid_redirect(url.as_str(), "Location no es una URL válida"))?;
+        .map_err(|_| invalid_redirect(url.as_str(), "Location is not a valid URL"))?;
     if !target.username().is_empty() || target.password().is_some() {
         return Err(invalid_redirect(
             url.as_str(),

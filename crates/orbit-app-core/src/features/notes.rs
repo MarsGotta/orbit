@@ -8,7 +8,7 @@ pub type View = Option<crate::NotesSnapshot>;
 /// The list as read (`client::notes`), with each row's day on the user's clock
 /// now: a note from 23:00 moves to «Ayer» at midnight without a new read.
 pub fn project(input: &FeatureInput<'_>) -> View {
-    let mut view = input.local.notes.clone();
+    let mut view = input.localized_notes();
     if let Some(notes) = view.as_mut() {
         for item in &mut notes.list {
             item.group = crate::projection::notes::note_day_group(
@@ -19,6 +19,40 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         }
     }
     view
+}
+
+pub(super) fn localize_details(notes: &mut crate::NotesSnapshot, copy: crate::PresentationCopy) {
+    if let Some(index) = notes.index.as_mut() {
+        copy.optional_detail(&mut index.detail);
+    }
+    if let Some(read) = notes.open_read.as_mut() {
+        copy.optional_detail(&mut read.detail);
+    }
+    if let Some(open) = notes.open.as_mut() {
+        localize_note(open, copy);
+    }
+    if let Some(library) = notes.library.as_mut() {
+        copy.optional_detail(&mut library.read_detail);
+        copy.optional_detail(&mut library.templates.detail);
+        copy.optional_detail(&mut library.links.detail);
+        if let Some(dictionaries) = library.dictionaries.as_mut() {
+            copy.optional_detail(&mut dictionaries.detail);
+        }
+    }
+    if let Some(read) = notes.series_previous.as_mut()
+        && let Err(error) = &mut read.answer
+    {
+        *error = copy.detail(error);
+    }
+    if let Some(read) = notes.reminder.as_mut()
+        && let Err(error) = &mut read.answer
+    {
+        *error = copy.detail(error);
+    }
+}
+
+pub(super) fn localize_note(note: &mut crate::OpenNoteSnapshot, copy: crate::PresentationCopy) {
+    copy.optional_detail(&mut note.transcript.error);
 }
 
 pub fn apply(view: &View, snapshot: &mut AppSnapshot) {

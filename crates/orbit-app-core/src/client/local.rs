@@ -1,6 +1,23 @@
 use super::*;
 
 impl DaemonClient {
+    /// Reprojects retained facts so already visible native text changes at once.
+    pub fn set_presentation_copy(&self, copy: crate::PresentationCopy) {
+        self.inner
+            .frames
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .set_copy(copy);
+    }
+
+    pub(super) fn presentation_copy(&self) -> crate::PresentationCopy {
+        self.inner
+            .frames
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .copy
+    }
+
     pub fn set_login_item(&self, state: LoginItemState) -> AppSnapshot {
         self.update_local(|snapshot| snapshot.settings.login_item = state)
     }
