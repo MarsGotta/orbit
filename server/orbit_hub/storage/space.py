@@ -105,7 +105,7 @@ class SpaceRepository:
             numbers["free_bytes"] = free
         return HubError(
             "storage_full",
-            "El disco del servidor está lleno y no se guardó nada; libera espacio en el servidor",
+            "The server disk is full and nothing was saved; free space on the server",
             numbers=numbers,
         )
 
@@ -138,13 +138,13 @@ class SpaceRepository:
             # admission reserves for it, what the database already uses, the
             # limit, what is left of it and what sets it (`disk` or `quota`).
             message = (
-                "Cuota del servidor alcanzada; sube storage_quota_bytes o libera espacio. "
+                "Server quota reached; raise storage_quota_bytes or free space. "
                 if status["limit"] == "quota"
-                else "Espacio del servidor agotado; libera espacio en el servidor. "
+                else "Server space exhausted; free space on the server. "
             )
             raise HubError(
                 "quota_exceeded",
-                message + "El Mac conserva su copia",
+                message + "The Mac retains its copy",
                 numbers={
                     "bytes": payload_bytes,
                     "reserved_bytes": reserve,

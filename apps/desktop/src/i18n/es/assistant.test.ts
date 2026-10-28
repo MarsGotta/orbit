@@ -21,7 +21,7 @@ describe("voice note failures", () => {
       attempts: 2,
     };
     expect(es.assistant.voiceFailure(failure)).toBe(
-      "No se pudo transcribir. La nota sigue guardada en el Mac: reinténtalo o descártala.",
+      "No se pudo transcribir (provider_timeout). La nota sigue guardada en el Mac: reinténtalo o descártala.",
     );
     expect(es.assistant.voiceFailureDetail(failure)).toBe(
       "código provider_timeout, hub 504, límite 30 s, 2 intentos",

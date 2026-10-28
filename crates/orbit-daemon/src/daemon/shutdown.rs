@@ -109,7 +109,7 @@ impl Shutdown {
 
     pub async fn command(&mut self, command: Command, runtime: &mut Runtime) -> anyhow::Result<()> {
         if !self.allows_command(&command) {
-            anyhow::bail!("Orbit está cerrando y conservando audio; no admite nuevas operaciones");
+            anyhow::bail!("Orbit is closing and retaining audio; new operations are not admitted");
         }
         // The intent survives a fallible flush. Recovery may finish the exit,
         // but may never silently change it into permission to capture again.
@@ -125,7 +125,7 @@ impl Shutdown {
             )
             .await
             .map_err(|_| anyhow::anyhow!(
-                "Cierre sin confirmar tras el plazo de {} s: la operación no terminó y su etapa exacta quedó sin observar; pendientes: {}. Se declarará lo conservado en memoria",
+                "Closure unconfirmed after the {} s deadline: the operation did not finish and its exact stage was not observed; pending: {}. Retained memory will be declared",
                 SHUTDOWN_BUDGET.as_secs(), runtime.pending_stop_counts()
             ))?;
         }
@@ -141,7 +141,7 @@ impl Shutdown {
                     tokio::time::Instant::from_std(deadline),
                     runtime.close_for_exit(
                         orbit_core::privacy_stop::StopCause::ListenerStopped,
-                        "El servidor IPC se detuvo; Orbit se cierra conservando el audio pendiente.",
+                        "The IPC server stopped; Orbit is closing and retaining pending audio.",
                     ),
                 )
                 .await;
@@ -210,9 +210,9 @@ impl Signals {
     pub(super) fn install() -> Result<Self> {
         Ok(Self {
             interrupt: signal(SignalKind::interrupt())
-                .context("No se pudo atender SIGINT para cerrar de forma ordenada")?,
+                .context("Could not handle SIGINT for orderly closure")?,
             terminate: signal(SignalKind::terminate())
-                .context("No se pudo atender SIGTERM para cerrar de forma ordenada")?,
+                .context("Could not handle SIGTERM for orderly closure")?,
         })
     }
 
@@ -298,7 +298,7 @@ impl Runtime {
             .collect::<Vec<_>>()
             .join(", ");
         let summary = if counts.is_empty() {
-            "sin pendientes".to_string()
+            "nothing pending".to_string()
         } else {
             counts
         };
@@ -320,9 +320,9 @@ impl Runtime {
         );
         let reason = match cause {
             BoundedExitCause::BudgetExpired => {
-                format!("tras el plazo de {} s", SHUTDOWN_BUDGET.as_secs())
+                format!("after the {} s deadline", SHUTDOWN_BUDGET.as_secs())
             }
-            BoundedExitCause::SecondSignal(signal) => format!("por segunda señal {signal}"),
+            BoundedExitCause::SecondSignal(signal) => format!("on second signal {signal}"),
         };
         self.log(
             "bounded_exit_declared",
@@ -351,7 +351,7 @@ impl Runtime {
                 Notice::new(NoticeCode::StopStepFailed)
                     .with_token(NoticeKey::Step, "final_snapshot"),
                 &format!(
-                    "sin confirmar tras {} ms",
+                    "unconfirmed after {} ms",
                     snapshot_receipt_grace.as_millis()
                 ),
             ),

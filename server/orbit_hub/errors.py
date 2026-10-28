@@ -16,11 +16,25 @@ class HubError(Exception):
         message: str,
         http_status: int | None = None,
         numbers: dict[str, int] | None = None,
+        message_code: str | None = None,
+        message_fields: dict[str, str] | None = None,
     ):
         super().__init__(message)
         self.code, self.message = code, message
         self.numbers = numbers
+        self.message_code = message_code
+        self.message_fields = message_fields
         self.http_status = _http_status(code) if http_status is None else http_status
+
+    def display_metadata(self):
+        return {
+            key: value
+            for key, value in (
+                ("message_code", self.message_code),
+                ("message_fields", self.message_fields),
+            )
+            if value is not None
+        }
 
 
 _CHECK_OUTCOME = {

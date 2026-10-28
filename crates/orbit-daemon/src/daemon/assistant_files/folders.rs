@@ -38,9 +38,7 @@ impl Runtime {
             self.log("assistant_folders_unreadable", &[]);
         }
         self.files.folders =
-            Some(loaded.map_err(|error| {
-                format!("No se pudieron leer las carpetas del asistente ({error})")
-            }));
+            Some(loaded.map_err(|error| format!("Could not read assistant folders ({error})")));
     }
 
     pub(super) fn saved_folders(&mut self) -> Result<Vec<Folder>, Refusal> {
@@ -102,7 +100,7 @@ impl Runtime {
         self.store_actor
             .run(move |store| Ok(store.save_assistant_folders(&kept)?))
             .await
-            .context("No se pudieron guardar las carpetas del asistente")?;
+            .context("Could not save assistant folders")?;
         self.files.folders = Some(Ok(folders));
         Ok(())
     }

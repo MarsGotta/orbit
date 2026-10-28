@@ -80,7 +80,7 @@ fn decode(call: &VaultCall, status: u16, bytes: &[u8]) -> Result<VaultOutcome, B
                 code.len() <= 64 && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
             })
             .ok_or_else(invalid)?;
-        // The hub's fixed Spanish refusal contains no note text or upstream messages.
+        // Compatibility text remains readable for older apps; current apps render the code.
         let message = value["message"]
             .as_str()
             .filter(|m| m.len() <= 1024)
@@ -89,11 +89,18 @@ fn decode(call: &VaultCall, status: u16, bytes: &[u8]) -> Result<VaultOutcome, B
             .as_object()
             .into_iter()
             .flatten()
-            .filter_map(|(key, value)| value.as_u64().map(|n| (key.clone(), n)))
+            .filter_map(|(key, value)| value.as_i64().map(|n| (key.clone(), n)))
             .collect();
         return Ok(VaultOutcome::Refused {
             code: code.into(),
             message: message.into(),
+            message_code: value["message_code"]
+                .as_str()
+                .filter(|code| {
+                    code.len() <= 64 && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+                })
+                .map(str::to_owned),
+            message_fields: serde_json::from_value(value["message_fields"].clone()).ok(),
             numbers,
         });
     }

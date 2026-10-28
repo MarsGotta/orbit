@@ -216,14 +216,16 @@ describe("an assistant's cards", () => {
       outcome: "config",
       config: {
         ...vegaConfig(),
-        access: { ...vegaConfig().access, editable: false, cause: "Su servidor decide" },
+        access: { ...vegaConfig().access, editable: false, cause: "UNTRUSTED" },
         skills: { ...vegaConfig().skills, editable: false, cause: null },
       },
     });
     await renderVega();
-    expect(screen.getByText("No se puede cambiar desde Orbit: Su servidor decide")).toBeTruthy();
+    expect(screen.queryByText(/UNTRUSTED/)).toBeNull();
     // Skills not editable without a cause from the hub: said, not hidden.
-    expect(screen.getByText("Este tipo de agente no deja cambiarlo desde Orbit.")).toBeTruthy();
+    expect(screen.getAllByText("Este tipo de agente no deja cambiarlo desde Orbit.")).toHaveLength(
+      2,
+    );
     expect(screen.getByRole("switch", { name: "Pantalla" }).hasAttribute("disabled")).toBe(true);
   });
 
@@ -520,15 +522,29 @@ describe("the assistant's hub working folder", () => {
     [
       "/home/example",
       "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras",
+      "working_folder_home",
     ],
-    ["/home", "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras"],
-    ["/opt/orbit/app", "se solapa con el código instalado del hub o su entorno de Python"],
+    [
+      "/home",
+      "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras",
+      "working_folder_home",
+    ],
+    [
+      "/opt/orbit/app",
+      "se solapa con el código instalado del hub o su entorno de Python",
+      "working_folder_installed",
+    ],
     [
       "/opt/orbit",
       "se solapa con datos o credenciales protegidos, o con la carpeta de otro asistente",
+      "working_folder_protected",
     ],
-    ["/home/example/missing", "no existe en el hub"],
-  ])("keeps the refusal for %s beside the field", async (path, cause) => {
+    [
+      "/home/example/missing",
+      "no existe o no se puede abrir en el hub",
+      "working_folder_unavailable",
+    ],
+  ])("keeps the refusal for %s beside the field", async (path, cause, cause_code) => {
     replies.set("config:vega", {
       outcome: "config",
       config: { ...vegaConfig(), kind: "codex", working_folder: "/home/example/projects" },
@@ -538,7 +554,7 @@ describe("the assistant's hub working folder", () => {
       refusal: {
         code: "invalid_working_folder",
         status: 400,
-        numbers: { cause },
+        numbers: { cause: "UNTRUSTED", cause_code },
       },
     });
     await renderVega();

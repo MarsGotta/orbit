@@ -60,7 +60,7 @@ def test_bad_reply_is_relayed_and_mcp_reports_the_field(bridged, capability):
                 payload = store.operations.get(owner["device_id"], request_id)["response"]
                 assert response.status_code == 200
                 assert payload["outcome"] == "unknown"
-                assert "No repitas" in payload["next_step"]
+                assert "Do not repeat" in payload["next_step"]
                 lookup = json.dumps(
                     {
                         "protocol": "orbit_device_bridge_v1",
@@ -286,7 +286,7 @@ async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(b
                 assert outcome["deadline_ms"] == 30_000
                 assert outcome["refusal"]["code"] == "device_reply_timeout"
                 assert outcome["refusal"]["deadline_ms"] == 30_000
-                assert outcome["refusal"]["expected"] == "respuesta de perform_action"
+                assert outcome["refusal"]["expected"] == "perform_action response"
                 result_body = json.dumps(
                     {
                         "protocol": "orbit_device_bridge_v1",
@@ -313,7 +313,7 @@ async def test_unanswered_action_expires_with_injected_deadline_and_frees_slot(b
                     .text
                 )
                 assert "30000" in translated
-                assert "No repitas" in outcome["next_step"]
+                assert "Do not repeat" in outcome["next_step"]
                 assert operation_id not in service.bridge.pending
                 expired.assert_called_once_with(31.0, operation_id)
 

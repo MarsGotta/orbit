@@ -148,7 +148,7 @@ impl EventRelay {
         self.consecutive_malformed = self.consecutive_malformed.saturating_add(1);
         if self.consecutive_malformed >= MAX_MALFORMED_BEFORE_BRIDGE_DOWN {
             anyhow::bail!(
-                "Puente declarado caído por {} frames malformados consecutivos",
+                "Bridge declared down after {} consecutive malformed frames",
                 self.consecutive_malformed
             );
         }

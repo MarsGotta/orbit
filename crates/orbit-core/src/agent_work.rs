@@ -137,6 +137,13 @@ impl WorkItem {
                 })
             })
             .collect::<Option<Vec<_>>>()?;
+        let cause_code = data.cause_code.as_deref().filter(|value| {
+            !value.is_empty()
+                && value.len() <= MAX_ITEM_CAUSE_CHARS
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+        });
         Some(Self {
             id: cut(&data.item_id, MAX_ITEM_ID_CHARS),
             kind,
@@ -147,9 +154,8 @@ impl WorkItem {
                 .as_deref()
                 .map(|subject| cut(subject, MAX_ITEM_SUBJECT_CHARS)),
             steps,
-            cause: data
-                .cause
-                .as_deref()
+            cause: cause_code
+                .or(data.cause.as_deref())
                 .map(|cause| cut(cause, MAX_ITEM_CAUSE_CHARS)),
         })
     }
@@ -318,6 +324,7 @@ mod tests {
                     .collect(),
             ),
             cause: None,
+            cause_code: None,
         };
         let item = WorkItem::from_wire(&data);
         assert!(item.as_ref().is_some_and(|item| {
@@ -349,6 +356,7 @@ mod tests {
             subject: None,
             steps: Some(vec![step()]),
             cause: None,
+            cause_code: None,
         };
         let tool = WorkItem::from_wire(&data);
         assert!(tool.as_ref().is_some_and(|tool| {

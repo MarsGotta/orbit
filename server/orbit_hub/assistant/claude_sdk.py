@@ -100,7 +100,7 @@ class ClaudeProcess(VendorProcess):
 
     def start_turn(self, blocks):
         if self.turn is not None:
-            raise self.refusal("turn_in_progress", "ya tiene un turno en curso")
+            raise self.refusal("turn_in_progress", "already has a turn in progress")
         self.ready.clear()
         self.finishing = False
         super().start_turn(blocks)
@@ -169,17 +169,17 @@ class ClaudeProcess(VendorProcess):
                     self.resuming = True
                     return self.result(message)
                 await self.update(message)
-            raise self.refusal("agent_stopped", "cerró su salida sin terminar el turno")
+            raise self.refusal("agent_stopped", "closed its output without finishing the turn")
         except TimeoutError:
             raise self.refusal(
                 "agent_timeout",
-                f"no abrió el turno en {OPEN_TIMEOUT_SECONDS} segundos",
+                f"did not open the turn within {OPEN_TIMEOUT_SECONDS} segundos",
                 {"timeout_ms": OPEN_TIMEOUT_SECONDS * 1000},
             ) from None
         except ProcessError as exc:
             numbers = {"exit_status": exc.exit_code} if type(exc.exit_code) is int else None
             raise self.refusal(
-                "agent_stopped", "terminó su proceso durante el turno", numbers
+                "agent_stopped", "its process exited during the turn", numbers
             ) from None
         except CLIConnectionError as exc:
             if isinstance(exc.__cause__, OSError):
@@ -187,7 +187,7 @@ class ClaudeProcess(VendorProcess):
                     "claude-code", self.backend.settings.command[0], exc.__cause__
                 ) from None
             raise self.refusal(
-                "agent_start_failed", f"no pudo conectar con {self.backend.settings.command[0]}"
+                "agent_start_failed", f"could not connect to {self.backend.settings.command[0]}"
             ) from None
         except CLIJSONDecodeError as exc:
             # The pinned SDK's overrun is an explicit framing error. Use
@@ -195,12 +195,12 @@ class ClaudeProcess(VendorProcess):
             if exc.line.startswith("JSON message exceeded maximum buffer size of "):
                 raise self.refusal(
                     "agent_stopped",
-                    f"envió un mensaje mayor de {MAX_AGENT_MESSAGE_BYTES} bytes",
+                    f"sent a message larger than {MAX_AGENT_MESSAGE_BYTES} bytes",
                     {"max_bytes": MAX_AGENT_MESSAGE_BYTES},
                 ) from None
             raise self.refusal(
                 "agent_protocol",
-                "envió un mensaje JSON inválido",
+                "sent an invalid JSON message",
             ) from None
         finally:
             self.ready.set()
@@ -241,15 +241,15 @@ class ClaudeProcess(VendorProcess):
         if message.terminal_reason in {"aborted_streaming", "aborted_tools"}:
             return "interrupted"
         causes = {
-            "billing_error": "no pudo usar la facturación de la cuenta",
-            "invalid_request": "rechazó el formato de la petición",
-            "server_error": "informó de un fallo del servicio de Claude",
-            "model_capacity": "no tiene capacidad disponible para ese modelo",
+            "billing_error": "could not use account billing",
+            "invalid_request": "refused the request format",
+            "server_error": "reported a Claude service failure",
+            "model_capacity": "has no available capacity for that model",
         }
         if self.error == "max_output_tokens":
             raise self.refusal(
                 "agent_turn_unfinished",
-                "agotó sus tokens de respuesta",
+                "exhausted its response tokens",
                 {"stop_reason": "max_tokens"},
             )
         if self.error in causes:
@@ -261,10 +261,12 @@ class ClaudeProcess(VendorProcess):
             "error_max_budget_usd",
             "error_max_structured_output_retries",
         }:
-            raise self.refusal("agent_protocol", "envió un tipo de resultado desconocido")
+            raise self.refusal("agent_protocol", "sent an unknown result type")
         if message.subtype != "success":
             raise self.refusal(
-                "agent_turn_unfinished", "paró antes de terminar", {"stop_reason": message.subtype}
+                "agent_turn_unfinished",
+                "stopped before finishing",
+                {"stop_reason": message.subtype},
             )
         if message.is_error:
             numbers = (
@@ -272,13 +274,13 @@ class ClaudeProcess(VendorProcess):
                 if type(message.api_error_status) is int
                 else None
             )
-            raise self.refusal("agent_rejected", "no terminó el turno", numbers)
+            raise self.refusal("agent_rejected", "did not finish the turn", numbers)
         return "completed"
 
     async def update(self, message):
         if isinstance(message, SystemMessage) and message.subtype == "init":
             if message.data.get("session_id") != self.session_id:
-                raise self.refusal("agent_protocol", "cambió el id de la conversación")
+                raise self.refusal("agent_protocol", "changed the conversation ID")
             self.resuming = True
         elif isinstance(message, SystemMessage) and message.subtype == "api_retry":
             await self.connection.emit(
@@ -348,7 +350,8 @@ class ClaudeProcess(VendorProcess):
                             "failed" if block.is_error else "completed",
                             name,
                             arguments,
-                            cause="La herramienta falló" if block.is_error else None,
+                            cause="The tool failed" if block.is_error else None,
+                            cause_code="tool_failed" if block.is_error else None,
                         )
                     )
 
@@ -364,7 +367,7 @@ class ClaudeProcess(VendorProcess):
             "hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "allow" if tool in WITHOUT_CARD else "ask",
-                "permissionDecisionReason": "Las órdenes, ediciones y la red requieren permiso en Orbit",
+                "permissionDecisionReason": "Commands, edits and network access require permission in Orbit",
             }
         }
 
@@ -389,12 +392,12 @@ class ClaudeProcess(VendorProcess):
             or getattr(context, "title", None)
             or tool
         )
-        description = f"Permiso para {tool}: {action}"
+        description = f"Permission for {tool}: {action}"
         deletion = command_deletion(arguments.get("command", ""))
         choice = await self.interactions.permission(description, deletion)
         if choice == "once":
             return PermissionResultAllow(updated_input=arguments)
-        return PermissionResultDeny(message="La persona no dio permiso")
+        return PermissionResultDeny(message="The person did not grant permission")
 
     async def cancel(self):
         if self.turn is None:

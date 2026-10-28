@@ -45,7 +45,7 @@ pub(in crate::daemon) struct StoreReceipt<T> {
 pub(super) fn uncertain<T>(result: Result<T>, changed: bool) -> Result<T> {
     result.map_err(|error| {
         let context = format!(
-            "Operación local fallida: cambios SQLite observados {changed}; el resultado de esos cambios es incierto; causa: {error:#}"
+            "Local operation failed: {changed} SQLite changes observed; their outcome is uncertain; cause: {error:#}"
         );
         error.context(context)
     })
@@ -66,9 +66,7 @@ pub(super) async fn receive<T>(mut response: tokio::sync::oneshot::Receiver<T>) 
         match response.try_recv() {
             Ok(value) => return Ok(value),
             Err(tokio::sync::oneshot::error::TryRecvError::Closed) => {
-                return Err(anyhow::anyhow!(
-                    "El actor de almacenamiento perdió el recibo"
-                ));
+                return Err(anyhow::anyhow!("The storage actor lost the receipt"));
             }
             Err(tokio::sync::oneshot::error::TryRecvError::Empty)
                 if Instant::now() < handoff_until =>
@@ -78,7 +76,7 @@ pub(super) async fn receive<T>(mut response: tokio::sync::oneshot::Receiver<T>) 
             Err(tokio::sync::oneshot::error::TryRecvError::Empty) => {
                 return response
                     .await
-                    .map_err(|_| anyhow::anyhow!("El actor de almacenamiento perdió el recibo"));
+                    .map_err(|_| anyhow::anyhow!("The storage actor lost the receipt"));
             }
         }
     }
@@ -86,7 +84,7 @@ pub(super) async fn receive<T>(mut response: tokio::sync::oneshot::Receiver<T>) 
 
 pub(super) fn queue_full() -> anyhow::Error {
     anyhow::anyhow!(
-        "La cola de almacenamiento de {STORE_OP_CAPACITY} operaciones está llena; la escritura no se admitió"
+        "The storage queue of {STORE_OP_CAPACITY} operations is full; the write was not admitted"
     )
 }
 
@@ -94,7 +92,7 @@ pub(super) fn admission_error<T>(error: mpsc::TrySendError<T>) -> anyhow::Error 
     match error {
         mpsc::TrySendError::Full(_) => queue_full(),
         mpsc::TrySendError::Disconnected(_) => {
-            anyhow::anyhow!("El actor de almacenamiento se desconectó; la escritura no se admitió")
+            anyhow::anyhow!("The storage actor disconnected; the write was not admitted")
         }
     }
 }

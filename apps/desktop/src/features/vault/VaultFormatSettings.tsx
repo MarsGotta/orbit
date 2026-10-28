@@ -19,10 +19,13 @@ function useFormat({
   const [linkStyle, setLinkStyle] = useState(configuration.link_style);
   const model = configuration.maintenance_model;
   const [busy, setBusy] = useState(false);
+  useCopy();
   const [feedback, setFeedback] = useState("");
+  const [failure, setFailure] = useState<unknown>(null);
   const save = async () => {
     setBusy(true);
     setFeedback("");
+    setFailure(null);
     const { kind, path, url, vault } = configuration;
     try {
       const result = await request(port, {
@@ -34,12 +37,19 @@ function useFormat({
         setFeedback("Guardado en el hub.");
       }
     } catch (error: unknown) {
-      setFeedback(message(error));
+      setFailure(error);
     } finally {
       setBusy(false);
     }
   };
-  return { linkStyle, setLinkStyle, model, busy, feedback, save };
+  return {
+    linkStyle,
+    setLinkStyle,
+    model,
+    busy,
+    feedback: failure === null ? feedback : message(failure),
+    save,
+  };
 }
 export function FormatSettings({
   configuration,

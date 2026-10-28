@@ -43,7 +43,7 @@ impl Runtime {
             .started_at
             .map_or(0, |started| started.elapsed().as_millis());
         let cause = format!(
-            "El Mac no confirmó la parada de audio en {waited_ms} ms (plazo: {} ms sin respuesta del Mac, {} ms en total). Se conserva el audio recibido; el final puede faltar.",
+            "The Mac did not confirm the audio stop within {waited_ms} ms (deadline: {} ms without a Mac response, {} ms total). Received audio is retained; the end may be missing.",
             AUDIO_SILENCE_TIMEOUT.as_millis(),
             AUDIO_DRAIN_LIMIT.as_millis()
         );
@@ -62,10 +62,10 @@ impl Runtime {
     async fn abandon_unsent_stop(&mut self) {
         let name = match self.audio.lifecycle.full_stop.as_ref() {
             Some((_, kind)) => kind.command(),
-            None => "orden de parada",
+            None => "stop command",
         };
         let cause = format!(
-            "El helper de Orbit.app se desconectó con {name} sin entregar tras 500 ms. Orbit deja de esperar al helper y envía el audio recibido a sellado local; el final puede faltar."
+            "The Orbit.app helper disconnected with {name} undelivered after 500 ms. Orbit stops waiting for the helper and sends received audio for local sealing; the end may be missing."
         );
         self.contain(
             orbit_core::privacy_stop::StopCause::AudioStopUnconfirmed,

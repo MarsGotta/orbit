@@ -141,9 +141,9 @@ pub enum DaemonEnded {
 impl DaemonEnded {
     pub fn describe(&self) -> String {
         match self {
-            Self::Closed => "cerró en orden".into(),
-            Self::Failed(error) => format!("terminó con un error: {error}"),
-            Self::Vanished => "su hilo terminó sin resultado (un pánico)".into(),
+            Self::Closed => "closed in order".into(),
+            Self::Failed(error) => format!("ended with an error: {error}"),
+            Self::Vanished => "its thread ended without a result (a panic)".into(),
         }
     }
 
@@ -168,10 +168,10 @@ pub fn lock_instance(paths: &Paths) -> Result<std::fs::File> {
         .open(paths.root.join("daemon.lock"))?;
     let metadata = lock.metadata()?;
     if !metadata.is_file() || metadata.uid() != rustix::process::geteuid().as_raw() {
-        bail!("El bloqueo del daemon no pertenece al usuario actual");
+        bail!("The daemon lock does not belong to the current user");
     }
     rustix::fs::flock(&lock, rustix::fs::FlockOperation::NonBlockingLockExclusive)
-        .context("Ya hay un servicio Orbit activo o no se puede bloquear este directorio")?;
+        .context("An Orbit service is already active or this directory cannot be locked")?;
     lock.set_permissions(std::fs::Permissions::from_mode(0o600))?;
     Ok(lock)
 }
@@ -183,18 +183,18 @@ pub fn remove_owned_socket(paths: &Paths) -> Result<()> {
     let meta = match std::fs::symlink_metadata(&paths.socket) {
         Ok(meta) => meta,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(error).context("No se pudo inspeccionar la ruta IPC retirada"),
+        Err(error) => return Err(error).context("Could not inspect the retired IPC path"),
     };
     if !meta.file_type().is_socket() {
         bail!(
-            "Ruta IPC ocupada en {}: no es un socket; no se elimina",
+            "IPC path occupied at {}: it is not a socket; it will not be removed",
             paths.socket.display()
         );
     }
     let owner = rustix::process::geteuid().as_raw();
     if meta.uid() != owner {
         bail!(
-            "Ruta IPC ocupada en {}: uid {}, esperado {}; no se elimina",
+            "IPC path occupied at {}: uid {}, expected {}; it will not be removed",
             paths.socket.display(),
             meta.uid(),
             owner
@@ -226,7 +226,7 @@ async fn read_frame_into<R: tokio::io::AsyncBufRead + Unpin>(
     loop {
         let available = reader.fill_buf().await?;
         if available.is_empty() {
-            bail!("Conexión cerrada antes del fin del mensaje");
+            bail!("Connection closed before end of message");
         }
         let end = available.iter().position(|b| *b == b'\n');
         let count = end.map_or(available.len(), |i| i + 1);

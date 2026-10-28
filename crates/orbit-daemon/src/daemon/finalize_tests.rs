@@ -1185,7 +1185,7 @@ async fn later_cut_closes_an_earlier_empty_interruption_without_relabeling() -> 
     runtime
         .contain(
             orbit_core::privacy_stop::StopCause::HelperLost,
-            "El helper se desconectó después del rechazo.",
+            "El helper disconnected después del rechazo.",
         )
         .await;
     let closure = runtime

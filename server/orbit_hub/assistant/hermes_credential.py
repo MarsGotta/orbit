@@ -14,5 +14,5 @@ if TYPE_CHECKING:
 def credential(settings: Settings) -> str:
     value = read_secret(settings.hermes_credential_file, 64 * 1024).decode().strip()
     if not value or len(value) > 4096:
-        raise HubError("configuration", "Credencial Hermes ausente o no válida")
+        raise HubError("configuration", "Hermes credential missing or invalid")
     return value

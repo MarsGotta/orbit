@@ -61,8 +61,8 @@ pub(super) async fn run_helper_bridge(
         .stderr(Stdio::inherit())
         .kill_on_drop(true)
         .spawn()?;
-    let mut reader = BufReader::new(child.stdout.take().context("stdout del helper ausente")?);
-    let mut writer = child.stdin.take().context("stdin del helper ausente")?;
+    let mut reader = BufReader::new(child.stdout.take().context("Helper stdout missing")?);
+    let mut writer = child.stdin.take().context("Helper stdin missing")?;
     match bridge_inner(&mut reader, &mut writer, commands, events, stop).await {
         // Asked to stop, or nobody left to send commands: end it in order.
         Ok(()) => Ok(close_helper(child, reader, writer).await),

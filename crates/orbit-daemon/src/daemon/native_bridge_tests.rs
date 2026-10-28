@@ -98,7 +98,7 @@ async fn hello_response_from_bridge_does_not_create_a_permissions_notice() -> Re
             runtime.state.durable.notice
         );
         assert!(
-            !said::told(&runtime).contains("una orden desconocida"),
+            !said::told(&runtime).contains("an unknown command"),
             "{version}: {:?}",
             runtime.state.durable.notice
         );
@@ -175,7 +175,7 @@ async fn bridge_owned_response_keeps_its_real_command_name_and_capture_class() -
         "_bridge_command":"hello","ok":true,"result":{"microphone":false}});
     runtime.handle_native_event(hello).await;
     assert!(
-        said::told(&runtime).contains("respuesta a hello"),
+        said::told(&runtime).contains("response to hello"),
         "{:?}",
         runtime.state.durable.notice
     );
@@ -185,7 +185,7 @@ async fn bridge_owned_response_keeps_its_real_command_name_and_capture_class() -
         runtime.state.durable.notice
     );
     assert!(
-        !said::told(&runtime).contains("una orden desconocida"),
+        !said::told(&runtime).contains("an unknown command"),
         "{:?}",
         runtime.state.durable.notice
     );
@@ -525,10 +525,10 @@ async fn a_capture_stop_stalled_once_is_retried_and_the_next_meeting_can_start()
     );
     let notice = said::told(&runtime);
     assert!(
-        notice.contains("no recibió la orden capture_stop en 500 ms"),
+        notice.contains("did not receive command capture_stop within 500 ms"),
         "{notice}"
     );
-    assert!(!notice.contains("no pudo confirmar la parada"), "{notice}");
+    assert!(!notice.contains("could not confirm stop"), "{notice}");
     assert!(!notice.contains("6 s"), "{notice}");
 
     let (native, mut recovered) = mpsc::channel(8);

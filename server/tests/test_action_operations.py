@@ -153,7 +153,7 @@ async def test_engine_refusal_is_actionable_and_never_no_answer(bridged, monkeyp
     # It used to require "Ajustes" here, which pinned the pointer to
     # «Ajustes › Aplicaciones», a section Orbit does not have. The actionable
     # part is the typed cause and its detail, with a next step that is true.
-    assert "Consulta la causa" in result["next_step"]
+    assert "Check the cause" in result["next_step"]
     assert "Aplicaciones" not in result["next_step"]
     assert "no_answer" not in json.dumps(result)
 
@@ -185,7 +185,7 @@ async def test_orphaned_pending_action_becomes_unknown_instead_of_retryable(brid
     assert response.json()["code"] == "receipt_lost"
     assert response.json()["refusal"]["code"] == "receipt_lost"
     assert response.json()["refusal"]["retry"] == {"kind": "check_outcome"}
-    assert "No repitas" in response.json()["next_step"]
+    assert "Do not repeat" in response.json()["next_step"]
     assert store.operations.get(owner["device_id"], operation_id)["status"] == "completed"
 
 
@@ -202,7 +202,7 @@ def test_connection_lost_after_publish_is_unknown_and_forbids_retry():
 
     assert outcome["outcome"] == "unknown"
     assert outcome["code"] == "mac_disconnected"
-    assert "No repitas" in outcome["next_step"]
+    assert "Do not repeat" in outcome["next_step"]
 
 
 @pytest.mark.parametrize(

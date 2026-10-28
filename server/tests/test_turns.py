@@ -62,7 +62,9 @@ class UnconfirmedSubmitConnection(FakeConnection):
     async def rpc(self, method, params):
         self.calls.append((method, params))
         if method == "prompt.submit":
-            raise HubError("outcome_unknown", "Hermes no confirmó la operación; no se repetirá")
+            raise HubError(
+                "outcome_unknown", "Hermes did not confirm the operation; it will not be repeated"
+            )
         return {"status": "ok"}
 
 

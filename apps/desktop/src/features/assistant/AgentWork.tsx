@@ -84,7 +84,7 @@ function Steps({ items, wait }: { items: WorkItem[]; wait: StepWait }) {
               {waits === "approval" && ` · ${es.assistant.stepWaits}`}
               {waits === "denied" && ` · ${es.assistant.stepDenied}`}
               {item.phase === "failed" && item.cause != null && (
-                <span className={styles.workCause}> · {item.cause}</span>
+                <span className={styles.workCause}> · {es.extras.toolFailureText(item.cause)}</span>
               )}
             </span>
           </li>

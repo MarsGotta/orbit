@@ -33,7 +33,7 @@ impl StopStore {
                         Store::open_existing(&path, key)?.save_snapshot(&snapshot)
                     })
                     .await
-                    .context("Terminó el guardado temprano de la parada")?
+                    .context("Early stop save finished")?
                     .map_err(anyhow::Error::from)
                 };
                 match write(path.clone(), snapshot.clone()).await {
@@ -43,9 +43,9 @@ impl StopStore {
                             .is_some_and(|store| store.sqlite_contention().is_some())
                             && !*done.borrow() =>
                     {
-                        done.changed().await.context(
-                            "Terminó la recuperación sin avisar al guardado de la parada",
-                        )?;
+                        done.changed()
+                            .await
+                            .context("Recovery finished without notifying the stop save")?;
                         write(path, snapshot).await
                     }
                     result => result,

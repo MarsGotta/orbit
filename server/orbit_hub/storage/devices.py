@@ -41,7 +41,7 @@ class DeviceRepository:
                 (digest(code), now),
             ).rowcount
             if not changed:
-                raise HubError("invalid_pairing", "Código inválido, utilizado o caducado")
+                raise HubError("invalid_pairing", "Invalid, used or expired code")
             self.store.ensure_capacity(len(name.encode()) + 1024)
             db.execute(
                 "INSERT INTO devices(id,name,token_hash,created,last_seen) VALUES (?,?,?,?,?)",
@@ -57,13 +57,13 @@ class DeviceRepository:
 
     def authenticate(self, token: str) -> str:
         if not token or len(token) > 160:
-            raise HubError("unauthorized", "Credencial de dispositivo no válida")
+            raise HubError("unauthorized", "Invalid device credential")
         with self.store.reading() as db:
             row = db.execute(
                 "SELECT id FROM devices WHERE token_hash=? AND revoked=0", (digest(token),)
             ).fetchone()
         if row is None:
-            raise HubError("unauthorized", "Credencial de dispositivo no válida")
+            raise HubError("unauthorized", "Invalid device credential")
         return row["id"]
 
     def is_active(self, device_id: str) -> bool:
@@ -82,7 +82,7 @@ class DeviceRepository:
     def revoke(self, device_id: str) -> None:
         with self.store.transaction() as db:
             if not db.execute("UPDATE devices SET revoked=1 WHERE id=?", (device_id,)).rowcount:
-                raise HubError("not_found", "Dispositivo desconocido")
+                raise HubError("not_found", "Unknown device")
 
     def all(self) -> list[dict]:
         """Every device ever paired, revoked ones too, as the CLI lists them."""

@@ -117,7 +117,7 @@ fn history_names_the_request_channel_and_old_rows_remain_readable() {
     assert_eq!(restored.outcome, ControlOutcome::Unknown);
     assert_eq!(
         serde_json::to_value(restored).unwrap()["channel"],
-        "desconocido"
+        "unknown"
     );
 }
 

@@ -214,7 +214,7 @@ impl Writer {
     /// owed, in memory, and retried.
     fn seal_abandoned(&mut self, segment: &crate::capture::Segment, owed: usize) {
         let message = format!(
-            "Audio pendiente en memoria: {owed} fragmentos. No cierres Orbit; se reintentará guardar localmente. El escritor local falló al guardar el fragmento {} y sigue con lo demás.",
+            "Audio pending in memory: {owed} chunks. Keep Orbit open; local saving will be retried. The local writer failed to save chunk {} and continues with other work.",
             segment.metadata.sequence
         );
         writer::push_completion(

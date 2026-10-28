@@ -290,8 +290,8 @@ async def test_deferred_resume_history_failure_is_reported_and_next_turn_reopens
         frames.append(viewer.get_nowait())
     error = next(frame for frame in frames if frame["event"] == "error")
     assert error["data"]["code"] == "session_resume_history_unreadable"
-    assert "17 mensajes" in error["data"]["message"]
-    assert "historial" in error["data"]["message"]
+    assert "17 messages" in error["data"]["message"]
+    assert "history" in error["data"]["message"]
     assert "Could not reopen" not in str(frames)
     assert store.chat.session(owner, session_id)["status"] == "failed"
     assert first_runtime_id not in connection.live_sessions
@@ -327,7 +327,7 @@ async def test_deferred_history_failure_refuses_before_prompt_and_retries_next_s
     with pytest.raises(HubError) as error:
         await sent(restarted, "mensaje rechazado", session_id)
     assert error.value.code == "session_resume_history_unreadable"
-    assert "17 mensajes" in error.value.message
+    assert "17 messages" in error.value.message
     assert "Could not reopen" not in error.value.message
     connection = adapter.connections[1]
     runtime_id = connection.last_resumed_id
@@ -580,10 +580,10 @@ async def test_other_disconnected_session_refusal_names_remaining_history_time(e
         with pytest.raises(HubError) as error:
             await sent(runtime, "mensaje dos", second_id)
         assert error.value.code == "session_resume_in_progress"
-        assert "otro historial" in error.value.message
-        remaining = int(error.value.message.split("quedan hasta ")[1].split(" s")[0])
+        assert "another history" in error.value.message
+        remaining = int(error.value.message.split("up to ")[1].split(" s")[0])
         assert 0 <= remaining <= 300
-        assert "plazo de 300 s" in error.value.message
+        assert "deadline of 300 s" in error.value.message
         assert [method for method, _ in connection.calls] == ["session.resume"]
     finally:
         await connection.callback(
@@ -919,7 +919,7 @@ async def test_disconnected_session_names_its_retry(environment):
     with pytest.raises(HubError) as error:
         runtime.require_live(session_id)
     assert error.value.code == "session_disconnected"
-    assert "se intentará reanudar" in error.value.message
+    assert "will attempt to resume" in error.value.message
 
 
 async def test_foreign_device_does_not_connect_or_resume(environment):

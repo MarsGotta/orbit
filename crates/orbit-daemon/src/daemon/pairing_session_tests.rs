@@ -925,7 +925,7 @@ async fn an_offline_dictionary_order_is_refused_without_retaining_terms_to_retry
         .find(|item| item["item"] == "dictionary_refused")
         .context("offline refusal")?;
     assert_eq!(refusal["failure"]["code"], "hub_unreachable");
-    assert_eq!(refusal["failure"]["detail"], "El hub no está conectado");
+    assert_eq!(refusal["failure"]["detail"], "The hub is not connected");
     assert!(!state.to_string().contains("offline-private"));
     Ok(())
 }

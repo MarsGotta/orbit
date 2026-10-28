@@ -102,7 +102,7 @@ pub(super) async fn run_with_helper_inner(
         .as_ref()
         .is_some_and(|path| !path.is_absolute())
     {
-        bail!("El helper debe tener una ruta absoluta");
+        bail!("The helper requires an absolute path");
     }
     // Before anything starts, so SIGTERM is never the default kill.
     // Process-wide: inside the app they are the app's too, and the app
@@ -116,7 +116,7 @@ pub(super) async fn run_with_helper_inner(
         ipc::remove_owned_socket(&paths)?;
     }
     if socket_enabled && tokio::net::UnixStream::connect(&paths.socket).await.is_ok() {
-        bail!("Ya hay un servicio Orbit activo");
+        bail!("An Orbit service is already active");
     }
     let settings = paths.load_settings()?;
     // Before anything else runs, so a panic from here on is reported if the
@@ -366,11 +366,7 @@ async fn prepare(
         stop_store.clone(),
         io.reborrow(),
         orbit_core::RecoveryStep::Environment,
-        async {
-            preparation
-                .await
-                .context("Terminó la preparación del servicio")?
-        },
+        async { preparation.await.context("Service preparation finished")? },
     )
     .await?;
     let checkpoint = startup::persist_runtime_recovery(

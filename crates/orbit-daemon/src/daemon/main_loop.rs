@@ -155,7 +155,7 @@ impl MainLoop<'_> {
         }
         if self.closing.listener_failed {
             bail!(
-                "El servidor IPC se detuvo; el audio pendiente ya está guardado. Revisa la ruta de datos y otra instancia"
+                "The IPC server stopped; pending audio is already saved. Check the data path and other instances"
             );
         }
         Ok(())

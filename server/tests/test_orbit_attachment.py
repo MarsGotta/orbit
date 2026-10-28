@@ -74,7 +74,7 @@ async def test_an_attached_pdf_reads_as_its_text_by_page(environment, tmp_path):
         )
     assert not result.is_error, text_of(result)
     assert (
-        "--- página 1 ---\nPrimera parada: el lago.\n\n--- página 2 ---\nSegunda parada: la ermita."
+        "--- page 1 ---\nPrimera parada: el lago.\n\n--- page 2 ---\nSegunda parada: la ermita."
         in text_of(result)
     )
 

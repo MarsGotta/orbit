@@ -108,8 +108,7 @@ def profile_refusal(name: str, description: str, color: str) -> HubError | None:
         return _invalid(
             "name",
             cause,
-            f"El nombre tiene {len(name)} caracteres; máximo {MAX_PROFILE_NAME_CHARS}, "
-            "sin caracteres de control",
+            f"The name has {len(name)} characters; maximum {MAX_PROFILE_NAME_CHARS}, without control characters",
             len(name),
             MAX_PROFILE_NAME_CHARS,
         )
@@ -118,15 +117,14 @@ def profile_refusal(name: str, description: str, color: str) -> HubError | None:
         return _invalid(
             "description",
             cause,
-            f"La descripción tiene {len(description)} caracteres; máximo "
-            f"{MAX_DESCRIPTION_CHARS}, en una línea",
+            f"The description has {len(description)} characters; maximum {MAX_DESCRIPTION_CHARS}, on one line",
             len(description),
             MAX_DESCRIPTION_CHARS,
         )
     if color not in COLORS:
         return HubError(
             "agent_profile_invalid",
-            f"El color tiene que ser uno de {', '.join(COLORS)}",
+            f"The color must be one of {', '.join(COLORS)}",
             http_status=422,
             numbers={"field": "color", "rule": "unknown_color"},
         )

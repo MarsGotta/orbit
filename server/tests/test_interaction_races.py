@@ -164,7 +164,7 @@ async def test_replaced_request_survives_old_partial_full_expired_and_invalid_ac
         assert replacement is not original and (replacement == original) is identical
         release.set()
         if result["status"] == "malformed":
-            with pytest.raises(HubError, match="no confirmó"):
+            with pytest.raises(HubError, match="did not confirm"):
                 await asyncio.wait_for(task, 2)
         else:
             _, receipt = await asyncio.wait_for(task, 2)

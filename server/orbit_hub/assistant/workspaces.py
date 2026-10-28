@@ -25,19 +25,26 @@ class WorkspacePolicy:
         # acquire a private folder inside an existing writable root.
         home = Path.home().resolve()
         if path == home or path in home.parents:
-            return "no puede ser la carpeta personal del usuario del hub ni una de sus antecesoras"
+            return (
+                "working_folder_home",
+                "cannot be the hub user's home folder or an ancestor of it",
+            )
         for installed in installed_paths():
             if path == installed or installed in path.parents or path in installed.parents:
-                return "se solapa con el código instalado del hub o su entorno de Python"
+                return (
+                    "working_folder_installed",
+                    "overlaps installed hub code or its Python environment",
+                )
         root = self.root.resolve()
         if path == root or path in root.parents:
-            return "incluye la raíz reservada para las carpetas de los asistentes"
+            return ("working_folder_reserved", "includes the reserved root for assistant folders")
         if any(
             path == root or root in path.parents or path in root.parents
             for root in self.forbidden()
         ):
             return (
-                "se solapa con datos o credenciales protegidos, o con la carpeta de otro asistente"
+                "working_folder_protected",
+                "overlaps protected data or credentials, or another assistant's folder",
             )
         return None
 
@@ -45,24 +52,35 @@ class WorkspacePolicy:
         path = Path(text)
         cause = None
         if not path.is_absolute():
-            cause = "debe ser una ruta absoluta del hub"
+            cause = ("working_folder_absolute", "must be an absolute hub path")
         elif "\x00" in text or len(text.encode()) > MAX_WORKING_FOLDER_BYTES:
-            cause = f"debe ocupar como máximo {MAX_WORKING_FOLDER_BYTES} bytes y no contener NUL"
+            cause = (
+                "working_folder_size",
+                f"must use at most {MAX_WORKING_FOLDER_BYTES} bytes and contain no NUL",
+            )
         else:
             try:
                 path = path.resolve(strict=True)
                 if not path.is_dir():
-                    cause = "no es un directorio del hub"
+                    cause = ("working_folder_directory", "is not a directory on the hub")
                 else:
                     cause = self.overlap_cause(path)
             except (OSError, RuntimeError, ValueError):
-                cause = "no existe o no se puede abrir en el hub"
+                cause = (
+                    "working_folder_unavailable",
+                    "does not exist or cannot be opened on the hub",
+                )
         if cause:
             raise HubError(
                 "invalid_working_folder",
-                f"La carpeta de trabajo {cause}",
+                f"The working folder {cause[1]}",
                 http_status=400,
-                numbers={"cause": cause},
+                numbers={
+                    "cause": cause[1],
+                    "cause_code": cause[0],
+                    "bytes": len(text.encode()),
+                    "max_bytes": MAX_WORKING_FOLDER_BYTES,
+                },
             )
         return path
 

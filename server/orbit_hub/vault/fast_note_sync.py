@@ -37,7 +37,7 @@ class FastNoteSync:
         except (ValueError, UnicodeError):
             raise refusal(
                 "vault_connection_fields",
-                "Indica la URL HTTP(S), el nombre del vault y un token válido, sin credenciales en la URL.",
+                "Enter the HTTP(S) URL, vault name and a valid token, without credentials in the URL.",
             ) from None
 
     def close(self):
@@ -54,7 +54,8 @@ class FastNoteSync:
         if remaining <= 0:
             raise refusal(
                 "vault_sync_timeout",
-                f"La lectura de Fast Note Sync superó {CONNECTOR_SECONDS} segundos.",
+                f"The Fast Note Sync read exceeded {CONNECTOR_SECONDS} seconds.",
+                message_code="vault_sync_timeout",
                 timeout_seconds=CONNECTOR_SECONDS,
             )
         try:
@@ -71,14 +72,14 @@ class FastNoteSync:
                 if response.status_code in {401, 403}:
                     raise refusal(
                         "vault_token_refused",
-                        "Fast Note Sync rechazó el token; revisa su vigencia y acceso al vault.",
+                        "Fast Note Sync rejected the token; check its validity and vault access.",
                         400,
                         upstream_status=response.status_code,
                     )
                 if response.status_code != 200:
                     raise refusal(
                         "vault_sync_http",
-                        f"Fast Note Sync respondió HTTP {response.status_code}.",
+                        f"Fast Note Sync returned HTTP {response.status_code}.",
                         upstream_status=response.status_code,
                     )
                 body = bytearray()
@@ -86,58 +87,70 @@ class FastNoteSync:
                     if monotonic() > self.deadline:
                         raise refusal(
                             "vault_sync_timeout",
-                            f"La lectura de Fast Note Sync superó {CONNECTOR_SECONDS} segundos.",
+                            f"The Fast Note Sync read exceeded {CONNECTOR_SECONDS} seconds.",
+                            message_code="vault_sync_timeout",
                             timeout_seconds=CONNECTOR_SECONDS,
                         )
                     body.extend(chunk)
                     if len(body) > MAX_UPSTREAM_BYTES:
                         raise refusal(
                             "vault_response_too_large",
-                            f"La respuesta de Fast Note Sync supera {MAX_UPSTREAM_BYTES} bytes.",
+                            f"The Fast Note Sync response exceeds {MAX_UPSTREAM_BYTES} bytes.",
                             413,
+                            message_code="vault_sync_response_too_large",
                             bytes=len(body),
                             max_bytes=MAX_UPSTREAM_BYTES,
                         )
-            envelope = json.loads(body)
-            code = envelope.get("code")
-            if (
-                envelope.get("status") is not True
-                or type(code) is not int
-                or code not in range(1, 7)
-            ):
-                self._business_failure(code)
-            return envelope["data"]
+            return self._envelope(body)
         except httpx.TimeoutException:
             raise refusal(
                 "vault_sync_timeout",
-                f"Fast Note Sync no respondió dentro de {CONNECTOR_SECONDS} segundos.",
+                f"Fast Note Sync did not respond within {CONNECTOR_SECONDS} seconds.",
+                message_code="vault_sync_no_response",
                 timeout_seconds=CONNECTOR_SECONDS,
             ) from None
         except httpx.HTTPError:
             raise refusal(
                 "vault_sync_connection",
-                "No se pudo conectar con Fast Note Sync; revisa la URL y el servicio.",
+                "Could not connect to Fast Note Sync; check the URL and service.",
             ) from None
         except (ValueError, TypeError, KeyError, AttributeError, RecursionError):
             raise refusal(
-                "vault_sync_shape", "Fast Note Sync devolvió una respuesta con formato no válido."
+                "vault_sync_shape",
+                "Fast Note Sync returned an invalid response format.",
+                message_code="vault_sync_shape",
             ) from None
+
+    def _envelope(self, body):
+        envelope = json.loads(body)
+        code = envelope.get("code")
+        if envelope.get("status") is not True or type(code) is not int or code not in range(1, 7):
+            self._business_failure(code)
+        return envelope["data"]
 
     @staticmethod
     def _business_failure(code):
         numbers = {"upstream_code": code} if type(code) is int else {}
         causes = {
-            414: ("vault_sync_missing", "Fast Note Sync no encuentra ese vault."),
-            428: ("vault_note_missing", "La nota no existe en Fast Note Sync."),
-            430: ("vault_note_missing", "La nota no existe en Fast Note Sync."),
-            507: ("vault_token_refused", "Fast Note Sync requiere un token válido."),
-            508: ("vault_token_expired", "El token de Fast Note Sync ha caducado."),
+            414: ("vault_sync_missing", "Fast Note Sync cannot find that vault."),
+            428: ("vault_note_missing", "The note does not exist in Fast Note Sync."),
+            430: ("vault_note_missing", "The note does not exist in Fast Note Sync."),
+            507: ("vault_token_refused", "Fast Note Sync requires a valid token."),
+            508: ("vault_token_expired", "The Fast Note Sync token has expired."),
         }
         code_name, message = causes.get(
-            code, ("vault_sync_refused", "Fast Note Sync rechazó la lectura del vault.")
+            code, ("vault_sync_refused", "Fast Note Sync refused the vault read.")
         )
         raise refusal(
-            code_name, message, 404 if code_name == "vault_note_missing" else 400, **numbers
+            code_name,
+            message,
+            404 if code_name == "vault_note_missing" else 400,
+            message_code={
+                428: "vault_sync_note_missing",
+                430: "vault_sync_note_missing",
+                507: "vault_sync_token_required",
+            }.get(code),
+            **numbers,
         )
 
     def page(self, endpoint="notes", **parameters):
@@ -169,7 +182,9 @@ class FastNoteSync:
             return entries, pager["totalRows"]
         except (KeyError, TypeError, ValueError):
             raise refusal(
-                "vault_sync_shape", "La lista de Fast Note Sync no tiene el formato esperado."
+                "vault_sync_shape",
+                "The Fast Note Sync list has an unexpected format.",
+                message_code="vault_sync_list_shape",
             ) from None
 
     def catalog(self, folder=None):
@@ -185,7 +200,8 @@ class FastNoteSync:
             if total > MAX_SCAN_ENTRIES:
                 raise refusal(
                     "vault_scan_limit",
-                    f"El vault supera {MAX_SCAN_ENTRIES} entradas por recorrido.",
+                    f"The vault exceeds {MAX_SCAN_ENTRIES} entries per scan.",
+                    message_code="vault_sync_scan_limit",
                     entries=total,
                     max_entries=MAX_SCAN_ENTRIES,
                 )
@@ -194,7 +210,8 @@ class FastNoteSync:
                 return entries
         raise refusal(
             "vault_scan_limit",
-            "El catálogo de Fast Note Sync no termina dentro del límite.",
+            "The Fast Note Sync catalogue does not finish within the limit.",
+            message_code="vault_sync_catalog_incomplete",
             max_entries=MAX_SCAN_ENTRIES,
         )
 
@@ -206,7 +223,9 @@ class FastNoteSync:
             or data.get("path") != path
         ):
             raise refusal(
-                "vault_sync_shape", "Fast Note Sync devolvió una nota con formato o ruta distintos."
+                "vault_sync_shape",
+                "Fast Note Sync returned a note with a different format or path.",
+                message_code="vault_sync_note_shape",
             )
         return data["content"]
 
@@ -214,19 +233,26 @@ class FastNoteSync:
         data = self.get("note/" + direction, path=checked(path))
         if not isinstance(data, list):
             raise refusal(
-                "vault_sync_shape", "Fast Note Sync devolvió enlaces con formato no válido."
+                "vault_sync_shape",
+                "Fast Note Sync returned invalid links.",
+                message_code="vault_sync_links_shape",
             )
         if len(data) > MAX_SCAN_ENTRIES:
             raise refusal(
                 "vault_scan_limit",
-                f"La nota supera {MAX_SCAN_ENTRIES} enlaces.",
+                f"The note exceeds {MAX_SCAN_ENTRIES} links.",
+                message_code="vault_sync_links_limit",
                 entries=len(data),
                 max_entries=MAX_SCAN_ENTRIES,
             )
         entries = []
         for item in data:
             if not isinstance(item, dict) or not isinstance(item.get("path"), str):
-                raise refusal("vault_sync_shape", "Fast Note Sync devolvió un enlace sin ruta.")
+                raise refusal(
+                    "vault_sync_shape",
+                    "Fast Note Sync returned a link without a path.",
+                    message_code="vault_sync_link_path",
+                )
             if visible(item["path"]) and item["path"].lower().endswith(".md"):
                 entries.append({"path": checked(item["path"]), "kind": "note"})
         return entries

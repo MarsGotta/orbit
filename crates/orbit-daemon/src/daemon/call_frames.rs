@@ -54,7 +54,7 @@ impl Runtime {
                 call.gaps = call.gaps.saturating_add(1);
             }
             bail!(
-                "Cambió o se perdió la evidencia de procesamiento/referencia de la llamada; requiere reinicio explícito"
+                "Call processing/reference evidence changed or was lost; an explicit restart is required"
             );
         }
         let facts = facts?;

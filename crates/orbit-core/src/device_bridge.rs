@@ -173,9 +173,7 @@ pub const MAX_CATALOGUE_PAGE_BYTES: usize = 96 * 1024;
 /// It names the detail, not only the schema. Since a description is no
 /// longer bounded on its own, either half of what the engine wrote about a tool
 /// can be the half that will not travel, and the notice has to be true of both.
-const DETAIL_TOO_LARGE: &str = "Orbit no puede enviar el detalle de esta herramienta —su \
-     descripción y su esquema—: no cabe en una trama del hub. El nombre sí, y con él se puede \
-     pedir.";
+const DETAIL_TOO_LARGE: &str = "Orbit cannot send this tool's detail —its description and schema—: it does not fit in a hub frame. Its name fits and can be used to request it.";
 
 /// One slice of the engine catalogue, and where the next one starts.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1192,7 +1190,7 @@ mod tests {
                 format!("parameter_{field}"),
                 serde_json::json!({
                     "type": "string",
-                    "title": format!("Parámetro {field}"),
+                    "title": format!("Parameter {field}"),
                     "description": format!(
                         "Argumento {field} de la herramienta {index}, descrito por el motor con \
                          el detalle que necesita quien la llama para no adivinar su forma."
@@ -1360,7 +1358,7 @@ mod tests {
         assert_eq!(assembled[1].name, "engine_tool_muy_descrita");
         assert_eq!(assembled[1].description, DETAIL_TOO_LARGE);
         assert!(
-            DETAIL_TOO_LARGE.contains("descripción") && DETAIL_TOO_LARGE.contains("esquema"),
+            DETAIL_TOO_LARGE.contains("description") && DETAIL_TOO_LARGE.contains("schema"),
             "the notice names what does not fit, not only one of the two halves"
         );
         assert_eq!(assembled[0], catalogue[0], "the others arrive intact");

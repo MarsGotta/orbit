@@ -194,7 +194,7 @@ async def test_an_agent_start_that_outlives_its_bound_is_cut_and_said(environmen
             await asyncio.wait_for(send(runtime, "Hola", agent="orion"), BUDGET_SECONDS)
         assert refused.value.code == "agent_start_timeout"
         assert refused.value.numbers == {"agent_id": "orion", "timeout_ms": 50}
-        assert refused.value.message.startswith("Orion no terminó de arrancar en 50 ms")
+        assert refused.value.message.startswith("Orion did not finish starting within 50 ms")
         # The half-open connection is closed, never left holding the device.
         assert orion.connections[0].closed
         assert listed(agents)["orion"]["backend"]["code"] == "agent_start_timeout"

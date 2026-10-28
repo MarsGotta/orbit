@@ -67,7 +67,7 @@ pub struct WindowTextReply {
 }
 
 /// The last line of a text that was cut: the agent knows it has the start.
-pub const CUT_NOTE: &str = "\n\n[La ventana tiene más texto; Orbit adjuntó sólo el principio.]";
+pub const CUT_NOTE: &str = "\n\n[The window has more text; Orbit attached only the beginning.]";
 
 /// The text kept from what was read: `None` when nothing readable is left;
 /// within `MAX_WINDOW_TEXT_BYTES`, cut on a character boundary, and with

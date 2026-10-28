@@ -178,7 +178,7 @@ impl Hub {
             return numbered(
                 400,
                 "invalid_parameters",
-                "limit fuera de rango: entre 1 y 50",
+                "limit outside range: between 1 and 50",
                 json!({"field": "limit", "min": 1, "max": 50}),
             );
         }
@@ -245,7 +245,7 @@ impl Hub {
             body: body.clone(),
         });
         if let Some(status) = self.failing {
-            return refusal(status, "synthetic_failure", "Fallo sintético");
+            return refusal(status, "synthetic_failure", "Synthetic failure");
         }
         if let Some(status) = self
             .refusing
@@ -253,7 +253,7 @@ impl Hub {
             .find(|(recording, _)| path.contains(recording.as_str()))
             .map(|(_, status)| *status)
         {
-            return refusal(status, "recording_not_found", "Grabación no disponible");
+            return refusal(status, "recording_not_found", "Recording unavailable");
         }
         let segments = path.trim_start_matches('/').split('/').collect::<Vec<_>>();
         let series_route = matches!(
@@ -288,10 +288,10 @@ impl Hub {
             }
             ("PUT", ["v1", "recordings", id, "series"]) => {
                 if let Some((status, code, numbers)) = self.series_refusal.clone() {
-                    return numbered(status, code, "No se guardó nada", numbers);
+                    return numbered(status, code, "Nothing was saved", numbers);
                 }
                 if !self.documents.contains_key(*id) {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 }
                 (
                     200,
@@ -318,11 +318,11 @@ impl Hub {
             }
             ("GET", ["v1", "recordings", id]) => match self.documents.get(*id) {
                 Some(document) => (200, document.clone()),
-                None => refusal(404, "recording_not_found", "Grabación no disponible"),
+                None => refusal(404, "recording_not_found", "Recording unavailable"),
             },
             ("GET", ["v1", "recordings", id, "turns"]) => {
                 let Some(turns) = self.turns.get(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 let offset = query_value(query, "offset")
                     .and_then(|value| value.parse::<usize>().ok())
@@ -341,7 +341,7 @@ impl Hub {
                     return numbered(
                         409,
                         "turn_no_longer_exists",
-                        "El turno ya no existe",
+                        "The turn no longer exists",
                         json!({"at_ms":at_ms,"turns":turns}),
                     );
                 }
@@ -350,7 +350,7 @@ impl Hub {
                     ("remote_app".to_owned(), self.default_name("remote_app")),
                 ]);
                 let Some(document) = self.documents.get_mut(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 if let (Some(names), Some(speakers)) = (
                     body["names"].as_object(),
@@ -379,12 +379,12 @@ impl Hub {
                     return numbered(
                         409,
                         "meeting_audio_unreadable",
-                        "No se cambió el idioma",
+                        "The language was not changed",
                         json!({"groups": groups, "total": total, "cause": "invalid_group_audio"}),
                     );
                 }
                 let Some(document) = self.documents.get_mut(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 let requeued = if document["language"] == body["language"] {
                     0
@@ -405,7 +405,7 @@ impl Hub {
             // The user's name wins; an empty one gives the meeting back its own.
             ("PUT", ["v1", "recordings", id, "title"]) => {
                 let Some(document) = self.documents.get_mut(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 let own = self
                     .own_titles
@@ -426,7 +426,7 @@ impl Hub {
                     return numbered(
                         409,
                         "stale_revision",
-                        "Las notas privadas cambiaron",
+                        "Private notes changed",
                         json!({"revision": current, "base_revision": body["base_revision"]}),
                     );
                 }
@@ -441,10 +441,10 @@ impl Hub {
                     _ => false,
                 };
                 if !strict {
-                    return refusal(400, "invalid_parameters", "Petición no válida");
+                    return refusal(400, "invalid_parameters", "Invalid request");
                 }
                 let Some(document) = self.documents.get_mut(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 let revision = document["note"]["revision"].as_u64().unwrap_or(0) + 1;
                 let mut queued = note(revision);
@@ -456,11 +456,11 @@ impl Hub {
             }
             ("PUT", ["v1", "recordings", id, "note", "edits"]) => {
                 let Some(document) = self.documents.get_mut(*id) else {
-                    return refusal(404, "recording_not_found", "Grabación no disponible");
+                    return refusal(404, "recording_not_found", "Recording unavailable");
                 };
                 let current = document["note"]["revision"].as_u64().unwrap_or(0);
                 if body["base_revision"].as_u64() != Some(current) {
-                    return refusal(409, "note_revision_changed", "La nota cambió");
+                    return refusal(409, "note_revision_changed", "The note changed");
                 }
                 if body.get("sections").is_some() {
                     document["note"]["note"]["sections"] = body["sections"].clone();
@@ -499,7 +499,7 @@ impl Hub {
                 )
             }
             ("GET", ["v1", "note-template-links"]) => (200, json!({"links": self.links})),
-            _ => refusal(404, "not_found", "Ruta desconocida"),
+            _ => refusal(404, "not_found", "Unknown route"),
         }
     }
 }

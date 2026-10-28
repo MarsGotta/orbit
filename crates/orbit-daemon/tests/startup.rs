@@ -501,7 +501,7 @@ async fn listener_bind_failure_names_the_occupied_socket() -> Result<()> {
         Err(error) => error,
     };
     assert!(
-        error.to_string().contains("Ruta IPC ocupada"),
+        error.to_string().contains("IPC path occupied"),
         "listener cause was hidden: {error}"
     );
     Ok(())

@@ -52,7 +52,7 @@ def mount(
             )
             text = ""
         if not store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         if text:
             turn_inputs.mark_transcribed(device, text)
         return {"text": text}
@@ -70,7 +70,7 @@ def mount(
                 await bounded_body(request, 128 * 1024, "audio")
             )
         except ValidationError as exc:
-            raise HubError("invalid_request", "Texto de síntesis no válido") from exc
+            raise HubError("invalid_request", "Invalid synthesis text") from exc
         agent = agents.default if payload.agent_id is None else agents.get(payload.agent_id)
         try:
             audio = await agent.voice().synthesize(payload.text)
@@ -87,7 +87,7 @@ def mount(
                 unvoiced = fallback.code == "speech_not_configured"
                 raise (refusal if unvoiced else fallback) from None
         if not store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         return Response(
             content=audio.body,
             media_type=audio.mime_type,

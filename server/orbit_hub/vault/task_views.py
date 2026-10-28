@@ -48,7 +48,7 @@ def dependencies(note, ids):
 def queries(body, all_tasks):
     result = []
     for block in re.finditer(r"(?m)^```tasks\s*\n(.*?)^```\s*$", body, re.DOTALL):
-        lines, warnings, checks = [], [], []
+        lines, warnings, diagnostics, checks = [], [], [], []
         for raw in block[1].splitlines():
             line = raw.strip()
             if not line:
@@ -56,19 +56,29 @@ def queries(body, all_tasks):
             lines.append(line)
             check = predicate(line)
             if check is None:
-                warnings.append(f"Esta línea de la consulta no se aplica: {line}")
+                warnings.append(f"This query line is not applied: {line}")
+                diagnostics.append({"code": "query_line_unsupported", "field": line, "numbers": {}})
             else:
                 checks.append(check)
         matches = [task for task in all_tasks if all(check(task) for check in checks)]
         if len(matches) > MAX_PAGE_SIZE:
             warnings.append(
-                f"La consulta muestra {MAX_PAGE_SIZE} de {len(matches)} tareas; acota los filtros para ver las demás."
+                f"The query shows {MAX_PAGE_SIZE} de {len(matches)} tasks; narrow the filters to see the rest."
+            )
+        if len(matches) > MAX_PAGE_SIZE:
+            diagnostics.append(
+                {
+                    "code": "query_page_limit",
+                    "field": "",
+                    "numbers": {"count": len(matches), "max": MAX_PAGE_SIZE},
+                }
             )
         result.append(
             {
                 "kind": "tasks",
                 "lines": lines,
                 "warnings": warnings,
+                "diagnostics": diagnostics,
                 "tasks": matches[:MAX_PAGE_SIZE],
                 "total": len(matches),
             }

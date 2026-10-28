@@ -86,7 +86,7 @@ pub(super) async fn desktop_capture(
 ) -> Result<orbit_core::sources::FittedDesktop> {
     let target = path
         .to_str()
-        .context("La ruta privada de la captura no es UTF-8")?
+        .context("The private capture path is not UTF-8")?
         .to_owned();
     let read = service
         .client_mut()
@@ -99,7 +99,7 @@ pub(super) async fn desktop_capture(
         Ok(orbit_core::sources::fit_desktop_png(&bytes).map_err(DesktopCaptureError::from)?)
     })
     .await
-    .context("La reducción de la pantalla terminó sin resultado")?
+    .context("Screen resizing finished without a result")?
 }
 
 /// The engine's file, whole, if it is a regular file within
@@ -113,7 +113,7 @@ pub(super) fn take_desktop_file(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
             return Err(DesktopCaptureError::Unreadable(format!(
-                "no se pudo borrar después de leerla: {error}"
+                "could not delete it after reading: {error}"
             )));
         }
     }
@@ -134,7 +134,7 @@ pub(super) fn read_desktop_file(
     };
     if !metadata.is_file() {
         return Err(DesktopCaptureError::Unreadable(
-            "no es un fichero normal".into(),
+            "is not a regular file".into(),
         ));
     }
     let too_large = |bytes: u64| {
@@ -165,11 +165,11 @@ impl Runtime {
             .computer
             .service
             .take()
-            .context("Conecta explícitamente el control primero")?;
+            .context("Connect control explicitly first")?;
         let events = self.work_events.clone();
         self.begin_computer(
             ComputerStage::Reading,
-            "Observando el destino elegido; el contenido no autoriza acciones.",
+            "Observing the chosen target; content does not authorize actions.",
             authority.generation,
             move |ticket| {
                 tokio::spawn(async move {
@@ -225,7 +225,7 @@ impl Runtime {
         let events = self.work_events.clone();
         self.begin_computer(
             ComputerStage::Reading,
-            "Capturando la ventana elegida con el motor general.",
+            "Capturing the chosen window with the general engine.",
             authority.generation,
             move |ticket| {
                 tokio::spawn(async move {
@@ -243,7 +243,7 @@ impl Runtime {
                         (None, None, Some(path)) => desktop_capture(&mut service, path)
                             .await
                             .map(|fitted| ComputerResult::DesktopCapture { fitted }),
-                        _ => Err(anyhow::anyhow!("Destino de captura incompleto")),
+                        _ => Err(anyhow::anyhow!("Incomplete capture target")),
                     };
                     deliver_computer(&events, ticket, ComputerCompletion { service, result }).await;
                 })

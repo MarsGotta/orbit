@@ -48,7 +48,7 @@ def mount(
                     }
                 )
         except (ValidationError, ValueError) as exc:
-            raise HubError("invalid_manifest", "Manifiesto de cierre no válido") from exc
+            raise HubError("invalid_manifest", "Invalid closure manifest") from exc
         stored = manifest.model_dump(mode="json")
         # A track with nothing missing is stored as a 0.10.1 Mac wrote it, so
         # its retried closure matches the closure already kept.
@@ -88,7 +88,7 @@ def mount(
         try:
             recording_id = canonical_uuid(recording_id)
         except ValueError as exc:
-            raise HubError("invalid_recording", "ID de grabación no válido") from exc
+            raise HubError("invalid_recording", "Invalid recording ID") from exc
 
         def owner():
             with store.read_snapshot() as db:

@@ -938,7 +938,7 @@ async fn a_handover_opens_a_conversation_that_names_the_one_it_takes_over() -> R
     assert!(
         refused
             .as_ref()
-            .is_err_and(|error| error.to_string().contains("no pasa conversaciones")),
+            .is_err_and(|error| error.to_string().contains("cannot hand conversations")),
         "{refused:?}"
     );
     let mut able = two_agents();

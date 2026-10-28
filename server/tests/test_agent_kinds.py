@@ -608,7 +608,7 @@ async def test_a_lost_connection_names_the_agent_of_the_conversation(environment
     [lost] = error_frames(frames)
     assert lost["code"] == "outcome_unknown"
     assert lost["message"] == (
-        "Se perdió la conexión con Vega; consulta el historial antes de continuar"
+        "The connection was lost with Vega; check the history before continuing"
     )
 
 
@@ -623,7 +623,10 @@ async def test_a_turn_ended_without_an_answer_names_the_agent_of_the_conversatio
     await vega.connections[0].on_event(TurnError(live, "terminal"))
     [failed] = error_frames(frames)
     assert failed["code"] == "upstream_turn_failed"
-    assert failed["message"] == "Vega terminó el turno sin una respuesta final; no se repetirá"
+    assert (
+        failed["message"]
+        == "Vega finished the turn without a final response; it will not be repeated"
+    )
 
 
 async def test_an_agent_the_configuration_no_longer_has_is_called_the_assistant(environment):
@@ -646,7 +649,7 @@ async def test_an_agent_the_configuration_no_longer_has_is_called_the_assistant(
     await after.fail_turn("vega", sent["session_id"], turn)
     [failed] = error_frames(frames)
     assert failed["message"] == (
-        "El asistente terminó el turno sin una respuesta final; no se repetirá"
+        "The assistant finished the turn without a final response; it will not be repeated"
     )
 
 
@@ -693,10 +696,10 @@ async def test_a_resume_in_progress_names_the_agent_loading_the_history(environm
     with pytest.raises(HubError):
         await loading
     assert same.value.code == other.value.code == "session_resume_in_progress"
-    assert same.value.message.startswith(
-        "Vega sigue cargando el historial de esta conversación; espera"
+    assert same.value.message.startswith("Vega is still loading this conversation's history; wait")
+    assert other.value.message.startswith(
+        "Vega is already loading another history on this device; "
     )
-    assert other.value.message.startswith("Vega ya carga otro historial en este dispositivo; ")
 
 
 class LosingConnection(TwoWayConnection):
@@ -731,7 +734,7 @@ async def test_a_connection_lost_while_resuming_names_the_agent(environment):
         )
     assert lost.value.code == "session_resume_connection_lost"
     assert lost.value.message == (
-        "Se perdió la conexión con Vega durante la reanudación; no se envió el mensaje"
+        "The connection was lost with Vega while resuming; the message was not sent"
     )
 
 

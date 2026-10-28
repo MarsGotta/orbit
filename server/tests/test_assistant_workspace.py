@@ -51,7 +51,7 @@ def test_workspace_is_stored_and_used(official, tmp_path):
 @pytest.mark.parametrize(
     "bad", ["relative", "missing", "file", "data", "parent", "other", "symlink"]
 )
-def test_bad_workspace_is_refused_in_spanish(official, tmp_path, bad):
+def test_bad_workspace_has_a_cause_code_and_english_compatibility_message(official, tmp_path, bad):
     _, settings, _, _, headers, client = official
     file = tmp_path / "document.txt"
     file.write_text("fixture")
@@ -74,7 +74,8 @@ def test_bad_workspace_is_refused_in_spanish(official, tmp_path, bad):
         )
     assert response.status_code == 400, response.text
     assert response.json()["code"] == "invalid_working_folder"
-    assert "carpeta" in response.json()["message"].lower()
+    assert "working folder" in response.json()["message"].lower()
+    assert response.json()["refusal"]["cause_code"].startswith("working_folder_")
 
 
 @pytest.mark.parametrize(
@@ -281,4 +282,4 @@ def test_workspace_cannot_replace_owner_or_hub_code(official, tmp_path, monkeypa
         )
     assert response.status_code == 400, response.text
     assert response.json()["code"] == "invalid_working_folder"
-    assert "carpeta de trabajo" in response.json()["message"]
+    assert "working folder" in response.json()["message"]

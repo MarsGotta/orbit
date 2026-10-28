@@ -88,7 +88,7 @@ impl Store {
                             row,
                             2,
                             MAX_PRIVATE_NOTES_BYTES + OVERHEAD,
-                            "Las notas privadas guardadas",
+                            "The stored private notes",
                         )?,
                     ))
                 },

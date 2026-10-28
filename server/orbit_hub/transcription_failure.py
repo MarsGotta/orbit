@@ -25,45 +25,45 @@ def from_provider(error: Exception, *, timeout_ms: int, connect_timeout_ms: int)
         status = error.response.status_code
         return HubError(
             "transcription_http_error",
-            f"El servicio de transcripción devolvió HTTP {status}",
+            f"The transcription service returned HTTP {status}",
             http_status=502,
             numbers={"provider_status": status},
         )
     if isinstance(error, httpx.ConnectTimeout):
         return HubError(
             "transcription_connection_timeout",
-            f"La conexión con el servicio de transcripción tardó más de {connect_timeout_ms} ms",
+            f"The transcription service connection took longer than {connect_timeout_ms} ms",
             http_status=504,
             numbers={"timeout_ms": connect_timeout_ms},
         )
     if isinstance(error, httpx.TimeoutException):
         return HubError(
             "transcription_timeout",
-            f"El servicio de transcripción tardó más de {timeout_ms} ms",
+            f"The transcription service took longer than {timeout_ms} ms",
             http_status=504,
             numbers={"timeout_ms": timeout_ms},
         )
     if isinstance(error, httpx.RemoteProtocolError):
         return HubError(
             "transcription_protocol_error",
-            "El servicio de transcripción cerró la respuesta sin completarla",
+            "The transcription service closed the response before completing it",
             http_status=502,
         )
     if isinstance(error, httpx.ConnectError):
         return HubError(
             "transcription_connection_error",
-            "No se pudo conectar con el servicio de transcripción",
+            "Could not connect to the transcription service",
             http_status=503,
         )
     if isinstance(error, (ValueError, TypeError)):
         return HubError(
             "transcription_invalid_response",
-            "El servicio de transcripción devolvió una respuesta inválida",
+            "The transcription service returned an invalid response",
             http_status=502,
         )
     return HubError(
         "transcription_provider_error",
-        "El servicio de transcripción falló antes de entregar una respuesta válida",
+        "The transcription service failed before delivering a valid response",
         http_status=502,
     )
 
@@ -123,7 +123,7 @@ def dictation_refusal(error: HubError, duration_ms: int) -> HubError | None:
         return None
     return HubError(
         "transcription_provider_refused",
-        f"El servicio de transcripción no aceptó {duration_ms} ms de audio (HTTP {status})",
+        f"The transcription service did not accept {duration_ms} ms of audio (HTTP {status})",
         http_status=502,
         numbers={"provider_status": status, "duration_ms": duration_ms},
     )

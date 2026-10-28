@@ -192,7 +192,7 @@ async def test_edits_need_the_current_revision(notes):
     with pytest.raises(HubError) as caught:
         worker.repository.edit(owner, identity, EditRequest(base_revision=1, title="Otro"), NOW)
     assert caught.value.code == "note_revision_changed"
-    assert "revisión 2" in caught.value.message and "de 1" in caught.value.message
+    assert "revision 2" in caught.value.message and "from 1" in caught.value.message
 
 
 async def test_regenerating_keeps_done_marks_and_sets_text_edits_aside(notes):

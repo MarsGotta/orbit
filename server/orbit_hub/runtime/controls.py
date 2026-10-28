@@ -21,7 +21,7 @@ class Controls:
         runtime = self.runtime
         async with runtime.conversations.controlling(params.session_id):
             if not runtime.store.devices.is_active(runtime.device):
-                raise HubError("revoked", "Dispositivo revocado")
+                raise HubError("revoked", "Device revoked")
             binding, connection = runtime.require_live(params.session_id)
             if method == "chat.interrupt":
                 return await self.interrupt(params, binding, connection)
@@ -50,21 +50,23 @@ class Controls:
         runtime = self.runtime
         pending = runtime.pending.get(params.request_id)
         if pending is None or pending[:2] != (params.session_id, kind):
-            raise HubError("interaction_not_found", "Solicitud ajena, desconocida o caducada")
+            raise HubError(
+                "interaction_not_found",
+                "Request belongs to another session, is unknown or has expired",
+            )
         if (
             kind == "approval"
             and params.turn_id is not None
             and params.turn_id != runtime.turn_ids.get(params.session_id)
         ):
-            raise HubError("stale_turn", "La respuesta no pertenece al turno actual")
+            raise HubError("stale_turn", "The response does not belong to the current turn")
         if kind == "approval":
             choices = pending[2].choices
             allowed = ("once", "deny") if choices is None else choices
             if params.answer() not in allowed:
                 raise HubError(
                     "approval_not_allowed",
-                    f"El agente no ofrece «{params.answer()[:64]}» en esta petición; "
-                    f"ofrece {len(allowed)}: {', '.join(choice[:64] for choice in allowed[:8])}",
+                    f"The agent does not offer «{params.answer()[:64]}» in this request; it offers {len(allowed)}: {', '.join(choice[:64] for choice in allowed[:8])}",
                 )
         return pending
 

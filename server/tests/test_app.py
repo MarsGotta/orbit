@@ -118,7 +118,7 @@ async def test_interaction_cannot_cross_session_or_device(environment):
     runtime.pending["request"] = (
         first["session_id"],
         "approval",
-        PermissionRequest("request", "Hermes solicita autorización", ("once", "deny")),
+        PermissionRequest("request", "Hermes requests authorization", ("once", "deny")),
     )
     with pytest.raises(HubError) as error:
         await runtime.handle(

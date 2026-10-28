@@ -91,8 +91,7 @@ class OrbitTools(AbstractToolset[None]):
             await self.stop()
             raise HubError(
                 "assistant_tools_unavailable",
-                f"orbit-mcp no arrancó en {TOOLS_START_TIMEOUT_SECONDS * 1000} ms; "
-                "el asistente no tiene las herramientas de Orbit",
+                f"orbit-mcp did not start within {TOOLS_START_TIMEOUT_SECONDS * 1000} ms; the assistant has no Orbit tools",
                 numbers={"timeout_ms": TOOLS_START_TIMEOUT_SECONDS * 1000},
             ) from None
         except Exception as exc:
@@ -100,8 +99,7 @@ class OrbitTools(AbstractToolset[None]):
             report(event="orbit_tools_start_failed", code="assistant_tools_unavailable")
             raise HubError(
                 "assistant_tools_unavailable",
-                "orbit-mcp terminó al arrancar (su causa queda en el registro del hub); "
-                "el asistente no tiene las herramientas de Orbit",
+                "orbit-mcp exited during startup (the cause stays in the hub log); the assistant has no Orbit tools",
             ) from exc
 
     async def _own(self, ready: asyncio.Future) -> None:
@@ -159,7 +157,7 @@ class OrbitTools(AbstractToolset[None]):
         session = self._session
         if session is None or not self.alive:
             raise ToolTransportFailed(
-                name, f"La herramienta {name} no se pudo usar: orbit-mcp ya no está en marcha"
+                name, f"Tool {name} could not be used: orbit-mcp is no longer running"
             )
         try:
             result = await session.call_tool(
@@ -170,22 +168,21 @@ class OrbitTools(AbstractToolset[None]):
                 milliseconds = round(TOOL_CALL_TIMEOUT_SECONDS * 1000)
                 raise ToolTransportFailed(
                     name,
-                    f"La herramienta {name} no contestó en {milliseconds} ms; su resultado es "
-                    "incierto y no se repetirá",
+                    f"Tool {name} did not respond within {milliseconds} ms; its outcome is uncertain and it will not be repeated",
                     {"timeout_ms": milliseconds},
                 ) from exc
             if exc.code == CONNECTION_CLOSED or not self.alive:
                 raise ToolTransportFailed(
-                    name, f"La herramienta {name} falló: orbit-mcp terminó durante la llamada"
+                    name, f"Tool {name} failed: orbit-mcp exited during the call"
                 ) from exc
             raise ToolTransportFailed(
                 name,
-                f"orbit-mcp rechazó la llamada a {name} (código {exc.code})",
+                f"orbit-mcp refused the call to {name} (code {exc.code})",
                 {"mcp_code": exc.code},
             ) from exc
         if not isinstance(result, CallToolResult):
             raise ToolTransportFailed(
-                name, f"La herramienta {name} pidió datos que este asistente no sabe dar"
+                name, f"Tool {name} requested data this assistant cannot provide"
             )
         parts: list[str | BinaryContent] = []
         for block in result.content:
@@ -197,8 +194,7 @@ class OrbitTools(AbstractToolset[None]):
                 )
             elif isinstance(block, ImageContent):
                 parts.append(
-                    "[Orbit: la imagen de esta herramienta no se envía porque este modelo no "
-                    "admite imágenes (images = false)]"
+                    "[Orbit: this tool image is omitted because this model does not support images (images = false)]"
                 )
         text_only = all(isinstance(part, str) for part in parts)
         if result.is_error:

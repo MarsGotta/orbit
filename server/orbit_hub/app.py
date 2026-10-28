@@ -36,7 +36,7 @@ def hub_version() -> str:
     try:
         return installed_version("orbit-hub")
     except PackageNotFoundError:
-        return "desconocida"
+        return "unknown"
 
 
 def create_app(

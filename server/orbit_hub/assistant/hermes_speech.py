@@ -88,7 +88,7 @@ class HermesSpeech:
                         # cut while it streams: `bytes` is what had arrived.
                         raise HubError(
                             "speech_too_large",
-                            "La respuesta de voz de Hermes supera el límite de 6 MiB",
+                            "The Hermes speech response exceeds the 6 MiB limit",
                             numbers={
                                 "bytes": len(body) + len(chunk),
                                 "max_bytes": MAX_SPEECH_RESPONSE_BYTES,
@@ -118,7 +118,7 @@ class HermesSpeech:
                 # The clip's size from its base64 length, before decoding it.
                 raise HubError(
                     "speech_too_large",
-                    "El clip de voz supera el límite de 4 MiB",
+                    "The speech clip exceeds the 4 MiB limit",
                     numbers={
                         "bytes": len(encoded) // 4 * 3 - (len(encoded) - len(encoded.rstrip("="))),
                         "max_bytes": MAX_SPEECH_CLIP_BYTES,
@@ -130,7 +130,7 @@ class HermesSpeech:
             if len(audio) > MAX_SPEECH_CLIP_BYTES:
                 raise HubError(
                     "speech_too_large",
-                    "El clip de voz supera el límite de 4 MiB",
+                    "The speech clip exceeds the 4 MiB limit",
                     numbers={"bytes": len(audio), "max_bytes": MAX_SPEECH_CLIP_BYTES},
                 )
             logger.info(
@@ -143,5 +143,5 @@ class HermesSpeech:
         except Exception as exc:
             report(event="hermes_speech_clip_failed", code="speech_unavailable")
             raise HubError(
-                "speech_unavailable", "Hermes no entregó el clip de voz configurado"
+                "speech_unavailable", "Hermes did not deliver the configured speech clip"
             ) from exc

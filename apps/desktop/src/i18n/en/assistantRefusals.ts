@@ -1,3 +1,4 @@
+import { adapterRefusal } from "./adapterRefusals";
 import { numberFormat } from "../locale";
 import { count, text, type Numbers } from "./refusalNumbers";
 
@@ -30,15 +31,7 @@ export const assistantRefusals: Record<string, (n: Numbers) => string | undefine
     "There must always be a primary assistant. Make another assistant primary first.",
   agent_add_unsupported: () =>
     "Add this type on your hub. Hermes is created from a Hermes profile.",
-  agent_adapter_missing: (n) => {
-    const service = text(n, "service");
-    if (service === undefined) return undefined;
-    const vendor = service === "claude-code" ? "Claude" : service === "codex" ? "Codex" : service;
-    const path = text(n, "path");
-    const cause = text(n, "cause");
-    const detail = path && cause ? `: ${path} (${cause})` : "";
-    return `${vendor} isn’t available on your hub${detail}. Redeploy the hub to install it.`;
-  },
+  agent_adapter_missing: adapterRefusal,
   too_many_agents: (n) => {
     const agents = count(n, "count");
     const max = count(n, "max");

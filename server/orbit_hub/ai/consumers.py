@@ -44,7 +44,7 @@ class FunctionSpeech:
     async def transcribe(self, audio):
         if self.fallback is None:
             raise HubError(
-                "speech_not_configured", "No hay escucha configurada para este asistente"
+                "speech_not_configured", "Listening is not configured for this assistant"
             )
         return await self.fallback.transcribe(audio)
 
@@ -52,9 +52,7 @@ class FunctionSpeech:
         provider = self.registry.selected("speech")
         if provider is None:
             if self.fallback is None:
-                raise HubError(
-                    "speech_not_configured", "Este asistente no tiene una voz configurada"
-                )
+                raise HubError("speech_not_configured", "This assistant has no configured voice")
             return await self.fallback.synthesize(text)
         # The voice name is the operator's when configured; otherwise OpenAI's
         # standard voice. Credentials remain in memory on the hub, never a file.
@@ -62,7 +60,7 @@ class FunctionSpeech:
             getattr(getattr(self.fallback, "settings", None), "speech", None), "voice", "alloy"
         )
         speech = SpeechSettings(api_root(provider["base_url"]), provider["model"], voice, None)
-        agent = SimpleNamespace(id="speech", name="Voz", settings=SimpleNamespace(speech=speech))
+        agent = SimpleNamespace(id="speech", name="Speech", settings=SimpleNamespace(speech=speech))
         return await OpenAISpeech(agent, None, credential=provider.get("api_key")).synthesize(text)
 
 
@@ -136,7 +134,7 @@ def assistant_model(registry, settings):
         selected["model"],
         provider=OpenAIProvider(
             base_url=api_root(selected["base_url"]),
-            api_key=selected.get("api_key") or "orbit-sin-clave",
+            api_key=selected.get("api_key") or "orbit-no-key",
         ),
     )
 

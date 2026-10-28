@@ -132,11 +132,11 @@ impl RecordingTracks {
             .as_ref()
             .is_some_and(|current| current != &id)
         {
-            bail!("Finaliza la grabación anterior antes de cambiar su identidad");
+            bail!("Finish the previous recording before changing its identity");
         }
         if self.capture_epoch_id != epoch {
             if self.has_unsealed() {
-                bail!("Sella el audio pendiente antes de cambiar la época de captura");
+                bail!("Seal pending audio before changing the capture epoch");
             }
             self.tracks.values_mut().for_each(Track::forget_producer);
         }
@@ -151,17 +151,17 @@ impl RecordingTracks {
     /// Calling this for every page uses constant memory (one cursor per track).
     pub fn restore_position(&mut self, metadata: &ChunkMetadata) -> Result<()> {
         if self.recording_id.as_deref() != Some(&metadata.recording_id) {
-            bail!("El fragmento pertenece a otra grabación");
+            bail!("The chunk belongs to another recording");
         }
         let track = self
             .tracks
             .entry(metadata.track.clone())
             .or_insert_with(|| Track::new(metadata.sample_rate, metadata.channels));
         if !track.pcm.is_empty() {
-            bail!("No se puede restaurar una pista mientras recibe audio");
+            bail!("Cannot restore a track while it receives audio");
         }
         if track.rate != metadata.sample_rate || track.channels != metadata.channels {
-            bail!("La pista guardada contiene formatos incompatibles");
+            bail!("The stored track contains incompatible formats");
         }
         track.sequence = track.sequence.max(
             metadata
@@ -187,7 +187,7 @@ impl RecordingTracks {
             .get(frame.source)
             .is_some_and(|track| track.rate != frame.rate || track.channels != frame.channels)
         {
-            bail!("Formato de pista cambiado; se descarta el fragmento");
+            bail!("Track format changed; the chunk is discarded");
         }
         Ok(())
     }
@@ -219,7 +219,7 @@ impl RecordingTracks {
         let recording_id = self
             .recording_id
             .clone()
-            .context("Identidad de grabación ausente")?;
+            .context("Recording identity missing")?;
         let epoch = self.capture_epoch_id.clone();
         let track = self
             .tracks

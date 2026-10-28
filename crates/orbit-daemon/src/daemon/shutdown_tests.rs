@@ -300,7 +300,7 @@ async fn bounded_exit_reports_the_passed_grace_and_detaches_a_stalled_writer() -
         runtime.state.durable.notice
     );
     let told = crate::daemon::turn::said::told(&runtime);
-    assert!(told.contains("sin confirmar tras 63 ms"), "{told}");
+    assert!(told.contains("unconfirmed after 63 ms"), "{told}");
     Ok(())
 }
 
@@ -317,13 +317,13 @@ async fn expired_shutdown_names_an_unfinished_close_without_inventing_a_disk_fau
         .err()
         .context("expired close was accepted")?
         .to_string();
-    assert!(refusal.contains("plazo"), "refusal: {refusal}");
+    assert!(refusal.contains("deadline"), "refusal: {refusal}");
     assert!(
-        refusal.contains("pendientes: snapshot: 1"),
+        refusal.contains("pending: snapshot: 1"),
         "refusal: {refusal}"
     );
     assert!(
-        !refusal.contains("almacenamiento"),
+        !refusal.contains("storage"),
         "the deadline alone cannot diagnose storage: {refusal}"
     );
     Ok(())

@@ -236,7 +236,7 @@ async fn a_hub_that_cannot_delete_leaves_everything_here_and_says_to_update_it()
         .err()
         .context("a hub that cannot delete took a delete")?;
     assert!(
-        format!("{refused:#}").contains("Actualiza el hub para borrar reuniones"),
+        format!("{refused:#}").contains("Update the hub to delete meetings"),
         "{refused:#}"
     );
     assert!(runtime.reader.note_orders()?.is_empty());
@@ -442,7 +442,7 @@ async fn a_hub_that_cannot_delete_refuses_ending_without_saving() -> Result<()> 
         .err()
         .context("a hub that cannot delete took a discard")?;
     assert!(
-        format!("{refused:#}").contains("Actualiza el hub"),
+        format!("{refused:#}").contains("Update the hub"),
         "{refused:#}"
     );
     let recording = runtime

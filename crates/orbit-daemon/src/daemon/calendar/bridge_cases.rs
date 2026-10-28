@@ -118,7 +118,7 @@ async fn full_hub_names_calendar_reply_capacity_without_success_notice() -> Resu
         mac.runtime.state.durable.notice
     );
     let told = said::told(&mac.runtime);
-    assert!(told.contains("64") && told.contains("lleno"), "{told}");
+    assert!(told.contains("64") && told.contains("full"), "{told}");
     assert_eq!(mac.frames.try_recv()?["fixture"], "occupied");
     Ok(())
 }
@@ -144,7 +144,7 @@ async fn retired_hub_names_calendar_reply_loss_without_success_row() -> Result<(
         mac.runtime.state.durable.notice
     );
     let told = said::told(&mac.runtime);
-    assert!(told.contains("retirada de autoridad"), "{told}");
+    assert!(told.contains("authority revocation"), "{told}");
     Ok(())
 }
 
@@ -218,7 +218,7 @@ async fn closing_answers_pending_calendar_read_with_disconnection() -> Result<()
     mac.runtime
         .close_for_exit(
             orbit_core::privacy_stop::StopCause::Shutdown,
-            "Orbit se está cerrando.",
+            "Orbit is closing.",
         )
         .await;
     let frame = mac.frames.try_recv().context("device.reply absent")?;

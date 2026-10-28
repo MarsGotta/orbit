@@ -408,15 +408,15 @@ fn fold_capture_failures(
     let capture_failure = match (flush_stopped, seal_retry) {
         (None, retry) => retry,
         (Some(error), None) => Some(error),
-        (Some(flush), Some(retry)) => Some(flush.context(format!(
-            "y el reintento de sellado también falló: {retry:#}"
-        ))),
+        (Some(flush), Some(retry)) => {
+            Some(flush.context(format!("and the seal retry also failed: {retry:#}")))
+        }
     };
     match (capture_failure, tail) {
         (None, outcome) => outcome,
         (Some(error), Ok(())) => Err(error),
         (Some(error), Err(tail)) => {
-            Err(error.context(format!("y el cierre en cola también falló: {tail:#}")))
+            Err(error.context(format!("and the queued closure also failed: {tail:#}")))
         }
     }
 }

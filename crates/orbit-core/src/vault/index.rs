@@ -21,9 +21,22 @@ wire! {
     }
 }
 wire! {
+    pub struct VaultDiagnostic {
+        pub code: String, pub field: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub value: Option<String>,
+        #[cfg_attr(feature = "ts", ts(type = "Record<string, number>"))]
+        pub numbers: BTreeMap<String, u64>,
+    }
+}
+wire! {
     pub struct VaultQuery {
         pub kind: String, pub lines: Vec<String>, pub warnings: Vec<String>,
         pub tasks: Vec<VaultTask>, pub total: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub diagnostics: Option<Vec<VaultDiagnostic>>,
     }
 }
 wire! {
@@ -60,6 +73,9 @@ wire! {
         pub path: String, pub body: String, pub folders: BTreeMap<String, String>,
         pub types: BTreeMap<String, VaultType>, pub fields: BTreeMap<String, String>,
         pub warnings: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub diagnostics: Option<Vec<VaultDiagnostic>>,
     }
 }
 wire! {

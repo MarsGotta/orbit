@@ -37,7 +37,7 @@ impl Store {
         }
         if bytes.len() > MAX_CHUNK_BYTES {
             return Err(Error::TooLarge {
-                what: "El fragmento de audio",
+                what: "Audio chunk",
                 bytes: bytes.len() as u64,
                 max_bytes: MAX_CHUNK_BYTES as u64,
             });
@@ -282,7 +282,7 @@ impl Store {
         // one scan call, not the total recoverable recording or store.
         if limit == 0 || limit > 100_000 {
             return Err(Error::CountOutOfRange {
-                what: "Número de entradas por paso de recuperación",
+                what: "Entries per recovery step",
                 count: limit,
                 min_count: 1,
                 max_count: 100_000,
@@ -433,7 +433,7 @@ impl Store {
         let bytes = file.metadata()?.len();
         if bytes > MAX_SEALED_CHUNK_BYTES as u64 {
             return Err(Error::TooLarge {
-                what: "El fragmento de audio cifrado",
+                what: "Encrypted audio chunk",
                 bytes,
                 max_bytes: MAX_SEALED_CHUNK_BYTES as u64,
             });
@@ -443,7 +443,7 @@ impl Store {
             .read_to_end(&mut sealed)?;
         if sealed.len() > MAX_SEALED_CHUNK_BYTES {
             return Err(Error::TooLarge {
-                what: "El fragmento de audio cifrado",
+                what: "Encrypted audio chunk",
                 bytes: sealed.len() as u64,
                 max_bytes: MAX_SEALED_CHUNK_BYTES as u64,
             });

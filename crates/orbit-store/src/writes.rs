@@ -14,7 +14,7 @@ pub(super) fn snapshot(connection: &Connection, cipher: &Cipher, bytes: &[u8]) -
         connection,
         "snapshot",
         MAX_PAYLOAD_BYTES + OVERHEAD,
-        "La instantánea guardada",
+        "The stored snapshot",
     )?;
     if let Some(previous) = previous
         && cipher.decrypt(b"orbit:snapshot:v1", &previous)? == bytes
@@ -46,7 +46,7 @@ pub(super) fn enqueue_job(connection: &Connection, cipher: &Cipher, job: &Job) -
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, i64>(2)?,
-                bounded_blob(row, 3, MAX_PAYLOAD_BYTES + OVERHEAD, "El trabajo guardado")?,
+                bounded_blob(row, 3, MAX_PAYLOAD_BYTES + OVERHEAD, "The stored job")?,
             ))
         })
         .optional()?;

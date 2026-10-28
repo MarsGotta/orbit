@@ -54,22 +54,20 @@ class ToolInteractions:
         if future is None or future.done():
             return PermissionReceipt(False)
         if choice not in {"once", "deny"}:
-            raise HubError(
-                "permission_choice_unavailable", "Esta petición ofrece una vez o denegar"
-            )
+            raise HubError("permission_choice_unavailable", "This request offers once or deny")
         future.set_result(choice)
         return PermissionReceipt(True)
 
     async def clarify(self, questions: list[dict]) -> dict[str, str]:
         self.admit()
         if not questions:
-            raise HubError("agent_protocol", "El agente pidió una aclaración sin preguntas")
+            raise HubError("agent_protocol", "The agent requested clarification without questions")
         # Orbit's interaction frame is 128 KiB. Eight short questions leave
         # room for choices and the envelope; this bounds a batch, not a turn.
         if len(questions) > 8:
             raise HubError(
                 "agent_protocol",
-                f"El agente pidió {len(questions)} aclaraciones; máximo 8",
+                f"The agent requested {len(questions)} clarifications; maximum 8",
                 numbers={"count": len(questions), "max": 8},
             )
         public = []
@@ -93,7 +91,7 @@ class ToolInteractions:
         ):
             raise HubError(
                 "agent_protocol",
-                "El agente envió ids de pregunta vacíos, repetidos o mayores de 160 caracteres",
+                "The agent sent empty, duplicate or over-160-character question IDs",
             )
         self.questions[request_id] = entry
         try:
@@ -112,7 +110,7 @@ class ToolInteractions:
         if count >= MAX_PENDING_INTERACTIONS:
             raise HubError(
                 "agent_protocol",
-                f"El agente tiene {count} preguntas pendientes; máximo {MAX_PENDING_INTERACTIONS}",
+                f"The agent has {count} pending questions; maximum {MAX_PENDING_INTERACTIONS}",
                 numbers={"count": count, "max": MAX_PENDING_INTERACTIONS},
             )
 
@@ -122,7 +120,7 @@ class ToolInteractions:
             return ClarificationReceipt("expired", ())
         qid = question_id or (entry.ids[0] if len(entry.ids) == 1 else None)
         if qid not in entry.ids or qid in entry.answers:
-            raise HubError("clarification_question_invalid", "Esa pregunta no está pendiente")
+            raise HubError("clarification_question_invalid", "That question is not pending")
         entry.answers[qid] = answer
         remaining = tuple(q for q in entry.ids if q not in entry.answers)
         if not remaining:

@@ -174,7 +174,7 @@ impl HubRequest {
                 id,
                 params: Box::new(typed(params, method)?),
             },
-            _ => return Err(format!("Método de hub no compatible: {method}")),
+            _ => return Err(format!("Unsupported hub method: {method}")),
         })
     }
 
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn reply_error_is_an_additive_wire_field() -> Result<(), String> {
         let error: ErrorData = serde_json::from_value(serde_json::json!({
-            "code":"device_reply_invalid", "message":"respuesta fuera de contrato",
+            "code":"device_reply_invalid", "message":"response violates the contract",
             "refusal":{"code":"device_reply_invalid","field":"result.windows",
                 "expected":"lista","device_version":"0.3.13","retry":{"kind":"check_outcome"}}
         }))

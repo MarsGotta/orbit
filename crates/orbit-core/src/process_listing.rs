@@ -24,7 +24,7 @@ pub const KILL_OBSERVATION_WAIT: Duration = Duration::from_millis(500);
 
 /// The timeout report of a census bounded by [`PS_LISTING_TIMEOUT`].
 pub fn ps_timeout_message(timeout: Duration) -> String {
-    format!("ps no respondió en {} ms", timeout.as_millis())
+    format!("ps did not respond within {} ms", timeout.as_millis())
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,26 +50,26 @@ pub enum EngineSweepReason {
 impl std::fmt::Display for EngineKeepReason {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ListenerNotListed => write!(f, "el proceso no aparece en el listado"),
+            Self::ListenerNotListed => write!(f, "the process is absent from the listing"),
             Self::DifferentUser { expected, found } => {
-                write!(f, "pertenece al usuario {found}, no a {expected}")
+                write!(f, "belongs to user {found}, not {expected}")
             }
             Self::DifferentExecutable { expected, found } => write!(
                 f,
-                "su ejecutable es {}, no {}",
+                "its executable is {}, not {}",
                 found.display(),
                 expected.display()
             ),
             Self::LiveDaemonAncestor { pid } => {
-                write!(f, "su daemon sigue vivo dentro de la app (PID {pid})")
+                write!(f, "its daemon is still alive inside the app (PID {pid})")
             }
             Self::IncompleteAncestry { pid, parent_pid } => write!(
                 f,
-                "el ancestro {parent_pid} de {pid} no aparece en el listado"
+                "ancestor {parent_pid} of {pid} is absent from the listing"
             ),
-            Self::CyclicAncestry { pid } => write!(f, "el ancestro {pid} forma un ciclo"),
+            Self::CyclicAncestry { pid } => write!(f, "ancestor {pid} forms a cycle"),
             Self::MissingBundleMember(member) => {
-                write!(f, "falta {} en el paquete", member.relative_path())
+                write!(f, "{} is missing from the bundle", member.relative_path())
             }
         }
     }

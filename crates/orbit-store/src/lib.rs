@@ -71,13 +71,13 @@ pub enum Error {
     #[error("secure random generation failed")]
     Random,
     /// A payload larger than its format permits: its bytes and the maximum.
-    #[error("{what} ocupa {bytes} bytes y el máximo es {max_bytes}")]
+    #[error("{what} is {bytes} bytes; the maximum is {max_bytes}")]
     TooLarge {
         what: &'static str,
         bytes: u64,
         max_bytes: u64,
     },
-    #[error("{what}: {count}; debe estar entre {min_count} y {max_count}")]
+    #[error("{what}: {count}; must be between {min_count} and {max_count}")]
     CountOutOfRange {
         what: &'static str,
         count: usize,
@@ -95,7 +95,7 @@ pub enum Error {
     #[error("a terminal job cannot return to a non-terminal state")]
     JobTransition,
     #[error(
-        "El almacén orbit.sqlite3 tiene el esquema {version}; esta apertura requiere un esquema entre {min_version} y {max_version}"
+        "The orbit.sqlite3 store uses schema {version}; this opening requires a schema between {min_version} and {max_version}"
     )]
     SchemaVersion {
         version: i64,

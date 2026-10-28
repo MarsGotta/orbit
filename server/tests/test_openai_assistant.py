@@ -259,8 +259,8 @@ def test_the_ceiling_leaves_out_the_oldest_messages_and_says_how_many(monkeypatc
     assert size == 20
     note, *kept = messages
     assert note.parts[0].content == (
-        "[Orbit · se dejaron fuera los 5 mensajes más antiguos de esta conversación: "
-        "el modelo recibe como mucho 49 caracteres de historial]"
+        "[Orbit · omitted the 5 oldest messages of this conversation: "
+        "the model receives at most 49 history characters]"
     )
     assert [part.content for message in kept for part in message.parts] == ["v" * 10, "b" * 10]
     # What was left out is no longer held: the next turn trims from here.
@@ -403,7 +403,7 @@ async def test_a_rate_limit_without_a_wait_says_so(environment, orbit_hub_for_to
     failed, _ = await failure_of(environment, orbit_hub_for_tools, refusal)
     assert failed.code == "assistant_rate_limited"
     assert failed.numbers == {"provider_status": 429}
-    assert "no dijo cuánto esperar" in failed.message
+    assert "did not say how long to wait" in failed.message
 
 
 async def test_an_exceeded_context_carries_the_tokens_the_provider_gave(
@@ -428,7 +428,7 @@ async def test_an_exceeded_context_carries_the_tokens_the_provider_gave(
         "max_tokens": 8192,
         "tokens": 9100,
     }
-    assert "9100 tokens de un máximo de 8192" in failed.message
+    assert "9100 tokens out of a maximum of 8192" in failed.message
 
 
 async def test_a_tool_that_never_answers_fails_the_turn_with_its_name(
@@ -451,7 +451,7 @@ async def test_a_tool_that_never_answers_fails_the_turn_with_its_name(
     assert isinstance(failed, TurnFailed), events
     assert failed.code == "assistant_tool_failed"
     assert "orbit_devices" in failed.message and "1000 ms" in failed.message
-    assert "no se repetirá" in failed.message
+    assert "will not be repeated" in failed.message
     assert failed.numbers == {"timeout_ms": 1000}
     assert len(provider.requests) == 1, "the model is not asked again after a lost tool call"
 
@@ -490,7 +490,7 @@ async def test_a_screenshot_reaches_the_model_only_if_it_reads_images(
     assert isinstance(events[-1], MessageComplete), events
     sent = json.dumps(provider.requests[1]["messages"], ensure_ascii=False)
     assert ("data:image/png;base64," in sent) is images
-    assert ("este modelo no admite imágenes" in sent) is not images
+    assert ("this model does not support images" in sent) is not images
 
 
 def items(events):
@@ -725,7 +725,7 @@ def test_an_attached_image_reaches_the_model_after_the_text_and_then_by_its_id(
     assert text["type"] == "text"
     assert "¿Qué ruta marca?" in text["text"]
     assert (
-        f"«mapa de la excursión.png» · imagen image/png · {len(PNG)} B · id {image}"
+        f"«mapa de la excursión.png» · image image/png · {len(PNG)} B · id {image}"
         in (text["text"])
     )
     assert picture == {
@@ -739,8 +739,7 @@ def test_an_attached_image_reaches_the_model_after_the_text_and_then_by_its_id(
     held = provider.requests[1]["messages"][1]
     assert held["role"] == "user"
     assert (
-        f"[Orbit · la imagen «mapa de la excursión.png» (adjunto {image}) iba en este "
-        "mensaje y no se vuelve a enviar; para verla otra vez, orbit_attachment con ese id]"
+        f"[Orbit · image «mapa de la excursión.png» (adjunto {image}) was included in this message and is not resent; to view it again use orbit_attachment with that ID]"
     ) in held["content"]
 
 
@@ -756,10 +755,10 @@ def test_without_images_an_image_is_named_as_one_the_agent_cannot_see(
     assert frames[-1]["event"] == "chat.completed", frames[-1]
     content = provider.requests[0]["messages"][-1]["content"]
     assert isinstance(content, str), "no image part goes to a model without images"
-    assert f"«foto.png» · imagen image/png · {len(PNG)} B · id {image}: " in content
+    assert f"«foto.png» · image image/png · {len(PNG)} B · id {image}: " in content
     # orbit_attachment would hand it a note in place of the image: not sent there.
     assert "míralo con orbit_attachment" not in content
-    assert "no puede verla" in content
+    assert "it cannot view it" in content
 
 
 def test_an_image_the_provider_refuses_fails_the_turn_naming_the_file(

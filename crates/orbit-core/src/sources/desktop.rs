@@ -55,7 +55,7 @@ impl DesktopScale {
     /// What Deimos is told with the image, in plain words.
     pub fn describe(&self) -> String {
         format!(
-            "Esta imagen mide {} × {} píxeles y muestra la pantalla entera, que mide {} × {}. Las coordenadas de una acción de escritorio se dan sobre esta imagen, de 0 a {} en horizontal y de 0 a {} en vertical; Orbit las lleva a la pantalla.",
+            "This image is {} × {} pixels and shows the entire screen, which is {} × {}. Desktop action coordinates use this image, from 0 to {} horizontally and 0 to {} vertically; Orbit maps them to the screen.",
             self.image_width,
             self.image_height,
             self.screen_width,
@@ -260,7 +260,7 @@ fn header(png: &[u8]) -> Result<(u32, u32), DesktopFitError> {
         .read_header_info()
         .map_err(|error| DesktopFitError::Unreadable(error.to_string()))?;
     if info.width == 0 || info.height == 0 {
-        return Err(DesktopFitError::Unreadable("mide 0 píxeles".into()));
+        return Err(DesktopFitError::Unreadable("is 0 pixels".into()));
     }
     Ok((info.width, info.height))
 }
@@ -307,14 +307,13 @@ fn downscale(
     let mut out = Vec::with_capacity(image_width * image_height * 3);
     let mut current = 0_usize;
     for y in 0..height {
-        let row = reader
-            .next_row()
-            .map_err(unreadable)?
-            .ok_or_else(|| DesktopFitError::Unreadable(format!("le faltan filas desde la {y}")))?;
+        let row = reader.next_row().map_err(unreadable)?.ok_or_else(|| {
+            DesktopFitError::Unreadable(format!("rows are missing starting at {y}"))
+        })?;
         let data = row.data();
         if data.len() < width * channels {
             return Err(DesktopFitError::Unreadable(format!(
-                "la fila {y} está incompleta"
+                "row {y} is incomplete"
             )));
         }
         let target = y * image_height / height;

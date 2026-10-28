@@ -155,14 +155,14 @@ def text(value: str, field: str, maximum: int) -> str:
     if size > maximum:
         raise HubError(
             "dictionary_text_too_long",
-            f"El campo {field} tiene {size} caracteres; el máximo es {maximum}",
+            f"Field {field} has {size} characters; the maximum is {maximum}",
             http_status=413,
             numbers={"characters": size, "max_characters": maximum, "field": field},
         )
     if not value.strip() or any(not c.isprintable() for c in value):
         raise HubError(
             "dictionary_text_invalid",
-            f"El campo {field} está vacío o contiene controles",
+            f"Field {field} is empty or contains control characters",
             numbers={"characters": size, "field": field},
         )
     return value.strip()
@@ -172,7 +172,7 @@ def identifier(value: str) -> str:
     try:
         return canonical_uuid(value)
     except ValueError:
-        raise HubError("invalid_dictionary_id", "Identificador de diccionario no válido") from None
+        raise HubError("invalid_dictionary_id", "Invalid dictionary identifier") from None
 
 
 def named_ids(order, *, required: bool, code: str = "invalid_dictionary_order") -> list[str]:
@@ -186,12 +186,12 @@ def named_ids(order, *, required: bool, code: str = "invalid_dictionary_order") 
     if several is not None and single is not None:
         raise HubError(
             code,
-            "La orden trae dictionary_id y dictionary_ids; se envía uno de los dos",
+            "The command supplies dictionary_id and dictionary_ids; send only one",
             numbers={"field": "dictionary_ids"},
         )
     if several is None and "dictionary_id" not in order.model_fields_set:
         raise HubError(
-            code, "Falta el diccionario: dictionary_id", numbers={"field": "dictionary_id"}
+            code, "Dictionary missing: dictionary_id", numbers={"field": "dictionary_id"}
         )
     ids = several if several is not None else [] if single is None else [single]
     # A device has at most MAX_DICTIONARIES, so a longer list names one twice
@@ -199,13 +199,11 @@ def named_ids(order, *, required: bool, code: str = "invalid_dictionary_order") 
     if len(ids) > MAX_DICTIONARIES:
         raise HubError(
             code,
-            f"La orden nombra {len(ids)} diccionarios; el máximo es {MAX_DICTIONARIES}",
+            f"The command names {len(ids)} dictionaries; the maximum is {MAX_DICTIONARIES}",
             numbers={"field": "dictionary_ids", "ids": len(ids), "max_ids": MAX_DICTIONARIES},
         )
     if required and not ids:
-        raise HubError(
-            code, "La orden no nombra ningún diccionario", numbers={"field": "dictionary_ids"}
-        )
+        raise HubError(code, "The command names no dictionary", numbers={"field": "dictionary_ids"})
     return list(dict.fromkeys(identifier(value) for value in ids))
 
 
@@ -221,7 +219,7 @@ def existing(dictionaries: list[dict], ids: list[str]) -> list[dict]:
     """The dictionaries with these ids, in the device's order; all of them, or a refusal."""
     known = {d["id"] for d in dictionaries}
     if any(identity not in known for identity in ids):
-        raise HubError("dictionary_not_found", "El diccionario no existe", http_status=404)
+        raise HubError("dictionary_not_found", "The dictionary does not exist", http_status=404)
     return [d for d in dictionaries if d["id"] in ids]
 
 
@@ -355,7 +353,7 @@ def created(dictionaries: list[dict], identity: str, name: str) -> dict:
     if len(dictionaries) >= MAX_DICTIONARIES:
         raise HubError(
             "dictionaries_full",
-            f"Hay {len(dictionaries)} diccionarios; el máximo es {MAX_DICTIONARIES}",
+            f"There are {len(dictionaries)} dictionaries; the maximum is {MAX_DICTIONARIES}",
             http_status=409,
             numbers={"dictionaries": len(dictionaries), "max_dictionaries": MAX_DICTIONARIES},
         )
@@ -373,7 +371,7 @@ def add_correction(dictionary: dict, wrong: str, right: str) -> None:
         if len(dictionary["terms"]) >= MAX_TERMS:
             raise HubError(
                 "dictionary_full",
-                f"Hay {len(dictionary['terms'])} términos; el máximo es {MAX_TERMS}",
+                f"There are {len(dictionary['terms'])} terms; the maximum is {MAX_TERMS}",
                 http_status=409,
                 numbers={
                     "terms": len(dictionary["terms"]),
@@ -386,7 +384,7 @@ def add_correction(dictionary: dict, wrong: str, right: str) -> None:
     if len(forms) >= MAX_FORMS:
         raise HubError(
             "dictionary_forms_full",
-            f"Hay {len(forms)} formas equivocadas; el máximo es {MAX_FORMS}",
+            f"There are {len(forms)} incorrect forms; the maximum is {MAX_FORMS}",
             http_status=409,
             numbers={
                 "forms": len(forms),
@@ -490,7 +488,7 @@ def select(store, db, device: str, dictionaries: list[dict], order: Select) -> d
         if series is None:
             raise HubError(
                 "dictionary_series_missing",
-                "La reunión no tiene serie de calendario",
+                "The meeting has no calendar series",
                 http_status=409,
             )
         assign_series(dictionaries, chosen, series)
@@ -510,7 +508,7 @@ def correct(store, db, device: str, dictionaries: list[dict], order: Correct) ->
     known = {d["id"] for d in dictionaries}
     missing = [identity for identity in ids if identity not in known]
     if missing and order.name is None:
-        raise HubError("dictionary_not_found", "El diccionario no existe", http_status=404)
+        raise HubError("dictionary_not_found", "The dictionary does not exist", http_status=404)
     if missing:
         name = text(order.name, "name", MAX_NAME_CHARS)
         for identity in missing:
@@ -548,7 +546,7 @@ def assign_series(dictionaries: list[dict], chosen: list[dict], series: dict) ->
     if count > MAX_SERIES:
         raise HubError(
             "dictionary_series_full",
-            f"Hay {count} series; el máximo es {MAX_SERIES}",
+            f"There are {count} series; the maximum is {MAX_SERIES}",
             http_status=409,
             numbers={"series": count, "max_series": MAX_SERIES},
         )
@@ -562,7 +560,7 @@ def save_all(store, db, device: str, dictionaries: list[dict]) -> None:
     if len(encoded) > MAX_LIST_BYTES:
         raise HubError(
             "dictionaries_too_large",
-            f"La lista ocupa {len(encoded)} bytes; el máximo es {MAX_LIST_BYTES}",
+            f"The list is {len(encoded)} bytes; the maximum is {MAX_LIST_BYTES}",
             http_status=413,
             numbers={"bytes": len(encoded), "max_bytes": MAX_LIST_BYTES},
         )
@@ -571,7 +569,7 @@ def save_all(store, db, device: str, dictionaries: list[dict]) -> None:
         if size > MAX_DICTIONARY_BYTES:
             raise HubError(
                 "dictionary_too_large",
-                f"El diccionario ocupa {size} bytes; el máximo es {MAX_DICTIONARY_BYTES}",
+                f"The dictionary is {size} bytes; the maximum is {MAX_DICTIONARY_BYTES}",
                 http_status=413,
                 numbers={
                     "bytes": size,
@@ -588,7 +586,7 @@ def save_all(store, db, device: str, dictionaries: list[dict]) -> None:
         if len(owners) > 1:
             raise HubError(
                 "dictionary_id_ambiguous",
-                "Hay dos diccionarios con el mismo identificador",
+                "Two dictionaries have the same identifier",
                 http_status=409,
                 numbers={"matches_at_least": len(owners)},
             )

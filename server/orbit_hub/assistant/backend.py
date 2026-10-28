@@ -261,6 +261,7 @@ class ActivityItem:
     text: str = ""
     steps: tuple[PlanStep, ...] = ()
     cause: str | None = None
+    cause_code: str | None = None
 
 
 @dataclass(frozen=True)

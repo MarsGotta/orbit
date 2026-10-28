@@ -24,11 +24,7 @@ export async function callAgent(port: AgentPort | undefined, call: AgentCall): P
     if (outcome.outcome === "failed")
       return { ok: false, text: getCopy().extras.agentFailureText(outcome.refusal) };
     return { ok: true, outcome };
-  } catch (error: unknown) {
-    const text =
-      typeof error === "object" && error !== null && "message" in error
-        ? String(error.message)
-        : String(error);
-    return { ok: false, text };
+  } catch {
+    return { ok: false, text: getCopy().extras.agentFailureText({ code: "transport" }) };
   }
 }

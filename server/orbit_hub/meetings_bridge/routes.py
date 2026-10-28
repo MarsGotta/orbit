@@ -9,9 +9,9 @@ from .models import ATTACHMENT_PATH, LIST_PATH, NOTE_PATH, REQUEST_BYTES, TRANSC
 
 def failure(exc):
     message = (
-        "Solicitud fuera de contrato"
+        "Request violates the contract"
         if exc.code == "invalid_request"
-        else "No se pudo completar la petición"
+        else "Could not complete the request"
     )
     return json_response(render(exc.code, message, numbers=exc.numbers), exc.status)
 

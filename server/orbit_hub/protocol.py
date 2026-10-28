@@ -149,8 +149,7 @@ class ApprovalParams(SessionParams):
         if self.choice is not None and (self.choice == "deny") == self.approved:
             raise HubError(
                 "approval_choice_mismatch",
-                f"La opción «{self.choice[:64]}» contradice approved="
-                f"{str(self.approved).lower()}; sólo «deny» rechaza",
+                f"Choice «{self.choice[:64]}» contradice approved={str(self.approved).lower()}; only «deny» rejects",
             )
         return self
 
@@ -197,7 +196,7 @@ class DeviceReplyParams(StrictModel):
     @classmethod
     def current_envelope(cls, data):
         if isinstance(data, dict) and ("refused" in data or "code" in data):
-            raise ValueError("La forma antigua refused + code ya no se admite")
+            raise ValueError("The old refused + code shape is no longer supported")
         return data
 
     @model_validator(mode="after")

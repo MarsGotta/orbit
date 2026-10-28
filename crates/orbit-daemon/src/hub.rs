@@ -62,7 +62,7 @@ const VOICE_HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(250);
 const _: () = assert!(VOICE_HUB_HTTP_TIMEOUT.as_secs() == HUB_VOICE_DEADLINE_SECONDS + 10);
 
 #[derive(Debug, thiserror::Error)]
-#[error("La respuesta HTTP mide {bytes} bytes y el máximo es {max_bytes}")]
+#[error("The HTTP response is {bytes} bytes; the maximum is {max_bytes}")]
 pub(crate) struct HubBodyTooLarge {
     pub bytes: u64,
     pub max_bytes: u64,
@@ -118,7 +118,7 @@ fn client() -> Result<&'static reqwest::Client> {
                 .build()
         })
         .as_ref()
-        .map_err(|error| anyhow::anyhow!("No se pudo preparar el cliente HTTP: {error}"))
+        .map_err(|error| anyhow::anyhow!("Could not prepare the HTTP client: {error}"))
 }
 
 pub(crate) fn request(
@@ -141,7 +141,7 @@ pub(crate) fn request(
 pub(crate) enum BodyError {
     #[error(transparent)]
     TooLarge(#[from] HubBodyTooLarge),
-    #[error("La respuesta del hub se cortó tras {received_bytes} bytes: {source}")]
+    #[error("The hub response was cut after {received_bytes} bytes: {source}")]
     Cut {
         received_bytes: usize,
         source: reqwest::Error,
@@ -273,10 +273,7 @@ pub async fn pair(
     op: &Op,
 ) -> Result<(String, String)> {
     let base = validate_hub_url(
-        settings
-            .hub_url
-            .as_deref()
-            .context("Falta la URL del hub")?,
+        settings.hub_url.as_deref().context("Hub URL missing")?,
         development,
     )?;
     let response = request(reqwest::Method::POST, base.join("v1/pair")?, None, op)?
@@ -284,13 +281,10 @@ pub async fn pair(
         .send()
         .await?;
     if !response.status().is_success() {
-        bail!(
-            "El hub rechazó el código de emparejamiento ({})",
-            response.status()
-        );
+        bail!("The hub rejected the pairing code ({})", response.status());
     }
     let value: PairResponse = serde_json::from_value(bounded_json(response).await?)
-        .context("Respuesta de emparejamiento fuera de contrato")?;
+        .context("Pairing response violates the contract")?;
     Ok((value.device_id, value.token))
 }
 

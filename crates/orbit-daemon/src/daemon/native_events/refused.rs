@@ -48,7 +48,7 @@ impl Runtime {
                     orbit_core::privacy_stop::StopCause::HelperIntegrityFailure,
                     &detail,
                     &format!(
-                        "El Mac no pudo garantizar el audio ({command_kind}: {detail}). {message}"
+                        "The Mac could not guarantee audio ({command_kind}: {detail}). {message}"
                     ),
                 )
                 .await;

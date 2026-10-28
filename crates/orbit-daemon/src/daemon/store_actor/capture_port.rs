@@ -38,7 +38,7 @@ pub(in crate::daemon) struct CapturePort {
 }
 
 fn stopped() -> anyhow::Error {
-    anyhow::anyhow!("El actor de almacenamiento se detuvo")
+    anyhow::anyhow!("The storage actor stopped")
 }
 
 impl CapturePort {

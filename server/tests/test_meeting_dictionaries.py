@@ -247,7 +247,7 @@ async def test_note_gets_terms_and_an_existing_note_stays_until_rewritten(enviro
     assert before.repository.document(owner["device_id"], recording)["note"] == old
     after = await write_note(store, owner["device_id"], recording)
     prompt = json.dumps(after.client.calls[0]["messages"], ensure_ascii=False)
-    assert "Términos del diccionario" in prompt and "LedgerBox" in prompt
+    assert "Dictionary terms" in prompt and "LedgerBox" in prompt
 
 
 def test_bounds_ownership_encryption_and_no_terms_in_logs(environment, caplog):

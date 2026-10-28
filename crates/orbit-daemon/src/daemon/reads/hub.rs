@@ -234,7 +234,7 @@ async fn held_voice_audio(
     .await
     .map_err(|error| Refusal::StorageFailed {
         operation: Operation::Storage,
-        cause: Some(format!("La lectura local terminó sin respuesta: {error}").into()),
+        cause: Some(format!("The local read ended without a response: {error}").into()),
     })
 }
 

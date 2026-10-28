@@ -26,7 +26,7 @@ export const dictionary = {
     seeAll: (count: number) => `View ${numberFormat().format(count)} words`,
     removeEntry: "Remove",
     remove: (term: string) => `Remove ${term}`,
-    refused: (code: string, detail: string, numbers: Record<string, number>) => {
+    refused: (code: string, _detail: string, numbers: Record<string, number>) => {
       const causes: Record<string, string> = {
         not_paired: "Orbit isn’t paired with the hub",
         privacy_stopped: "Everything is stopped",
@@ -62,7 +62,7 @@ export const dictionary = {
       const values = Object.entries(numbers)
         .map(([key, value]) => `${labels[key] ?? key}: ${numberFormat().format(value)}`)
         .join(", ");
-      return `${causes[code] ?? detail}${values ? ` (${values})` : ""}.`;
+      return `${(Object.hasOwn(causes, code) ? causes[code] : undefined) ?? `Orbit does not recognise this code: ${code}`}${values ? ` (${values})` : ""}.`;
     },
   },
 } as const;

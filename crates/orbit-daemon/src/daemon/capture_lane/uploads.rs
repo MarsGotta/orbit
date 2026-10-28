@@ -170,10 +170,10 @@ async fn next_job(
         *cursor = Some(job.id.clone());
         let chunk_id = job.payload["metadata"]["id"]
             .as_str()
-            .context("Trabajo sin chunk_id")?;
+            .context("Job has no chunk_id")?;
         let receipt = reader
             .chunk_receipt(chunk_id)?
-            .context("Fragmento pendiente sin recibo local")?;
+            .context("Pending chunk has no local receipt")?;
         let forbidden = reader
             .get_job(&format!("recording-{}", receipt.metadata.recording_id))?
             .is_some_and(|manifest| {
@@ -234,8 +234,8 @@ impl Transfer {
         let chunk = receipt.metadata.id.clone();
         let bytes =
             blocking_read(&self.reader, move |reader| Ok(reader.read_chunk(&chunk)?)).await?;
-        let token = self.view.token.clone().context("Sin credencial")?;
-        let hub = self.view.hub_url.as_deref().context("Sin hub")?;
+        let token = self.view.token.clone().context("No credential")?;
+        let hub = self.view.hub_url.as_deref().context("No hub")?;
         let base = crate::config::validate_hub_url(hub, self.view.development)?;
         let running = job_id.clone();
         self.port
@@ -266,7 +266,7 @@ impl Transfer {
         let read = job_id.clone();
         let stored = blocking_read(&self.reader, move |reader| Ok(reader.get_job(&read)?))
             .await?
-            .context("Recibo sin trabajo local")?;
+            .context("Receipt has no local job")?;
         let settlement = upload_outcome::settle(&stored, &result);
         if settlement.out_of_space {
             self.gate.hold(HUB_FULL_RETRY, now);
@@ -287,7 +287,7 @@ impl Transfer {
             })?
             .wait()
             .await
-            .with_context(|| format!("No se pudo guardar el resultado de subida {job_id}"));
+            .with_context(|| format!("Could not save upload outcome {job_id}"));
         if let Err(error) = saved {
             return Ok(UploadReport::NotSaved(format!("{error:#}")));
         }

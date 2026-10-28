@@ -1,3 +1,4 @@
+import { refusalResource } from "./refusalResources";
 import { formatQuantity } from "../locale";
 import { interrupted, calendarLimit, daemonReply } from "./readRefusals";
 import { numberFormat } from "../locale";
@@ -142,8 +143,16 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   revision_changed: failed,
   storage_failed: failed,
   timeout: failed,
-  too_large: failed,
-  too_many: failed,
+  too_large: {
+    class: "failed",
+    text: (r) =>
+      `Resource ${refusalResource(r.resource)} is ${formatQuantity(r.bytes)} bytes; the maximum is ${formatQuantity(r.max_bytes)}.`,
+  },
+  too_many: {
+    class: "failed",
+    text: (r) =>
+      `There are ${formatQuantity(r.count)} items of ${refusalResource(r.resource)}; the maximum is ${formatQuantity(r.max)}.`,
+  },
   update: failed,
   upstream_failed: failed,
   work_expired: failed,

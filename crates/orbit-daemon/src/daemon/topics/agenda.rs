@@ -246,7 +246,7 @@ mod tests {
         runtime
             .native_event(
                 serde_json::json!({"event":"response","id":refused["id"],"ok":false,
-                "error":{"code":"calendar_not_editable","message":"sólo lectura",
+                "error":{"code":"calendar_not_editable","message":"read only",
                     "detail":{"reason":"calendar_read_only","calendar_id":"calendar-0002"}}}),
             )
             .await?;
@@ -290,7 +290,7 @@ mod tests {
             runtime
                 .native_event(
                     serde_json::json!({"event":"response","id":save["id"],"ok":false,
-                    "error":{"code":"calendar_not_editable","message":"sólo lectura",
+                    "error":{"code":"calendar_not_editable","message":"read only",
                         "detail":{"reason":"calendar_read_only",
                             "calendar_id":format!("calendar-{}", "c".repeat(120))}}}),
                 )

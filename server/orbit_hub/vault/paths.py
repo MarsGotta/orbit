@@ -29,10 +29,10 @@ def checked(path, *, folder=False):
     ):
         raise refusal(
             "vault_path_refused",
-            "La ruta debe estar dentro del vault, sin archivos ocultos ni enlaces simbólicos.",
+            "The path must stay inside the vault, without hidden files or symbolic links.",
         )
     if not folder and not path.lower().endswith(".md"):
-        raise refusal("vault_not_markdown", "Solo se pueden leer notas Markdown (.md).")
+        raise refusal("vault_not_markdown", "Only Markdown notes (.md) can be read.")
     return path
 
 

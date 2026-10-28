@@ -1,3 +1,4 @@
+import { VaultWarnings } from "./VaultWarnings";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
@@ -101,11 +102,7 @@ function ReadNote({
             <p className={styles.description}>{note.properties.description}</p>
           )}
           <NoteProperties note={note} notes={catalog.notes} fieldNames={catalog.schema.fields} />
-          {note.schema_warnings.map((warning) => (
-            <p role="alert" key={warning}>
-              {warning}
-            </p>
-          ))}
+          <VaultWarnings warnings={note.schema_warnings} diagnostics={note.schema_diagnostics} />
           {markdown ? (
             <RawNote note={note} />
           ) : (

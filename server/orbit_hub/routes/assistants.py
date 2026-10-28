@@ -108,7 +108,7 @@ def mount(
         if sent.service not in SERVICE_NAMES:
             raise HubError(
                 "agent_add_unsupported",
-                "Este tipo se añade en tu hub; Hermes se crea a partir de un perfil de Hermes",
+                "This type is added on your hub; Hermes is created from a Hermes profile",
                 http_status=403,
                 numbers={"service": sent.service},
             )
@@ -155,7 +155,7 @@ def _mount_sign_in(app, agents: Agents, runtimes: dict, sign_ins, identity, boun
     @app.post("/v1/agents/{agent_id}/sign-in/code")
     async def sign_in_code(agent_id: str, request: Request):
         identity(request)
-        sent = _body(PastedCode, await bounded_body(request, BODY_BYTES), "Código")
+        sent = _body(PastedCode, await bounded_body(request, BODY_BYTES), "Code")
         return JSONResponse(await sign_ins.submit_code(agents.get(agent_id).id, sent.code))
 
     @app.delete("/v1/agents/{agent_id}/sign-in")
@@ -191,8 +191,7 @@ def remove_folder(parent, agent_id: str) -> None:
         report("agent_folder_not_removed", "agent_folder_not_removed", exc_info=False)
         raise HubError(
             "agent_folder_not_removed",
-            f"No se pudo borrar la carpeta del asistente en el hub ({exc.strerror}); "
-            "sigue en la lista. Pídeselo a quien gestiona tu hub",
+            f"Could not delete the assistant folder on the hub ({exc.strerror}); it remains listed. Ask whoever runs your hub",
             http_status=500,
             numbers={"agent_id": agent_id, "errno": exc.errno or 0},
         ) from None

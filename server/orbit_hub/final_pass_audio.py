@@ -38,13 +38,13 @@ def ffmpeg(arguments, descriptors, capture_stderr=False):
     except subprocess.TimeoutExpired as exc:
         raise HubError(
             "final_audio_timeout",
-            "La conversión de audio agotó su plazo",
+            "Audio conversion exceeded its deadline",
             numbers={"timeout_ms": REQUEST_TIMEOUT_SECONDS * 1000},
         ) from exc
     except (OSError, subprocess.CalledProcessError) as exc:
         raise HubError(
             "final_audio_conversion_failed",
-            "No se pudo convertir el audio",
+            "Could not convert the audio",
             numbers={
                 "exit_status": getattr(exc, "returncode", 0),
                 "errno": getattr(exc, "errno", 0) or 0,
@@ -89,7 +89,7 @@ def prepare_track(repo, job, track, target):
                         if not began <= wall <= manifest["finalized_at_ms"]:
                             raise HubError(
                                 "final_audio_time_out_of_range",
-                                "El inicio del fragmento queda fuera de la grabación",
+                                "The chunk starts outside the recording",
                                 numbers={
                                     "started_at_ms": wall,
                                     "recording_start_ms": began,
@@ -160,7 +160,7 @@ def encode_window(pcm):
         if len(audio) > MAX_AUDIO_BYTES:
             raise HubError(
                 "final_window_too_large",
-                "La ventana Opus supera el límite de Whisper",
+                "The Opus window exceeds the Whisper limit",
                 numbers={"bytes": len(audio), "max_bytes": MAX_AUDIO_BYTES},
             )
         return audio

@@ -35,7 +35,7 @@ def mount(app, store, identity, bounded_body, store_executor, now, captures):
         device = identity(request)
         name, body = await read_upload(request, bounded_body)
         if not store.devices.is_active(device):
-            raise HubError("revoked", "Dispositivo revocado")
+            raise HubError("revoked", "Device revoked")
         attachment = await in_store(
             store_executor, store.attachments.put, device, name, body, round(now() * 1000)
         )
@@ -55,14 +55,14 @@ def mount(app, store, identity, bounded_body, store_executor, now, captures):
         except ValidationError as exc:
             raise HubError(
                 "invalid_attachment",
-                "La captura que adjuntar no se describió bien",
+                "The capture to attach was not described correctly",
                 numbers={"field": "capture"},
             ) from exc
         body = captures.take(device, ask.capture_id, ask.request_id)
         if body is None:
             raise HubError(
                 "capture_missing",
-                "La captura ya no está en el hub (caduca a los cinco minutos o ya se usó)",
+                "The capture is no longer on the hub (it expires after five minutes or was already used)",
                 http_status=404,
                 numbers={"capture_id": ask.capture_id},
             )
@@ -79,7 +79,7 @@ def mount(app, store, identity, bounded_body, store_executor, now, captures):
         except ValueError as exc:
             raise HubError(
                 "attachment_not_found",
-                "Ese adjunto no está en el hub",
+                "That attachment is not on the hub",
                 http_status=404,
                 numbers={"attachment_id": attachment_id[:80]},
             ) from exc
@@ -101,7 +101,7 @@ async def read_upload(request: Request, bounded_body) -> tuple[str, bytes]:
     except (KeyError, ValueError, UnicodeDecodeError) as exc:
         raise HubError(
             "invalid_attachment",
-            "Faltan el nombre o el resumen SHA-256 del adjunto, o no valen",
+            "The attachment name or SHA-256 digest is missing or invalid",
             numbers={"field": "headers"},
         ) from exc
     declared = request.headers.get("content-length", "")
@@ -117,7 +117,7 @@ async def read_upload(request: Request, bounded_body) -> tuple[str, bytes]:
     if hashlib.sha256(body).hexdigest() != digest:
         raise HubError(
             "invalid_attachment",
-            f"El resumen de «{name}» no coincide con lo recibido; vuelve a adjuntarlo",
+            f"The digest of «{name}» does not match received bytes; attach it again",
             numbers={"field": "x-orbit-sha256", "bytes": len(body)},
         )
     return name, body

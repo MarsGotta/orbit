@@ -162,10 +162,10 @@ def test_missing_default_names_service_path_and_republish(
     error = caught.value
     assert error.code == "agent_adapter_missing"
     assert service in error.message and str(path) in error.message
-    assert "publica de nuevo el hub" in error.message
+    assert "publish the hub again" in error.message
     assert "quien gestiona" not in error.message
     assert error.numbers["path"] == str(path)
-    assert error.numbers["cause"] == "no existe"
+    assert error.numbers["cause"] == "does not exist"
     assert json.dumps(error.numbers)
 
 
@@ -217,7 +217,8 @@ async def test_wrong_platform_binary_names_service_path_and_cause(environment, t
         assert caught.value.numbers == {
             "service": service,
             "path": str(path),
-            "cause": "el binario no se puede ejecutar en esta plataforma",
+            "cause": "the binary cannot be executed on this platform",
+            "cause_code": "adapter_format",
         }
     finally:
         await connection.close()
@@ -241,4 +242,4 @@ async def test_sign_in_to_unusable_binary_keeps_installation_refusal(
     assert caught.value.code == "agent_adapter_missing"
     assert caught.value.numbers["service"] == service
     assert caught.value.numbers["path"] == str(path)
-    assert "plataforma" in caught.value.numbers["cause"]
+    assert "platform" in caught.value.numbers["cause"]

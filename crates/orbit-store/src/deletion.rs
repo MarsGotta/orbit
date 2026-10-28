@@ -48,7 +48,7 @@ impl Store {
         validate_id(recording_id)?;
         if limit == 0 || limit > MAX_PAGE_SIZE {
             return Err(Error::CountOutOfRange {
-                what: "Fragmentos borrados por paso",
+                what: "Chunks deleted per step",
                 count: limit,
                 min_count: 1,
                 max_count: MAX_PAGE_SIZE,

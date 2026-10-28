@@ -172,9 +172,12 @@ def mount_workspaces(app, settings, agents, configs, identity, bounded_body, con
         if agent.kind not in {"claude-code", "codex"}:
             raise HubError(
                 "invalid_working_folder",
-                "Este asistente no usa una carpeta de trabajo del hub",
+                "This assistant does not use a hub working folder",
                 http_status=400,
-                numbers={"cause": "este asistente no usa una carpeta de trabajo del hub"},
+                numbers={
+                    "cause": "this assistant does not use a hub working folder",
+                    "cause_code": "working_folder_unsupported",
+                },
             )
         path = parse_body(
             await bounded_body(request, 6 * MAX_WORKING_FOLDER_BYTES + 1024),

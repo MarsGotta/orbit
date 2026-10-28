@@ -244,7 +244,7 @@ def test_a_pdf_past_the_turn_s_text_budget_is_not_said_to_go_below():
     assert "[Texto de «dos.pdf»]" not in said
     line = line_of(said, "2. «dos.pdf»")
     assert "su texto va abajo" not in line, line
-    assert "«dos.pdf» · PDF de 1 página ·" in line, line
+    assert "«dos.pdf» · PDF of 1 page ·" in line, line
     assert "orbit_attachment" in line, line
     assert f"{attachments.MAX_TURN_PDF_CHARS}" in line, line
 
@@ -266,7 +266,7 @@ def test_an_image_for_an_agent_without_images_is_not_sent_to_orbit_attachment():
     assert carried == []
     line = line_of(said, "1. «mapa.png»")
     assert "míralo con orbit_attachment" not in line, line
-    assert "no puede verla" in line, line
+    assert "it cannot view it" in line, line
 
 
 # Turns ----------------------------------------------------------------------
@@ -293,7 +293,7 @@ def test_an_image_reaches_hermes_with_image_attach_bytes_before_the_prompt(envir
     assert staged["ext"] == "png"
     [(_, _, prompt)] = [call for call in hermes.calls if call[1] == "prompt.submit"]
     assert "¿Qué ruta marca?" in prompt["text"]
-    assert "«foto del mapa.png» · imagen image/png" in prompt["text"]
+    assert "«foto del mapa.png» · image image/png" in prompt["text"]
     assert image["id"] in prompt["text"]
     [user, _answer] = page.json()["messages"]
     assert user["text"] == "¿Qué ruta marca?"
@@ -367,9 +367,9 @@ def test_a_pdf_goes_as_its_text_and_its_pages_without_text_as_images(environment
     assert done["event"] == "chat.completed", done
     assert pdf["pages"] == 2
     [(_, _, prompt)] = [call for call in hermes.calls if call[1] == "prompt.submit"]
-    assert "«presupuesto.pdf» · PDF de 2 páginas" in prompt["text"]
-    assert "--- página 1 ---\nPresupuesto de la excursión: 120 euros por persona." in prompt["text"]
-    assert "las páginas casi sin texto (2) van como imagen" in prompt["text"]
+    assert "«presupuesto.pdf» · PDF of 2 pages" in prompt["text"]
+    assert "--- page 1 ---\nPresupuesto de la excursión: 120 euros por persona." in prompt["text"]
+    assert "pages with almost no text (2) are included as images" in prompt["text"]
     [(_, _, page)] = [call for call in hermes.calls if call[1] == "image.attach_bytes"]
     png = base64.b64decode(page["content_base64"].removeprefix("data:image/png;base64,"))
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
@@ -387,7 +387,7 @@ def test_a_text_file_is_named_for_orbit_attachment(environment, tmp_path):
             until(ws, send(ws, "", attachments=[notes["id"]]), "chat.completed")
     [(_, _, prompt)] = [call for call in hermes.calls if call[1] == "prompt.submit"]
     assert (
-        f"«lista.md» · texto · {len(NOTES)} B · id {notes['id']}: léelo con orbit_attachment"
+        f"«lista.md» · texto · {len(NOTES)} B · id {notes['id']}: read it with orbit_attachment"
         in (prompt["text"])
     )
     assert "botas" not in prompt["text"]

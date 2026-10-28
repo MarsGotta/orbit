@@ -34,7 +34,7 @@ SESSION_MESSAGES_PAGE_LIMIT = 200
 # leaves room.
 _PAGE_ENVELOPE_BYTES = 128
 
-_UNKNOWN_SESSION = "Sesión no disponible para este dispositivo"
+_UNKNOWN_SESSION = "Session unavailable to this device"
 
 
 class ChatRepository:
@@ -212,7 +212,7 @@ class ChatRepository:
                     if not messages:
                         raise HubError(
                             "session_message_too_large",
-                            "Un mensaje de la conversación no cabe en una página",
+                            "A conversation message does not fit in one page",
                             numbers={
                                 "bytes": size,
                                 "max_bytes": SESSION_MESSAGES_PAGE_BYTES - _PAGE_ENVELOPE_BYTES,

@@ -169,7 +169,7 @@ def test_a_chunk_the_full_disk_refused_is_storage_full_with_the_free_space(envir
     assert response.status_code == 507
     payload = response.json()
     assert payload["code"] == "storage_full"
-    assert "libera espacio" in payload["message"]
+    assert "free space" in payload["message"]
     refusal = payload["refusal"]
     assert refusal["free_bytes"] == 100 * GIB
     assert refusal["used_bytes"] == store.space.physical_bytes()

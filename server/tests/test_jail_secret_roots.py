@@ -197,14 +197,14 @@ def test_a_looping_file_symlink_does_not_abort_other_masks(environment, kernel_r
 
 
 @pytest.mark.parametrize(
-    "bound,value,spanish",
+    "bound,value,label",
     [
-        ("MAX_SECRET_ENTRIES", 3, "entradas"),
-        ("MAX_SECRET_DEPTH", 1, "profundidad"),
+        ("MAX_SECRET_ENTRIES", 3, "entries"),
+        ("MAX_SECRET_DEPTH", 1, "depth"),
     ],
 )
 def test_scan_bounds_keep_partial_masks_and_report_once(
-    environment, kernel_root, monkeypatch, capsys, bound, value, spanish
+    environment, kernel_root, monkeypatch, capsys, bound, value, label
 ):
     from orbit_hub.assistant import jail_secrets
 
@@ -256,8 +256,8 @@ def test_scan_bounds_keep_partial_masks_and_report_once(
     lines = capsys.readouterr().err.splitlines()
     assert len(lines) == 1
     notice = json.loads(lines[0])["message"]
-    assert str(root) in notice and str(value) in notice and spanish in notice
-    assert "límite" in notice and "ocult" in notice
+    assert str(root) in notice and str(value) in notice and label in notice
+    assert "limit" in notice and "hiding" in notice
 
 
 def test_folders_the_hub_cannot_open_are_skipped(environment, kernel_root, monkeypatch):

@@ -59,7 +59,7 @@ def exists(db, device: str, recording: str) -> bool:
 
 def require(db, device: str, recording: str) -> None:
     if not exists(db, device, recording):
-        raise HubError("recording_not_found", "La grabación no está en el hub")
+        raise HubError("recording_not_found", "The recording is not on the hub")
 
 
 def person_name(value: str, field: str) -> str:
@@ -68,7 +68,7 @@ def person_name(value: str, field: str) -> str:
     if not name or any(unicodedata.category(character) == "Cc" for character in value.strip()):
         raise HubError(
             "invalid_parameters",
-            f"Nombre no válido en {field}: vacío o con caracteres de control",
+            f"Invalid name in {field}: empty or containing control characters",
             numbers={"field": field, "min": 1, "max": MAX_PERSON_NAME_CHARS},
         )
     if len(name) > MAX_PERSON_NAME_CHARS:
@@ -160,7 +160,7 @@ def rename(
         if turn is None and key not in keys:
             raise HubError(
                 "unknown_speaker",
-                f"La grabación no tiene ese hablante; tiene {len(keys)}",
+                f"The recording has no such speaker; it has {len(keys)}",
                 numbers={"field": "names", "speakers": len(keys)},
             )
     clean = {
@@ -205,14 +205,14 @@ def _name_turn(current: dict, transcript, turn, clean: dict) -> None:
     if selected is None:
         raise HubError(
             "turn_no_longer_exists",
-            "El turno ya no existe en la transcripción",
+            "The turn is no longer in the transcript",
             http_status=409,
             numbers={"at_ms": turn.at_ms, "turns": len(transcript.turns)},
         )
     if len(clean) != 1:
         raise HubError(
             "invalid_parameters",
-            "Un turno admite un solo nombre",
+            "A turn allows only one name",
             numbers={"names": len(clean), "max": 1},
         )
     track = selected.track
@@ -244,7 +244,7 @@ def _name_voices(current: dict, transcript, clean: dict) -> None:
     if not set(clean) <= live_keys:
         raise HubError(
             "unknown_speaker",
-            "El hablante ya no existe en la transcripción",
+            "The speaker is no longer in the transcript",
             numbers={"speakers": len(live_keys)},
         )
     for key, name in clean.items():
@@ -299,8 +299,7 @@ def save_private_notes(
         if current != base_revision:
             raise HubError(
                 "stale_revision",
-                f"Las notas privadas cambiaron: revisión {current}, el cambio partía de "
-                f"{base_revision}",
+                f"Private notes changed: revision {current}, the change started from {base_revision}",
                 numbers={"revision": current, "base_revision": base_revision},
             )
         store.ensure_capacity(len(sealed))
@@ -322,15 +321,14 @@ def meeting_title(value: str) -> str | None:
     if any(unicodedata.category(character) == "Cc" for character in value):
         raise HubError(
             "invalid_parameters",
-            "Título no válido: tiene caracteres de control",
+            "Invalid title: it contains control characters",
             numbers={"field": "title", "max": MAX_RECORDING_TITLE_CHARACTERS},
         )
     title = " ".join(value.split())
     if len(title) > MAX_RECORDING_TITLE_CHARACTERS:
         raise HubError(
             "invalid_parameters",
-            f"Título demasiado largo: {len(title)} caracteres, como mucho "
-            f"{MAX_RECORDING_TITLE_CHARACTERS}",
+            f"Title too long: {len(title)} caracteres, como mucho {MAX_RECORDING_TITLE_CHARACTERS}",
             numbers={
                 "field": "title",
                 "actual": len(title),
@@ -430,8 +428,7 @@ def change_language(
         if unreadable:
             raise HubError(
                 "meeting_audio_unreadable",
-                f"No se cambió el idioma: el hub no puede leer el audio de {unreadable} de "
-                f"{total} grupos de esta reunión",
+                f"The language was not changed: the hub cannot read audio for {unreadable} de {total} groups of this meeting",
                 http_status=409,
                 numbers={"groups": unreadable, "total": total, "cause": "invalid_group_audio"},
             )

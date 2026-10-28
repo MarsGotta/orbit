@@ -53,7 +53,7 @@ it("keeps a settings refusal in place and clears the token after submitting", as
       : {
           outcome: "refused",
           code: "vault_token_expired",
-          message: "El token ha caducado.",
+          message: "UNTRUSTED BACKEND MESSAGE",
           numbers: { upstream_code: 508 },
         },
   );
@@ -66,7 +66,9 @@ it("keeps a settings refusal in place and clears the token after submitting", as
   fireEvent.change(screen.getByLabelText("Nombre del vault"), { target: { value: "Invented" } });
   fireEvent.change(screen.getByLabelText("Token"), { target: { value: "invented-token" } });
   fireEvent.click(screen.getByRole("button", { name: "Comprobar y conectar" }));
-  expect((await screen.findByRole("alert")).textContent).toContain("El token ha caducado.");
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "El token de Fast Note Sync ha caducado.",
+  );
   await waitFor(() => expect((screen.getByLabelText("Token") as HTMLInputElement).value).toBe(""));
 });
 

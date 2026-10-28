@@ -61,7 +61,7 @@ class Bridge:
         # Reusing an id would let a late answer to the old question resolve the
         # new one, which is the exact confusion this module exists to prevent.
         if request_id in self.pending:
-            raise BridgeRefused("duplicate_request", "Esa petición ya está en curso")
+            raise BridgeRefused("duplicate_request", "That request is already in progress")
         if len(self.pending) >= MAX_PENDING_REQUESTS:
             raise BridgeRefused(
                 "too_many_requests",

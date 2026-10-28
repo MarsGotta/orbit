@@ -12,7 +12,7 @@ import sqlite3
 from ..meetings.deletion import refuse_if_deleted
 from ..protocol import HubError
 
-_MISMATCH = "Recuento o secuencias no coinciden; faltan fragmentos confirmados"
+_MISMATCH = "Count or sequences do not match; confirmed chunks are missing"
 
 
 class RecordingRepository:
@@ -33,7 +33,7 @@ class RecordingRepository:
         received_at: float = 0,
     ) -> dict:
         if hashlib.sha256(body).hexdigest() != digest:
-            raise HubError("hash_mismatch", "El hash no coincide con los bytes recibidos")
+            raise HubError("hash_mismatch", "The hash does not match received bytes")
         with self.store.transaction() as db:
             _require_active(db, device)
             row = db.execute(
@@ -51,7 +51,7 @@ class RecordingRepository:
                 ).fetchone():
                     raise HubError(
                         "recording_finalized",
-                        "La captura está cerrada; no admite nuevos fragmentos",
+                        "Capture is closed; new chunks are not accepted",
                     )
                 self._insert_chunk(
                     db,
@@ -76,12 +76,10 @@ class RecordingRepository:
             else None
         )
         if old_metadata != metadata:
-            raise HubError(
-                "chunk_conflict", "Metadatos de captura distintos para el mismo fragmento"
-            )
+            raise HubError("chunk_conflict", "Capture metadata differs for the same chunk")
         if (row["sha256"], row["recording"], row["track"], row["sequence"]) != identity:
             raise HubError(
-                "chunk_conflict", "El fragmento ya existe con contenido o metadatos distintos"
+                "chunk_conflict", "The chunk already exists with different content or metadata"
             )
 
     def _insert_chunk(self, db, device, chunk_id, where, body, metadata, received_at) -> None:
@@ -102,7 +100,9 @@ class RecordingRepository:
                 ),
             )
         except sqlite3.IntegrityError as exc:
-            raise HubError("chunk_conflict", "La secuencia ya pertenece a otro fragmento") from exc
+            raise HubError(
+                "chunk_conflict", "The sequence already belongs to another chunk"
+            ) from exc
         if metadata is not None:
             db.execute(
                 "INSERT INTO transcription_jobs(device_id,chunk_id,metadata) VALUES (?,?,?)",
@@ -135,7 +135,7 @@ class RecordingRepository:
             or manifest["finalized_at_ms"] < manifest["started_at_ms"]
         ):
             raise HubError(
-                "invalid_manifest", "Pistas duplicadas o reloj de cierre anterior al inicio"
+                "invalid_manifest", "Duplicate tracks or closure time before recording start"
             )
         with self.store.transaction() as db:
             _require_active(db, device)
@@ -167,7 +167,7 @@ class RecordingRepository:
             manifest.setdefault(field, default)
         if old != manifest:
             raise HubError(
-                "manifest_conflict", "La grabación ya tiene un manifiesto de cierre distinto"
+                "manifest_conflict", "The recording already has a different closure manifest"
             )
 
     def _check_tracks(self, db, device, recording, tracks) -> None:
@@ -180,7 +180,7 @@ class RecordingRepository:
         if {row["track"] for row in rows} != set(tracks):
             raise HubError(
                 "manifest_mismatch",
-                "Las pistas del manifiesto no coinciden con los fragmentos durables",
+                "Manifest tracks do not match durable chunks",
             )
         for name, declared in tracks.items():
             self._check_track(device, [row for row in rows if row["track"] == name], declared)
@@ -207,11 +207,11 @@ class RecordingRepository:
             if not isinstance(metadata.get("frames"), int):
                 raise HubError(
                     "manifest_mismatch",
-                    "No se puede acreditar el número de frames de un fragmento",
+                    "Cannot attest a chunk's frame count",
                 )
             frames += metadata["frames"]
         if frames != declared["total_frames"]:
-            raise HubError("manifest_mismatch", "El total de frames no coincide")
+            raise HubError("manifest_mismatch", "Total frame count does not match")
 
     def _insert_manifest(self, db, device, recording, manifest, final_pass, error) -> None:
         self.store.ensure_capacity(len(json.dumps(manifest).encode()) + 1024)
@@ -242,4 +242,4 @@ class RecordingRepository:
 def _require_active(db, device: str) -> None:
     active = db.execute("SELECT revoked FROM devices WHERE id=?", (device,)).fetchone()
     if active is None or active["revoked"]:
-        raise HubError("revoked", "Dispositivo revocado")
+        raise HubError("revoked", "Device revoked")

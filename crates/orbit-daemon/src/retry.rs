@@ -33,20 +33,20 @@ impl RetryGate {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Transferencia rechazada ({0}); conservada localmente para revisión")]
+#[error("Transfer refused ({0}); retained locally for review")]
 pub struct Refused(pub u16);
 
 /// The hub's own code for a refusal (`recording_finalized`,
 /// `chunk_conflict`, `unauthorized`…), kept beside [`Refused`] in the error
 /// chain so the person is told which rule fired, not only the HTTP status.
 #[derive(Debug, thiserror::Error)]
-#[error("código del hub: {0}")]
+#[error("Hub code: {0}")]
 pub struct HubCode(pub String);
 
 /// The hub has no room for this upload (HTTP 507): its code and the
 /// numbers it gave. The audio stays on the Mac; nothing is lost, it waits.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("El hub no tiene espacio ({code}): el audio se queda en el Mac hasta que lo haya")]
+#[error("The hub has no room ({code}): audio stays on the Mac until space is available")]
 pub struct OutOfSpace {
     /// `quota_exceeded`, `storage_full`…, or `insufficient_storage` (the
     /// status's own name) when the hub's body named none.

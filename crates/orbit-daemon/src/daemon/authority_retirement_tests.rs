@@ -149,7 +149,7 @@ async fn rejected_session_identity_names_bytes_and_ceiling_or_control() -> Resul
     for (id, cause) in [
         (String::new(), "0 bytes"),
         ("x".repeat(122), "122 bytes"),
-        ("bad\u{0007}id".to_owned(), "carácter de control"),
+        ("bad\u{0007}id".to_owned(), "control character"),
     ] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, _native) = fixture(directory.path())?;

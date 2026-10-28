@@ -61,7 +61,7 @@ def mount(app, store, identity, bounded_body, meetings_bridge, transport_allowed
 
 def _failure(exc):
     return json_response(
-        render(exc.code, "No se pudo leer el vault.", numbers=exc.numbers), exc.status
+        render(exc.code, "Could not read the vault.", numbers=exc.numbers), exc.status
     )
 
 
@@ -71,7 +71,7 @@ def reply(payload):
     if size > MAX_RESPONSE_BYTES:
         raise refusal(
             "vault_response_too_large",
-            f"La respuesta de Notas ocupa {size} bytes; el máximo es {MAX_RESPONSE_BYTES}.",
+            f"The Notes response is {size} bytes; the maximum is {MAX_RESPONSE_BYTES}.",
             413,
             bytes=size,
             max_bytes=MAX_RESPONSE_BYTES,
@@ -116,5 +116,11 @@ class SignedVault:
             return reply(self.vault.read(request))
         except HubError as exc:
             return json_response(
-                render(exc.code, exc.message, numbers=exc.numbers), exc.http_status
+                render(
+                    exc.code,
+                    exc.message,
+                    numbers=exc.numbers,
+                    payload=exc.display_metadata(),
+                ),
+                exc.http_status,
             )

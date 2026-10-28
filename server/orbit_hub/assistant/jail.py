@@ -178,24 +178,20 @@ def arguments(settings, agent, working_folder, configs=None, *, vendor_home=None
 
 def unavailable(cause, status=None):
     message = (
-        "No se puede aislar al asistente: falta bubblewrap; instala bubblewrap en el hub"
+        "Cannot isolate the assistant: bubblewrap is missing; install it on the hub"
         if cause == "missing"
-        else "No se puede crear la jaula de bubblewrap; revisa los espacios de nombres de usuario "
-        "y el perfil de AppArmor de Ubuntu (bwrap-userns-restrict) para permitir bubblewrap"
+        else "Cannot create the bubblewrap sandbox; check user namespaces and the Ubuntu AppArmor profile (bwrap-userns-restrict) to allow bubblewrap"
     )
     numbers = {"cause": cause}
     if cause.startswith("secret_scan_"):
         reasons = {
             "secret_scan_timeout": (
-                f"la revisión de secretos del hub no terminó en {INITIAL_SCAN_WAIT_SECONDS} segundos"
+                f"the hub secret scan did not finish within {INITIAL_SCAN_WAIT_SECONDS} seconds"
             ),
-            "secret_scan_failed": "no se pudo completar la revisión de secretos del hub",
-            "secret_scan_not_ready": "la revisión de secretos del hub aún no ha terminado",
+            "secret_scan_failed": "could not complete the hub secret scan",
+            "secret_scan_not_ready": "the hub secret scan has not finished yet",
         }
-        message = (
-            f"No se puede aislar al asistente todavía: {reasons[cause]}. "
-            "Vuelve a intentarlo en unos instantes"
-        )
+        message = f"Cannot isolate the assistant yet: {reasons[cause]}. Try again shortly"
         numbers["wait_limit_seconds"] = INITIAL_SCAN_WAIT_SECONDS
     if status is not None:
         numbers["exit_status"] = status

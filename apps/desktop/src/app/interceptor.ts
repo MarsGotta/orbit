@@ -96,7 +96,10 @@ function presentNotice(notice: Notice, assistantName?: string): Presented {
   if (!entry) {
     const data = closedData(notice.data);
     const report: Report = { op, code: token(notice.code), class: "failed", source: "ui", data };
-    return failure(op, report, noticeFailure("unknown"));
+    return worded(
+      failure(op, report, noticeFailure("unknown")),
+      getCopy().errors.unknownCode(notice.code),
+    );
   }
   if (entry.class === "silent") return { op, class: "silent", text: "", report: null };
   const data = notice.data ?? {};
@@ -142,7 +145,10 @@ function presentRefusal(op: string, refusal: Refusal, command?: AppCommand): Pre
   const report = refusalReport(op, refusal);
   if (!entry || entry.class === "failed") {
     const what = command ? getCopy().extras.failures.failure.commands[command.command] : undefined;
-    const result = worded(failure(op, report, what), entry?.text?.(refusal));
+    const result = worded(
+      failure(op, report, what),
+      entry ? entry.text?.(refusal) : getCopy().errors.unknownCode(refusal.code),
+    );
     if (!command || !repeatable(refusal)) return result;
     return { ...result, failure: { ...result.failure, retry: command } };
   }

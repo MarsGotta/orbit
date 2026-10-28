@@ -40,7 +40,7 @@ pub(super) fn validate_metadata(metadata: &ChunkMetadata) -> Result<()> {
 pub(super) fn validate_page(limit: usize) -> Result<()> {
     if limit == 0 || limit > MAX_PAGE_SIZE {
         return Err(Error::CountOutOfRange {
-            what: "Número de filas de la página",
+            what: "Page row count",
             count: limit,
             min_count: 1,
             max_count: MAX_PAGE_SIZE,
@@ -79,7 +79,7 @@ pub(crate) fn bounded_json<T: Serialize>(value: &T, limit: usize) -> Result<Vec<
     let result = serde_json::to_writer(&mut writer, value);
     if writer.size > limit as u64 {
         return Err(Error::TooLarge {
-            what: "El contenido serializado",
+            what: "Serialized content",
             bytes: writer.size,
             max_bytes: limit as u64,
         });

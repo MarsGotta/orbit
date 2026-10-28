@@ -102,7 +102,7 @@ def test_recovery_keeps_group_id_sources_and_rejects_stale_attempt(environment):
     second = store.groups.claim(1001)
     assert second["group_id"] == first["group_id"]
     assert second["audio"] == first["audio"] and second["manifest"] == first["manifest"]
-    with pytest.raises(HubError, match="obsoleto"):
+    with pytest.raises(HubError, match="stale"):
         store.groups.finish(first, "STALE MUST NOT BECOME FINAL")
     store.groups.fail(first, "stale_failure", 1002)
     store.groups.finish(second, "IMMUTABLE GROUP TEXT")

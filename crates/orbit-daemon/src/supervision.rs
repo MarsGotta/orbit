@@ -303,7 +303,7 @@ pub async fn relaunchable<T>(
         Err(Verdict::GiveUp) => {}
     }
     Err(anyhow::anyhow!(
-        "El actor {} falló y se relanza",
+        "Actor {} failed and is restarting",
         actor.name()
     ))
 }
@@ -313,7 +313,7 @@ impl Exhausted {
     /// log as the reason of the relaunch.
     pub fn describe(&self) -> String {
         format!(
-            "El actor {} falló {} veces en {} s; el servicio se reinicia entero",
+            "Actor {} failed {} times in {} s; restarting the whole service",
             self.actor.name(),
             self.panics,
             RESTART_WINDOW.as_secs()

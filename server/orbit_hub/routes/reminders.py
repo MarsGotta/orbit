@@ -19,7 +19,7 @@ def _key(value: str) -> str:
     if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
         raise HubError(
             "invalid_parameters",
-            "La clave del recordatorio no es válida: es el SHA-256 en hexadecimal del título",
+            "Invalid reminder key: expected the title SHA-256 in hexadecimal",
             numbers={"field": "key", "chars": len(value), "expected_chars": 64},
         )
     return value
@@ -33,17 +33,17 @@ def _edit(body: bytes) -> tuple[str, int]:
     text = edit.get("text") if isinstance(edit, dict) else None
     edited = edit.get("edited_at_ms") if isinstance(edit, dict) else None
     if not isinstance(text, str):
-        raise HubError("invalid_parameters", "Falta el texto", numbers={"field": "text"})
+        raise HubError("invalid_parameters", "Text missing", numbers={"field": "text"})
     if len(text) > MAX_REMINDER_CHARS:
         raise HubError(
             "invalid_parameters",
-            f"El recordatorio tiene {len(text)} caracteres y el máximo es {MAX_REMINDER_CHARS}",
+            f"The reminder has {len(text)} characters and the maximum is {MAX_REMINDER_CHARS}",
             numbers={"field": "text", "chars": len(text), "max_chars": MAX_REMINDER_CHARS},
         )
     if type(edited) is not int or not 0 <= edited < 2**63:
         raise HubError(
             "invalid_parameters",
-            "edited_at_ms no válido: un instante en milisegundos",
+            "Invalid edited_at_ms: expected an instant in milliseconds",
             numbers={"field": "edited_at_ms"},
         )
     return text, edited

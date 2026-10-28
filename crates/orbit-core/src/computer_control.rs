@@ -68,17 +68,17 @@ pub struct ToolCall {
 impl ToolCall {
     pub fn validate(&self) -> Result<(), String> {
         if !valid_tool_name(&self.tool) {
-            return Err("El nombre de la herramienta del motor no es válido".into());
+            return Err("The engine tool name is invalid".into());
         }
         if !self.arguments.is_object() {
-            return Err("Los argumentos de la herramienta del motor deben ser un objeto".into());
+            return Err("Engine tool arguments must be an object".into());
         }
         let bytes = serde_json::to_vec(self)
-            .map_err(|_| "No se pudo serializar la acción del motor".to_owned())?
+            .map_err(|_| "Could not serialize the engine action".to_owned())?
             .len();
         if bytes > crate::limits::MAX_ACTION_BYTES {
             return Err(format!(
-                "Acción del motor de {bytes} bytes; máximo {}",
+                "Engine action is {bytes} bytes; maximum {}",
                 crate::limits::MAX_ACTION_BYTES
             ));
         }
@@ -211,7 +211,7 @@ impl ControlHistoryEntry {
 }
 
 fn unknown_channel() -> String {
-    "desconocido".into()
+    "unknown".into()
 }
 
 impl ControlOutcome {

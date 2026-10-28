@@ -36,8 +36,7 @@ class OpenAISpeech:
         if speech is None:
             raise HubError(
                 "speech_not_configured",
-                f"{self.agent.name} («{self.agent.id}») no tiene voz para leer en voz alta: "
-                "falta [agents.speech] en su configuración",
+                f"{self.agent.name} («{self.agent.id}») has no voice for reading aloud: [agents.speech] is missing from its configuration",
                 http_status=503,
                 numbers={"agent_id": self.agent.id},
             )
@@ -77,8 +76,7 @@ class OpenAISpeech:
             seconds = SPEECH_CONNECT_TIMEOUT_SECONDS if connecting else SPEECH_TIMEOUT_SECONDS
             raise HubError(
                 "speech_timeout",
-                f"El servicio de voz ({speech.base_url}) no "
-                f"{'aceptó la conexión' if connecting else 'contestó'} en {seconds * 1000} ms",
+                f"The speech service ({speech.base_url}) did not {('accept the connection' if connecting else 'respond')} en {seconds * 1000} ms",
                 http_status=504,
                 numbers={"timeout_ms": seconds * 1000},
             ) from exc
@@ -86,12 +84,12 @@ class OpenAISpeech:
             report(event="assistant_speech_failed", code="speech_unreachable")
             raise HubError(
                 "speech_unreachable",
-                f"No se pudo conectar con el servicio de voz ({speech.base_url})",
+                f"Could not connect to the speech service ({speech.base_url})",
                 http_status=503,
             ) from exc
         if not body:
             raise HubError(
-                "speech_empty", "El servicio de voz entregó un clip vacío", http_status=502
+                "speech_empty", "The speech service delivered an empty clip", http_status=502
             )
         # The Mac shows where a clip came from: the speech model, as printable ASCII.
         provider = "".join(c if " " <= c <= "~" else "?" for c in speech.model)[:128]
@@ -103,7 +101,7 @@ async def _clip(speech: SpeechSettings, response: httpx.Response) -> tuple[str, 
     if response.status_code != 200:
         raise HubError(
             "speech_http_error",
-            f"El servicio de voz ({speech.base_url}) devolvió HTTP {response.status_code}",
+            f"The speech service ({speech.base_url}) returned HTTP {response.status_code}",
             http_status=502,
             numbers={"provider_status": response.status_code},
         )
@@ -111,7 +109,7 @@ async def _clip(speech: SpeechSettings, response: httpx.Response) -> tuple[str, 
     if not mime_type.startswith("audio/") or len(mime_type) > 128:
         raise HubError(
             "speech_not_audio",
-            f"El servicio de voz ({speech.base_url}) no devolvió audio",
+            f"The speech service ({speech.base_url}) did not return audio",
             http_status=502,
         )
     body = bytearray()
@@ -119,7 +117,7 @@ async def _clip(speech: SpeechSettings, response: httpx.Response) -> tuple[str, 
         if len(chunk) > MAX_SPEECH_CLIP_BYTES - len(body):
             raise HubError(
                 "speech_too_large",
-                "El clip de voz supera el límite de 4 MiB",
+                "The speech clip exceeds the 4 MiB limit",
                 numbers={"bytes": len(body) + len(chunk), "max_bytes": MAX_SPEECH_CLIP_BYTES},
             )
         body.extend(chunk)

@@ -112,10 +112,10 @@ impl Runtime {
         {
             Ok(Ok(())) => Ok(()),
             Ok(Err(_closed)) => {
-                bail!("El Mac no recibió la orden audio_stop: el canal con Orbit.app está cerrado")
+                bail!("The Mac did not receive audio_stop: the Orbit.app channel is closed")
             }
             Err(_elapsed) => bail!(
-                "El Mac no recibió la orden audio_stop en 500 ms; el canal sigue presente pero no aceptó la orden dentro de su plazo"
+                "The Mac did not receive audio_stop within 500 ms; the channel is still present but did not accept the command within its deadline"
             ),
         }
     }
@@ -141,7 +141,7 @@ impl Runtime {
             && !decode_result_body::<DrainAcknowledgement>("audio_stop", result)?.drain_complete
         {
             bail!(
-                "El helper no confirmó el drenaje completo; se conserva el audio y la parada pendiente"
+                "The helper did not confirm a complete drain; audio and the pending stop are retained"
             );
         }
         if let Some(kind) = full_stop {
@@ -271,13 +271,13 @@ impl Runtime {
             Ok(Err(_closed)) => {
                 self.state = decide(&self.state, Event::HelperStopUndelivered, now())?.state;
                 bail!(
-                    "El Mac no recibió la orden {name}: el canal con Orbit.app está cerrado. Orbit ya no guarda el audio de esa captura."
+                    "The Mac did not receive command {name}: the Orbit.app channel is closed. Orbit no longer retains audio from that capture."
                 )
             }
             Err(_elapsed) => {
                 self.audio.lifecycle.full_stop_send_owed = true;
                 bail!(
-                    "El Mac no recibió la orden {name} en 500 ms. Orbit ya no guarda el audio de esa captura; la orden se reintenta desde el mantenimiento hasta que el canal la acepte."
+                    "The Mac did not receive command {name} within 500 ms. Orbit no longer retains audio from that capture; maintenance retries the command until the channel accepts it."
                 )
             }
         }
@@ -313,10 +313,10 @@ impl Runtime {
             }
             Ok(Err(_closed)) => {
                 self.state = decide(&self.state, Event::HelperStopUndelivered, now())?.state;
-                bail!("El Mac no recibió la orden {name}: el canal con Orbit.app está cerrado")
+                bail!("The Mac did not receive command {name}: the Orbit.app channel is closed")
             }
             Err(_elapsed) => bail!(
-                "El Mac no recibió la orden {name} en 500 ms; el canal sigue presente y la parada continúa pendiente"
+                "The Mac did not receive command {name} within 500 ms; the channel is still present and the stop remains pending"
             ),
         }
     }

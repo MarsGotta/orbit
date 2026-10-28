@@ -114,9 +114,9 @@ async def test_a_voice_note_turn_tells_the_agent_that_orbit_reads_the_answer_alo
 
     header, context, said_text = voice_prompt.split("\n", 2)
     assert header.startswith("[Orbit · Mac de prueba ·")
-    assert "voz alta" in context
+    assert "aloud" in context
     assert said_text == "Lo que dije"
-    assert "voz alta" not in typed_prompt
+    assert "aloud" not in typed_prompt
     # What the user sees is what they said, without the line for the agent.
     assert said(store, owner, receipt["session_id"])[0] == {"role": "user", "text": "Lo que dije"}
 

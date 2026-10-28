@@ -7,6 +7,8 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+- Render hub and daemon refusals from codes and facts in English or Spanish; keep English compatibility messages for older Macs.
+
 ### Changed
 
 - Add English and Spanish catalogue copy with a live language choice in

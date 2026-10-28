@@ -68,7 +68,7 @@ class CopiedReader:
         if size > MAX_NOTE_BYTES:
             raise refusal(
                 "vault_note_too_large",
-                f"La nota ocupa {size} bytes; el máximo es {MAX_NOTE_BYTES}.",
+                f"The note is {size} bytes; the maximum is {MAX_NOTE_BYTES}.",
                 413,
                 bytes=size,
                 max_bytes=MAX_NOTE_BYTES,

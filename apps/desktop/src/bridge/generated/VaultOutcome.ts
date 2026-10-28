@@ -5,4 +5,4 @@ import type { VaultPage } from "./VaultPage";
 import type { VaultSettings } from "./VaultSettings";
 import type { VaultTaskPage } from "./VaultTaskPage";
 
-export type VaultOutcome = { "outcome": "config", configuration: VaultSettings, } | { "outcome": "page", page: VaultPage, } | { "outcome": "note", note: VaultNote, } | { "outcome": "catalog", catalog: VaultCatalog, } | { "outcome": "tasks", tasks: VaultTaskPage, } | { "outcome": "refused", code: string, message: string, numbers: Record<string, number>, } | { "outcome": "failed", refusal: Record<string, unknown>, };
+export type VaultOutcome = { "outcome": "config", configuration: VaultSettings, } | { "outcome": "page", page: VaultPage, } | { "outcome": "note", note: VaultNote, } | { "outcome": "catalog", catalog: VaultCatalog, } | { "outcome": "tasks", tasks: VaultTaskPage, } | { "outcome": "refused", code: string, message: string, message_code?: string, message_fields?: { [key in string]?: string }, numbers: Record<string, number>, } | { "outcome": "failed", refusal: Record<string, unknown>, };

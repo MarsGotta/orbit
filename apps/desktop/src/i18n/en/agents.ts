@@ -1,11 +1,13 @@
+import { hubRefusalText } from "./hubRefusals";
+import { workingFolderRefusal } from "./workingFolderRefusals";
 import { formatQuantity } from "../locale";
 import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 import type { AccessGroups } from "../../bridge/generated/AccessGroups";
 import type { AgentRefusal } from "../../bridge/generated/AgentRefusal";
-import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
 import { assistantRefusals } from "./assistantRefusals";
 import { count, text, type Numbers } from "./refusalNumbers";
+import type { RefusalNumber } from "../../bridge/generated/RefusalNumber";
 
 /** A count as the person reads it: «16.384». */
 const figure = numberFormat().format;
@@ -39,9 +41,17 @@ export const accessGroups: ReadonlyArray<{
 /** Every number as `key: value`, for a refusal this screen has no words for. */
 function listed(numbers: Numbers): string {
   return Object.entries(numbers)
-    .filter((entry): entry is [string, RefusalNumber] => entry[1] !== undefined)
+    .filter((entry): entry is [string, RefusalNumber] => {
+      const [key, value] = entry;
+      return typeof value === "number"
+        ? Number.isFinite(value)
+        : typeof value === "string" &&
+            ["kind", "name", "service", "agent_id", "agent_ids", "route", "field", "rule"].includes(
+              key,
+            );
+    })
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}: ${String(value)}`)
+    .map(([key, value]) => `${key}: ${formatQuantity(value)}`)
     .join(", ");
 }
 
@@ -50,10 +60,7 @@ const refusals: Record<string, (numbers: Numbers) => string | undefined> = {
   ...Object.fromEntries(
     Object.entries(transcriptionRefusals).map(([code, value]) => [code, () => value]),
   ),
-  invalid_working_folder: (n) => {
-    const cause = text(n, "cause");
-    return cause === undefined ? undefined : `The working folder ${cause}`;
-  },
+  invalid_working_folder: workingFolderRefusal,
   agent_not_found: (n) => {
     const agent = text(n, "agent_id");
     if (agent === undefined) return undefined;
@@ -106,6 +113,8 @@ export function agentRefusalText(refusal: AgentRefusal): string {
     ? refusals[refusal.code]?.(refusal.numbers)
     : undefined;
   if (words !== undefined) return words;
+  const hub = hubRefusalText(refusal.code, refusal.numbers);
+  if (hub !== undefined) return hub;
   const numbers = listed(refusal.numbers);
   return `The hub rejected the command (${refusal.code}, HTTP ${numberFormat().format(refusal.status)})${numbers ? `: ${numbers}` : ""}.`;
 }
@@ -144,10 +153,10 @@ export const agents = {
     unavailable: "This window can’t read agents.",
     loading: (name: string) => `Reading settings for ${name}…`,
     readAgain: "Read again",
-    notEditable: (cause: string | null | undefined) =>
-      cause
-        ? `Can’t change this from Orbit: ${cause}`
-        : "This agent type can’t be changed from Orbit.",
+    notEditable: (cause: string | null | undefined) => {
+      void cause;
+      return "This agent type can’t be changed from Orbit.";
+    },
     saving: "Saving to the hub…",
     saved: "✓ Saved to the hub",
     bytes: (count: number, max: number) => `${figure(count)} of ${figure(max)} bytes`,

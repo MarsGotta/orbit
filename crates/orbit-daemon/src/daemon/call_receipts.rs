@@ -66,7 +66,7 @@ impl Runtime {
         }
         let readback: CallStartReceipt = decode_result_body("audio_start", result)?;
         if Some(readback.stream_id.as_str()) != self.audio.mic_stream.as_deref() {
-            bail!("La confirmación de llamada corresponde a otro stream");
+            bail!("Call acknowledgement belongs to another stream");
         }
         if readback.processing != "voice_processing"
             || !readback.processing_enabled
@@ -76,7 +76,7 @@ impl Runtime {
             || readback.pipeline_id.is_empty()
             || readback.pipeline_id.len() > 128
         {
-            bail!("El Mac no acreditó la ruta VoiceProcessing y su referencia compartida");
+            bail!("The Mac did not attest the VoiceProcessing path and its shared reference");
         }
         let pipeline = readback.pipeline_id;
         // What the microphone gives under voice processing: its channels and

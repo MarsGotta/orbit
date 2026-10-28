@@ -1,3 +1,4 @@
+import { VaultWarnings } from "./VaultWarnings";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
@@ -88,11 +89,7 @@ function CodeBlock({
     if (query === undefined) return <p role="alert">No se pudo leer esta consulta de tareas.</p>;
     return (
       <>
-        {query.warnings.map((warning) => (
-          <p role="alert" key={warning}>
-            {warning}
-          </p>
-        ))}
+        <VaultWarnings warnings={query.warnings} diagnostics={query.diagnostics} />
         <TaskRows notes={props.notes} tasks={query.tasks} />
       </>
     );

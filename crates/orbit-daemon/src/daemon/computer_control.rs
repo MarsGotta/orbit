@@ -188,26 +188,26 @@ pub(super) enum ComputerStartError {
     Authority {
         refusal: orbit_core::refusal::Refusal,
     },
-    #[error("El Mac no está emparejado con el hub")]
+    #[error("This Mac is not paired with the hub")]
     NotPaired,
     #[error("{0}")]
     Busy(String),
-    #[error("La llamada a la herramienta del motor no es válida o supera sus límites")]
+    #[error("The engine tool call is invalid or exceeds its bounds")]
     InvalidTool,
-    #[error("El motor no declara la herramienta «{0}»")]
+    #[error("The engine does not declare tool «{0}»")]
     UndeclaredTool(String),
-    #[error("No se pudo construir un recibo válido para esta acción")]
+    #[error("Could not construct a valid receipt for this action")]
     InvalidHistory,
-    #[error("No se pudo guardar el historial de la acción: {0}")]
+    #[error("Could not save action history: {0}")]
     Storage(#[source] anyhow::Error),
-    #[error("El motor no está disponible")]
+    #[error("The engine is unavailable")]
     EngineUnavailable,
-    #[error("No se pudo preparar el directorio privado donde el motor deja la captura: {0}")]
+    #[error("Could not prepare the private directory for engine screenshots: {0}")]
     CaptureFile(#[source] anyhow::Error),
     /// A desktop action's coordinates, refused with their cause.
     #[error("{0}")]
     DesktopCoordinates(orbit_core::refusal::Refusal),
-    #[error("La autoridad del worker desapareció antes del envío")]
+    #[error("Worker authority disappeared before dispatch")]
     Internal,
 }
 
@@ -292,7 +292,7 @@ impl std::fmt::Display for ReceiptTooLarge {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             formatter,
-            "Recibo de acción de {} bytes; máximo {}",
+            "Action receipt is {} bytes; maximum {}",
             self.bytes, self.max_bytes
         )
     }
@@ -317,9 +317,7 @@ fn receipt_refused(receipt: &impl Serialize, text: String) -> anyhow::Error {
 fn bounded_observation(value: &impl Serialize) -> Result<Value> {
     let bytes = serde_json::to_vec(value)?;
     if bytes.len() > MAX_OBSERVATION_BYTES {
-        bail!(
-            "Observación superior a 32 KiB; no se entrega truncada ni se habilita input sobre ella"
-        );
+        bail!("Observation exceeds 32 KiB; it is neither truncated nor used to enable input");
     }
     Ok(serde_json::from_slice(&bytes)?)
 }
@@ -327,9 +325,9 @@ fn bounded_observation(value: &impl Serialize) -> Result<Value> {
 /// Why a full screen could not be delivered, with its numbers.
 #[derive(Debug, thiserror::Error)]
 pub(super) enum DesktopCaptureError {
-    #[error("El motor respondió sin escribir la captura de pantalla que se le pidió")]
+    #[error("The engine responded without writing the requested screenshot")]
     Missing,
-    #[error("No se pudo leer la captura de pantalla que escribió el motor: {0}")]
+    #[error("Could not read the screenshot written by the engine: {0}")]
     Unreadable(String),
     #[error(transparent)]
     Fit(#[from] orbit_core::sources::DesktopFitError),
@@ -413,7 +411,7 @@ impl ComputerHandle {
 
     fn require_computer_idle(&self) -> Result<()> {
         if self.work.active().is_some() {
-            bail!("Hay una operación de control en curso; no se repetirá el input");
+            bail!("A control operation is in progress; input will not be repeated");
         }
         Ok(())
     }

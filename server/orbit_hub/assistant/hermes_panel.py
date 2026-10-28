@@ -120,8 +120,7 @@ class HermesPanelAdmin:
         # switched from Orbit, so «not editable» would be untrue.
         raise HubError(
             "skill_delete_unsupported",
-            "El panel de Hermes no puede borrar skills: desactívala aquí o bórrala "
-            "en el servidor de Hermes",
+            "The Hermes panel cannot delete skills: disable it here or delete it on the Hermes server",
             http_status=403,
             numbers={"agent_id": self.agent_id, "kind": "hermes"},
         )
@@ -154,8 +153,7 @@ class HermesPanelAdmin:
                     if len(body) + len(chunk) > MAX_PANEL_RESPONSE_BYTES:
                         raise HubError(
                             "assistant_admin_too_large",
-                            f"Hermes contestó a {method} {route} con más de "
-                            f"{MAX_PANEL_RESPONSE_BYTES} bytes",
+                            f"Hermes returned to {method} {route} with more than {MAX_PANEL_RESPONSE_BYTES} bytes",
                             http_status=502,
                             numbers={
                                 "route": f"{method} {route}",
@@ -173,8 +171,7 @@ class HermesPanelAdmin:
             seconds = PANEL_CONNECT_TIMEOUT_SECONDS if connecting else PANEL_TIMEOUT_SECONDS
             raise HubError(
                 "assistant_admin_timeout",
-                f"Hermes no {'aceptó la conexión' if connecting else 'contestó'} a "
-                f"{method} {route} en {seconds * 1000} ms",
+                f"Hermes did not {('accept the connection' if connecting else 'respond')} a {method} {route} en {seconds * 1000} ms",
                 http_status=504,
                 numbers={"route": f"{method} {route}", "timeout_ms": seconds * 1000},
             ) from exc
@@ -182,7 +179,7 @@ class HermesPanelAdmin:
             report(event="hermes_panel_failed", code="assistant_admin_unreachable")
             raise HubError(
                 "assistant_admin_unreachable",
-                f"No se pudo conectar con Hermes para {method} {route}",
+                f"Could not connect to Hermes for {method} {route}",
                 http_status=503,
                 numbers={"route": f"{method} {route}"},
             ) from exc
@@ -191,7 +188,7 @@ class HermesPanelAdmin:
             report(event="hermes_panel_refused", code="assistant_admin_refused", status=status)
             raise HubError(
                 "assistant_admin_refused",
-                f"Hermes rechazó {method} {route} con HTTP {status}",
+                f"Hermes refused {method} {route} con HTTP {status}",
                 http_status=502,
                 numbers={"route": f"{method} {route}", "status": status},
             )
@@ -204,7 +201,7 @@ class HermesPanelAdmin:
 def _unreadable(method: str, route: str) -> HubError:
     return HubError(
         "assistant_admin_invalid",
-        f"Hermes contestó a {method} {route} algo que el hub no sabe leer",
+        f"Hermes returned to {method} {route} something the hub cannot read",
         http_status=502,
         numbers={"route": f"{method} {route}"},
     )

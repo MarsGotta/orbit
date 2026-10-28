@@ -40,14 +40,14 @@ impl Runtime {
             Err(error) => return Err(error.into()),
         };
         if bytes.len() > MAX_CONTROL_STATE_BYTES {
-            bail!("El estado local de control supera 256 KiB");
+            bail!("Local control state exceeds 256 KiB");
         }
         let value: DurableControlState = serde_json::from_slice(&bytes)?;
         if value.schema != 1
             || value.history.len() > MAX_CONTROL_HISTORY
             || value.history.iter().any(|entry| !entry.is_valid())
         {
-            bail!("El estado local de control no es válido");
+            bail!("Invalid local control state");
         }
         Ok(value)
     }
@@ -57,11 +57,11 @@ impl Runtime {
             || value.history.len() > MAX_CONTROL_HISTORY
             || value.history.iter().any(|entry| !entry.is_valid())
         {
-            bail!("El estado local de control no es válido");
+            bail!("Invalid local control state");
         }
         let bytes = serde_json::to_vec(value)?;
         if bytes.len() > MAX_CONTROL_STATE_BYTES {
-            bail!("El estado local de control supera 256 KiB");
+            bail!("Local control state exceeds 256 KiB");
         }
         crate::config::atomic_private_write(&self.control_state_path(), &bytes)
     }

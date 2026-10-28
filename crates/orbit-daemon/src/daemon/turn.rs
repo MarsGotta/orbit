@@ -306,7 +306,7 @@ mod tests {
         assert_eq!(frames.try_recv().unwrap()["op"], "0123abcd-request");
 
         let error = HubEvent::Frame(json!({"v":1,"event":"error","id":"request-7",
-            "data":{"message":"el hub no pudo","code":"bad_request"}}));
+            "data":{"message":"the hub could not","code":"bad_request"}}));
         let answered = runtime.link.hub_event_op(&error);
         assert_eq!(answered, op);
         runtime.begin_turn(answered, ReportSource::Hub);

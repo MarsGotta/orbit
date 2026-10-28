@@ -17,7 +17,7 @@ impl Runtime {
     pub(in crate::daemon) async fn note_command(&mut self, command: Command) -> Result<()> {
         match NoteOrder::of_command(command) {
             Some((recording_id, order)) => self.note_order(recording_id, order).await,
-            None => bail!("Esta orden no es de una nota"),
+            None => bail!("This command does not belong to a note"),
         }
     }
 
@@ -76,9 +76,9 @@ impl Runtime {
                     dictionary,
                     Outcome::Unreachable {
                         cause: Unreached::Transport(if self.settings.hub_url.is_none() {
-                            "falta la URL del hub"
+                            "hub URL missing"
                         } else {
-                            "la URL del hub no es válida"
+                            "invalid hub URL"
                         }),
                     },
                 );

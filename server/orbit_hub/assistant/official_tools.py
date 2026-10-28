@@ -38,15 +38,15 @@ OPEN_TIMEOUT_SECONDS = 120
 
 def build_backend(hub, agent, instructions=no_instructions):
     path = Path(agent.settings.command[0])
-    cause = None
+    cause, cause_code = None, "adapter_unavailable"
     if not path.exists():
-        cause = "no existe"
+        cause, cause_code = "does not exist", "adapter_path_missing"
     elif not path.is_file():
-        cause = "no es un archivo"
+        cause, cause_code = "is not a file", "adapter_not_file"
     elif not os.access(path, os.X_OK):
-        cause = "no tiene permiso de ejecución"
+        cause, cause_code = "does not have execute permission", "adapter_permission"
     if cause:
-        raise ToolUnavailable(path, cause, agent.id, agent.kind)
+        raise ToolUnavailable(path, cause, agent.id, agent.kind, cause_code)
     return OfficialBackend(hub, agent, instructions)
 
 
@@ -93,8 +93,7 @@ class OfficialBackend:
                 if idle is None:
                     raise HubError(
                         "agent_process_limit",
-                        f"{self.agent_name} tiene {len(self.processes)} procesos ocupados; "
-                        f"máximo {MAX_AGENT_PROCESSES}",
+                        f"{self.agent_name} has {len(self.processes)} busy processes; maximum {MAX_AGENT_PROCESSES}",
                         numbers={"busy": len(self.processes), "limit": MAX_AGENT_PROCESSES},
                     )
                 await idle.stop()
@@ -116,7 +115,9 @@ class OfficialBackend:
         try:
             await process.open()
             if process.stopped:
-                raise HubError("agent_stopped", "Se cerró la conexión mientras arrancaba el agente")
+                raise HubError(
+                    "agent_stopped", "The connection closed while the agent was starting"
+                )
         except BaseException:
             await process.stop()
             raise
@@ -164,7 +165,7 @@ class OfficialConnection:
 
     def live(self, session_id):
         if (process := self.sessions.get(session_id)) is None:
-            raise HubError("session_runtime_not_found", "La sesión del agente ya no está activa")
+            raise HubError("session_runtime_not_found", "The agent session is no longer active")
         return process
 
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]):
@@ -200,11 +201,11 @@ class VendorProcess:
         self.held = False
 
     def refusal(self, code, cause, numbers=None):
-        return HubError(code, f"El agente «{self.backend.agent_name}» {cause}", numbers=numbers)
+        return HubError(code, f"Agent «{self.backend.agent_name}» {cause}", numbers=numbers)
 
     def start_turn(self, blocks):
         if self.turn is not None:
-            raise self.refusal("turn_in_progress", "ya tiene un turno en curso")
+            raise self.refusal("turn_in_progress", "already has a turn in progress")
         self.text, self.limit_resets_ms = [], None
         self.turn = asyncio.create_task(self.run_turn(blocks))
 
@@ -217,7 +218,7 @@ class VendorProcess:
             terminal = TurnFailed(self.session_id, exc.code, exc.message, exc.numbers)
         except Exception:  # noqa: BLE001 - vendor input must end the request without leaking diagnostics
             report("agent_turn_failed", "agent_protocol", exc_info=False)
-            error = self.refusal("agent_protocol", "respondió algo que el hub no lee")
+            error = self.refusal("agent_protocol", "returned something the hub cannot read")
             terminal = TurnFailed(self.session_id, error.code, error.message)
         else:
             if status == "completed":
@@ -233,12 +234,12 @@ class VendorProcess:
         numbers = (
             {"resets_at_ms": self.limit_resets_ms} if self.limit_resets_ms is not None else None
         )
-        return self.refusal("agent_limit_reached", "llegó al límite de tu plan", numbers)
+        return self.refusal("agent_limit_reached", "reached your plan limit", numbers)
 
     def auth_failure(self):
         self.backend.observe("auth_required")
         return self.refusal(
-            "agent_auth_required", "necesita que inicies sesión desde sus ajustes en Orbit"
+            "agent_auth_required", "needs you to sign in through its settings in Orbit"
         )
 
     async def stop(self):

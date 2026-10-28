@@ -58,7 +58,7 @@ class CodexRpc:
             raise launch_failure("codex", self.backend.settings.command[0], exc) from None
         if self.closed:
             await self.stop_process()
-            raise HubError("agent_stopped", "Codex se cerró durante su arranque")
+            raise HubError("agent_stopped", "Codex closed during startup")
         self.reader = asyncio.create_task(self.read())
         from ..app import hub_version
 
@@ -82,7 +82,7 @@ class CodexRpc:
 
     async def call(self, method, params, timeout=START_TIMEOUT_SECONDS):
         if self.closed:
-            raise HubError("agent_stopped", "Codex ya está cerrado")
+            raise HubError("agent_stopped", "Codex is already closed")
         if self.failure:
             raise self.failure
         self.serial += 1
@@ -95,7 +95,7 @@ class CodexRpc:
         except TimeoutError:
             raise HubError(
                 "agent_timeout",
-                f"Codex no respondió a {method} en {timeout} s",
+                f"Codex did not respond to {method} en {timeout} s",
                 numbers={"timeout_ms": timeout * 1000},
             ) from None
         finally:
@@ -115,7 +115,7 @@ class CodexRpc:
                             future.set_result(message.get("result"))
                 elif "id" in message:
                     if len(self.callbacks) >= MAX_SERVER_REQUESTS:
-                        raise HubError("agent_protocol", "Codex superó 16 peticiones simultáneas")
+                        raise HubError("agent_protocol", "Codex exceeded 16 simultaneous requests")
                     task = asyncio.create_task(self.respond(message))
                     self.callbacks.add(task)
                     task.add_done_callback(self.callbacks.discard)
@@ -124,16 +124,16 @@ class CodexRpc:
         except asyncio.CancelledError:
             raise
         except (ValueError, TypeError, KeyError):
-            self.failure = HubError("agent_protocol", "Codex envió un mensaje JSON inválido")
+            self.failure = HubError("agent_protocol", "Codex sent an invalid JSON message")
         except HubError as exc:
             self.failure = exc
         except Exception:  # noqa: BLE001 - vendor input must end the request without leaking diagnostics
-            self.failure = HubError("agent_protocol", "No se pudo leer la salida de Codex")
+            self.failure = HubError("agent_protocol", "Could not read Codex output")
         finally:
             await self.stop_process()
             self.failure = self.failure or HubError(
                 "agent_stopped",
-                f"Codex terminó con código {self.process.returncode}",
+                f"Codex exited with code {self.process.returncode}",
                 numbers={"exit_status": self.process.returncode},
             )
             for future in self.pending.values():
@@ -151,7 +151,7 @@ class CodexRpc:
         except asyncio.LimitOverrunError:
             raise HubError(
                 "agent_stopped",
-                f"Codex envió un mensaje mayor de {MAX_AGENT_MESSAGE_BYTES} bytes",
+                f"Codex sent a message larger than {MAX_AGENT_MESSAGE_BYTES} bytes",
                 numbers={"max_bytes": MAX_AGENT_MESSAGE_BYTES},
             ) from None
         return json.loads(line)

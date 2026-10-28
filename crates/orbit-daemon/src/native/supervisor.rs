@@ -291,9 +291,9 @@ async fn run_with(
     route: NativeRoute,
     mut stop: watch::Receiver<bool>,
 ) -> Result<HelperEnd> {
-    let path = path.context("El helper nativo no está configurado")?;
+    let path = path.context("Native helper not configured")?;
     if !path.is_absolute() {
-        anyhow::bail!("El helper debe tener una ruta absoluta");
+        anyhow::bail!("The helper requires an absolute path");
     }
     let mut consecutive_failures: u32 = 0;
     loop {
@@ -317,7 +317,7 @@ async fn run_with(
         }
         if consecutive_failures >= MAX_RELAUNCH_ATTEMPTS {
             return Err(anyhow::anyhow!(
-                "El helper nativo se cayó {} veces consecutivas sin volver a anunciar ready",
+                "The native helper crashed {} consecutive times without announcing ready again",
                 MAX_RELAUNCH_ATTEMPTS
             ));
         }

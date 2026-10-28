@@ -27,7 +27,7 @@ export const dictionary = {
     seeAll: (count: number) => `Ver las ${numberFormat().format(count)} palabras`,
     removeEntry: "Quitar",
     remove: (term: string) => `Quitar ${term}`,
-    refused: (code: string, detail: string, numbers: Record<string, number>) => {
+    refused: (code: string, _detail: string, numbers: Record<string, number>) => {
       const causes: Record<string, string> = {
         not_paired: "Orbit no está emparejado con el hub",
         privacy_stopped: "Todo está parado",
@@ -63,7 +63,7 @@ export const dictionary = {
       const values = Object.entries(numbers)
         .map(([key, value]) => `${labels[key] ?? key}: ${numberFormat().format(value)}`)
         .join(", ");
-      return `${causes[code] ?? detail}${values ? ` (${values})` : ""}.`;
+      return `${(Object.hasOwn(causes, code) ? causes[code] : undefined) ?? `Orbit no reconoce este código: ${code}`}${values ? ` (${values})` : ""}.`;
     },
   },
 } as const;

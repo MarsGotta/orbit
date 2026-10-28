@@ -89,10 +89,10 @@ impl Runtime {
             .into());
         }
         if self.recording_active() {
-            bail!("Mientras se graba una reunión, Orbit no lee respuestas en voz alta");
+            bail!("Orbit does not read responses aloud while recording a meeting");
         }
         if self.state.durable.voice.call.is_some() {
-            bail!("Durante una llamada, Orbit no lee otras respuestas en voz alta");
+            bail!("Orbit does not read other responses aloud during a call");
         }
         if self.link.token.is_none() {
             return Err(Refusal::NotPaired.into());
@@ -290,7 +290,7 @@ impl Runtime {
                             },
                             Err(_) => WorkResult::Problem {
                                 ticket,
-                                message: "El servicio de voz no entregó un clip".into(),
+                                message: "The speech service did not deliver a clip".into(),
                             },
                         },
                         Err(error)
@@ -643,7 +643,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             error.to_string(),
-            "Durante una llamada, Orbit no lee otras respuestas en voz alta"
+            "Orbit does not read other responses aloud during a call"
         );
         assert_eq!(speaking(&runtime), serde_json::Value::Null);
     }

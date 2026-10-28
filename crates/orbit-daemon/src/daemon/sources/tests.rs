@@ -242,7 +242,7 @@ async fn stale_source_reply_records_its_actual_cause() -> Result<()> {
     for (reason, expected_code, _expected_detail) in [
         ("generation", "generation_changed", "generation_changed"),
         ("session", "conversation_changed", "conversación"),
-        ("deadline", "native_timeout", "plazo"),
+        ("deadline", "native_timeout", "deadline"),
     ] {
         let directory = tempfile::tempdir()?;
         let (mut runtime, mut receiver) = fixture(directory.path())?;

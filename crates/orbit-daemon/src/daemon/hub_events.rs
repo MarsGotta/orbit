@@ -260,7 +260,7 @@ impl Runtime {
             let version = self
                 .link
                 .protocol_version
-                .map_or("sin anunciar".into(), |value| value.to_string());
+                .map_or("unannounced".into(), |value| value.to_string());
             if let Some(diagnostics) = &self.diagnostics {
                 diagnostics.record(
                     "hub_event_unrecognized",

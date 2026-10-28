@@ -127,7 +127,7 @@ impl Runtime {
                 Some("voice_turn" | "voice_call")
             )
         {
-            bail!("La grabación es una nota de voz o una llamada, no una reunión");
+            bail!("The recording is a voice note or call, not a meeting");
         }
         Ok(())
     }
@@ -332,7 +332,7 @@ impl Runtime {
                 .await
                 .unwrap_or_else(|_| {
                     Err(PurgeFailure::Retry(
-                        "El borrado en este Mac falló; se reintentará".into(),
+                        "Deletion on this Mac failed; it will be retried".into(),
                     ))
                 });
             let event = NoteEvent::Purged {
@@ -434,7 +434,7 @@ impl crate::daemon::recording_notes::NotesHandle {
     /// A hub known not to delete takes no delete: nothing changes here.
     pub(in crate::daemon) fn refuse_without_hub_delete(&self) -> Result<()> {
         if self.deletions.hub_deletes == Some(false) {
-            bail!("Actualiza el hub para borrar reuniones");
+            bail!("Update the hub to delete meetings");
         }
         Ok(())
     }

@@ -36,23 +36,23 @@ impl SendResult {
 
     pub(super) fn cause(&self) -> String {
         match self {
-            Self::Queued => "enviado a la cola local; recepción de Deimos sin confirmar".into(),
+            Self::Queued => "queued locally; receipt by Deimos unconfirmed".into(),
             Self::EncodingFailed { reason } => {
-                format!("trama del hub no codificada: {reason}; esta trama no se entregó")
+                format!("hub frame not encoded: {reason}; this frame was not delivered")
             }
             Self::Full { capacity } => format!(
-                "canal del hub lleno (capacidad {capacity} tramas); esta trama no se entregó"
+                "hub channel full (capacity {capacity} frames); this frame was not delivered"
             ),
-            Self::Closed => "canal del hub cerrado; esta trama no se entregó".into(),
-            Self::Disconnected => "sin conexión con el hub; esta trama no se entregó".into(),
+            Self::Closed => "hub channel closed; this frame was not delivered".into(),
+            Self::Disconnected => "no connection to the hub; this frame was not delivered".into(),
             Self::Retired(Retirement::PrivacyStop) => {
-                "enlace retirado por parada de privacidad; esta trama no se entregó".into()
+                "link withdrawn by privacy stop; this frame was not delivered".into()
             }
             Self::Retired(Retirement::AuthorityRetired) => {
-                "enlace retirado por retirada de autoridad; esta trama no se entregó".into()
+                "link withdrawn by authority revocation; this frame was not delivered".into()
             }
             Self::Retired(Retirement::NetworkCancelled) => {
-                "enlace retirado por cancelación de red; esta trama no se entregó".into()
+                "link withdrawn by network cancellation; this frame was not delivered".into()
             }
         }
     }
@@ -233,7 +233,7 @@ mod tests {
             assert!(
                 SendResult::Retired(reason)
                     .cause()
-                    .contains("no se entregó")
+                    .contains("was not delivered")
             );
         }
         let receiver = link.open(1);

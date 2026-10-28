@@ -171,5 +171,7 @@ def public_item(event: ActivityItem) -> dict:
     else:
         data["label"] = one_line(event.text, MAX_ITEM_LABEL_CHARS)
     if event.phase == "failed":
-        data["cause"] = one_line(event.cause, MAX_ITEM_CAUSE_CHARS) or "sin causa declarada"
+        data["cause"] = one_line(event.cause, MAX_ITEM_CAUSE_CHARS) or "No failure cause supplied"
+        if event.cause_code or not event.cause:
+            data["cause_code"] = event.cause_code or "tool_failure_unreported"
     return data

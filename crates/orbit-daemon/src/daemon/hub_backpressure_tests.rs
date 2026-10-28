@@ -71,8 +71,8 @@ async fn privacy_stop_keeps_its_notice_with_a_pending_bridge_request() -> Result
         NoticeCode::BridgeReplyUndelivered
     ));
     let cause = last_logged(directory.path(), "bridge_reply_undelivered")?;
-    assert!(cause.contains("parada de privacidad"), "{cause}");
-    assert!(!cause.contains("sin conexión con el hub"), "{cause}");
+    assert!(cause.contains("privacy stop"), "{cause}");
+    assert!(!cause.contains("no connection to the hub"), "{cause}");
     Ok(())
 }
 
@@ -259,7 +259,7 @@ async fn full_hub_report_names_capacity_and_does_not_queue_reply() -> Result<()>
         bail!("the full channel should have refused the reply")
     };
     assert!(error.to_string().contains("1"), "{error}");
-    assert!(error.to_string().contains("lleno"), "{error}");
+    assert!(error.to_string().contains("full"), "{error}");
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     Ok(())
@@ -301,9 +301,9 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
         runtime.state.durable.notice
     );
     let cause = last_logged(directory.path(), "bridge_reply_undelivered")?;
-    assert!(cause.contains("no se entregó"), "{cause}");
+    assert!(cause.contains("was not delivered"), "{cause}");
     assert!(!cause.contains("recibió"), "{cause}");
-    assert_undelivered_cause(directory.path(), "capacidad 1")?;
+    assert_undelivered_cause(directory.path(), "capacity 1")?;
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     let (sender, mut admitted) = mpsc::channel(1);
@@ -334,9 +334,9 @@ async fn action_receipt_is_reported_only_after_queue_admission() -> Result<()> {
         runtime.state.durable.notice
     );
     let cause = last_logged(directory.path(), "bridge_reply_undelivered")?;
-    assert!(cause.contains("parada de privacidad"), "{cause}");
-    assert!(cause.contains("no se entregó"), "{cause}");
-    assert_undelivered_cause(directory.path(), "parada de privacidad")?;
+    assert!(cause.contains("privacy stop"), "{cause}");
+    assert!(cause.contains("was not delivered"), "{cause}");
+    assert_undelivered_cause(directory.path(), "privacy stop")?;
     Ok(())
 }
 
@@ -372,7 +372,7 @@ async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
     );
 
     assert!(runtime.assistant.bridge_requests.is_empty());
-    assert_undelivered_cause(directory.path(), "capacidad 1")?;
+    assert_undelivered_cause(directory.path(), "capacity 1")?;
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
 
@@ -384,7 +384,7 @@ async fn bridge_release_reports_full_and_retired_link() -> Result<()> {
     runtime.release_bridge_requests(BridgeReleaseReason::Cancelled);
 
     assert!(runtime.assistant.bridge_requests.is_empty());
-    assert_undelivered_cause(directory.path(), "retirada de autoridad")?;
+    assert_undelivered_cause(directory.path(), "authority revocation")?;
     Ok(())
 }
 
@@ -424,7 +424,7 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
         Some(NoticeCode::BridgeReplyUndelivered)
     );
 
-    assert_undelivered_cause(directory.path(), "capacidad 1")?;
+    assert_undelivered_cause(directory.path(), "capacity 1")?;
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     runtime
@@ -438,7 +438,7 @@ async fn engine_windows_reply_reports_full_and_retired_link() -> Result<()> {
             .await?
     );
 
-    assert_undelivered_cause(directory.path(), "cancelación de red")?;
+    assert_undelivered_cause(directory.path(), "network cancellation")?;
     Ok(())
 }
 
@@ -475,7 +475,7 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
         Some(NoticeCode::BridgeReplyUndelivered)
     );
 
-    assert_undelivered_cause(directory.path(), "capacidad 1")?;
+    assert_undelivered_cause(directory.path(), "capacity 1")?;
     assert_eq!(frames.try_recv()?["fixture"], "occupied");
     assert!(frames.try_recv().is_err());
     runtime
@@ -487,7 +487,7 @@ async fn helper_windows_reply_reports_full_and_retired_link() -> Result<()> {
         .answer_bridge_from_sources(&json!({"id":"source-list-fixture","ok":false,"error":{"code":"source_inventory_failed","message":"No se pudo leer el inventario"}}))
         .await?;
 
-    assert_undelivered_cause(directory.path(), "retirada de autoridad")?;
+    assert_undelivered_cause(directory.path(), "authority revocation")?;
     Ok(())
 }
 

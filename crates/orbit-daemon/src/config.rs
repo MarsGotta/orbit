@@ -5,7 +5,7 @@ pub use orbit_ipc::{Paths, Settings, atomic_private_write};
 use std::fs;
 
 pub fn validate_hub_url(raw: &str, development: bool) -> Result<reqwest::Url> {
-    let url = reqwest::Url::parse(raw).context("URL de hub no válida")?;
+    let url = reqwest::Url::parse(raw).context("Invalid hub URL")?;
     let local = matches!(
         url.host_str(),
         Some("localhost" | "127.0.0.1" | "[::1]" | "::1")
@@ -14,7 +14,7 @@ pub fn validate_hub_url(raw: &str, development: bool) -> Result<reqwest::Url> {
         .host_str()
         .is_some_and(orbit_core::orbit_bundle::plain_http_hub);
     if url.scheme() != "https" && !(url.scheme() == "http" && (development && local || tailnet)) {
-        bail!("El hub requiere HTTPS; HTTP solo se permite en localhost con --dev");
+        bail!("The hub requires HTTPS; HTTP is allowed only on localhost with --dev");
     }
     if !url.username().is_empty()
         || url.password().is_some()
@@ -22,7 +22,7 @@ pub fn validate_hub_url(raw: &str, development: bool) -> Result<reqwest::Url> {
         || url.fragment().is_some()
         || !matches!(url.path(), "" | "/")
     {
-        bail!("Usa solo el origen HTTPS del hub, sin claves, rutas ni parámetros");
+        bail!("Use only the hub HTTPS origin, without credentials, paths or parameters");
     }
     Ok(url)
 }
@@ -32,7 +32,7 @@ pub fn storage_key(paths: &Paths, development: bool) -> Result<[u8; 32]> {
         Some(secret) => secret,
         None => {
             if paths.store.exists() {
-                bail!("Falta la clave de un almacén existente; recupera Keychain antes de abrirlo");
+                bail!("An existing store key is missing; recover Keychain before opening it");
             }
             let key: [u8; 32] = rand::random();
             let secret = STANDARD.encode(key);
@@ -43,7 +43,7 @@ pub fn storage_key(paths: &Paths, development: bool) -> Result<[u8; 32]> {
     STANDARD
         .decode(secret)?
         .try_into()
-        .map_err(|_| anyhow::anyhow!("Clave de almacenamiento no válida"))
+        .map_err(|_| anyhow::anyhow!("Invalid storage key"))
 }
 
 pub fn get_secret(paths: &Paths, account: &str, development: bool) -> Result<Option<String>> {
@@ -85,7 +85,7 @@ pub fn set_secret(paths: &Paths, account: &str, value: &str, development: bool) 
         Ok(())
     }
     #[cfg(not(target_os = "macos"))]
-    bail!("No hay Keychain en esta plataforma; no se guardó la credencial")
+    bail!("Keychain is unavailable on this platform; the credential was not saved")
 }
 
 #[cfg(test)]

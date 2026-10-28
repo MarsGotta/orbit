@@ -32,7 +32,7 @@ pub struct MutedSpan {
 /// The recording already holds [`MAX_MUTED_SPANS`] spans.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error(
-    "Ya se silenció el micrófono {spans} veces en esta grabación, el máximo es {max_spans}; puedes pausarla"
+    "The microphone has already been muted {spans} times in this recording, the maximum is {max_spans}; you can pause it"
 )]
 pub struct TooManyMutedSpans {
     pub spans: usize,

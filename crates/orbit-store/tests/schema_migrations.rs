@@ -398,7 +398,7 @@ fn schemas_before_three_are_named_and_rejected_without_changing_the_store() -> T
             .err()
             .ok_or("old schema was accepted")?;
         let detail = error.to_string();
-        assert!(detail.contains("entre 3 y 4"), "{detail}");
+        assert!(detail.contains("between 3 and 4"), "{detail}");
         assert!(detail.contains("orbit.sqlite3"), "{detail}");
         assert!(detail.contains(&version.to_string()), "{detail}");
         assert!(detail.contains('3'), "{detail}");
@@ -461,8 +461,8 @@ fn future_schema_version_is_rejected_explicitly() -> TestResult {
         .ok_or("future schema was accepted")?;
     let detail = error.to_string();
     assert!(detail.contains("orbit.sqlite3"), "{detail}");
-    assert!(detail.contains("esquema 5"), "{detail}");
-    assert!(detail.contains("entre 3 y 4"), "{detail}");
+    assert!(detail.contains("schema 5"), "{detail}");
+    assert!(detail.contains("between 3 and 4"), "{detail}");
     assert_eq!(schema_version(&database)?, 5);
     Ok(())
 }

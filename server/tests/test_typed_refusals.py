@@ -202,9 +202,9 @@ def test_uncertain_action_stays_uncertain_through_websocket_and_result_route(
             )
     assert result["outcome"] == "unknown", result
     assert result["refusal"]["retry"]["kind"] == "check_outcome"
-    assert "No repitas" in result["next_step"]
+    assert "Do not repeat" in result["next_step"]
     assert '"outcome": "unknown"' in _text(rendered)
-    assert "No repitas" in _text(rendered)
+    assert "Do not repeat" in _text(rendered)
 
 
 @pytest.mark.parametrize(
@@ -525,7 +525,7 @@ def test_empty_calendar_render_and_internal_error_keep_their_cause():
                 "parameter": "title",
                 "expected": {"kind": "title_length", "characters": 257, "max_characters": 256},
             },
-            ("título", "257", "256"),
+            ("title", "257", "256"),
             (),
         ),
         (

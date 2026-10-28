@@ -131,7 +131,7 @@ def group_manifest(device: str, recording: str, track: str, sources: list[Source
 def assemble_wav(sources: list[dict], bodies: list[bytes]) -> bytes:
     """Concatenate PCM, not RIFF containers; never change format or invent silence."""
     if not 1 <= len(sources) == len(bodies) <= MAX_GROUP_SOURCES:
-        raise HubError("invalid_group_audio", "Número de fuentes de audio fuera de contrato")
+        raise HubError("invalid_group_audio", "Audio source count violates the contract")
     output, expected_format, size = io.BytesIO(), None, 44
     try:
         with wave.open(output, "wb") as target:
@@ -166,6 +166,6 @@ def assemble_wav(sources: list[dict], bodies: list[bytes]) -> bytes:
                     size += len(pcm)
     except (wave.Error, EOFError, ValueError) as exc:
         raise HubError(
-            "invalid_group_audio", "Las fuentes no forman un WAV contiguo verificable"
+            "invalid_group_audio", "The sources do not form a verifiable contiguous WAV"
         ) from exc
     return output.getvalue()

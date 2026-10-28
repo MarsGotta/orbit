@@ -105,7 +105,7 @@ def tool_settings_of(agent: Agent) -> ToolSettings:
     if agent.kind not in HOME_FOLDERS:
         raise HubError(
             "sign_in_unsupported",
-            f"{agent.name} no inicia sesión desde Orbit: lo configura quien gestiona tu hub",
+            f"{agent.name} does not sign in through Orbit: whoever runs your hub configures it",
             http_status=409,
             numbers={"agent_id": agent.id, "kind": agent.kind},
         )
@@ -134,7 +134,7 @@ def private_folder(path: Path) -> None:
     if path.is_symlink() or (path.exists() and not path.is_dir()):
         raise HubError(
             "agent_folder_invalid",
-            f"La carpeta del agente no es un directorio: {path.name}",
+            f"The agent folder is not a directory: {path.name}",
             http_status=500,
         )
     if not path.exists():
@@ -224,7 +224,7 @@ class SignIns:
         if attempt is None:
             raise HubError(
                 "sign_in_not_found",
-                f"No hay ningún inicio de sesión de {agent.name}",
+                f"There is no sign-in for {agent.name}",
                 http_status=404,
                 numbers={"agent_id": agent.id},
             )
@@ -243,14 +243,14 @@ class SignIns:
         ):
             raise HubError(
                 "sign_in_not_waiting_for_code",
-                "Este inicio de sesión no espera ningún código",
+                "This sign-in is not waiting for a code",
                 http_status=409,
                 numbers={"agent_id": agent_id},
             )
         if PASTED_CODE.fullmatch(code) is None:
             raise HubError(
                 "sign_in_code_invalid",
-                "El código no es el que da la página de Claude: cópialo entero, con su «#»",
+                "The code does not match the Claude page: copy it in full, including its «#»",
                 http_status=422,
                 numbers={"agent_id": agent_id, "characters": len(code)},
             )
@@ -302,7 +302,7 @@ class SignIns:
         except OSError as exc:
             raise HubError(
                 "sign_out_failed",
-                f"No arrancó el cierre de sesión de {agent.name} en el hub ({exc.strerror})",
+                f"Sign-out did not start for {agent.name} on the hub ({exc.strerror})",
                 http_status=502,
                 numbers={"agent_id": agent.id},
             ) from None
@@ -313,7 +313,7 @@ class SignIns:
             await _terminate(process)
             raise HubError(
                 "sign_out_timeout",
-                f"El cierre de sesión de {agent.name} no terminó en {SIGN_OUT_TIMEOUT_SECONDS} s",
+                f"Sign-out for {agent.name} did not finish within {SIGN_OUT_TIMEOUT_SECONDS} s",
                 http_status=504,
                 numbers={"agent_id": agent.id, "timeout_ms": SIGN_OUT_TIMEOUT_SECONDS * 1000},
             ) from None
@@ -321,7 +321,7 @@ class SignIns:
             report("sign_out_failed", "sign_out_failed", numbers={"exit_status": code}, exc_info=False)  # fmt: skip
             raise HubError(
                 "sign_out_failed",
-                f"{agent.name} no pudo cerrar la sesión (código {code})",
+                f"{agent.name} could not sign out (code {code})",
                 http_status=502,
                 numbers={"agent_id": agent.id, "exit_status": code},
             )

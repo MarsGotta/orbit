@@ -77,21 +77,19 @@ impl std::fmt::Display for Unreached {
             Self::Transport(cause) => formatter.write_str(cause),
             Self::TooLarge { bytes, max_bytes } => write!(
                 formatter,
-                "la respuesta del hub mide al menos {bytes} bytes; el techo de lectura es {max_bytes}"
+                "The hub response is at least {bytes} bytes; the read ceiling is {max_bytes}"
             ),
             Self::Cut { received_bytes } => write!(
                 formatter,
-                "la respuesta del hub se cortó tras {received_bytes} bytes"
+                "The hub response was cut after {received_bytes} bytes"
             ),
-            Self::Shape => {
-                formatter.write_str("la respuesta del hub no tiene la forma del contrato")
-            }
+            Self::Shape => formatter.write_str("The hub response does not match the contract"),
             Self::Status {
                 status,
                 code: Some(code),
-            } => write!(formatter, "el hub respondió HTTP {status} (código {code})"),
+            } => write!(formatter, "The hub returned HTTP {status} (code {code})"),
             Self::Status { status, code: None } => {
-                write!(formatter, "el hub respondió HTTP {status}")
+                write!(formatter, "The hub returned HTTP {status}")
             }
         }
     }
@@ -137,10 +135,10 @@ fn transport_cause(error: &reqwest::Error) -> &'static str {
     use crate::hub::TransportCause;
     match TransportCause::of(error) {
         TransportCause::ConnectionTimeout | TransportCause::Timeout => {
-            "el hub no respondió a tiempo"
+            "The hub did not respond in time"
         }
-        TransportCause::Connection => "no se pudo conectar con el hub",
-        TransportCause::Cut => "la conexión con el hub se cortó",
+        TransportCause::Connection => "Could not connect to the hub",
+        TransportCause::Cut => "The connection to the hub was cut",
     }
 }
 
@@ -211,7 +209,7 @@ impl NoteHub {
     pub(crate) fn endpoint(&self, segments: &[&str]) -> Result<reqwest::Url, &'static str> {
         let mut url = self.base.clone();
         url.path_segments_mut()
-            .map_err(|_| "la URL del hub no admite rutas")?
+            .map_err(|_| "The hub URL cannot contain paths")?
             .pop_if_empty()
             .extend(segments);
         Ok(url)
@@ -234,9 +232,7 @@ impl NoteHub {
             Err(cause) => return Answer::Unreachable(Unreached::Transport(cause)),
         };
         let Ok(mut request) = crate::hub::request(method, url, Some(&self.token), &self.op) else {
-            return Answer::Unreachable(Unreached::Transport(
-                "no se pudo preparar el cliente HTTP",
-            ));
+            return Answer::Unreachable(Unreached::Transport("Could not prepare the HTTP client"));
         };
         if let Some(body) = body {
             request = request.json(&body);

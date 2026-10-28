@@ -462,7 +462,7 @@ fn closing_cuts_and_retires_network_without_latching() {
     let decision = decide(
         &state,
         Event::Close {
-            cause: "Orbit se está cerrando.".into(),
+            cause: "Orbit is closing.".into(),
         },
         10,
     )

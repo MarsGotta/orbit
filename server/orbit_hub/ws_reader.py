@@ -33,7 +33,7 @@ async def read_frames(socket: Socket) -> None:
             bind_op(frame.op if frame.op is not None else frame.id)
             request_id = frame.uuid()
             if not socket.store.devices.is_active(socket.device):
-                raise HubError("revoked", "Dispositivo revocado")
+                raise HubError("revoked", "Device revoked")
             if METHODS[frame.method] is MethodRoute.DEVICE_REPLY:
                 device_reply(socket, frame, request_id)
                 continue
@@ -42,7 +42,7 @@ async def read_frames(socket: Socket) -> None:
             if frame is not None and frame.method == "chat.send":
                 socket.runtime.log_chat_rejection("invalid_request")
             socket.queue.put_nowait(
-                error_event("invalid_request", "Mensaje fuera de contrato", request_id)
+                error_event("invalid_request", "Message violates the contract", request_id)
             )
         except HubError as exc:
             if frame is not None and frame.method == "chat.send":
@@ -62,7 +62,7 @@ def _parse(socket: Socket, raw: str) -> Frame:
     if frame_bytes > socket.settings.max_frame_bytes:
         raise HubError(
             "too_large",
-            "Mensaje demasiado grande",
+            "Message too large",
             numbers={
                 "resource": "message",
                 "bytes": frame_bytes,
@@ -81,9 +81,7 @@ async def _request(socket: Socket, frame, request_id) -> None:
     safety_target = None
     if safe_control:
         if not params.turn_id:
-            raise HubError(
-                "turn_id_required", "El control requiere la identidad del turno original"
-            )
+            raise HubError("turn_id_required", "Control requires the original turn identity")
         safety_target = safety.target_key(
             frame.method, params.session_id, params.turn_id, getattr(params, "request_id", "")
         )

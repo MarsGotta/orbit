@@ -61,11 +61,11 @@ class CodexProcess(VendorProcess):
         except RpcError as exc:
             raise self.rpc_failure(exc) from None
         except (KeyError, TypeError, ValueError):
-            raise self.refusal("agent_protocol", "no devolvió el id de su conversación") from None
+            raise self.refusal("agent_protocol", "did not return its conversation ID") from None
 
     def start_turn(self, blocks):
         if self.turn is not None:
-            raise self.refusal("turn_in_progress", "ya tiene un turno en curso")
+            raise self.refusal("turn_in_progress", "already has a turn in progress")
         self.turn_ready.clear()
         self.host_items.clear()
         self.turn_id = None
@@ -103,7 +103,7 @@ class CodexProcess(VendorProcess):
         if mark == "unauthorized":
             return self.auth_failure()
         numbers = {"rpc_code": error.code} if type(error.code) is int else None
-        return self.refusal("agent_rejected", "rechazó una petición de Orbit", numbers)
+        return self.refusal("agent_rejected", "refused an Orbit request", numbers)
 
     def result(self, turn):
         status = turn.get("status")
@@ -121,22 +121,22 @@ class CodexProcess(VendorProcess):
             raise self.auth_failure()
         # Refusals name their structured cause, never raw diagnostic text.
         causes = {
-            "contextWindowExceeded": "agotó su ventana de contexto",
-            "rateLimitExceeded": "recibió demasiadas peticiones",
-            "sessionBudgetExceeded": "agotó el presupuesto de la sesión",
-            "sandboxError": "no pudo ejecutar dentro de su aislamiento",
-            "flexUnavailable": "no tiene capacidad Flex disponible",
-            "serverOverloaded": "informó de que el servicio está saturado",
-            "cyberPolicy": "rechazó el turno por su política de ciberseguridad",
-            "misalignmentPolicyViolation": "rechazó el turno por su política de seguridad",
-            "tooManyDenials": "paró tras demasiadas denegaciones",
-            "internalServerError": "informó de un fallo interno de Codex",
-            "badRequest": "rechazó el formato de la petición",
-            "threadRollbackFailed": "no pudo restaurar el estado del hilo",
-            "httpConnectionFailed": "no pudo conectar con el proveedor tras sus reintentos",
-            "httpResponseStreamConnectionFailed": "no pudo abrir la respuesta del proveedor",
-            "responseStreamDisconnected": "perdió la conexión de respuesta del proveedor",
-            "responseStreamLimitExceeded": "agotó los reintentos de la respuesta del proveedor",
+            "contextWindowExceeded": "exhausted its context window",
+            "rateLimitExceeded": "received too many requests",
+            "sessionBudgetExceeded": "exhausted the session budget",
+            "sandboxError": "could not execute inside its sandbox",
+            "flexUnavailable": "has no Flex capacity available",
+            "serverOverloaded": "reported that the service is overloaded",
+            "cyberPolicy": "refused the turn under its cybersecurity policy",
+            "misalignmentPolicyViolation": "refused the turn under its safety policy",
+            "tooManyDenials": "stopped after too many denials",
+            "internalServerError": "reported an internal Codex failure",
+            "badRequest": "refused the request format",
+            "threadRollbackFailed": "could not restore thread state",
+            "httpConnectionFailed": "could not connect to the provider after retrying",
+            "httpResponseStreamConnectionFailed": "could not open the provider response",
+            "responseStreamDisconnected": "lost the provider response connection",
+            "responseStreamLimitExceeded": "exhausted provider response retries",
         }
         known = mark if isinstance(mark, str) and mark in causes else None
         numbers = {"stop_reason": known} if known else {}
@@ -144,7 +144,7 @@ class CodexProcess(VendorProcess):
             numbers["http_status_code"] = details["httpStatusCode"]
         raise self.refusal(
             "agent_rejected",
-            causes[known] if known else "no informó de la causa estructurada del fallo",
+            causes[known] if known else "did not report the structured failure cause",
             numbers or None,
         )
 
@@ -197,7 +197,7 @@ class CodexProcess(VendorProcess):
                 # Retain only files awaiting completion/approval, bounded by
                 # the same callback ceiling as the RPC transport.
                 if len(self.host_items) >= MAX_SERVER_REQUESTS:
-                    raise HubError("agent_protocol", "Codex superó 16 ediciones simultáneas")
+                    raise HubError("agent_protocol", "Codex exceeded 16 simultaneous edits")
                 self.host_items[item["id"]] = item
         phase = "completed" if completed else "started"
         if item.get("status") in {"failed", "declined"}:
@@ -219,7 +219,8 @@ class CodexProcess(VendorProcess):
                     phase,
                     name,
                     arguments if isinstance(arguments, dict) else None,
-                    cause="La herramienta falló" if phase == "failed" else None,
+                    cause="The tool failed" if phase == "failed" else None,
+                    cause_code="tool_failed" if phase == "failed" else None,
                 )
             )
         elif kind == "reasoning":
@@ -277,7 +278,7 @@ class CodexProcess(VendorProcess):
 
     async def server_request(self, method, params):
         if params.get("threadId") != self.session_id or self.turn is None:
-            raise HubError("agent_protocol", "Codex pidió una acción fuera de su turno")
+            raise HubError("agent_protocol", "Codex requested an action outside its turn")
         if method in {"item/commandExecution/requestApproval", "item/fileChange/requestApproval"}:
             command = params.get("command") or ""
             if method == "item/commandExecution/requestApproval" and not command:
@@ -307,7 +308,7 @@ class CodexProcess(VendorProcess):
             return {"answers": {qid: {"answers": [text]} for qid, text in answers.items()}}
         # OAuth refresh requests and unknown extensions are never fulfilled by
         # reading account files. Only the official CLI owns account renewal.
-        raise HubError("agent_protocol", "Orbit no ofrece esa petición de Codex")
+        raise HubError("agent_protocol", "Orbit does not offer that Codex request")
 
     async def cancel(self):
         if self.turn is None:

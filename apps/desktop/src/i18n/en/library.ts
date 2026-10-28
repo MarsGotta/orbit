@@ -56,7 +56,15 @@ export const library = {
     dragSection: (name: string) => `Move “${name}”: drag or use the up and down arrows`,
     builtinHint: "This is an Orbit template. Editing saves your own copy.",
     noRoom: "You’ve reached the custom template limit. Delete one to create another.",
-    refused: (code: string) => libraryCodes[code] ?? "The hub rejected the change.",
+    refused: (code: string, numbers: Record<string, number> = {}) => {
+      const text = Object.hasOwn(libraryCodes, code)
+        ? libraryCodes[code]
+        : `The hub did not accept the change (${code}).`;
+      const facts = Object.entries(numbers)
+        .map(([key, value]) => `${key}: ${numberFormat().format(value)}`)
+        .join(", ");
+      return `${text}${facts ? ` (${facts})` : ""}`;
+    },
     // The event panel and the note header.
     noteTemplate: "Note template",
     noteTemplateHint: "Used for notes in this meeting and the whole series.",

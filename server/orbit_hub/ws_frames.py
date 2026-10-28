@@ -75,5 +75,5 @@ def failed(socket: Socket, failure: Exception, request_id) -> dict:
         return error_event(full.code, full.message, request_id, numbers=full.numbers)
     report(event="internal_error", code="internal_error", device=socket.device, session=request_id)
     return error_event(
-        "internal_error", "No se pudo completar la operación; no se repetirá", request_id
+        "internal_error", "Could not complete the operation; it will not be repeated", request_id
     )
