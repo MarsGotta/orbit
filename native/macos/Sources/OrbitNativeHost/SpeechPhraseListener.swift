@@ -4,8 +4,8 @@ import Foundation
 import OrbitNativeProtocol
 import Speech
 
-/// On-device recognition of «Oye Deimos» with macOS 26's
-/// `SpeechAnalyzer` + `SpeechTranscriber` (Spanish, `es_ES`), fed with the
+/// On-device recognition of the app language's wake phrase with macOS 26's
+/// `SpeechAnalyzer` + `SpeechTranscriber`, fed with the
 /// meeting microphone's samples. Measured on a Mac: the Spanish model
 /// downloads once through
 /// `AssetInventory`, analysis runs on the Mac without network, and analysing
@@ -33,6 +33,7 @@ final class SpeechPhraseListener: PhraseListening, @unchecked Sendable {
     static let progressInterval: Duration = .milliseconds(500)
 
     private let lock = NSLock()
+    private let locale: NativeSpeechLocale
     private var policy: SpokenQuestionPolicy
     private var fedSeconds = 0.0
     private var analyzerOrigin: Double?
@@ -47,9 +48,10 @@ final class SpeechPhraseListener: PhraseListening, @unchecked Sendable {
     private let report: (VoiceTriggerReport) -> Void
     private let question: (SpokenQuestion, Double) -> Void
 
-    init(assistantNames: [String], report: @escaping (VoiceTriggerReport) -> Void,
+    init(assistantNames: [String], locale: NativeSpeechLocale, report: @escaping (VoiceTriggerReport) -> Void,
          question: @escaping (SpokenQuestion, Double) -> Void) {
-        self.policy = SpokenQuestionPolicy(assistantNames: assistantNames)
+        self.locale = locale
+        self.policy = SpokenQuestionPolicy(assistantNames: assistantNames, locale: locale)
         self.report = report
         self.question = question
     }
@@ -73,7 +75,7 @@ final class SpeechPhraseListener: PhraseListening, @unchecked Sendable {
 
     private func prepare() async {
         guard let locale = await SpeechTranscriber.supportedLocale(
-            equivalentTo: Locale(identifier: "es_ES")) else {
+            equivalentTo: Locale(identifier: self.locale.rawValue)) else {
             say(.unavailable(cause: "locale_unsupported", osVersion: nil))
             return
         }

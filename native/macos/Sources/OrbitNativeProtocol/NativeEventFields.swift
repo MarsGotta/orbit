@@ -22,6 +22,7 @@ public struct NativeEventEnvelope<Fields: Encodable>: Encodable {
 }
 
 public struct NativeReadyEventFields: Encodable {
+    public let preferred_languages: [String]?
     public let `protocol`: Int
     public let platform: String
     public let selected_text_available: Bool
@@ -200,6 +201,7 @@ public struct NativePlaybackProgressFields: Encodable {
 }
 
 public struct NativeStateEventFields: Encodable {
+    public let preferred_languages: [String]?
     public let privacy_stopped: Bool
     public let connected: Bool
     public let native_instance_id: String

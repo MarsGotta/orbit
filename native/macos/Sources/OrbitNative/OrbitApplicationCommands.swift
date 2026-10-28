@@ -16,12 +16,15 @@ extension OrbitApplication {
         // Its kind only: what the main thread was doing if it is held next.
         mainThreadWatch.commandStarted(command.command)
         guard launchOptions.permits(command: command.command) else {
-            channel.reject(command, code: "isolated_fixture_scope", message: "Operación no permitida en el fixture aislado.")
+            channel.reject(command, code: "isolated_fixture_scope", message: "Operation is not allowed in the isolated fixture.")
             return
         }
         switch command {
         case .hello, .heartbeat:
             channel.respond(command, result: state())
+        case .interfaceLanguage(let wire):
+            MainActor.assumeIsolated { assistantFiles.locale = wire.fields.locale }
+            channel.respond(command)
         case .status:
             channel.respond(command, result: state().merging(["permissions": permissions()]) { _, rhs in rhs })
         case .calendarDisconnect:
@@ -34,10 +37,10 @@ extension OrbitApplication {
             MainActor.assumeIsolated { calendarHost().write(command) }
         case .privacyStop:
             respondAfterStop(command, reason: "daemon_requested", latches: true,
-                failureMessage: "Todo está parado, pero no se pudo confirmar todo el audio previo.")
+                failureMessage: "Everything is stopped, but some previous audio could not be confirmed.")
         case .captureStop:
             respondAfterStop(command, reason: StopPolicy.daemonCutReason, latches: false,
-                failureMessage: "Captura cortada; no se pudo confirmar todo el audio previo.")
+                failureMessage: "Capture stopped; some previous audio could not be confirmed.")
         case .playbackPause:
             playback.pause()
             channel.respond(command)
@@ -60,7 +63,7 @@ extension OrbitApplication {
         case .assistantFolderPick, .assistantFolders, .assistantFilesList, .assistantFilesSearch,
              .assistantFilesRead, .windowText, .photoJPEG:
             guard connected else {
-                channel.reject(command, code: "daemon_disconnected", message: "Reinicia Orbit para recuperar la conexión local.")
+                channel.reject(command, code: "daemon_disconnected", message: "Restart Orbit to restore the local connection.")
                 return
             }
             execute(command, ownsGeneralLane: false)
@@ -68,7 +71,7 @@ extension OrbitApplication {
              .playbackClip, .applicationSources,
              .screenSources, .screenshot, .selectedText:
             guard connected else {
-                channel.reject(command, code: "daemon_disconnected", message: "Reinicia Orbit para recuperar la conexión local.")
+                channel.reject(command, code: "daemon_disconnected", message: "Restart Orbit to restore the local connection.")
                 return
             }
             routeOnGeneralLane(command)
@@ -82,7 +85,7 @@ extension OrbitApplication {
         // rearm authority. Isolated fixtures do not.
         guard launchOptions.isManaged else {
             channel.reject(command, code: "local_rearm_unavailable",
-                message: "Solo el daemon local de Orbit puede reactivarlo, por su canal privado.")
+                message: "Only the local Orbit daemon can rearm it through its private channel.")
             return
         }
         if let refusal = rearmReadiness().refusal {
@@ -105,7 +108,7 @@ extension OrbitApplication {
             } catch {
                 self.privacyCleanupInFlight -= 1
                 self.channel.reject(command, code: "privacy_rearm_failed",
-                    message: "Orbit no pudo guardar el estado de privacidad en este Mac.")
+                    message: "Orbit could not save the privacy state on this Mac.")
             }
             self.publishState()
         }
@@ -120,7 +123,7 @@ extension OrbitApplication {
                 self.channel.respond(command, result: ["drain_complete": true])
                 self.finishQuitAfterDrain()
             } else {
-                self.channel.reject(command, code: "audio_drain_incomplete", message: "No se confirma cierre hasta drenar el audio previo.")
+                self.channel.reject(command, code: "audio_drain_incomplete", message: "Shutdown cannot be confirmed until previous audio has drained.")
             }
         }
     }
@@ -138,8 +141,8 @@ extension OrbitApplication {
             execute(command, ownsGeneralLane: false)
         case .reject(let code):
             let message = code == "native_backpressure"
-                ? "La cola nativa está llena."
-                : "La operación nativa anterior superó su plazo; vuelve a intentarlo."
+                ? "The native queue is full."
+                : "The previous native operation exceeded its deadline; try again."
             channel.reject(command, code: code, message: message)
         }
     }
@@ -161,7 +164,7 @@ extension OrbitApplication {
 
     private func execute(_ command: NativeWireCommand, ownsGeneralLane: Bool) {
         if command.command != "permissions" && latch.stopped {
-            channel.reject(command, code: "privacy_stopped", message: "Orbit está detenido en este Mac.")
+            channel.reject(command, code: "privacy_stopped", message: "Orbit is stopped on this Mac.")
             finish(command, ownsGeneralLane: ownsGeneralLane)
             return
         }
@@ -188,7 +191,7 @@ extension OrbitApplication {
             } catch let failure as AssistantFilesFailure {
                 // A folder refusal carries its cause, never a path or content.
                 if !self.channel.send(.makeRejection(id: command.id, code: failure.code,
-                        message: "Orbit no puede leer eso en las carpetas del asistente.",
+                        message: "Orbit cannot read that in the assistant folders.",
                         detail: failure.detail)) {
                     FileHandle.standardError.write(Data("native_rejection_not_admitted event=response\n".utf8))
                 }
@@ -203,7 +206,7 @@ extension OrbitApplication {
                 // start without a cause (2026-10-17).
                 let detail = osErrorDetail((error as? NativeFailure)?.underlying
                     ?? (typed == nil ? error as NSError : nil))
-                let message = "No se pudo completar la operación nativa."
+                let message = "The native operation could not be completed."
                 if let detail {
                     if !self.channel.send(.makeRejection(id: command.id, code: typed ?? "native_operation_failed",
                                                          message: message, detail: detail)) {
@@ -273,7 +276,7 @@ extension OrbitApplication {
             return try await windowText.read(wire.fields)
         case .photoJPEG(let wire):
             return try await photoJPEG.convert(wire.fields)
-        case .hello, .heartbeat, .status, .calendarDisconnect,
+        case .hello, .heartbeat, .status, .interfaceLanguage, .calendarDisconnect,
              .calendarSources, .calendarSnapshot, .calendarSave, .calendarDelete,
              .privacyStop, .captureStop,
              .playbackStop, .playbackPause, .playbackResume, .rearm, .shutdown:

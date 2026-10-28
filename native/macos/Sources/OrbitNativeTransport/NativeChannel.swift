@@ -291,10 +291,10 @@ public final class NativeChannel: Sendable {
             }
         } catch let error as NativeEventFieldError {
             reject(command, code: error.description,
-                message: "La respuesta nativa \(command.command) contiene un tipo inválido en \(error.field).")
+                message: "Native response \(command.command) contains an invalid type in \(error.field).")
         } catch {
             reject(command, code: "native_response_invalid",
-                message: "La respuesta nativa \(command.command) no pudo codificarse.")
+                message: "Native response \(command.command) could not be encoded.")
         }
     }
 
@@ -343,7 +343,7 @@ public final class NativeChannel: Sendable {
                         guard header.v == NativeProtocol.version,
                               !header.id.isEmpty, header.id.utf8.count <= 128 else { throw error }
                         reject(id: header.id, code: "invalid_native_command",
-                            message: "La orden nativa \(header.command) no tiene la forma del protocolo.")
+                            message: "Native command \(header.command) does not match the protocol.")
                     }
                 }
             }
@@ -417,8 +417,8 @@ public final class NativeChannel: Sendable {
             "pending_commands": pending,
             "max_pending_commands": Self.maximumPendingCommands
         ]
-        let message = "El hilo principal de Orbit en este Mac tiene \(pending) órdenes pendientes; "
-            + "\(command.command) no se ejecutó."
+        let message = "Orbit's main thread on this Mac has \(pending) pending commands; "
+            + "\(command.command) was not executed."
         let event = NativeEvent.makeRejection(id: command.id, code: Self.mainThreadBusyCode,
             message: message, detail: detail)
         if !send(event) {

@@ -1,5 +1,6 @@
 {
   "command": "audio_wake_phrase",
+  "locale": "en_GB",
   "assistant_name": "Atlas",
   "assistant_names": [
     "Atlas",

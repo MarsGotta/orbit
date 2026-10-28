@@ -60,6 +60,9 @@ pub(super) struct QuestionHandle {
     /// The microphone stream the helper was last asked to listen on: the
     /// meeting recording's, whoever opened it.
     pub(super) wake_stream: Option<String>,
+    preferred_languages: Option<Vec<String>>,
+    helper_locale: Option<orbit_core::wire::native::SpeechLocale>,
+    wake_locale: Option<orbit_core::wire::native::SpeechLocale>,
     /// `audio_wake_phrase` orders in flight: id → (stream, enabled).
     wake_orders: std::collections::BTreeMap<String, (String, bool)>,
     /// Tests drive the clock; production reads the wall.

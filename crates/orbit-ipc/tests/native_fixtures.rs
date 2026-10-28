@@ -57,6 +57,7 @@ fn command_name(command: &NativeCommand) -> &'static str {
         NativeCommand::AudioPurpose { .. } => "audio_purpose",
         NativeCommand::AudioMute { .. } => "audio_mute",
         NativeCommand::AudioWakePhrase { .. } => "audio_wake_phrase",
+        NativeCommand::InterfaceLanguage { .. } => "interface_language",
         NativeCommand::AudioStop { .. } => "audio_stop",
         NativeCommand::Playback { .. } => "playback",
         NativeCommand::PlaybackClip { .. } => "playback_clip",

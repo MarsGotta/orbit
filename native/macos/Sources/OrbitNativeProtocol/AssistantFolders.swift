@@ -78,7 +78,7 @@ public enum AssistantReadAs: Decodable, Sendable, Equatable {
                           maxHeight: try fields.decode(UInt32.self, forKey: .max_height))
         default:
             throw DecodingError.dataCorruptedError(forKey: .as, in: fields,
-                debugDescription: "Lectura de archivo desconocida")
+                debugDescription: "Unknown file read")
         }
     }
 }

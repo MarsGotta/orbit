@@ -10,9 +10,50 @@ use orbit_core::meeting_question::{
     VoiceTrigger,
 };
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
-use orbit_core::wire::native::{NativeEvent, WakePhraseAbandonmentCause};
+use orbit_core::wire::native::{NativeEvent, SpeechLocale, WakePhraseAbandonmentCause};
 
 impl Runtime {
+    /// System preferences come from Foundation in the helper, never process
+    /// locale environment variables (which a bundled Mac app need not have).
+    pub(in crate::daemon) fn observe_speech_preferences(&mut self, event: &Value) -> Result<bool> {
+        let fields = match event["event"].as_str() {
+            Some("ready" | "state") => event,
+            Some("response") if event["ok"] == true => &event["result"],
+            _ => return Ok(false),
+        };
+        let Some(preferred) = fields.get("preferred_languages") else {
+            return Ok(false);
+        };
+        let preferred: Vec<String> = serde_json::from_value(preferred.clone())?;
+        let changed = self.question.preferred_languages.as_ref() != Some(&preferred);
+        self.question.preferred_languages = Some(preferred);
+        Ok(changed)
+    }
+
+    async fn sync_helper_language(&mut self) -> SpeechLocale {
+        let locale = SpeechLocale::resolve(
+            self.settings.language,
+            self.question
+                .preferred_languages
+                .as_deref()
+                .unwrap_or_default(),
+        );
+        // Wait for the helper's system preferences before updating its panels.
+        // An observed empty list still resolves to English.
+        if self.question.preferred_languages.is_some()
+            && self.question.helper_locale != Some(locale)
+        {
+            match self
+                .native_send("interface_language", json!({"locale": locale}))
+                .await
+            {
+                Ok(()) => self.question.helper_locale = Some(locale),
+                Err(_) => self.log("interface_language_not_sent", &[]),
+            }
+        }
+        locale
+    }
+
     /// The helper heard «Oye {nombre}, …» on the user's microphone. Taken only
     /// from the microphone stream of the recording in progress, with the
     /// user's stop off and no voice note being dictated (the dictation is
@@ -172,10 +213,12 @@ impl Runtime {
         if !self.question.helper_listens {
             return Ok(());
         }
+        let locale = self.sync_helper_language().await;
         let target = self.wake_target();
-        if target == self.question.wake_stream {
+        if target == self.question.wake_stream && self.question.wake_locale == Some(locale) {
             return Ok(());
         }
+        self.question.wake_locale = Some(locale);
         // A phrase abandoned on another stream, or before a pause, is not
         // this one's.
         self.question.abandoned = None;
@@ -221,6 +264,7 @@ impl Runtime {
         let command = crate::native::command(
             "audio_wake_phrase",
             json!({"stream_id": stream, "enabled": enabled,
+                "locale": SpeechLocale::resolve(self.settings.language, self.question.preferred_languages.as_deref().unwrap_or_default()),
                 "assistant_name": roster.default_name(), "assistant_names": roster.names()}),
         )?;
         let header = orbit_core::wire::native::NativeCommandHeader::from_value(&command)?;
@@ -354,6 +398,8 @@ impl crate::daemon::meeting_question::QuestionHandle {
     pub(in crate::daemon) fn voice_trigger_unknown(&mut self) {
         self.voice_trigger = None;
         self.wake_stream = None;
+        self.wake_locale = None;
+        self.helper_locale = None;
         self.wake_orders.clear();
     }
 

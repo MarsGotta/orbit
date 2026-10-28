@@ -62,6 +62,7 @@ package final class AssistantVoiceTrigger {
     /// uses macOS 26's speech analysis; tests pass a fake.
     typealias ListenerFactory = (
         _ assistantNames: [String],
+        _ locale: NativeSpeechLocale,
         _ report: @escaping (VoiceTriggerReport) -> Void,
         _ question: @escaping (SpokenQuestion, Double) -> Void
     ) -> PhraseListening
@@ -71,6 +72,7 @@ package final class AssistantVoiceTrigger {
     private var listener: PhraseListening?
     /// Every agent's name, as the daemon last gave them.
     private var assistantNames = ["Deimos"]
+    private var locale: NativeSpeechLocale = .spanish
 
     package init(channel: NativeChannel) {
         self.channel = channel
@@ -107,9 +109,10 @@ package final class AssistantVoiceTrigger {
     /// question leaves: the user's stop off and the stream still the active
     /// microphone.
     package func start(streamID: String, assistantName: String? = nil,
-                       assistantNames: [String]? = nil,
+                       assistantNames: [String]? = nil, locale: NativeSpeechLocale? = nil,
                        allow: @escaping @MainActor (String) -> Bool) -> MicrophoneFrameSink? {
         stop()
+        if let locale { self.locale = locale }
         if let assistantNames, !assistantNames.isEmpty {
             self.assistantNames = assistantNames
         } else if let assistantName {
@@ -129,9 +132,9 @@ package final class AssistantVoiceTrigger {
         }
         let listener: PhraseListening
         if let makeListener {
-            listener = makeListener(self.assistantNames, report, question)
+            listener = makeListener(self.assistantNames, self.locale, report, question)
         } else if #available(macOS 26.0, *) {
-            listener = SpeechPhraseListener(assistantNames: self.assistantNames, report: report, question: question)
+            listener = SpeechPhraseListener(assistantNames: self.assistantNames, locale: self.locale, report: report, question: question)
         } else {
             announce()
             return nil

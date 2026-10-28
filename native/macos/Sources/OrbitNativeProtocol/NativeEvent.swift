@@ -130,8 +130,8 @@ public enum NativeEvent: Encodable {
     }
 
     public static func makeReady(selectedTextAvailable: Bool, launchMode: String,
-        isolatedFixture: Bool) -> NativeEvent {
-        .ready(.init(event: "ready", fields: .init(protocol: NativeProtocol.version,
+        isolatedFixture: Bool, preferredLanguages: [String]? = nil) -> NativeEvent {
+        .ready(.init(event: "ready", fields: .init(preferred_languages: preferredLanguages, protocol: NativeProtocol.version,
             platform: "macos", selected_text_available: isolatedFixture ? false : selectedTextAvailable,
             supported_audio_processing: ["unprocessed", "voice_processing"],
             voice_processing_available: false, playback_reference_available: false,
@@ -172,8 +172,9 @@ public enum NativeEvent: Encodable {
         systemAudio: Bool, playing: Bool,
         voiceProcessingAvailable: Bool, playbackReferenceAvailable: Bool,
         audioProcessing: NativeAudioProcessingResultFields,
+        preferredLanguages: [String]? = nil,
         calendar: NativeCalendarStatusResultFields) -> NativeEvent {
-        .state(.init(event: "state", fields: .init(privacy_stopped: stopped,
+        .state(.init(event: "state", fields: .init(preferred_languages: preferredLanguages, privacy_stopped: stopped,
             connected: connected, native_instance_id: instanceID, privacy_generation: generation,
             selected_text_available: selectedTextAvailable, microphone: microphone,
             system_audio: systemAudio, playing: playing,

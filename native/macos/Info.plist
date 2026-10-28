@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>NSCalendarsFullAccessUsageDescription</key><string>Orbit necesita acceso completo a tus calendarios para leer tus eventos y para crear, mover, editar y borrar los eventos que tú cambies desde Orbit.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>Orbit needs full access to your calendars to read your events and to create, move, edit and delete the events you change in Orbit.</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>es</string></array>
   <key>CFBundleIdentifier</key><string>app.orbit.companion</string>
   <key>CFBundleName</key><string>Orbit</string>
   <key>CFBundleDisplayName</key><string>Orbit</string>
@@ -15,7 +17,7 @@
   <!-- The daemon runs in this process: macOS must never nap it, since it
        records, uploads and keeps the helper's heartbeat in the background. -->
   <key>NSAppSleepDisabled</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>Orbit usa el micrófono solo cuando activas una conversación o autorizas una grabación.</string>
-  <key>NSAudioCaptureUsageDescription</key><string>Orbit captura el audio de la aplicación que autorizas para conservar tu reunión.</string>
-  <key>NSScreenCaptureUsageDescription</key><string>Orbit ve la pantalla solo durante una llamada activa o cuando se lo pides.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Orbit uses the microphone only when you start a conversation or authorize a recording.</string>
+  <key>NSAudioCaptureUsageDescription</key><string>Orbit captures audio from the application you authorize to preserve your meeting.</string>
+  <key>NSScreenCaptureUsageDescription</key><string>Orbit views the screen only during an active call or when you ask it to.</string>
 </dict></plist>

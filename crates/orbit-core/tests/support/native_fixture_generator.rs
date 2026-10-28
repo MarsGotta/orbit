@@ -84,9 +84,10 @@ pub fn generate() -> Result<(), Box<dyn Error>> {
         ("audio_mute", json!({"stream_id":"stream-1","muted":true})),
         (
             "audio_wake_phrase",
-            json!({"stream_id":"stream-1","enabled":true,"assistant_name":"Atlas",
+            json!({"stream_id":"stream-1","enabled":true,"locale":"en_GB","assistant_name":"Atlas",
                 "assistant_names":["Atlas","Vega"]}),
         ),
+        ("interface_language", json!({"locale":"en_GB"})),
         ("audio_stop", json!({"stream_id":"stream-1"})),
         (
             "playback",
