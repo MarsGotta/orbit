@@ -119,7 +119,7 @@ impl Runtime {
     pub(super) async fn on_microphone_activity(&mut self, event: &Value) -> Result<()> {
         let decoded: NativeEvent = serde_json::from_value(event.clone())?;
         let NativeEvent::MicrophoneActivity { applications, .. } = decoded else {
-            bail!("Evento microphone_activity incoherente");
+            bail!("Inconsistent microphone_activity event");
         };
         let applications = applications
             .into_iter()

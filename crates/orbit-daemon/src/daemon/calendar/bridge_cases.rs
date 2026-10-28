@@ -353,10 +353,7 @@ async fn malformed_calendar_number_reaches_deimos_with_event_field_and_type() ->
     );
     result["observed_at_unix_ms"] = json!("ahora");
     ack(&mut mac.runtime, &command, result).await?;
-    let reply = mac
-        .frames
-        .try_recv()
-        .context("negativa de agenda ausente")?;
+    let reply = mac.frames.try_recv().context("Missing calendar refusal")?;
     assert_eq!(reply["params"]["request_id"], "bad-calendar-number");
     assert_eq!(reply["params"]["refusal"]["code"], "helper_reply_invalid");
     assert_eq!(reply["params"]["refusal"]["field"], "observed_at_unix_ms");

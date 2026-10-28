@@ -29,7 +29,7 @@
 //!   of the two, and the stop names which one is missing;
 //! - a permission the Mac has not reported yet is `Unknown`: it neither
 //!   starts an engine nor stops a running one. A refused start and a refused
-//!   request say «todavía no se sabe», never «no». With no helper connected
+//!   request say "not yet known", never "no". With no helper connected
 //!   nothing reports the permissions at all; that is its own cause, which
 //!   does not invite asking again, and it neither starts nor stops either;
 //! - changing conversation and losing the hub are not facts here at all, so

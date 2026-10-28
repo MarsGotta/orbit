@@ -80,7 +80,7 @@ pub fn check_status(status: reqwest::StatusCode) -> anyhow::Result<()> {
     if status == reqwest::StatusCode::INSUFFICIENT_STORAGE {
         return Err(OutOfSpace::unexplained().into());
     }
-    anyhow::bail!("Transferencia pendiente ({status})")
+    anyhow::bail!("Transfer remains pending after HTTP {status}")
 }
 
 /// [`check_status`] for an upload, with what the hub said: a refusal keeps

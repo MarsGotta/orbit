@@ -4,6 +4,24 @@ use super::*;
 use orbit_core::silence::{CallQuiet, PresenceReply, presence_reply};
 
 impl Runtime {
+    pub(super) async fn rearm_call_presence(
+        &mut self,
+        locale: orbit_core::wire::native::SpeechLocale,
+    ) {
+        if self.state.views.silence_questions.call.pending()
+            && self
+                .assistant
+                .presence_locale
+                .is_some_and(|previous| previous != locale)
+        {
+            if self.presence_question_speaking() && self.stop_playback().await.is_err() {
+                self.log("presence_playback_stop_not_sent", &[]);
+            }
+            // Keep the original silence deadline; only the words are re-armed.
+            self.ask_call_presence();
+        }
+    }
+
     pub(super) async fn check_silence(&mut self) -> Result<()> {
         self.check_silence_at(now()).await
     }
@@ -96,7 +114,10 @@ impl Runtime {
         }
         let pending = self.state.views.silence_questions.call.pending();
         self.audio.note_call_words();
-        let reply = presence_reply(text);
+        let reply = presence_reply(
+            text,
+            &super::spoken_copy::copy(self.resolved_speech_locale()).answers,
+        );
         if reply == PresenceReply::HangUp {
             self.apply(Event::CallStop).await?;
             return Ok(true);

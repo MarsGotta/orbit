@@ -311,3 +311,125 @@ async fn noise_resumes_the_same_reading_without_synthesizing_it_again() -> Resul
     server.abort();
     Ok(())
 }
+
+/// Fake synthesis/playback and transcription exercise the daemon's entry points.
+#[tokio::test]
+async fn silence_speech_and_replies_follow_the_resolved_language() -> Result<()> {
+    use orbit_core::language::LanguageChoice;
+    for (preferences, language, prompt, keep, hangup, foreign) in [
+        (
+            json!(["en-US"]),
+            LanguageChoice::System,
+            "Are you still there? If you don't say anything, I'll hang up in 15 seconds",
+            "Yes!",
+            "Hang up.",
+            "sí",
+        ),
+        (
+            json!(["en-GB"]),
+            LanguageChoice::English,
+            "Are you still there? If you don't say anything, I'll hang up in 15 seconds",
+            "I'm here",
+            "hang up",
+            "cuelga",
+        ),
+        (
+            json!(["en-US"]),
+            LanguageChoice::Spanish,
+            "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
+            "¡Sí!",
+            "Cuelga",
+            "hang up",
+        ),
+    ] {
+        for (reply, local, closes) in [
+            (keep, true, false),
+            (hangup, true, true),
+            (foreign, false, false),
+        ] {
+            let mut call = Call::open().await?;
+            let (url, mut requests, server) = speech_service().await?;
+            call.runtime.settings.hub_url = Some(url);
+            let (events, mut work) = mpsc::channel(64);
+            call.runtime.work_events = events;
+            let mut hub = call.runtime.link.outbound.open(64);
+            call.runtime
+                .native_event(json!({"event":"ready", "preferred_languages": preferences}))
+                .await?;
+            call.runtime
+                .command(Command::LanguageSet { language })
+                .await?;
+            let started = call.started_at_ms()?;
+            call.frames_at(started + 30_000, 1, false).await?;
+            call.runtime.check_silence_at(started + 30_000).await?;
+            let spoken = clip(&mut call, &mut work).await?;
+            assert_eq!(requests.recv().await.context("silence synthesis")?, prompt);
+            progress(&mut call, &spoken["playback_id"], "played").await?;
+            call.frames_at(started + 31_000, 4, true).await?;
+            call.frames_at(started + 31_400, 8, false).await?;
+            call.transcribed(reply).await?;
+            assert_eq!(!call.alive(), closes, "{reply}");
+            let sent =
+                std::iter::from_fn(|| hub.try_recv().ok()).any(|f| f["method"] == "chat.send");
+            assert_eq!(sent, !local, "{reply}");
+            server.abort();
+        }
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn changing_language_rearms_a_pending_silence_question_without_extending_its_deadline()
+-> Result<()> {
+    use orbit_core::language::LanguageChoice;
+    for system_change in [false, true] {
+        let mut call = Call::open().await?;
+        let (url, mut requests, server) = speech_service().await?;
+        call.runtime.settings.hub_url = Some(url);
+        let (events, mut work) = mpsc::channel(64);
+        call.runtime.work_events = events;
+        call.runtime
+            .native_event(json!({"event":"ready", "preferred_languages":["es-ES"]}))
+            .await?;
+        let started = call.started_at_ms()?;
+        call.frames_at(started + 30_000, 1, false).await?;
+        call.runtime.check_silence_at(started + 30_000).await?;
+        let _spanish = clip(&mut call, &mut work).await?;
+        assert_eq!(
+            requests.recv().await.context("Spanish prompt")?,
+            "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos"
+        );
+        if system_change {
+            call.runtime
+                .native_event(json!({"event":"state", "privacy_stopped":false,
+            "preferred_languages":["en-GB"]}))
+                .await?;
+        } else {
+            call.runtime
+                .command(Command::LanguageSet {
+                    language: LanguageChoice::English,
+                })
+                .await?;
+        }
+        let english = clip(&mut call, &mut work).await?;
+        assert_eq!(
+            requests.recv().await.context("English prompt")?,
+            "Are you still there? If you don't say anything, I'll hang up in 15 seconds"
+        );
+        progress(&mut call, &english["playback_id"], "played").await?;
+        call.runtime
+            .command(Command::LanguageSet {
+                language: LanguageChoice::English,
+            })
+            .await?;
+        assert!(call.runtime.assistant.speech_task.active().is_none());
+        call.frames_at(started + 45_000, 1, false).await?;
+        call.runtime.check_silence_at(started + 45_000).await?;
+        assert!(
+            !call.alive(),
+            "changing language extended the pending deadline"
+        );
+        server.abort();
+    }
+    Ok(())
+}

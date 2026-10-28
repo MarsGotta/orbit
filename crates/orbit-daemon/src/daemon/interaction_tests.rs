@@ -476,7 +476,7 @@ async fn submitting_snapshot_keeps_new_turn_and_discards_interrupted_reply() -> 
         .assistant
         .turn
         .as_ref()
-        .context("turno ausente")?;
+        .context("Missing turn")?;
     assert!(
         std::iter::once(&turn.user)
             .chain(turn.answer.as_ref())

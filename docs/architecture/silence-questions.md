@@ -15,9 +15,16 @@ Calls reuse `TurnDetector::last_activity_ms` and transcription results. Assistan
 speech/synthesis, an open turn, a pending approval or Mac action pause the clock.
 A captured candidate or transcription may hold the initial question for at most
 one maximum turn (20 s); otherwise continuous noise could postpone it forever.
-Only transcribed words answer. Exact short presence replies («sí», «sigo»,
-«aquí», «espera», «mantén», «no cuelgues») are consumed locally while asked;
-«Cuelga» hangs up; other words become a normal assistant turn. Noise retains the
+Only transcribed words answer. The daemon uses the app's resolved speech locale,
+the same one sent to the helper for wake recognition. Exact short presence replies
+(“yes”, “still here”, “here”, “wait”, “keep going”, “don't hang up”; Spanish
+«sí», «sigo», «aquí», «espera», «mantén», «no cuelgues», with the existing
+unaccented aliases) are consumed locally while asked. “Hang up” / «Cuelga» hangs
+up; other words become a normal assistant turn. Both languages have one typed
+speech table in `orbit-daemon/src/daemon/spoken_copy`. A pending question is spoken
+again after a language change, retaining its original deadline; replies then use
+the new vocabulary. Casing, surrounding punctuation and curly apostrophes are
+incidental. Longer sentences remain ordinary assistant turns. Noise retains the
 existing pause/resume guarantee and never cancels the assistant or opens a turn.
 The local question uses the existing agent speech reader, without a model turn.
 It does not reset its own countdown. Unread audio or missing call observations
@@ -32,8 +39,11 @@ delivery (under the existing 3 s timeout). Energy at or above that call speech
 threshold resets the quiet counter on either side. The separate low-signal
 diagnostic threshold (32) still detects a dead or muted input; room noise
 between 32 and 500 is quiet for this question without raising that diagnostic.
-This reuses the existing squared-energy measurement, not a speech classifier. No new native measurement or Swift change is
-needed. Only the microphone is required for microphone-only recordings; a muted
+This reuses the existing squared-energy measurement, not a speech classifier.
+Recordings deliver the question through the localized notice, macOS notification
+and system sound. They do not inject synthesized speech into recorded meeting
+audio. Any positive voice activity keeps the recording, in either language; it
+does not require a recognized reply word. No new native measurement is needed. Only the microphone is required for microphone-only recordings; a muted
 microphone-only recording cannot establish silence and stays open. With a remote
 side, muting the microphone makes that side the only silence input.
 

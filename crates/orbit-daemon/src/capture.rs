@@ -163,7 +163,7 @@ pub fn ingest(
     };
     let stream = Some(decoded.stream_id)
         .filter(|s| !s.is_empty() && s.len() <= 128)
-        .context("Identidad de audio ausente")?;
+        .context("Missing audio stream identity")?;
     let rate = decoded.sample_rate;
     let channels = u16::from(decoded.channels);
     let frames = u64::from(decoded.frames);

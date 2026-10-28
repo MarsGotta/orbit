@@ -282,7 +282,8 @@ impl CalendarWriteRefusal {
         }
     }
 
-    /// What the user and Deimos read: Spanish, with every number the refusal has.
+    /// English compatibility text, with every number the refusal has.
+    /// Current interfaces render the typed code and facts in their own language.
     pub fn notice(&self) -> String {
         match self {
             Self::EventNotFound {
@@ -340,20 +341,20 @@ impl CalendarInvalidChange {
             format!(
                 "{text}{}{}{}",
                 self.bytes.map_or(String::new(), |bytes| format!(
-                    " ({bytes} bytes; caben {})",
+                    " ({bytes} bytes; limit {})",
                     self.limit.unwrap_or_default()
                 )),
                 self.count.map_or(String::new(), |count| format!(
-                    " ({count}; caben {})",
+                    " ({count}; limit {})",
                     self.limit.unwrap_or_default()
                 )),
                 self.value
-                    .map_or(String::new(), |value| format!(" (valor {value})")),
+                    .map_or(String::new(), |value| format!(" (value {value})")),
             )
         };
         let what = match self.problem {
             CalendarChangeProblem::Empty => format!("«{field}» is empty"),
-            CalendarChangeProblem::TooLarge => numbers(&format!("«{field}» es demasiado largo")),
+            CalendarChangeProblem::TooLarge => numbers(&format!("«{field}» is too long")),
             CalendarChangeProblem::TooMany => numbers(&format!("«{field}» has too many items")),
             CalendarChangeProblem::EndBeforeStart => format!(
                 "the end ({}) precedes the start ({})",

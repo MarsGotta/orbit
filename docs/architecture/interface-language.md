@@ -36,9 +36,20 @@ again. CodeMirror updates copy through compartments and a facet, preserving
 selection, drafts and undo history.
 
 The pure Rust `LanguageChoice::resolve` accepts an ordered list of preferred
-language tags, with the same supported-language policy. Future native consumers
-can use it after obtaining macOS's preferences; this wave does not wire tray,
-notifications, helper output or speech recognition to it.
+language tags, with the same supported-language policy. The helper reports
+Foundation's preferred languages in `ready` and `state`; the daemon resolves
+`SpeechLocale` from those facts and the stored choice. It sends the locale in
+`interface_language` and `audio_wake_phrase`, re-arming the same microphone when
+it changes. The helper uses Spanish for “Oye {name}” and English for “Hey {name}”,
+including the question after the phrase. British English uses `en_GB`.
+
+The daemon's `spoken_copy/{es,en}.rs` tables hold its own call silence question
+and answer vocabulary. Both fill the same typed structure, including six reply
+intents and hangup aliases; a completeness test checks every group. A language
+change replaces pending question speech and vocabulary without extending the
+original answer deadline. The call uses the same resolved locale as the helper.
+Assistant answers and meeting transcripts remain content, in their own language.
+See [silence questions](silence-questions.md) for recording delivery.
 
 ## Catalogue contract
 
@@ -67,9 +78,19 @@ WebKit's system preferences, both windows changing in the packaged app, and the
 Spanish accessibility labels used by the native harness. Linux tests establish
 neither native permissions nor audio or speech acceptance.
 
-Inline UI strings, native menus and notifications, helper/wake recognition,
-daemon/hub messages, and existing logs/comments remain later work. English
-catalogue hints use “Hey {name}”; speech recognition itself is unchanged.
+Native menus and notifications follow the app language too. Daemon and hub
+refusals carry codes and facts for the interface to render; their compatibility
+messages and internal diagnostics are English. Permission and folder picker copy
+ships in the helper's English and Spanish resources.
+
+On a Mac, run `gtimeout 600 swift test --package-path native/macos`.
+`SpeechLanguageTests` uses a fake recognizer for both wake phrases, the following
+question, and changing language on the same stream. `HelperCopyTests` checks
+explicit-language folder picker resources. Linux daemon tests use fake synthesis,
+playback and transcription for call silence questions in Spanish, US English and
+British English, including replacement speech and unchanged deadlines. Real
+microphone recognition, AEC, prompt audibility and permission panels still need
+consented acceptance on an isolated Mac.
 
 ## Inline copy inventory
 

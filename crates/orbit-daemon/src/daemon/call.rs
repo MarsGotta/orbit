@@ -196,7 +196,7 @@ impl crate::daemon::audio::AudioHandle {
     ) -> Result<ObservedFrame> {
         let policy = VoicePolicy::default();
         let duration_ns = observation.duration_ns;
-        let call = self.call.as_mut().context("Llamada ausente")?;
+        let call = self.call.as_mut().context("Missing call")?;
         call.last_audio = Instant::now();
         call.playback_active = playback_active;
         call.frames_heard = call.frames_heard.saturating_add(1);

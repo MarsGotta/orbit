@@ -152,10 +152,10 @@ async fn forty_applications_across_helper_reads_are_all_visible() -> Result<()> 
         "40 aplicaciones ocupan {payload_bytes} bytes"
     );
     let TopicData::Recording(Knowledge::Present { value, .. }) = frame.data else {
-        anyhow::bail!("el inventario verificado no llegó al tema");
+        anyhow::bail!("The verified inventory did not reach the topic");
     };
     let Knowledge::Present { value: apps, .. } = value.applications else {
-        anyhow::bail!("las 40 aplicaciones verificadas no llegaron como presentes");
+        anyhow::bail!("The 40 verified applications did not arrive as present");
     };
     assert_eq!(apps.len(), 40);
     Ok(())
@@ -202,10 +202,10 @@ async fn unverifiable_inventory_publishes_absent_without_latching_privacy() -> R
     });
     let frame = receiver.borrow().clone();
     let TopicData::Recording(Knowledge::Present { value, .. }) = frame.data else {
-        anyhow::bail!("el inventario no verificable ocultó la grabación");
+        anyhow::bail!("The unverifiable inventory hid the recording");
     };
     let Knowledge::Absent { refusal } = value.applications else {
-        anyhow::bail!("el inventario no verificable no llegó como Absent");
+        anyhow::bail!("The unverifiable inventory did not arrive as Absent");
     };
     assert!(matches!(
         refusal,
@@ -235,7 +235,7 @@ async fn only_a_completed_empty_inventory_means_no_application_has_audio() -> Re
     });
     let TopicData::Recording(Knowledge::Present { value, .. }) = receiver.borrow().data.clone()
     else {
-        anyhow::bail!("el tema no publicó el inventario pendiente");
+        anyhow::bail!("The topic did not publish the pending inventory");
     };
     assert!(matches!(value.applications, Knowledge::Unknown { .. }));
 
@@ -259,7 +259,7 @@ async fn only_a_completed_empty_inventory_means_no_application_has_audio() -> Re
         });
         let TopicData::Recording(Knowledge::Present { value, .. }) = receiver.borrow().data.clone()
         else {
-            anyhow::bail!("el tema perdió el inventario pendiente");
+            anyhow::bail!("The topic lost the pending inventory");
         };
         if index == 0 {
             assert!(matches!(value.applications, Knowledge::Unknown { .. }));
@@ -306,7 +306,7 @@ async fn one_of_two_inventory_replies_cannot_publish_a_partial_list() -> Result<
     });
     let projected = receiver.borrow().data.clone();
     let TopicData::Recording(Knowledge::Present { value, .. }) = projected else {
-        anyhow::bail!("el tema de grabación desapareció");
+        anyhow::bail!("The recording topic disappeared");
     };
     assert!(matches!(value.applications, Knowledge::Unknown { .. }));
     Ok(())

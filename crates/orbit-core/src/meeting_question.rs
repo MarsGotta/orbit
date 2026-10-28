@@ -334,7 +334,7 @@ pub enum VoiceTrigger {
     },
     /// Available and not listening: no recording in progress.
     Idle,
-    /// Getting the Spanish speech model, once, before the first listen.
+    /// Getting the selected speech model, once, before the first listen.
     Downloading {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         percent: Option<u8>,

@@ -1210,7 +1210,7 @@ fn interrupt_recording(state: &mut State) {
     }
 }
 
-/// Spanish notice for a refused audio start. The known permission codes are
+/// Typed notice for a refused audio start. The known permission codes are
 /// named; every other reason is shown verbatim so a future Swift file can be
 /// reflected without an edit here.
 /// A missing permission is something the user can grant; any other refusal is

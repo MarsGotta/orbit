@@ -791,6 +791,11 @@ async fn presence_words_stay_local_and_other_words_are_a_normal_turn() -> Result
         "¿Qué hora es?",
     ] {
         let mut call = Call::open().await?;
+        call.runtime
+            .command(Command::LanguageSet {
+                language: orbit_core::language::LanguageChoice::Spanish,
+            })
+            .await?;
         let mut hub = call.runtime.link.outbound.open(16);
         call.runtime.link.token = None; // Notice-only fallback, no speech request.
         let started = call.started_at_ms()?;
@@ -825,9 +830,14 @@ async fn presence_words_stay_local_and_other_words_are_a_normal_turn() -> Result
 }
 
 #[tokio::test]
-async fn presence_noise_never_answers_and_cuelga_uses_normal_hangup() -> Result<()> {
+async fn presence_noise_never_answers_and_hangup_uses_normal_closure() -> Result<()> {
     for reply in ["", ".", "Cuelga"] {
         let mut call = Call::open().await?;
+        call.runtime
+            .command(Command::LanguageSet {
+                language: orbit_core::language::LanguageChoice::Spanish,
+            })
+            .await?;
         let _hub = call.runtime.link.outbound.open(16);
         call.runtime.link.token = None;
         let started = call.started_at_ms()?;

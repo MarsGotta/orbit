@@ -88,13 +88,13 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
 
     runtime.apply(Event::VoiceStart).await?;
     assert_eq!(
-        helper.recv().await.context("playback_stop ausente")?["command"],
+        helper.recv().await.context("Missing playback_stop")?["command"],
         "playback_stop"
     );
-    let start = helper.recv().await.context("audio_start ausente")?;
+    let start = helper.recv().await.context("Missing audio_start")?;
     let stream = start["stream_id"]
         .as_str()
-        .context("stream ausente")?
+        .context("Missing stream")?
         .to_owned();
     runtime
         .native_event(json!({"event":"response","id":start["id"],"ok":true,
@@ -102,7 +102,7 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
         .await?;
     runtime.native_event(frame(&stream, 8000)).await?;
     runtime.apply(Event::VoiceEnd).await?;
-    let stop = helper.recv().await.context("audio_stop ausente")?;
+    let stop = helper.recv().await.context("Missing audio_stop")?;
     runtime
         .native_event(json!({"event":"response","id":stop["id"],"ok":true,
             "result":{"stream_id":stream,"drain_complete":true}}))
@@ -114,13 +114,10 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
         .assistant
         .turn
         .as_ref()
-        .context("nota ausente")?
+        .context("Missing note")?
         .user;
     let message_id = pending.id.clone();
-    let pending_voice = pending
-        .voice
-        .as_ref()
-        .context("metadatos de voz ausentes")?;
+    let pending_voice = pending.voice.as_ref().context("Missing voice metadata")?;
     assert_eq!(pending.role, "user");
     assert!(pending.at_ms > 0);
     assert!(pending_voice.duration_ms > 0);
@@ -149,7 +146,7 @@ async fn voice_wav_is_readable_by_message_id_and_transcript_is_optional() -> Res
         .assistant
         .turn
         .as_ref()
-        .context("nota ausente")?
+        .context("Missing note")?
         .user;
     assert_eq!(completed.id, message_id);
     assert_eq!(completed.role, "user");
@@ -192,16 +189,16 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
     runtime.link.token = Some(TOKEN.into());
 
     runtime.apply(Event::VoiceStart).await?;
-    helper.recv().await.context("playback_stop ausente")?;
-    let start = helper.recv().await.context("audio_start ausente")?;
-    let stream = start["stream_id"].as_str().context("stream ausente")?;
+    helper.recv().await.context("Missing playback_stop")?;
+    let start = helper.recv().await.context("Missing audio_start")?;
+    let stream = start["stream_id"].as_str().context("Missing stream")?;
     runtime
         .native_event(json!({"event":"response","id":start["id"],"ok":true,
             "result":{"stream_id":stream}}))
         .await?;
     runtime.native_event(frame(stream, 8000)).await?;
     runtime.apply(Event::VoiceEnd).await?;
-    let stop = helper.recv().await.context("audio_stop ausente")?;
+    let stop = helper.recv().await.context("Missing audio_stop")?;
     runtime
         .native_event(json!({"event":"response","id":stop["id"],"ok":true,
             "result":{"stream_id":stream,"drain_complete":true}}))
@@ -212,7 +209,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
         .assistant
         .turn
         .as_ref()
-        .context("nota ausente")?
+        .context("Missing note")?
         .user
         .id
         .clone();
@@ -252,7 +249,7 @@ async fn failed_hub_transcription_replaces_pending_note_with_cause() -> Result<(
     let saved: orbit_core::State = runtime
         .fixture_store
         .load_snapshot()?
-        .context("snapshot ausente")?;
+        .context("Missing snapshot")?;
     let saved_note = Some(
         &saved
             .durable

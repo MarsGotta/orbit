@@ -433,7 +433,7 @@ mod tests {
         let written = fs::read_to_string(&paths.settings)?;
         assert!(
             !written.contains("voice_live"),
-            "voice_live sigue en config.toml tras guardar:\n{written}"
+            "voice_live remains in config.toml after saving:\n{written}"
         );
         Ok(())
     }

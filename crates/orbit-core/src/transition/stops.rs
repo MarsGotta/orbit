@@ -179,7 +179,7 @@ pub(super) fn close(n: &mut DurableState, cause: &str, cx: &mut Step) {
     cx.effects([Effect::Interrupt, Effect::CancelNetwork]);
 }
 
-/// Spanish notice for a refused audio start. A missing permission is
+/// Typed notice for a refused audio start. A missing permission is
 /// something the user can grant; any other refusal is said with the
 /// helper's code.
 fn capture_refused_notice(reason: &str, otherwise: NoticeCode) -> Notice {

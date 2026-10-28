@@ -72,7 +72,7 @@ async fn clip_becomes_one_bounded_playback_clip_command() -> Result<()> {
         orbit_ipc::new_op(),
     )
     .await?;
-    let command = helper.recv().await.context("playback_clip ausente")?;
+    let command = helper.recv().await.context("Missing playback_clip")?;
     assert_eq!(command["command"], "playback_clip");
     assert_eq!(command["playback_id"], "playback-speech");
     assert_eq!(command["mime_type"], "audio/wav");

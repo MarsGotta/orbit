@@ -28,6 +28,8 @@ pub(super) struct AssistantHandle {
     pub(super) speak_next: bool,
     pub(super) speech_paused: bool,
     pub(super) speech_notice_call_id: Option<String>,
+    /// Last language armed for a local presence question, even without a voice.
+    pub(super) presence_locale: Option<orbit_core::wire::native::SpeechLocale>,
     /// The answer the user asked to hear («Escuchar»), while it plays.
     pub(super) read_aloud: Option<speech::ReadAloud>,
     /// What the agent did in the turn in progress, or the last one
@@ -109,6 +111,7 @@ impl AssistantHandle {
             waiting_revision: None,
             retry: None,
             speech_notice_call_id: None,
+            presence_locale: None,
             work: None,
         }
     }

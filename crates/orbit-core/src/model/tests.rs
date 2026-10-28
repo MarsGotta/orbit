@@ -48,8 +48,8 @@ fn a_snapshot_that_still_names_the_daemon_version_loads() -> Result<(), serde_js
 
 #[test]
 fn the_ipc_state_says_whether_a_helper_is_connected() {
-    // «nadie lo ha preguntado todavía» and «no hay quien lo
-    // pregunte» are only distinguishable while the state says whether a
+    // "Nobody has asked yet" and "there is no helper to ask" are only
+    // distinguishable while the state says whether a
     // helper is connected at all.
     let connected = State {
         durable: crate::DurableState {

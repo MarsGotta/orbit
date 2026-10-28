@@ -27,7 +27,7 @@ impl Runtime {
             ..
         } = decoded
         else {
-            bail!("Evento de progreso nativo incoherente");
+            bail!("Inconsistent native playback progress event");
         };
         let state = match state.as_str() {
             "started" => "started",
@@ -142,6 +142,8 @@ impl Runtime {
     }
 
     pub(super) fn ask_call_presence(&mut self) {
+        let locale = self.resolved_speech_locale();
+        self.assistant.presence_locale = Some(locale);
         let voice = self.reading_voice();
         let available = self.settings.hub_agents.as_ref().is_none_or(|roster| {
             roster
@@ -154,7 +156,7 @@ impl Runtime {
         {
             self.begin_reading(
                 "call-presence".into(),
-                "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos".into(),
+                super::spoken_copy::copy(locale).call_question.into(),
             );
         }
     }

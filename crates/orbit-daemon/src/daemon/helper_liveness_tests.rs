@@ -13,7 +13,7 @@ const TIMEOUT_CAUSE: &str = "The Mac did not confirm the audio stop within 3000 
 
 async fn next_command(receiver: &mut mpsc::Receiver<Value>, name: &str) -> Result<Value> {
     loop {
-        let command = receiver.recv().await.context("orden nativa ausente")?;
+        let command = receiver.recv().await.context("Missing native command")?;
         if command["command"] == name {
             return Ok(command);
         }
@@ -135,7 +135,7 @@ async fn silent_meeting_drain_cuts_the_recording_and_preserves_audio() -> Result
     let start = next_command(&mut helper, "audio_start").await?;
     let stream = start["stream_id"]
         .as_str()
-        .context("stream ausente")?
+        .context("Missing stream")?
         .to_owned();
     runtime
         .native_event(json!({"event":"response", "id":start["id"], "ok":true,
@@ -198,7 +198,7 @@ async fn meeting_awaiting_only_its_finish(
     let start = next_command(helper, "audio_start").await?;
     let stream = start["stream_id"]
         .as_str()
-        .context("stream ausente")?
+        .context("Missing stream")?
         .to_owned();
     runtime
         .native_event(json!({"event":"response", "id":start["id"], "ok":true,

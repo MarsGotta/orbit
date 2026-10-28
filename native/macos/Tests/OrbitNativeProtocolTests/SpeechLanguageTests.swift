@@ -71,6 +71,43 @@ final class SpeechLanguageTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testLanguageChangeReplacesTheRecognizerOnTheSameMicrophone() async throws {
+        let input = Pipe(), output = Pipe()
+        let channel = NativeChannel(input: input.fileHandleForReading, output: output.fileHandleForWriting)
+        let delivered = expectation(description: "each re-armed question reaches the delivery guard")
+        delivered.expectedFulfillmentCount = 3
+        var recognizers = [FakeRecognizer]()
+        var locales = [NativeSpeechLocale]()
+        let trigger = AssistantVoiceTrigger(channel: channel, makeListener: { names, locale, _, callback in
+            locales.append(locale)
+            let fake = FakeRecognizer(names: names, locale: locale, question: callback)
+            recognizers.append(fake)
+            return fake
+        })
+        for (locale, phrase, foreign) in [
+            (NativeSpeechLocale.spanish, "Oye Deimos, ¿qué cambió?", "Hey Deimos, what changed?"),
+            (.englishUS, "Hey Deimos, what changed?", "Oye Deimos, ¿qué cambió?"),
+            (.spanish, "Oye Deimos, ¿qué cambió?", "Hey Deimos, what changed?")
+        ] {
+            _ = trigger.start(streamID: "mic-1", locale: locale, allow: { _ in delivered.fulfill(); return false })
+            if recognizers.count > 1 {
+                XCTAssertTrue(recognizers[recognizers.count - 2].stopped)
+            }
+            let current = recognizers[recognizers.count - 1]
+            XCTAssertNil(current.recognize(foreign))
+            XCTAssertNotNil(current.recognize(phrase))
+        }
+        XCTAssertEqual(locales, [.spanish, .englishUS, .spanish])
+        await fulfillment(of: [delivered], timeout: 5)
+        trigger.stop()
+        XCTAssertTrue(recognizers[2].stopped)
+        let flushed = await channel.flush()
+        XCTAssertTrue(flushed)
+        try output.fileHandleForWriting.close()
+        _ = try output.fileHandleForReading.readToEnd()
+    }
+
     func testEnglishDoesNotUseSpanishRecognizerAliases() {
         XCTAssertNil(WakePhrase.question(after: "Hola Deimos, hello", locale: .englishUS))
         XCTAssertNil(WakePhrase.question(after: "Hey Demos, hello", locale: .englishUS))

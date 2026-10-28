@@ -105,7 +105,7 @@ async fn chat_send_declares_an_active_call() -> Result<()> {
         })
         .await?;
 
-    let sent = hub_frames.recv().await.context("chat.send ausente")?;
+    let sent = hub_frames.recv().await.context("Missing chat.send")?;
     assert_eq!(sent["method"], "chat.send");
     assert_eq!(sent["params"]["call_active"], true);
     Ok(())
@@ -128,7 +128,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
             primary: false,
         })
         .await?;
-    let sent = hub_frames.recv().await.context("chat.send ausente")?;
+    let sent = hub_frames.recv().await.context("Missing chat.send")?;
     assert_eq!(sent["method"], "chat.send");
     let turn = runtime
         .state
@@ -136,7 +136,7 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
         .assistant
         .active_request
         .clone()
-        .context("turno activo ausente")?;
+        .context("Missing active turn")?;
     runtime
         .hub_event(HubEvent::Frame(json!({
             "event": "chat.delta", "id": turn,
@@ -156,8 +156,8 @@ async fn chat_turn_messages_carry_increasing_at_ms() -> Result<()> {
         .assistant
         .turn
         .as_ref()
-        .context("turno ausente")?;
-    let answer = turn.answer.as_ref().context("respuesta ausente")?;
+        .context("Missing turn")?;
+    let answer = turn.answer.as_ref().context("Missing answer")?;
     let messages = [&turn.user, answer];
     assert_eq!(messages[0].role, "user");
     assert_eq!(messages[0].text, "pregunta sintética");

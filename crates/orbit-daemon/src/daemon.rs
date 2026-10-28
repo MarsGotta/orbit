@@ -89,6 +89,7 @@ mod helper;
 mod helper_waits;
 mod sources;
 mod speech;
+mod spoken_copy;
 mod startup;
 mod stops;
 mod store_actor;

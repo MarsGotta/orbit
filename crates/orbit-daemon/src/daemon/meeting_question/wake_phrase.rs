@@ -30,14 +30,19 @@ impl Runtime {
         Ok(changed)
     }
 
-    async fn sync_helper_language(&mut self) -> SpeechLocale {
-        let locale = SpeechLocale::resolve(
+    pub(in crate::daemon) fn resolved_speech_locale(&self) -> SpeechLocale {
+        SpeechLocale::resolve(
             self.settings.language,
             self.question
                 .preferred_languages
                 .as_deref()
                 .unwrap_or_default(),
-        );
+        )
+    }
+
+    async fn sync_helper_language(&mut self) -> SpeechLocale {
+        let locale = self.resolved_speech_locale();
+        self.rearm_call_presence(locale).await;
         // Wait for the helper's system preferences before updating its panels.
         // An observed empty list still resolves to English.
         if self.question.preferred_languages.is_some()
@@ -69,7 +74,7 @@ impl Runtime {
             ..
         } = decoded
         else {
-            bail!("Evento assistant_question incoherente");
+            bail!("Inconsistent assistant_question event");
         };
         // A question came: no phrase is left abandoned.
         self.question.abandoned = None;
@@ -147,7 +152,7 @@ impl Runtime {
             ..
         } = decoded
         else {
-            bail!("Evento voice_trigger incoherente");
+            bail!("Inconsistent voice_trigger event");
         };
         let detail = detail.map(|text| bounded(&text, MAX_VOICE_TRIGGER_DETAIL_BYTES));
         let os_version = os_version.map(|text| bounded(&text, MAX_VOICE_TRIGGER_DETAIL_BYTES));
@@ -264,7 +269,7 @@ impl Runtime {
         let command = crate::native::command(
             "audio_wake_phrase",
             json!({"stream_id": stream, "enabled": enabled,
-                "locale": SpeechLocale::resolve(self.settings.language, self.question.preferred_languages.as_deref().unwrap_or_default()),
+                "locale": self.resolved_speech_locale(),
                 "assistant_name": roster.default_name(), "assistant_names": roster.names()}),
         )?;
         let header = orbit_core::wire::native::NativeCommandHeader::from_value(&command)?;
@@ -342,7 +347,7 @@ impl Runtime {
             code, abandonment, ..
         } = serde_json::from_value(event.clone())?
         else {
-            bail!("Evento notice incoherente");
+            bail!("Inconsistent notice event");
         };
         match code.as_str() {
             "wake_phrase_heard" => {

@@ -165,17 +165,30 @@ pub enum PresenceReply {
     HangUp,
     Turn,
 }
-pub fn presence_reply(text: &str) -> PresenceReply {
+/// Reply intents are filled by the caller's language catalogue. The six keep
+/// groups mean yes, still here, here, wait, keep going and do not hang up.
+/// Arrays make a missing translated intent a compile error; aliases may vary.
+pub struct PresenceVocabulary {
+    pub keep: [&'static [&'static str]; 6],
+    pub hang_up: &'static [&'static str],
+}
+
+pub fn presence_reply(text: &str, vocabulary: &PresenceVocabulary) -> PresenceReply {
     let words = text
         .trim()
         .trim_matches(|c: char| c.is_ascii_punctuation() || c == '¿' || c == '¡')
-        .to_lowercase();
-    match words.as_str() {
-        "sí" | "si" | "sigo" | "aquí" | "aqui" | "espera" | "mantén" | "manten" | "no cuelgues" => {
-            PresenceReply::Keep
-        }
-        "cuelga" => PresenceReply::HangUp,
-        _ => PresenceReply::Turn,
+        .to_lowercase()
+        .replace('’', "'");
+    if vocabulary
+        .keep
+        .iter()
+        .any(|group| group.contains(&words.as_str()))
+    {
+        PresenceReply::Keep
+    } else if vocabulary.hang_up.contains(&words.as_str()) {
+        PresenceReply::HangUp
+    } else {
+        PresenceReply::Turn
     }
 }
 

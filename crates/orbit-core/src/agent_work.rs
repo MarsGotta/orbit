@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// `tools` and `subjects`, which the folded summary uses. It does not limit
 /// what the agent does.
 pub const MAX_WORK_ITEMS: usize = 16;
-/// The distinct things the summary names («la pantalla y el calendario»);
+/// The distinct things the summary names ("the screen and calendar");
 /// past eight a sentence is no longer read at a glance.
 pub const MAX_WORK_SUBJECTS: usize = 8;
 /// The hub's own ceilings for one `chat.item` (`orbit_hub.assistant.activity`,

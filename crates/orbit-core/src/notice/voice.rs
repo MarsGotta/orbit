@@ -42,7 +42,7 @@ macro_rules! voice_notices {
             WakePhraseListening = 150 => Silent,
             /// The detector stopped listening.
             WakePhraseOff = 151 => Silent,
-            /// The detector is downloading the Spanish model.
+            /// The detector is downloading the selected speech model.
             WakePhraseDownloading = 152 => Silent,
             /// The detector cannot run on this Mac (`cause`: `macos_version`,
             /// `locale_unsupported`).

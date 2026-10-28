@@ -11,6 +11,11 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- Use the resolved app language for the call's spoken silence question and
+  local reply vocabulary. Re-arm a pending question when the language changes
+  without extending its deadline; keep Spanish wording and meeting content.
+  Use English for remaining internal daemon and calendar diagnostics.
+
 - The Mac menu bar, application menus, notifications and the Rust side's
   copy follow the interface language and update when it changes.
 - Move remaining desktop interface labels, accessible names and helper copy into
