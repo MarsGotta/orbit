@@ -1,7 +1,15 @@
 use super::*;
 
+#[cfg(test)]
 pub(crate) fn project_meeting_topic(
     value: &orbit_core::topics::recording::Value,
+) -> MeetingSnapshot {
+    project_meeting_topic_with_copy(value, crate::PresentationCopy::default())
+}
+
+pub(crate) fn project_meeting_topic_with_copy(
+    value: &orbit_core::topics::recording::Value,
+    copy: crate::PresentationCopy,
 ) -> MeetingSnapshot {
     use orbit_core::{refusal::Refusal, topics::Knowledge};
 
@@ -57,7 +65,8 @@ pub(crate) fn project_meeting_topic(
         Knowledge::Unknown { why } => {
             meeting.applications.clear();
             meeting.applications_state = MeetingApplicationsState::Unavailable;
-            meeting.applications_detail = Some(pending_inventory_detail(why));
+            meeting.applications_detail =
+                Some(copy.text(crate::PresentationText::AudioPending(why.clone())));
         }
     }
     meeting
@@ -201,33 +210,6 @@ fn call_panel(panel: orbit_core::topics::recording::CallPanel) -> CallPanelSnaps
             application,
             ends_at_ms,
         },
-    }
-}
-
-pub(crate) fn pending_inventory_detail(why: &orbit_core::topics::Pending) -> String {
-    use orbit_core::topics::Pending;
-    match why {
-        Pending::NotObservedYet => "El inventario de audio aún no se ha observado.".into(),
-        Pending::HelperStarting => {
-            "El helper del Mac aún está arrancando; el inventario de audio no se ha observado."
-                .into()
-        }
-        Pending::Reading { since_ms } => {
-            format!("El inventario de audio se está leyendo desde {since_ms} ms.")
-        }
-        Pending::Transcription {
-            completed,
-            pending,
-            failed,
-            queued,
-        } => {
-            format!(
-                "ASR en curso: {completed} grupos transcritos, {pending} pendientes, {failed} fallidos, en cola: {queued}."
-            )
-        }
-        Pending::DaemonStarting => {
-            "El daemon aún está arrancando; el inventario de audio no se ha observado.".into()
-        }
     }
 }
 

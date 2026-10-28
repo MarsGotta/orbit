@@ -24,9 +24,11 @@ impl DaemonClient {
                 self.read_open_note(recording_id).await?;
                 return Ok(self.local_receipt());
             }
-            AppCommand::Note(command) => {
-                crate::features::note::map_command(command, &self.local_snapshot())?
-            }
+            AppCommand::Note(command) => crate::features::note::map_command_with_copy(
+                command,
+                &self.local_snapshot(),
+                self.presentation_copy(),
+            )?,
             AppCommand::Agenda(command) => {
                 self.send_calendar(command).await?;
                 return Ok(self.local_receipt());
@@ -106,7 +108,12 @@ impl DaemonClient {
             &crate::features::FeatureInput::with_clock(&local, &topics, clock.clone()),
         )
         .0;
-        crate::features::recording::map_command(command, &calendar, &clock)
+        crate::features::recording::map_command_with_copy(
+            command,
+            &calendar,
+            &clock,
+            self.presentation_copy(),
+        )
     }
 
     /// A daemon order, and what the app does once it is taken: the library
@@ -155,7 +162,7 @@ impl DaemonClient {
             .await
             .map_err(|error| AppError::from_daemon(error.as_ref()))?;
         if audio.message_id != message_id || audio.format != "wav" {
-            return Err(AppError::daemon("Respuesta de audio no válida"));
+            return Err(AppError::daemon("Invalid audio response"));
         }
         // The note may be of any conversation the screen read from
         // the hub; the app keeps the last one asked for, by its message id.
@@ -207,12 +214,12 @@ impl DaemonClient {
             receipt.delivery = None;
             return Ok(receipt);
         }
-        let revisions = response.revisions.ok_or_else(|| {
-            AppError::daemon("La respuesta del daemon no lleva revisiones de temas.")
-        })?;
-        let epoch = response.epoch.ok_or_else(|| {
-            AppError::daemon("La respuesta del daemon no lleva la época de los temas.")
-        })?;
+        let revisions = response
+            .revisions
+            .ok_or_else(|| AppError::daemon("The daemon response is missing topic revisions."))?;
+        let epoch = response
+            .epoch
+            .ok_or_else(|| AppError::daemon("The daemon response is missing the topic epoch."))?;
         // The actor publishes its watches before replying. Read their current
         // values directly: there is no independent socket delivery to wait for.
         self.observe_current_topics().await;
@@ -267,10 +274,10 @@ fn refuse_internal(command: &Command) -> Result<(), AppError> {
         serde_json::to_value(command).map_err(|error| AppError::daemon(error.to_string()))?;
     let name = value["command"]
         .as_str()
-        .ok_or_else(|| AppError::daemon("La orden interna no lleva su nombre"))?;
+        .ok_or_else(|| AppError::daemon("The internal command has no name"))?;
     Err(AppError {
         code: "internal_command".into(),
-        message: format!("La interfaz no puede enviar la orden interna «{name}»."),
+        message: format!("The interface cannot send internal command {name}."),
         refusal: None,
     })
 }

@@ -111,6 +111,14 @@ async fn automatic_recording_titles_reach_the_daemon_in_the_clients_local_zone()
     let listener = fake_daemon::channel(calls_tx, TopicChannels::new());
     let client =
         DaemonClient::connect_with_clock(paths, Arc::new(MadridClock), listener.client.clone());
+    client.set_presentation_copy(orbit_app_core::PresentationCopy {
+        render: |text| match text {
+            orbit_app_core::PresentationText::MeetingTitle { time: Some(time) } => {
+                format!("Reunión {time}")
+            }
+            other => format!("{other:?}"),
+        },
+    });
     for (command, expected) in [
         (
             AppCommand::Recording(

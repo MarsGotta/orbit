@@ -1,7 +1,10 @@
+mod application_menu;
 mod commands;
+mod copy;
 pub mod daemon_thread;
 mod events;
 mod interface_flush;
+mod language;
 mod notify;
 mod panel;
 mod panel_hover;
@@ -126,10 +129,22 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(daemon);
     client.set_login_item(login_item(app));
     show_last_installation(&client);
+    app.manage(language::NativeLanguage::new(
+        client
+            .composed_snapshot()
+            .settings
+            .language
+            .unwrap_or_default(),
+        language::preferred_languages,
+    ));
+    client.set_presentation_copy(copy::presentation::renderer(language::current(
+        app.handle(),
+    )));
     app.manage(client.clone());
     let updater = update_service();
     app.manage(updater.clone());
     tray::install(app.handle())?;
+    language::follow(app.handle(), client.composed_snapshot().settings.language)?;
     events::forward_frames(app.handle().clone(), client.clone());
     panel_hover::watch(app.handle().clone(), client.clone());
     tauri::async_runtime::spawn(follow_updates(paths, executable, client, updater));

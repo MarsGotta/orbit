@@ -1,5 +1,5 @@
 use orbit_app_core::{DaemonClient, features::FeatureFrame};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 pub const FEATURE_EVENT_PREFIX: &str = "orbit://feature/";
 
@@ -7,6 +7,21 @@ fn emit_feature_frames<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     frames: impl IntoIterator<Item = FeatureFrame>,
 ) {
+    let mut frames: Vec<_> = frames.into_iter().collect();
+    if let Some(choice) = frames.iter().find_map(|frame| match frame {
+        FeatureFrame::Status { view, .. } => Some(view.settings.language),
+        _ => None,
+    }) {
+        let before = crate::language::current(app);
+        if let Err(error) = crate::language::follow(app, choice) {
+            eprintln!("Orbit: could not apply interface language: {error}");
+        }
+        if before != crate::language::current(app)
+            && let Some(client) = app.try_state::<DaemonClient>()
+        {
+            frames = client.take_frames();
+        }
+    }
     for frame in frames {
         let menu = match &frame {
             FeatureFrame::Local { view, .. } => crate::tray::refresh_update(app, &view.update),
@@ -102,6 +117,54 @@ mod tests {
         emit_feature_frames(app.handle(), [frame.clone()]);
         let delivered = observed.lock().ok().and_then(|slot| slot.clone());
         assert_eq!(delivered, Some(frame));
+    }
+
+    #[test]
+    fn status_language_changes_reach_native_consumers_and_system_uses_fake_preferences()
+    -> Result<(), Box<dyn Error>> {
+        use orbit_core::language::{LanguageChoice, ResolvedLanguage};
+        let app = tauri::test::mock_builder()
+            .manage(crate::language::NativeLanguage::new(
+                LanguageChoice::System,
+                || vec!["fr-FR".into(), "en-GB".into()],
+            ))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))?;
+        let snapshot = orbit_app_core::AppSnapshot::default();
+        let topics = TopicCache::default();
+        let mut frames = features::project_all(
+            &FeatureInput::new(&snapshot, &topics),
+            FrameRevision {
+                epoch: 1,
+                counter: 1,
+            },
+        );
+        let mut status = frames
+            .iter_mut()
+            .find_map(|frame| match frame {
+                FeatureFrame::Status { view, .. } => Some(view),
+                _ => None,
+            })
+            .ok_or("status frame missing")?
+            .clone();
+        for (choice, expected) in [
+            (Some(LanguageChoice::Spanish), ResolvedLanguage::Spanish),
+            (None, ResolvedLanguage::English),
+        ] {
+            status.settings.language = choice;
+            emit_feature_frames(
+                app.handle(),
+                [FeatureFrame::Status {
+                    revision: FrameRevision {
+                        epoch: 1,
+                        counter: 2,
+                    },
+                    view: status.clone(),
+                    availability: None,
+                }],
+            );
+            assert_eq!(crate::language::current(app.handle()), expected);
+        }
+        Ok(())
     }
 
     #[tokio::test]

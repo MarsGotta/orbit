@@ -408,7 +408,9 @@ fn the_panel_opens_only_web_links_from_an_answer() -> Result<(), Box<dyn std::er
     }
     // Each refusal says its cause.
     assert!(
-        WebUrlRefusal::Credentials.to_string().contains("usuario"),
+        WebUrlRefusal::Credentials
+            .to_string()
+            .contains("credentials"),
         "{}",
         WebUrlRefusal::Credentials
     );

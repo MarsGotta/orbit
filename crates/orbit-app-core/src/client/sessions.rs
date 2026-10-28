@@ -82,7 +82,7 @@ impl DaemonClient {
                     .into_iter()
                     .map(item)
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|error| AppError::daemon(format!("Página inválida: {error}")))?;
+                    .map_err(|error| AppError::daemon(format!("Invalid page: {error}")))?;
                 Ok(Knowledge::Present {
                     value: Page {
                         items,

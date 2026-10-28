@@ -1,3 +1,4 @@
+import { appOperationText } from "./errors";
 import { formatQuantity } from "../locale";
 import { interrupted, calendarLimit, daemonReply } from "./readRefusals";
 import { numberFormat } from "../locale";
@@ -67,7 +68,7 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
     class: "fixable",
     text: helperRefused,
   },
-  internal: failed,
+  internal: { class: "failed", text: appOperationText },
   protocol_version: {
     class: "fixable",
     text: (r) =>

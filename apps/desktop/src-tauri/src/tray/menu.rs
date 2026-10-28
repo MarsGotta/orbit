@@ -41,45 +41,38 @@ pub(super) fn item(id: &'static str, label: impl Into<String>, enabled: bool) ->
 /// everything and the update on offer; quit. Recording here starts at once,
 /// as ⌃⌥M does («Grabar reunión» in the window opens «Nueva grabación»).
 pub(super) fn entries(state: &TrayState) -> Vec<Entry> {
+    let copy = crate::copy::for_language(state.language);
     let recording = state.recording.is_some();
     let mut entries = vec![
-        item(OPEN, "Abrir Orbit", true),
+        item(OPEN, copy.open, true),
         Entry::Separator,
-        item(RECORD, "Grabar reunión ahora", !recording),
-        item(FINISH_RECORDING, "Terminar grabación", recording),
+        item(RECORD, copy.record, !recording),
+        item(FINISH_RECORDING, copy.finish, recording),
     ];
     if state.asking_discard {
         entries.extend([
-            item(
-                DISCARD_QUESTION,
-                "¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.",
-                false,
-            ),
-            item(CONFIRM_DISCARD, "Borrar y terminar", true),
-            item(KEEP_RECORDING, "Seguir grabando", true),
+            item(DISCARD_QUESTION, copy.discard_question, false),
+            item(CONFIRM_DISCARD, copy.confirm_discard, true),
+            item(KEEP_RECORDING, copy.keep_recording, true),
         ]);
     } else {
         let discardable = recording && state.discardable;
-        entries.push(item(
-            DISCARD_RECORDING,
-            "Terminar sin guardar…",
-            discardable,
-        ));
+        entries.push(item(DISCARD_RECORDING, copy.discard, discardable));
     }
     match state.microphone_muted {
-        Some(false) => entries.push(item(MUTE, "Silenciar", true)),
-        Some(true) => entries.push(item(UNMUTE, "Reactivar micrófono", true)),
+        Some(false) => entries.push(item(MUTE, copy.mute, true)),
+        Some(true) => entries.push(item(UNMUTE, copy.unmute, true)),
         None => {}
     }
-    entries.extend([Entry::Separator, item(STOP, "Parar todo", true)]);
+    entries.extend([Entry::Separator, item(STOP, copy.stop, true)]);
     if let Some(offer) = &state.update {
         entries.push(item(
             UPDATE,
-            format!("Actualizar a la {}", offer.version),
+            crate::copy::fill(copy.update, &[("version", &offer.version)]),
             offer.installable,
         ));
     }
-    entries.extend([Entry::Separator, item(QUIT, "Salir de Orbit", true)]);
+    entries.extend([Entry::Separator, item(QUIT, copy.quit, true)]);
     entries
 }
 

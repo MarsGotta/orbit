@@ -1,12 +1,14 @@
 //! One note read from the daemon, which reads it from the hub: its
 //! document and its turns, page after page.
 use super::*;
+use crate::presentation::read_issue;
 use orbit_core::{
     notes::{MeetingDocument, Turn},
     reads::ReadRequest,
     topics::{Cursor, Knowledge, Page},
 };
 use serde_json::Value;
+use serde_json::json;
 
 /// Pages of turns one note may take. The hub pages its turns by bytes, 256
 /// KiB a page (`notes::TURN_PAGE_BYTES`), about two hours of speech; 64 pages
@@ -20,12 +22,15 @@ pub(super) fn checked_page(
 ) -> Result<Page<Value>, String> {
     let id = request.id();
     if response.read != Some(id) {
-        return Err("La respuesta pertenece a otra lectura".into());
+        return Err(read_issue(
+            "read_mismatch",
+            json!({"expected": id, "received": response.read}),
+        ));
     }
     match response.answer {
         Some(Knowledge::Present { value, .. }) => Ok(value),
         Some(Knowledge::Absent { refusal }) => Err(refusal.to_string()),
-        Some(Knowledge::Unknown { .. }) | None => Err("El daemon no entregó la lectura".into()),
+        Some(Knowledge::Unknown { .. }) | None => Err(read_issue("read_missing", json!({}))),
     }
 }
 
@@ -94,11 +99,18 @@ async fn read_document(
         .items
         .into_iter()
         .next()
-        .ok_or_else(|| "El detalle de la nota llegó vacío".to_owned())?;
-    let document = serde_json::from_value::<MeetingDocument>(item)
-        .map_err(|error| format!("Documento de la nota no válido: {error}"))?;
+        .ok_or_else(|| read_issue("read_note_empty", json!({})))?;
+    let document = serde_json::from_value::<MeetingDocument>(item).map_err(|error| {
+        read_issue(
+            "read_note_invalid",
+            json!({"diagnostic": error.to_string()}),
+        )
+    })?;
     if document.recording_id != recording_id {
-        return Err(Unread::Failed("La respuesta pertenece a otra nota".into()));
+        return Err(Unread::Failed(read_issue(
+            "read_note_mismatch",
+            json!({"expected": recording_id, "received": document.recording_id}),
+        )));
     }
     Ok(document)
 }
@@ -116,26 +128,27 @@ async fn read_turns(daemon: &LocalClient, recording_id: &str) -> Result<Vec<Turn
         )
         .await?;
         for item in page.items {
-            turns.push(
-                serde_json::from_value::<Turn>(item)
-                    .map_err(|error| format!("Intervención no válida: {error}"))?,
-            );
+            turns.push(serde_json::from_value::<Turn>(item).map_err(|error| {
+                read_issue(
+                    "read_turn_invalid",
+                    json!({"diagnostic": error.to_string()}),
+                )
+            })?);
         }
         match page.next {
             Some(next) if Some(&next) != cursor.as_ref() => cursor = Some(next),
             Some(_) => {
-                return Err(Unread::Failed(format!(
-                    "Cursor repetido tras {} de {} intervenciones",
-                    turns.len(),
-                    page.total
+                return Err(Unread::Failed(read_issue(
+                    "read_turn_cursor",
+                    json!({"count": turns.len(), "total": page.total}),
                 )));
             }
             None => return Ok(turns),
         }
     }
-    Err(Unread::Failed(format!(
-        "La transcripción no terminó en {MAX_TURN_PAGES} páginas ({} intervenciones)",
-        turns.len()
+    Err(Unread::Failed(read_issue(
+        "read_turn_limit",
+        json!({"max": MAX_TURN_PAGES, "count": turns.len()}),
     )))
 }
 

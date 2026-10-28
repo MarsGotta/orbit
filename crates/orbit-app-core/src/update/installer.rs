@@ -28,7 +28,7 @@ impl UpdateService {
         let mut child = self.spawn_installer(&script_path, verified)?;
         let stdout = child.stdout.take().ok_or_else(|| Refusal::Update {
             cause: UpdateCause::InstallerIo {
-                cause: "No se abrió la salida del instalador".to_owned(),
+                cause: "The installer output could not be opened".to_owned(),
             },
         })?;
         let mut lines = BufReader::new(stdout).lines();

@@ -11,6 +11,10 @@ pub fn project(input: &FeatureInput<'_>) -> View {
         .notes
         .as_ref()
         .and_then(|notes| notes.open.clone())
+        .map(|mut note| {
+            super::notes::localize_note(&mut note, input.copy);
+            note
+        })
 }
 
 pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
@@ -82,9 +86,10 @@ fn series_note_revision(snapshot: &AppSnapshot, recording_id: &str) -> Option<u6
     (meeting.recording_id == recording_id && note.action_items.is_some()).then_some(note.revision)
 }
 
-pub(crate) fn map_command(
+pub(crate) fn map_command_with_copy(
     command: NoteCommand,
     snapshot: &AppSnapshot,
+    copy: crate::PresentationCopy,
 ) -> Result<orbit_core::protocol::Command, crate::AppError> {
     use orbit_core::protocol::Command as DaemonCommand;
     match command {
@@ -122,7 +127,7 @@ pub(crate) fn map_command(
             sections: None,
             done: [(action_id, done)].into(),
         }),
-        NoteCommand::AskOrbitAbout { recording_id } => Ok(ask_about(snapshot, &recording_id)),
+        NoteCommand::AskOrbitAbout { recording_id } => Ok(ask_about(snapshot, &recording_id, copy)),
         NoteCommand::SpeakerRename {
             speaker_key,
             name,
@@ -131,9 +136,36 @@ pub(crate) fn map_command(
     }
 }
 
+#[cfg(test)]
+fn map_command(
+    command: NoteCommand,
+    snapshot: &AppSnapshot,
+) -> Result<orbit_core::protocol::Command, crate::AppError> {
+    map_command_with_copy(
+        command,
+        snapshot,
+        crate::PresentationCopy {
+            render: |text| match text {
+                crate::PresentationText::AskAbout {
+                    title,
+                    recording_id,
+                } => format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
+                crate::PresentationText::UpdateBlocked(_)
+                | crate::PresentationText::AudioPending(_)
+                | crate::PresentationText::ReadFailure { .. }
+                | crate::PresentationText::MeetingTitle { .. } => format!("{text:?}"),
+            },
+        },
+    )
+}
+
 /// «Preguntar a Orbit» about a note: a chat message that names it by its
 /// title, the open note's or the list's, or by its id when neither has it.
-fn ask_about(snapshot: &AppSnapshot, recording_id: &str) -> orbit_core::protocol::Command {
+fn ask_about(
+    snapshot: &AppSnapshot,
+    recording_id: &str,
+    copy: crate::PresentationCopy,
+) -> orbit_core::protocol::Command {
     let notes = snapshot.notes.as_ref();
     let title = open_note(snapshot, recording_id)
         .map(|note| note.title.as_str())
@@ -147,7 +179,10 @@ fn ask_about(snapshot: &AppSnapshot, recording_id: &str) -> orbit_core::protocol
         .unwrap_or(recording_id);
     orbit_core::protocol::Command::Chat {
         attachments: Vec::new(),
-        text: format!("Quiero preguntar sobre la nota «{title}» ({recording_id})."),
+        text: copy.text(crate::PresentationText::AskAbout {
+            title: title.into(),
+            recording_id: recording_id.into(),
+        }),
         // Nobody named: the primary answers.
         primary: true,
     }

@@ -24,6 +24,7 @@ pub struct FeatureInput<'a> {
     pub topics: &'a TopicCache,
     pub local: LocalAppState<'a>,
     pub clock: LocalClock,
+    pub copy: crate::PresentationCopy,
 }
 
 pub(crate) fn feature_availability(
@@ -86,7 +87,7 @@ pub enum FeatureAvailability {
 
 impl FeatureAvailability {
     fn unknown_pending(why: &Pending) -> Self {
-        // The UI owns Spanish copy. These stable codes retain the measurements
+        // The UI owns catalogue copy. These stable codes retain the measurements
         // carried by Pending without exposing Rust Debug variant names.
         let cause = match why {
             Pending::NotObservedYet => "pending:not_observed_yet".into(),
@@ -127,6 +128,19 @@ pub struct LocalAppState<'a> {
 }
 
 impl<'a> FeatureInput<'a> {
+    pub(super) fn localized_notes(&self) -> Option<crate::NotesSnapshot> {
+        let mut notes = self.local.notes.clone();
+        if let Some(notes) = notes.as_mut() {
+            notes::localize_details(notes, self.copy);
+        }
+        notes
+    }
+
+    pub fn with_copy(mut self, copy: crate::PresentationCopy) -> Self {
+        self.copy = copy;
+        self
+    }
+
     pub fn new(snapshot: &'a AppSnapshot, topics: &'a TopicCache) -> Self {
         Self::with_clock(snapshot, topics, LocalClock::from_snapshot(snapshot))
     }
@@ -138,6 +152,7 @@ impl<'a> FeatureInput<'a> {
     ) -> Self {
         Self {
             topics,
+            copy: crate::PresentationCopy::default(),
             local: LocalAppState {
                 calendar: &snapshot.calendar,
                 notes: &snapshot.notes,

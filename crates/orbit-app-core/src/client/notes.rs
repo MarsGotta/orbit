@@ -1,7 +1,9 @@
 //! The notes list, read from the daemon, which reads it from the hub
 //! and adds this Mac's own recordings.
 use super::*;
+use crate::presentation::read_issue;
 use orbit_core::{notes::ListItem, reads::ReadRequest, topics::Cursor};
+use serde_json::json;
 
 /// Pages of the list one refresh may read: fifty meetings each, so a
 /// thousand notes. It protects the app from a cursor that never ends, not
@@ -37,18 +39,7 @@ impl DaemonClient {
                     break;
                 }
             };
-            for item in page.items {
-                match serde_json::from_value::<ListItem>(item) {
-                    Ok(ListItem::Meeting(row)) => rows.push(row),
-                    Ok(ListItem::HubRefused { hub_refusal }) if hub_refusal.needs_the_hub() => {
-                        needs_hub = true;
-                    }
-                    Ok(ListItem::HubRefused { hub_refusal }) => {
-                        failure = Some(hub_refusal.to_string());
-                    }
-                    Err(error) => failure = Some(format!("Nota no válida en la lista: {error}")),
-                }
-            }
+            read_rows(page.items, &mut rows, &mut failure, &mut needs_hub);
             more = page.next.is_some();
             match page.next {
                 Some(next) if page_number + 1 < wanted => cursor = Some(next),
@@ -95,5 +86,30 @@ impl DaemonClient {
     pub(super) async fn read_more_notes(&self) -> Result<AppSnapshot, AppError> {
         self.inner.notes_pages.fetch_add(1, Ordering::AcqRel);
         self.refresh_notes().await
+    }
+}
+
+fn read_rows(
+    items: Vec<serde_json::Value>,
+    rows: &mut Vec<orbit_core::notes::MeetingRow>,
+    failure: &mut Option<String>,
+    needs_hub: &mut bool,
+) {
+    for item in items {
+        match serde_json::from_value::<ListItem>(item) {
+            Ok(ListItem::Meeting(row)) => rows.push(row),
+            Ok(ListItem::HubRefused { hub_refusal }) if hub_refusal.needs_the_hub() => {
+                *needs_hub = true;
+            }
+            Ok(ListItem::HubRefused { hub_refusal }) => {
+                *failure = Some(hub_refusal.to_string());
+            }
+            Err(error) => {
+                *failure = Some(read_issue(
+                    "read_list_invalid",
+                    json!({"diagnostic": error.to_string()}),
+                ))
+            }
+        }
     }
 }

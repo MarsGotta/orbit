@@ -33,7 +33,7 @@ fn owned(rows: &[(&str, bool)]) -> Vec<(String, bool)> {
 #[test]
 fn the_menu_offers_only_what_can_be_done_now() {
     assert_eq!(
-        labels(&TrayState::default()),
+        labels(&spanish_state()),
         owned(&[
             ("Abrir Orbit", true),
             ("—", false),
@@ -46,7 +46,7 @@ fn the_menu_offers_only_what_can_be_done_now() {
             ("Salir de Orbit", true),
         ])
     );
-    let mut recording = TrayState::default();
+    let mut recording = spanish_state();
     recording.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -63,7 +63,7 @@ fn the_menu_offers_only_what_can_be_done_now() {
 /// confirmation sends the order, naming the recording it asked about.
 #[test]
 fn ending_without_saving_asks_in_the_menu_first() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -109,7 +109,7 @@ fn ending_without_saving_asks_in_the_menu_first() {
 /// recording still starting cannot be thrown away yet.
 #[test]
 fn the_question_goes_with_its_recording() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Starting, "rec-1", START),
         None,
@@ -147,7 +147,7 @@ fn a_new_version_sits_beside_parar_todo_and_says_when_it_cannot_install() {
             version: "0.10.2".to_owned(),
             installable: false,
         }),
-        ..TrayState::default()
+        ..spanish_state()
     };
     offered.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
@@ -165,7 +165,7 @@ fn a_new_version_sits_beside_parar_todo_and_says_when_it_cannot_install() {
 /// never another mark.
 #[test]
 fn the_menu_mutes_and_unmutes_the_microphone_of_a_recording_or_a_call() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -254,7 +254,7 @@ fn at_rest_the_mark_is_the_template_symbol_with_nothing_beside_it() {
     for appearance in [Appearance::Dark, Appearance::Light] {
         let state = TrayState {
             appearance,
-            ..TrayState::default()
+            ..spanish_state()
         };
         assert_eq!(look(&state, START), rest());
     }
@@ -265,7 +265,7 @@ fn at_rest_the_mark_is_the_template_symbol_with_nothing_beside_it() {
 /// with the time recorded beside it: «mm:ss», then «h:mm:ss».
 #[test]
 fn a_recording_turns_the_moon_red_and_shows_its_time() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -293,7 +293,7 @@ fn a_recording_turns_the_moon_red_and_shows_its_time() {
 /// card counts it.
 #[test]
 fn a_pause_stops_the_time_beside_the_mark() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -324,7 +324,7 @@ fn a_pause_stops_the_time_beside_the_mark() {
 /// amber until the user answers.
 #[test]
 fn an_assistant_waiting_for_you_turns_the_moon_amber_until_you_answer() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_chat(&chat(Some(approval())));
     assert_eq!(
         look(&state, START),
@@ -351,7 +351,7 @@ fn an_assistant_waiting_for_you_turns_the_moon_amber_until_you_answer() {
 /// amber moon of an assistant still waiting.
 #[test]
 fn the_mark_goes_back_when_the_recording_ends() {
-    let mut state = TrayState::default();
+    let mut state = spanish_state();
     state.follow_meeting(
         &meeting(MeetingPhase::Recording, "rec-1", START),
         None,
@@ -430,4 +430,119 @@ fn each_mark_is_the_brand_image_it_names() {
             .chunks(4)
             .all(|pixel| pixel[3] == 0 || pixel[..3] == [0, 0, 0])
     );
+}
+
+fn spanish_state() -> TrayState {
+    TrayState {
+        language: orbit_core::language::ResolvedLanguage::Spanish,
+        ..TrayState::default()
+    }
+}
+
+#[test]
+fn english_menu_covers_recording_confirmation_mute_and_update() {
+    let mut state = TrayState {
+        language: orbit_core::language::ResolvedLanguage::English,
+        ..TrayState::default()
+    };
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
+    state.ask_discard();
+    state.update = Some(UpdateOffer {
+        version: "1.2.3".into(),
+        installable: true,
+    });
+    let rows = labels(&state);
+    for label in [
+        "Open Orbit",
+        "Record meeting now",
+        "End recording",
+        "End without saving? The recording will be deleted and no note will be written.",
+        "Delete and end",
+        "Keep recording",
+        "Mute",
+        "Stop everything",
+        "Update to 1.2.3",
+        "Quit Orbit",
+    ] {
+        assert!(
+            rows.iter().any(|(text, _)| text == label),
+            "missing {label}"
+        );
+    }
+    state.microphone_muted = Some(true);
+    state.keep_recording();
+    let rows = labels(&state);
+    assert!(rows.contains(&("Unmute microphone".into(), true)));
+    assert!(rows.contains(&("End without saving…".into(), true)));
+}
+
+#[test]
+fn changing_the_setting_rebuilds_the_menu_and_preserves_recording_and_confirmation() {
+    use orbit_core::language::LanguageChoice;
+    let mut state = spanish_state();
+    state.follow_meeting(
+        &meeting(MeetingPhase::Recording, "rec-1", START),
+        None,
+        START,
+    );
+    state.ask_discard();
+    let mut menus = Vec::new();
+    for choice in [
+        LanguageChoice::English,
+        LanguageChoice::English,
+        LanguageChoice::System,
+    ] {
+        let result = render_change(
+            &mut state,
+            |state, _| state.language = choice.resolve(&["fr-FR", "es-ES"]),
+            START,
+            |menu, _, _| {
+                if let Some(menu) = menu {
+                    menus.push(format!("{menu:?}"));
+                }
+                Ok::<_, ()>(())
+            },
+        );
+        assert!(result.is_ok(), "menu redraw failed");
+    }
+    assert_eq!(menus.len(), 2, "only changes rebuild the menu");
+    assert!(menus[0].contains("Delete and end"));
+    assert!(menus[1].contains("Borrar y terminar"));
+    assert!(state.asking_discard);
+    assert!(state.recording.is_some());
+}
+
+#[test]
+fn a_failed_language_redraw_keeps_the_previous_menu_and_can_be_retried() {
+    let mut state = spanish_state();
+    let english = orbit_core::language::ResolvedLanguage::English;
+    assert!(
+        render_change(
+            &mut state,
+            |state, _| state.language = english,
+            START,
+            |_, _, _| Err::<(), _>("native menu failed")
+        )
+        .is_err()
+    );
+    assert_eq!(
+        state.language,
+        orbit_core::language::ResolvedLanguage::Spanish
+    );
+    let mut replaced = false;
+    let result = render_change(
+        &mut state,
+        |state, _| state.language = english,
+        START,
+        |menu, _, _| {
+            replaced = menu.is_some();
+            Ok::<_, ()>(())
+        },
+    );
+    assert!(result.is_ok());
+    assert!(replaced);
 }

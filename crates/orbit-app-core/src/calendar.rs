@@ -129,7 +129,7 @@ pub const TODAY_REACH_DAYS: i64 = 93;
 pub fn validate_range(request: &RangeRequest) -> Result<(), String> {
     if request.view == CalendarViewKind::Days && !(1..=MAX_GRID_DAYS).contains(&request.days) {
         return Err(format!(
-            "vista de {} días: se admiten de 1 a {MAX_GRID_DAYS}",
+            "{}-day view: expected between 1 and {MAX_GRID_DAYS} days",
             request.days
         ));
     }
@@ -955,7 +955,7 @@ mod tests {
             let refused = coordinator.set_range(request(CalendarViewKind::Days, OCTOBER_14, days));
             assert_eq!(
                 refused,
-                Err(format!("vista de {days} días: se admiten de 1 a 14"))
+                Err(format!("{days}-day view: expected between 1 and 14 days"))
             );
         }
         assert_eq!(

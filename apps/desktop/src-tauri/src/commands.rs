@@ -208,7 +208,7 @@ pub async fn orbit_attachment_add(
         .await?;
     let attachment = response
         .attachment
-        .ok_or_else(|| anyhow::anyhow!("El daemon no entregó el adjunto"))?;
+        .ok_or_else(|| anyhow::anyhow!("The daemon did not return the attachment"))?;
     Ok(orbit_core::attachments::AddedAttachment {
         attachment,
         window_text: response.window_text,
@@ -241,13 +241,13 @@ pub async fn orbit_attachment_open(
         .await?;
     let path = response
         .path
-        .ok_or_else(|| anyhow::anyhow!("El daemon no escribió el adjunto"))?;
+        .ok_or_else(|| anyhow::anyhow!("The daemon did not write the attachment"))?;
     let opened = if reveal {
         app.opener().reveal_item_in_dir(&path)
     } else {
         app.opener().open_path(&path, None::<&str>)
     };
-    opened.map_err(|error| anyhow::anyhow!("macOS no pudo abrir el adjunto: {error}").into())
+    opened.map_err(|error| anyhow::anyhow!("macOS could not open the attachment: {error}").into())
 }
 
 #[tauri::command(rename = "orbit_send")]
@@ -313,14 +313,14 @@ pub enum WebUrlRefusal {
 impl std::fmt::Display for WebUrlRefusal {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unparsable { reason } => write!(f, "no es una dirección web válida ({reason})"),
+            Self::Unparsable { reason } => write!(f, "invalid web URL ({reason})"),
             Self::Scheme { scheme } => {
-                write!(f, "sólo se abren enlaces http y https; este es «{scheme}:»")
+                write!(f, "only http and https are allowed; received {scheme}:")
             }
-            Self::Credentials => f.write_str(
-                "lleva usuario o contraseña antes del sitio, que puede ocultar adónde lleva",
-            ),
-            Self::NoHost => f.write_str("no dice a qué sitio lleva"),
+            Self::Credentials => {
+                f.write_str("credentials before the host can hide the destination")
+            }
+            Self::NoHost => f.write_str("missing destination host"),
         }
     }
 }
@@ -347,10 +347,14 @@ pub(crate) fn web_url(url: &str) -> Result<tauri::Url, WebUrlRefusal> {
 }
 
 fn open_url(app: &AppHandle, _client: &DaemonClient, url: &str) -> Result<(), AppError> {
-    let url = web_url(url).map_err(|refusal| AppError {
-        code: "link_refused".into(),
-        message: format!("No se abre el enlace: {refusal}."),
-        refusal: None,
+    let url = web_url(url).map_err(|refusal| {
+        let code = match &refusal {
+            WebUrlRefusal::Unparsable { .. } => "link_invalid",
+            WebUrlRefusal::Scheme { .. } => "link_scheme",
+            WebUrlRefusal::Credentials => "link_credentials",
+            WebUrlRefusal::NoHost => "link_no_host",
+        };
+        AppError::operation(code, refusal.to_string())
     })?;
     app.opener()
         .open_url(url.as_str(), None::<&str>)

@@ -1,7 +1,9 @@
 //! The series of Hoy's next meeting: its earlier meeting and the tasks of
 //! its note, read from the daemon, which reads them from the hub.
 use super::*;
+use crate::presentation::read_issue;
 use orbit_core::{notes::SeriesPrevious, reads::ReadRequest};
+use serde_json::json;
 
 /// The calendar series of the next meeting, its start and its title's
 /// digest (`orbit_core::series_title`), for the hub's fallback to the title.
@@ -41,11 +43,15 @@ impl DaemonClient {
                     page.items
                         .into_iter()
                         .next()
-                        .ok_or_else(|| "La serie de la reunión llegó vacía".to_owned())
+                        .ok_or_else(|| read_issue("read_series_empty", json!({})))
                 })
                 .and_then(|item| {
-                    serde_json::from_value::<SeriesPrevious>(item)
-                        .map_err(|error| format!("Serie de la reunión no válida: {error}"))
+                    serde_json::from_value::<SeriesPrevious>(item).map_err(|error| {
+                        read_issue(
+                            "read_series_invalid",
+                            json!({"diagnostic": error.to_string()}),
+                        )
+                    })
                 });
                 Some(Box::new(crate::SeriesPreviousRead {
                     calendar_item_id,

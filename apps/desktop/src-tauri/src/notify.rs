@@ -15,12 +15,7 @@ use tauri::Manager;
 const MAIN_LABEL: &str = "main";
 
 /// The app's one watcher: frames reach it in order from `events::forward_frames`.
-static WATCHER: Mutex<Watcher> = Mutex::new(Watcher {
-    in_flight: false,
-    pending: None,
-    last_notice_sequence: 0,
-    recording_cut_notified: false,
-});
+static WATCHER: Mutex<Watcher> = Mutex::new(Watcher::new(crate::copy::english()));
 
 /// A turn that worked at least this long ends with a notification when Orbit
 /// is in the background. Twenty seconds: a shorter answer arrives while the
@@ -46,8 +41,9 @@ pub fn duration_text(ms: u64) -> String {
 }
 
 /// What the assistant frames said last, to tell what changed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Watcher {
+    copy: &'static crate::copy::Copy,
     last_notice_sequence: u64,
     recording_cut_notified: bool,
     in_flight: bool,
@@ -61,6 +57,20 @@ fn pending_id(pending: &ChatPending) -> &str {
 }
 
 impl Watcher {
+    pub const fn new(copy: &'static crate::copy::Copy) -> Self {
+        Self {
+            copy,
+            last_notice_sequence: 0,
+            recording_cut_notified: false,
+            in_flight: false,
+            pending: None,
+        }
+    }
+
+    pub fn set_copy(&mut self, copy: &'static crate::copy::Copy) {
+        self.copy = copy;
+    }
+
     /// The notification `chat` calls for, if any. `background`: Orbit's
     /// window is hidden or another app has the focus.
     pub fn observe(
@@ -84,12 +94,12 @@ impl Watcher {
         if let Some(pending) = asked {
             return Some(match pending {
                 ChatPending::Approval { .. } => TurnNotice {
-                    title: "Necesita tu permiso".into(),
-                    body: "Pide permiso para seguir".into(),
+                    title: self.copy.approval_title.into(),
+                    body: self.copy.approval_body.into(),
                 },
                 ChatPending::Clarify { .. } => TurnNotice {
-                    title: "Tiene una pregunta".into(),
-                    body: "Necesita tu respuesta para seguir".into(),
+                    title: self.copy.question_title.into(),
+                    body: self.copy.question_body.into(),
                 },
             });
         }
@@ -109,8 +119,11 @@ impl Watcher {
         let ended_at_ms = work.and_then(|work| work.ended_at_ms).unwrap_or(now_ms);
         let worked = ended_at_ms.saturating_sub(started_at_ms);
         (worked >= LONG_TURN_MS).then(|| TurnNotice {
-            title: "Respuesta lista".into(),
-            body: format!("Trabajó {}", duration_text(worked)),
+            title: self.copy.answer_title.into(),
+            body: crate::copy::fill(
+                self.copy.answer_body,
+                &[("duration", &duration_text(worked))],
+            ),
         })
     }
 }
@@ -131,10 +144,11 @@ pub fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, chat: &ChatSnapshot)
         .map_or(0, |elapsed| {
             u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX)
         });
-    let notice = WATCHER
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .observe(chat, in_background(app), now_ms);
+    let notice = {
+        let mut watcher = WATCHER.lock().unwrap_or_else(PoisonError::into_inner);
+        watcher.set_copy(crate::copy::for_language(crate::language::current(app)));
+        watcher.observe(chat, in_background(app), now_ms)
+    };
     let Some(notice) = notice else {
         return;
     };
@@ -147,10 +161,11 @@ pub fn follow_system_notices<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     notices: &[orbit_core::notice::Notice],
 ) {
-    let pending = WATCHER
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .observe_system_notices(notices);
+    let pending = {
+        let mut watcher = WATCHER.lock().unwrap_or_else(PoisonError::into_inner);
+        watcher.set_copy(crate::copy::for_language(crate::language::current(app)));
+        watcher.observe_system_notices(notices)
+    };
     for notice in pending {
         post(app, notice, true);
     }
@@ -197,12 +212,11 @@ impl Watcher {
                 continue;
             }
             let (body, resolved) = match notice.code {
-                NoticeCode::CallSilenceQuestion => (
-                    "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
-                    NoticeCode::CallSilenceResolved,
-                ),
+                NoticeCode::CallSilenceQuestion => {
+                    (self.copy.call_silence, NoticeCode::CallSilenceResolved)
+                }
                 NoticeCode::RecordingSilenceQuestion => (
-                    "¿Sigue la reunión? La termino y la guardo en 30 s",
+                    self.copy.recording_silence,
                     NoticeCode::RecordingSilenceResolved,
                 ),
                 _ => continue,
@@ -240,7 +254,7 @@ impl Watcher {
             }
             NoticeCode::RecordingCutWaiting => {
                 self.recording_cut_notified = true;
-                Some("La grabación se ha cortado. Orbit intenta seguir grabando.".into())
+                Some(self.copy.cut.into())
             }
             NoticeCode::RecordingResumedAfterCut => {
                 let notified = std::mem::take(&mut self.recording_cut_notified);
@@ -249,35 +263,36 @@ impl Watcher {
                 }
                 let duration = match notice.data.get(&NoticeKey::ElapsedMs) {
                     Some(DataValue::Int(ms)) if *ms >= 0 => duration_text(*ms as u64),
-                    _ => "un tiempo que no se pudo medir".into(),
+                    _ => self.copy.unknown_duration.into(),
                 };
-                Some(format!("La grabación sigue. Faltan {duration}."))
+                Some(crate::copy::fill(
+                    self.copy.resumed,
+                    &[("duration", &duration)],
+                ))
             }
             NoticeCode::RecordingClosedAfterCut => {
                 self.recording_cut_notified = false;
                 let cause = match notice.data.get(&NoticeKey::Cause) {
-                    Some(DataValue::Token(code)) => recording_cause(code.as_str()),
-                    _ => "no se pudo recuperar la captura".into(),
+                    Some(DataValue::Token(code)) => recording_cause(self.copy, code.as_str()),
+                    _ => self.copy.capture_failed.into(),
                 };
-                Some(format!(
-                    "La grabación se ha cerrado: {cause}. Lo grabado está guardado."
-                ))
+                Some(crate::copy::fill(self.copy.closed, &[("cause", &cause)]))
             }
             _ => None,
         }
     }
 }
 
-fn recording_cause(code: &str) -> String {
+fn recording_cause(copy: &crate::copy::Copy, code: &str) -> String {
     match code {
-        "helper_lost" => "el ayudante del Mac se desconectó".into(),
-        "session_inactive" => "el Mac se durmió o cambió de usuario".into(),
-        "restart" => "Orbit se reinició".into(),
-        "daemon_heartbeat_expired" => "el servicio de Orbit dejó de responder".into(),
-        "privacy_stop" => "la parada de privacidad".into(),
-        "capture_finalize_timed_out" => "el Mac no confirmó el final".into(),
-        "cause_not_saved" => "la causa no quedó guardada".into(),
-        _ => format!("no se pudo recuperar la captura ({code})"),
+        "helper_lost" => copy.helper_lost.into(),
+        "session_inactive" => copy.session_inactive.into(),
+        "restart" => copy.restart.into(),
+        "daemon_heartbeat_expired" => copy.heartbeat_expired.into(),
+        "privacy_stop" => copy.privacy_stop.into(),
+        "capture_finalize_timed_out" => copy.finalize_timeout.into(),
+        "cause_not_saved" => copy.cause_not_saved.into(),
+        _ => format!("{} ({code})", copy.capture_failed),
     }
 }
 

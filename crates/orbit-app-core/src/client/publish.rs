@@ -32,6 +32,7 @@ pub(super) struct FramePublisher {
     frame_changes: watch::Sender<()>,
     clock_key: Option<ClockKey>,
     clock: LocalClock,
+    pub(super) copy: crate::PresentationCopy,
 }
 
 impl FramePublisher {
@@ -45,6 +46,7 @@ impl FramePublisher {
                 counter: 0,
             },
             last: initial,
+            copy: crate::PresentationCopy::default(),
             last_topics: TopicCache::default(),
             pending: Vec::new(),
             frame_changes,
@@ -85,14 +87,17 @@ impl FramePublisher {
         });
         let mut revision = self.revision;
         let mut changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone()),
-            &FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone()),
+            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
+                .with_copy(self.copy),
+            &FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone())
+                .with_copy(self.copy),
             || {
                 revision.counter = revision.counter.saturating_add(1);
                 revision
             },
         );
-        let input = FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone());
+        let input = FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone())
+            .with_copy(self.copy);
         macro_rules! ensure_clock_frame {
             ($id:ident, $module:ident) => {
                 if !changed
@@ -125,8 +130,10 @@ impl FramePublisher {
     pub(super) fn observe(&mut self, snapshot: &AppSnapshot) {
         let mut revision = self.revision;
         let changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone()),
-            &FeatureInput::with_clock(snapshot, &self.last_topics, self.clock.clone()),
+            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
+                .with_copy(self.copy),
+            &FeatureInput::with_clock(snapshot, &self.last_topics, self.clock.clone())
+                .with_copy(self.copy),
             || {
                 revision.counter = revision.counter.saturating_add(1);
                 revision
@@ -140,8 +147,9 @@ impl FramePublisher {
     pub(super) fn observe_topics(&mut self, snapshot: &AppSnapshot, topics: &TopicCache) {
         let mut revision = self.revision;
         let changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone()),
-            &FeatureInput::with_clock(snapshot, topics, self.clock.clone()),
+            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
+                .with_copy(self.copy),
+            &FeatureInput::with_clock(snapshot, topics, self.clock.clone()).with_copy(self.copy),
             || {
                 revision.counter = revision.counter.saturating_add(1);
                 revision
@@ -180,13 +188,21 @@ impl FramePublisher {
         self.frame_changes.send_replace(());
     }
 
+    pub(super) fn set_copy(&mut self, copy: crate::PresentationCopy) {
+        self.copy = copy;
+        self.revision.counter = self.revision.counter.saturating_add(1);
+        let frames = self.bootstrap_frames();
+        self.queue(frames);
+    }
+
     pub(super) fn watch_frames(&self) -> watch::Receiver<()> {
         self.frame_changes.subscribe()
     }
 
     pub(super) fn bootstrap_frames(&self) -> Vec<FeatureFrame> {
         project_all(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone()),
+            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
+                .with_copy(self.copy),
             self.revision,
         )
     }
