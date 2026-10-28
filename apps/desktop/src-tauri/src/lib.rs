@@ -268,7 +268,8 @@ mod tests {
     fn each_window_may_send_every_order_its_interface_sends()
     -> Result<(), Box<dyn std::error::Error>> {
         // No handler: the capability is checked before an order is looked up.
-        let app = tauri::test::mock_builder().build(tauri::generate_context!())?;
+        // `test`: the app's own context already embeds the macOS Info.plist.
+        let app = tauri::test::mock_builder().build(tauri::generate_context!(test = true))?;
         for (label, ports) in [
             (
                 "main",
