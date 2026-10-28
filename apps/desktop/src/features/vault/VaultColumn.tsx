@@ -49,6 +49,7 @@ function Folders({ catalog, route }: { catalog: VaultCatalog | null; route: Vaul
 }
 
 function VaultIdentity({ name, catalog }: { name: string; catalog: VaultCatalog | null }) {
+  const inlineCopy = useCopy().vaultReading;
   return (
     <div className={styles.identity}>
       <span className={styles.initial}>{name.charAt(0).toUpperCase()}</span>
@@ -56,8 +57,8 @@ function VaultIdentity({ name, catalog }: { name: string; catalog: VaultCatalog 
         <strong>{name}</strong>
         <small>
           {catalog === null
-            ? "Leyendo índice…"
-            : `${catalog.notes_count} notas · ${catalog.sources_count} fuentes`}
+            ? inlineCopy.readingIndex
+            : inlineCopy.counts(catalog.notes_count, catalog.sources_count)}
         </small>
       </div>
     </div>
@@ -73,19 +74,21 @@ function Contents({
   configuration: VaultSettings;
   route: VaultRoute;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   if (!configuration.configured) return <p className={styles.empty}>{copy.emptyAside}</p>;
   const name =
-    configuration.vault || (configuration.path.split("/").filter(Boolean).pop() ?? "Vault");
+    configuration.vault ||
+    (configuration.path.split("/").filter(Boolean).pop() ?? inlineCopy.vault);
   return (
     <>
       <VaultIdentity name={name} catalog={catalog} />
-      <nav aria-label="Secciones de Notas">
+      <nav aria-label={inlineCopy.sections}>
         {(
           [
-            ["home", "Inicio", "#/vault"],
-            ["tasks", "Tareas", "#/vault/tasks"],
-            ["map", "Mapa", "#/vault/map"],
+            ["home", copy.home, "#/vault"],
+            ["tasks", inlineCopy.tasks, "#/vault/tasks"],
+            ["map", inlineCopy.map, "#/vault/map"],
           ] as const
         ).map(([id, label, href]) => (
           <a
@@ -96,7 +99,7 @@ function Contents({
           >
             {label}
             {id === "tasks" && catalog !== null && (
-              <span aria-label={`${catalog.open_tasks} tareas abiertas`} className={styles.count}>
+              <span aria-label={inlineCopy.taskCount(catalog.open_tasks)} className={styles.count}>
                 {catalog.open_tasks}
               </span>
             )}
@@ -107,16 +110,16 @@ function Contents({
       <Folders catalog={catalog} route={route} />
       <footer className={styles.footer}>
         <a href={noteRoute("SCHEMA.md")}>
-          Esquema <code>SCHEMA.md</code>
+          {inlineCopy.schema} <code>{inlineCopy.schemaFile}</code>
         </a>
         <a href={noteRoute("index.md")}>
-          Índice <code>index.md</code>
+          {inlineCopy.index} <code>{inlineCopy.indexFile}</code>
         </a>
-        <a href="#/settings/notas">Ajustes de Notas</a>
+        <a href="#/settings/notas">{inlineCopy.settings}</a>
         <small>
           {catalog === null
-            ? "Índice pendiente"
-            : `OKF ${catalog.okf_version || "sin versión declarada"} · lectura desde el hub`}
+            ? inlineCopy.indexPending
+            : inlineCopy.formatVersion(catalog.okf_version || inlineCopy.noVersion)}
         </small>
       </footer>
     </>

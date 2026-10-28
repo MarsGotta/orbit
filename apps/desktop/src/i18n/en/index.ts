@@ -1,3 +1,4 @@
+import { interfaceCopy } from "./interface";
 import { defineCatalogue } from "../catalogue";
 import { assistantsCopy, vendorOf, shortDay } from "./assistants";
 import { accessGroups, agentFailureText, agentRefusalText } from "./agents";
@@ -41,6 +42,7 @@ export { globalShortcuts };
 
 export function english(assistantName = "Deimos") {
   return defineCatalogue({
+    ...interfaceCopy,
     extras: {
       assistantsCopy,
       vendorOf,

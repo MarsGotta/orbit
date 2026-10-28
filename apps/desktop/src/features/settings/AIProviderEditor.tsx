@@ -1,3 +1,4 @@
+import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AiProvider } from "../../bridge/generated/AiProvider";
@@ -31,7 +32,7 @@ function useProviderForm({ view, existing, onClose }: Props) {
       call: "ai_provider_save",
       provider_id: providerId,
       provider: {
-        name: kind === "openrouter" ? "OpenRouter" : name,
+        name: kind === "openrouter" ? getCopy().settingsInline.openRouter : name,
         kind,
         base_url: kind === "openrouter" ? routerUrl : url,
         ...(key.length > 0 ? { api_key: key } : {}),
@@ -68,22 +69,23 @@ function EndpointFields({ form, busy }: { form: Form; busy: boolean }) {
 }
 
 export function AIProviderEditor(props: Props) {
+  const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const { view, existing, onClose } = props;
   const form = useProviderForm(props);
   const { name, url, key, setKey, kind, setKind, save } = form;
   return (
     <List busy={view.busy}>
-      <Row title="Proveedor">
+      <Row title={inlineCopy.provider}>
         <div className={styles.select}>
           <select
-            aria-label="Tipo de proveedor"
+            aria-label={inlineCopy.providerType}
             disabled={view.busy || existing !== undefined}
             value={kind}
             onChange={(e) => setKind(e.target.value)}
           >
             <option value="local">{copy.local}</option>
-            <option value="openrouter">OpenRouter</option>
+            <option value="openrouter">{inlineCopy.openRouter}</option>
           </select>
         </div>
         {kind === "local" && <EndpointFields form={form} busy={view.busy} />}
@@ -113,7 +115,7 @@ export function AIProviderEditor(props: Props) {
             onClose();
           }}
         >
-          Cancelar
+          {inlineCopy.cancel}
         </Button>
         {view.error.length > 0 && <p role="alert">{view.error}</p>}
       </Row>

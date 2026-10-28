@@ -1,3 +1,4 @@
+import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultTask } from "../../bridge/generated/VaultTask";
@@ -25,9 +26,9 @@ function groupsOf(tasks: VaultTask[], by: Grouping, notes: VaultMeta[]) {
   for (const task of tasks) {
     const group =
       by === "person"
-        ? task.who || "Sin asignar"
+        ? task.who || getCopy().vaultReading.unassigned
         : task.project === ""
-          ? "Sin proyecto"
+          ? getCopy().vaultReading.noProject
           : taskTitle(task.project, notes);
     groups.set(group, [...(groups.get(group) ?? []), task]);
   }
@@ -48,12 +49,13 @@ function Filters({
   owner: string;
   counts: Partial<Record<string, number>> | undefined;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const options = [
-    ["open", "Abiertas"],
-    ["mine", "Mías"],
-    ["overdue", "Vencidas"],
-    ["done", "Hechas"],
+    ["open", inlineCopy.openFilter],
+    ["mine", inlineCopy.mine],
+    ["overdue", inlineCopy.overdueFilter],
+    ["done", inlineCopy.doneFilter],
   ] as const;
   return (
     <>
@@ -63,11 +65,11 @@ function Filters({
         <p className={styles.muted}>{copy.readOnly}</p>
       </header>
       <Segmented
-        label="Agrupar tareas"
+        label={inlineCopy.groupTasks}
         onChange={setBy}
         options={[
-          { value: "person", label: "Por persona" },
-          { value: "project", label: "Por proyecto" },
+          { value: "person", label: inlineCopy.byPerson },
+          { value: "project", label: inlineCopy.byProject },
         ]}
         value={by}
       />
@@ -123,6 +125,7 @@ export function VaultTasks({
   embedded = false,
   initialState,
 }: Props) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const [by, setBy] = useState<Grouping>("person");
   const [state, setState] = useState(initialState ?? (embedded ? "all" : "open"));
@@ -149,22 +152,22 @@ export function VaultTasks({
         <p role="alert">
           {error}{" "}
           <Button onClick={retry} size={28}>
-            Reintentar
+            {inlineCopy.retry}
           </Button>
         </p>
       )}
-      {answer === null && error === null && <p role="status">Leyendo tareas…</p>}
-      {data !== null && data.tasks.length === 0 && <p>No hay tareas en esta selección.</p>}
+      {answer === null && error === null && <p role="status">{inlineCopy.readingTasks}</p>}
+      {data !== null && data.tasks.length === 0 && <p>{inlineCopy.noTasks}</p>}
       <TaskGroups data={data?.tasks ?? []} by={by} embedded={embedded} notes={notes} />
       <div className={styles.actions}>
         {number > 1 && (
           <Button onClick={() => setNumber(number - 1)} size={28}>
-            Anterior
+            {inlineCopy.previous}
           </Button>
         )}
         {data?.next_page != null && (
           <Button onClick={() => setNumber(data.next_page ?? 1)} size={28}>
-            Más tareas
+            {inlineCopy.moreTasks}
           </Button>
         )}
       </div>

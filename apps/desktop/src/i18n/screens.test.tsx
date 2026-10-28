@@ -81,18 +81,17 @@ it.each(["Today", "Meetings", "Meeting note", "Assistant", "Settings"])(
       Settings: "Settings",
     };
     expect(view.container.textContent).toContain(expected[page as keyof typeof expected]);
-    // Meeting content and inline copy are allowed. Catalogue strings that differ
+    // Meeting content is preserved. Catalogue strings that differ
     // between languages must never be selected by these screens.
     const spanishStrings = strings(spanish("Atlas"));
     const englishStrings = new Set(strings(english("Atlas")));
     const forbidden = new Set(spanishStrings.filter((text) => !englishStrings.has(text)));
-    // Inline copy is allowed in this wave; these two date labels are still
-    // written directly by conversation grouping, rather than read from copy.
-    forbidden.delete("Hoy");
-    forbidden.delete("Ayer");
     const walker = document.createTreeWalker(view.container, NodeFilter.SHOW_TEXT);
     while (walker.nextNode())
       expect(forbidden.has(walker.currentNode.textContent?.trim() ?? "")).toBe(false);
+    for (const node of view.container.querySelectorAll("*"))
+      for (const attribute of ["aria-label", "title", "placeholder"])
+        expect(forbidden.has(node.getAttribute(attribute) ?? "")).toBe(false);
     if (page === "Meeting note") expect(screen.getByRole("tab", { name: "Summary" })).toBeTruthy();
   },
 );

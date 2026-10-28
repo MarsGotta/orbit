@@ -30,8 +30,9 @@ const sameDay = (a: Date, b: Date) =>
 export function dayOf(atMs: number, nowMs: number): string {
   const at = new Date(atMs);
   const now = new Date(nowMs);
-  if (sameDay(at, now)) return "Hoy";
-  if (sameDay(at, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))) return "Ayer";
+  if (sameDay(at, now)) return getCopy().shellInline.today;
+  if (sameDay(at, new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)))
+    return getCopy().shellInline.yesterday;
   return at.getFullYear() === now.getFullYear()
     ? getCopy().extras.shortDay(atMs)
     : `${getCopy().extras.shortDay(atMs)} ${at.getFullYear()}`;

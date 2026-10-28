@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 export interface DiagramNode {
   id: string;
   label: string;
@@ -6,11 +7,16 @@ export interface DiagramNode {
   state: string;
 }
 export function DependencyNode({ node }: { node: DiagramNode }) {
+  const inlineCopy = useCopy().vaultReading;
   return (
     <g data-state={node.state}>
       <title>
         {node.label} ·{" "}
-        {node.state === "done" ? "Hecha" : node.state === "blocked" ? "Bloqueada" : "Pendiente"}
+        {node.state === "done"
+          ? inlineCopy.done
+          : node.state === "blocked"
+            ? inlineCopy.blocked
+            : inlineCopy.pending}
       </title>
       <rect
         fill="var(--o-surface)"
@@ -40,7 +46,11 @@ export function DependencyNode({ node }: { node: DiagramNode }) {
           {node.label.slice(23, 49)}
         </tspan>
         <tspan fill="var(--o-ink3)" x={node.x + 13} y={node.y + 63}>
-          {node.state === "done" ? "Hecha" : node.state === "blocked" ? "Bloqueada" : "Pendiente"}
+          {node.state === "done"
+            ? inlineCopy.done
+            : node.state === "blocked"
+              ? inlineCopy.blocked
+              : inlineCopy.pending}
         </tspan>
       </text>
     </g>

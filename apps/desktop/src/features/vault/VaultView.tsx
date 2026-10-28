@@ -59,20 +59,21 @@ function IndexPages({
   number: number;
   setNumber: (value: number) => void;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   return (
     <div className={styles.pagination}>
       <span>
-        {catalog.notes.length} notas en esta página · {catalog.notes_count + catalog.sources_count}{" "}
-        en el vault
+        {catalog.notes.length} {inlineCopy.notesOnPage}{" "}
+        {catalog.notes_count + catalog.sources_count} {inlineCopy.inVault}
       </span>
       {number > 1 && (
         <Button onClick={() => setNumber(number - 1)} size={28}>
-          Página anterior del índice
+          {inlineCopy.previousIndex}
         </Button>
       )}
       {catalog.next_page !== null && (
         <Button onClick={() => setNumber(catalog.next_page ?? 1)} size={28}>
-          Más notas del índice
+          {inlineCopy.moreIndex}
         </Button>
       )}
     </div>
@@ -88,6 +89,7 @@ function Reading({
   configuration: VaultSettings;
   owner?: string;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const route = useVaultRoute();
   const [number, setNumber] = useState(1);
@@ -112,13 +114,13 @@ function Reading({
           <p className={styles.content} role="alert">
             {error}{" "}
             <Button onClick={retry} size={28}>
-              Reintentar
+              {inlineCopy.retry}
             </Button>
           </p>
         )}
         {catalog === null && error === null && (
           <p className={styles.content} role="status">
-            Leyendo índice…
+            {inlineCopy.readingIndex}
           </p>
         )}
         {catalog !== null && (
@@ -139,32 +141,35 @@ function Reading({
 }
 
 export default function VaultView({ port, owner }: { port?: VaultPort; owner?: string }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const { configuration, setConfiguration, error, retry } = useVaultConfiguration(port);
   const route = useVaultRoute();
   if (configuration?.configured === true)
     return <Reading configuration={configuration} owner={owner} port={port} />;
   return (
-    <section aria-label="Notas" className={styles.view}>
+    <section aria-label={inlineCopy.notesTitle} className={styles.view}>
       {configuration !== null && (
         <VaultColumn catalog={null} configuration={configuration} route={route} />
       )}
       <div className={styles.create}>
-        <TopBarLeading>Crear tu vault</TopBarLeading>
+        <TopBarLeading>{inlineCopy.createVault}</TopBarLeading>
         <h1>{copy.createTitle}</h1>
         <p>{copy.createLead}</p>
-        {configuration === null && error === null && <p role="status">Leyendo conexión…</p>}
+        {configuration === null && error === null && (
+          <p role="status">{inlineCopy.readingConnection}</p>
+        )}
         {error !== null && (
           <p role="alert">
             {error}{" "}
             <Button onClick={retry} size={28}>
-              Reintentar
+              {inlineCopy.retry}
             </Button>
           </p>
         )}
         {configuration !== null && (
           <>
-            <h2>1 · Dónde</h2>
+            <h2>{inlineCopy.where}</h2>
             <ConnectionCard
               configuration={configuration}
               key={JSON.stringify(configuration)}

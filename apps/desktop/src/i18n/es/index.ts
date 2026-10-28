@@ -1,3 +1,4 @@
+import { interfaceCopy } from "./interface";
 import { assistantsCopy, vendorOf, shortDay } from "./assistants";
 import { accessGroups, agentFailureText, agentRefusalText } from "./agents";
 import { permissionRows, macPermissions } from "./permissions";
@@ -40,6 +41,7 @@ export { globalShortcuts };
 
 export function spanish(assistantName = "Deimos") {
   return {
+    ...interfaceCopy,
     extras: {
       assistantsCopy,
       vendorOf,

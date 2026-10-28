@@ -1,3 +1,4 @@
+import { getCopy } from "../../i18n";
 import { dateTime } from "../../i18n/locale";
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -17,8 +18,8 @@ export function sessionWhen(atMs: number, nowMs: number): string {
     minute: "2-digit",
   }).format(at);
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  if (sameDay(at, now)) return `Hoy, ${time}`;
-  if (sameDay(at, yesterday)) return `Ayer, ${time}`;
+  if (sameDay(at, now)) return getCopy().shellInline.todayAt(time);
+  if (sameDay(at, yesterday)) return getCopy().shellInline.yesterdayAt(time);
   const day = dateTime({
     day: "numeric",
     month: "short",

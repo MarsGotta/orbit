@@ -28,19 +28,23 @@ function useMarkdownShortcut(path: string, markdown: boolean) {
   }, [path, markdown]);
 }
 function RawNote({ note }: { note: VaultNote }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const prefix = note.raw.endsWith(note.body)
     ? note.raw.slice(0, note.raw.length - note.body.length)
     : "";
   return (
     <div className={styles.raw}>
-      <p className={styles.muted}>{copy.yaml} · Solo lectura</p>
+      <p className={styles.muted}>
+        {copy.yaml} {inlineCopy.readOnly}
+      </p>
       {prefix !== "" && <pre>{prefix}</pre>}
       <pre>{note.body}</pre>
     </div>
   );
 }
 function NoteBar({ note, title, markdown }: { note: VaultNote; title: string; markdown: boolean }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   return (
     <TopBarLeading>
@@ -50,21 +54,21 @@ function NoteBar({ note, title, markdown }: { note: VaultNote; title: string; ma
             {
               label:
                 copy.folderNames[note.path.split("/")[0] as keyof typeof copy.folderNames] ??
-                "Notas",
+                inlineCopy.notesTitle,
               href: "#/vault",
             },
             { label: title },
           ]}
         />
         <code title={note.path}>/{note.path}</code>
-        <span>Leída desde el hub</span>
+        <span>{inlineCopy.readFromHub}</span>
         <Button
           onClick={() => {
             window.location.hash = noteRoute(note.path, !markdown);
           }}
           size={28}
         >
-          {markdown ? copy.text : `MD ${copy.md}`}
+          {markdown ? copy.text : inlineCopy.markdownToggle(copy.md)}
         </Button>
       </div>
     </TopBarLeading>
@@ -130,6 +134,7 @@ export function VaultNotePane({
   route: VaultRoute;
   catalog: VaultCatalog;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   useMarkdownShortcut(route.path, route.markdown);
   const { answer, error, retry } = useVaultRead(port, readFilter("read", route.path));
   if (error !== null)
@@ -137,14 +142,14 @@ export function VaultNotePane({
       <p className={styles.content} role="alert">
         {error}{" "}
         <Button onClick={retry} size={28}>
-          Reintentar
+          {inlineCopy.retry}
         </Button>
       </p>
     );
   if (answer?.outcome !== "note")
     return (
       <p className={styles.content} role="status">
-        Leyendo nota…
+        {inlineCopy.readingNote}
       </p>
     );
   return <ReadNote catalog={catalog} markdown={route.markdown} note={answer.note} port={port} />;

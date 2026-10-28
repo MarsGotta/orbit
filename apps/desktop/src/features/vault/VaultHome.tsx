@@ -13,6 +13,7 @@ import { useVaultRead } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 function Search({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -40,7 +41,7 @@ function Search({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }) 
           value={draft}
         />
         <Button size={36} type="submit">
-          Buscar
+          {inlineCopy.search}
         </Button>
       </form>
       {query !== "" && (
@@ -75,11 +76,12 @@ function SearchResults({
   setNumber: (value: number) => void;
   close: () => void;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   return (
     <section>
-      <h2>Resultados</h2>
+      <h2>{inlineCopy.results}</h2>
       {error !== null && <p role="alert">{error}</p>}
-      {page === null && error === null && <p role="status">Buscando…</p>}
+      {page === null && error === null && <p role="status">{inlineCopy.searching}</p>}
       <ul>
         {page?.entries.map((entry) => (
           <li key={entry.path}>
@@ -89,20 +91,20 @@ function SearchResults({
           </li>
         ))}
       </ul>
-      {page?.entries.length === 0 && <p>No se encontraron notas.</p>}
+      {page?.entries.length === 0 && <p>{inlineCopy.noResults}</p>}
       <div className={styles.actions}>
         {number > 1 && (
           <Button onClick={() => setNumber(number - 1)} size={28}>
-            Anterior
+            {inlineCopy.previous}
           </Button>
         )}
         {page?.next_page != null && (
           <Button onClick={() => setNumber(page.next_page ?? 1)} size={28}>
-            Siguiente
+            {inlineCopy.next}
           </Button>
         )}
         <Button onClick={close} size={28}>
-          Cerrar búsqueda
+          {inlineCopy.closeSearch}
         </Button>
       </div>
     </section>
@@ -110,6 +112,7 @@ function SearchResults({
 }
 
 function DueTasks({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const { answer, error } = useVaultRead(port, { ...readFilter("tasks"), state: "open" });
   const start = localToday();
@@ -131,9 +134,9 @@ function DueTasks({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }
         </a>
       </h2>
       {error !== null && <p role="alert">{error}</p>}
-      {answer === null && error === null && <p role="status">Leyendo tareas…</p>}
+      {answer === null && error === null && <p role="status">{inlineCopy.readingTasks}</p>}
       {answer !== null && tasks.length === 0 && (
-        <p className={styles.muted}>No hay tareas que venzan esta semana en esta página.</p>
+        <p className={styles.muted}>{inlineCopy.noTasksDue}</p>
       )}
       <TaskRows notes={catalog.notes} tasks={tasks} />
     </section>
@@ -149,17 +152,19 @@ export function VaultHome({
   catalog: VaultCatalog;
   configuration: VaultSettings;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const name =
-    configuration.vault || (configuration.path.split("/").filter(Boolean).pop() ?? "Vault");
+    configuration.vault ||
+    (configuration.path.split("/").filter(Boolean).pop() ?? inlineCopy.vault);
   return (
     <div className={styles.content}>
       <header className={styles.heading}>
         <h1>{name}</h1>
         <p>
-          {catalog.notes_count} notas y {catalog.sources_count} fuentes en{" "}
-          {configuration.kind === "folder" ? configuration.path : "Fast Note Sync"} · OKF{" "}
-          {catalog.okf_version || "sin versión declarada"}
+          {catalog.notes_count} {inlineCopy.notesAnd} {catalog.sources_count} {inlineCopy.sourcesIn}{" "}
+          {configuration.kind === "folder" ? configuration.path : inlineCopy.sync} {inlineCopy.okf}{" "}
+          {catalog.okf_version || inlineCopy.noVersion}
         </p>
         <p className={styles.muted}>{copy.readOnly}</p>
       </header>

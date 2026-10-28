@@ -13,6 +13,7 @@ import { useVaultRead } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 function Sources({ note }: { note: VaultNote }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   return (
     <section>
@@ -36,7 +37,9 @@ function Sources({ note }: { note: VaultNote }) {
                 ) : (
                   <span>{source.title}</span>
                 )}
-                <small>{source.resource === "" ? "Fuente no declarada" : source.resource}</small>
+                <small>
+                  {source.resource === "" ? inlineCopy.undeclaredSource : source.resource}
+                </small>
               </div>
             </li>
           );
@@ -55,6 +58,7 @@ function Backlinks({
   catalog: VaultCatalog;
   port?: VaultPort;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const [number, setNumber] = useState(1);
   const { answer, error, retry } = useVaultRead(port, readFilter("backlinks", note.path, number));
@@ -70,12 +74,12 @@ function Backlinks({
         <p role="alert">
           {error}{" "}
           <Button onClick={retry} size={28}>
-            Reintentar
+            {inlineCopy.retry}
           </Button>
         </p>
       )}
-      {page === null && error === null && <p role="status">Leyendo enlaces…</p>}
-      {page?.entries.length === 0 && <p>Ninguna nota enlaza aquí.</p>}
+      {page === null && error === null && <p role="status">{inlineCopy.readingLinks}</p>}
+      {page?.entries.length === 0 && <p>{inlineCopy.noBacklinks}</p>}
       <ul className={styles.backlinks}>
         {page?.entries.map((entry) => {
           const meta = catalog.notes.find((n) => n.path === entry.path);
@@ -93,12 +97,12 @@ function Backlinks({
       <div className={styles.actions}>
         {number > 1 && (
           <Button onClick={() => setNumber(number - 1)} size={28}>
-            Anteriores
+            {inlineCopy.previousLinks}
           </Button>
         )}
         {page?.next_page != null && (
           <Button onClick={() => setNumber(page.next_page ?? 1)} size={28}>
-            Más enlaces
+            {inlineCopy.moreLinks}
           </Button>
         )}
       </div>
@@ -127,6 +131,7 @@ export function AboutNote({
 }
 
 function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const [number, setNumber] = useState(1);
   const { answer, error } = useVaultRead(
@@ -138,7 +143,7 @@ function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
     <section>
       <h3>{copy.history}</h3>
       {error !== null && <p role="alert">{error}</p>}
-      {data === null && error === null && <p role="status">Leyendo historial…</p>}
+      {data === null && error === null && <p role="status">{inlineCopy.readingHistory}</p>}
       {data?.history.length === 0 && <p>{copy.noHistory}</p>}
       {data?.history.map((entry, i) => (
         <p key={i}>
@@ -152,12 +157,12 @@ function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
       <div className={styles.actions}>
         {number > 1 && (
           <Button onClick={() => setNumber(number - 1)} size={28}>
-            Historial anterior
+            {inlineCopy.previousHistory}
           </Button>
         )}
         {data?.history_next_page != null && (
           <Button onClick={() => setNumber(data.history_next_page ?? 1)} size={28}>
-            Más historial
+            {inlineCopy.moreHistory}
           </Button>
         )}
       </div>

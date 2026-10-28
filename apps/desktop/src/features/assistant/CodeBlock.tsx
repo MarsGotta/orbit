@@ -1,3 +1,4 @@
+import { lookupCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
 
@@ -44,41 +45,6 @@ function Lines({ lines }: { lines: CodeToken[][] }) {
 }
 
 /** The names a reader knows a language by; any other is shown as the fence wrote it. */
-const LANGUAGE_NAMES: Record<string, string> = {
-  bash: "Bash",
-  c: "C",
-  cpp: "C++",
-  css: "CSS",
-  csv: "CSV",
-  go: "Go",
-  html: "HTML",
-  java: "Java",
-  javascript: "JavaScript",
-  js: "JavaScript",
-  json: "JSON",
-  jsx: "JSX",
-  kotlin: "Kotlin",
-  markdown: "Markdown",
-  md: "Markdown",
-  py: "Python",
-  python: "Python",
-  rb: "Ruby",
-  ruby: "Ruby",
-  rs: "Rust",
-  rust: "Rust",
-  sh: "Shell",
-  shell: "Shell",
-  sql: "SQL",
-  swift: "Swift",
-  toml: "TOML",
-  ts: "TypeScript",
-  tsx: "TSX",
-  typescript: "TypeScript",
-  xml: "XML",
-  yaml: "YAML",
-  yml: "YAML",
-  zsh: "Zsh",
-};
 
 /**
  * What a fence's info string says: its language and the file the code is
@@ -165,7 +131,10 @@ export function CodeBlock({
   const lines = useHighlight(code, colour ? info.language : null);
   const commands = info.file === null ? shellCommands(info.language, code) : null;
   if (commands !== null) return <CommandBlock commands={commands} />;
-  const name = info.language === null ? null : (LANGUAGE_NAMES[info.language] ?? info.language);
+  const name =
+    info.language === null
+      ? null
+      : (lookupCopy(es.shellInline.codeLanguages, info.language) ?? info.language);
   return (
     <figure className={styles.code}>
       <figcaption data-speech="skip">

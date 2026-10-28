@@ -1,13 +1,10 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 import { noteRoute } from "./route";
 import { taskTitle } from "./TaskRows";
 import styles from "./VaultReading.module.css";
 
-const LABELS: Record<string, string> = {
-  stage: "Estado del proyecto",
-  start: "Arranque",
-};
 const METADATA = [
   "status",
   "type",
@@ -38,6 +35,11 @@ export function NoteProperties({
   notes: VaultMeta[];
   fieldNames: Partial<Record<string, string>>;
 }) {
+  const inlineCopy = useCopy().vaultReading;
+  const labels: Record<string, string> = {
+    stage: inlineCopy.projectStage,
+    start: inlineCopy.projectStart,
+  };
   const projects =
     note.role === "person"
       ? notes.filter((entry) => entry.role === "project" && entry.links.includes(note.path))
@@ -48,13 +50,13 @@ export function NoteProperties({
         ([key]) => !METADATA.includes(key) && !Object.values(fieldNames).includes(key),
       ),
     ),
-    ...Object.fromEntries(Object.entries(note.properties).filter(([key]) => key in LABELS)),
+    ...Object.fromEntries(Object.entries(note.properties).filter(([key]) => key in labels)),
   };
   return (
     <dl className={styles.properties}>
       {Object.entries(fields).map(([field, value]) => (
         <div key={field}>
-          <dt>{LABELS[field] ?? field}</dt>
+          <dt>{labels[field] ?? field}</dt>
           <dd>
             <PropertyValue notes={notes} value={value} />
           </dd>
@@ -63,7 +65,7 @@ export function NoteProperties({
       <ProjectLinks projects={projects} />
       {note.role === "project" && (
         <div>
-          <dt>Equipo</dt>
+          <dt>{inlineCopy.team}</dt>
           <dd className={styles.team}>
             {[...new Set(note.tasks.map((task) => task.who).filter((who) => who !== ""))].map(
               (who) => (
@@ -80,10 +82,11 @@ export function NoteProperties({
 }
 
 function ProjectLinks({ projects }: { projects: VaultMeta[] }) {
+  const inlineCopy = useCopy().vaultReading;
   if (projects.length === 0) return null;
   return (
     <div>
-      <dt>Proyectos</dt>
+      <dt>{inlineCopy.projects}</dt>
       <dd>
         {projects.map((project, index) => (
           <span key={project.path}>

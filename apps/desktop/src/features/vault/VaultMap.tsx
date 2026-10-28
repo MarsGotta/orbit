@@ -28,10 +28,11 @@ function positions(notes: VaultMeta[]) {
   ];
 }
 function LooseLabel({ nodes }: { nodes: ReturnType<typeof positions> }) {
+  const inlineCopy = useCopy().vaultReading;
   const first = nodes.find(({ note }) => isolated(note));
   return first === undefined ? null : (
     <text fill="var(--o-ink3)" fontSize="12" x="20" y={first.y - 28}>
-      Notas sueltas
+      {inlineCopy.looseNotes}
     </text>
   );
 }
@@ -45,6 +46,7 @@ function Graph({
   selected: string;
   select: (path: string) => void;
 }) {
+  const inlineCopy = useCopy().vaultReading;
   const nodes = positions(notes);
   const edges = nodes.flatMap((node) =>
     node.note.links.flatMap((path) => {
@@ -59,7 +61,7 @@ function Graph({
   );
   return (
     <svg
-      aria-label="Mapa de enlaces entre notas"
+      aria-label={inlineCopy.mapLabel}
       className={styles.graph}
       role="group"
       viewBox={`0 0 880 ${Math.max(610, ...nodes.map((node) => node.y + 55))}`}
@@ -96,6 +98,7 @@ function Graph({
 }
 
 export function VaultMap({ notes }: { notes: VaultMeta[] }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   const [excluded, setExcluded] = useState<string[]>([]);
   const types = [...new Set(notes.map((note) => note.type))];
@@ -117,20 +120,22 @@ export function VaultMap({ notes }: { notes: VaultMeta[] }) {
             <h2>{picked.title}</h2>
             <p>{picked.description}</p>
             <p>
-              {picked.links.length + picked.backlink_count} enlaces
-              {picked.links.length + picked.backlink_count === 0 ? " · nota suelta" : ""}
+              {picked.links.length + picked.backlink_count} {inlineCopy.links}
+              {picked.links.length + picked.backlink_count === 0 ? inlineCopy.looseNote : ""}
             </p>
-            <a href={noteRoute(picked.path)}>Abrir la nota</a>
+            <a href={noteRoute(picked.path)}>{inlineCopy.openNote}</a>
           </div>
         )}
       </div>
       <details>
-        <summary>Lista equivalente del mapa · {filtered.length} notas</summary>
+        <summary>
+          {inlineCopy.mapList} {filtered.length} {inlineCopy.notes}
+        </summary>
         <ul>
           {filtered.map((note) => (
             <li key={note.path}>
               <a href={noteRoute(note.path)}>{note.title}</a> ·{" "}
-              {note.links.length + note.backlink_count} enlaces
+              {note.links.length + note.backlink_count} {inlineCopy.links}
             </li>
           ))}
         </ul>

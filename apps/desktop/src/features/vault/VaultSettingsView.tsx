@@ -10,25 +10,28 @@ import { useVaultConfiguration } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
 export function VaultSettingsView({ port }: { port?: VaultPort }) {
+  const inlineCopy = useCopy().vaultSettings;
   const copy = useCopy().extras.vaultCopy;
   const { configuration, setConfiguration, error, retry } = useVaultConfiguration(port);
   return (
     <>
-      <SectionHeading lead={copy.settingsIntro} title="Notas" />
+      <SectionHeading lead={copy.settingsIntro} title={inlineCopy.notes} />
       {error !== null && (
         <p role="alert">
           {error}{" "}
           <Button onClick={retry} size={28}>
-            Reintentar
+            {inlineCopy.retry}
           </Button>
         </p>
       )}
-      {configuration === null && error === null && <p role="status">Leyendo conexión…</p>}
+      {configuration === null && error === null && (
+        <p role="status">{inlineCopy.readingConnection}</p>
+      )}
       {configuration !== null && (
         <>
           <details className={styles.connection} open={!configuration.configured}>
             <summary>
-              {configuration.configured ? "Cambiar conexión del vault" : "Conectar tu vault"}
+              {configuration.configured ? inlineCopy.changeConnection : inlineCopy.connectVault}
             </summary>
             <ConnectionCard
               configuration={configuration}

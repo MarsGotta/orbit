@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import { dateTime } from "../../i18n/locale";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
 import type { VaultTask } from "../../bridge/generated/VaultTask";
@@ -23,6 +24,7 @@ export function displayDate(value: string) {
 }
 
 export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMeta[] }) {
+  const inlineCopy = useCopy().vaultReading;
   return (
     <ul className={styles.tasks}>
       {tasks.map((task) => (
@@ -32,41 +34,28 @@ export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMet
           key={`${task.file}:${task.line}`}
         >
           <input
-            aria-label={`${task.done ? "Hecha" : "Abierta"}: ${task.text}`}
+            aria-label={`${task.done ? inlineCopy.done : inlineCopy.open}: ${task.text}`}
             checked={task.done}
             disabled
             readOnly
-            title="Solo lectura: marcar tareas llegará más adelante"
+            title={inlineCopy.readOnlyTaskHint}
             type="checkbox"
           />
           <div className={styles.taskText}>
             <a data-done={task.done} href={noteRoute(task.file)}>
               {task.text}
             </a>
-            <small>
-              {task.priority !== "" && <>{task.priority} · </>}
-              {task.scheduled !== "" && <>Programada {displayDate(task.scheduled)} · </>}
-              {task.start !== "" && <>Inicio {displayDate(task.start)} · </>}
-              {task.recurrence !== "" && <>🔁 {task.recurrence} · </>}
-              {task.done_at !== "" && <>Hecha el {displayDate(task.done_at)} · </>}
-              {task.who !== "" && <>{task.who} · </>}
-              {task.project !== "" && <>en {taskTitle(task.project, notes)} · </>}
-              {task.source !== "" && (
-                <>
-                  de <a href={noteRoute(task.source)}>{taskTitle(task.source, notes)}</a>
-                </>
-              )}
-            </small>
+            <TaskMetadata task={task} notes={notes} />
           </div>
           <span
             className={styles.due}
             data-late={!task.done && task.due !== "" && task.due < localToday()}
           >
             {task.done
-              ? "Hecha"
+              ? inlineCopy.done
               : task.due === ""
-                ? "Sin fecha"
-                : `${task.due < localToday() ? "Vencida · " : ""}${displayDate(task.due)}`}
+                ? inlineCopy.noDate
+                : `${task.due < localToday() ? inlineCopy.overdue : ""}${displayDate(task.due)}`}
           </span>
           <span aria-hidden="true" className={styles.avatar}>
             {task.who.charAt(0) || "–"}
@@ -74,5 +63,42 @@ export function TaskRows({ tasks, notes }: { tasks: VaultTask[]; notes: VaultMet
         </li>
       ))}
     </ul>
+  );
+}
+
+function TaskMetadata({ task, notes }: { task: VaultTask; notes: VaultMeta[] }) {
+  const inlineCopy = useCopy().vaultReading;
+  return (
+    <small>
+      {task.priority !== "" && <>{task.priority} · </>}
+      {task.scheduled !== "" && (
+        <>
+          {inlineCopy.scheduled} {displayDate(task.scheduled)} ·{" "}
+        </>
+      )}
+      {task.start !== "" && (
+        <>
+          {inlineCopy.start} {displayDate(task.start)} ·{" "}
+        </>
+      )}
+      {task.recurrence !== "" && <>🔁 {task.recurrence} · </>}
+      {task.done_at !== "" && (
+        <>
+          {inlineCopy.completedOn} {displayDate(task.done_at)} ·{" "}
+        </>
+      )}
+      {task.who !== "" && <>{task.who} · </>}
+      {task.project !== "" && (
+        <>
+          {inlineCopy.inProject} {taskTitle(task.project, notes)} ·{" "}
+        </>
+      )}
+      {task.source !== "" && (
+        <>
+          {inlineCopy.fromSource}{" "}
+          <a href={noteRoute(task.source)}>{taskTitle(task.source, notes)}</a>
+        </>
+      )}
+    </small>
   );
 }

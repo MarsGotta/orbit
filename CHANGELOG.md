@@ -9,6 +9,10 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- Move remaining desktop interface labels, accessible names and helper copy into
+  the English and Spanish catalogues. Enforce the migration with an AST check
+  in the UI test gate, including the app shell, design components and state.
+
 - Add English and Spanish catalogue copy with a live language choice in
   Settings › General. Follow the first supported system language by default,
   persist the choice on this Mac, and format dates and numbers with its locale.

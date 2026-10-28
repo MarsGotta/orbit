@@ -137,7 +137,7 @@ function UndoButton({ onUndo, dismiss }: { onUndo: () => void; dismiss: () => vo
       }}
       type="button"
     >
-      {es.design.undo} {count}s
+      {es.design.undo} {es.shellInline.undoCountdown(count)}
     </button>
   );
 }

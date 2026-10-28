@@ -32,7 +32,7 @@ function linkTargets(snapshot: AppView, note: OpenNoteSnapshot): LinkTarget[] {
       title: item.title,
       detail:
         groupFor(item) === "today"
-          ? `hoy, ${formatClock(item.started_at_ms)}`
+          ? getCopy().notesInline.todayAt(formatClock(item.started_at_ms))
           : formatDayMonth(item.started_at_ms),
     }));
 }
@@ -82,7 +82,7 @@ export function noteWriting(
 ): NoteWriting {
   if (!snapshot) return { notes: [], people: [] };
   const principal = agentFor(snapshot);
-  const name = principal?.name ?? snapshot.settings.assistant_name ?? "Deimos";
+  const name = principal?.name ?? snapshot.settings.assistant_name ?? getCopy().shell.assistantName;
   return {
     notes: linkTargets(snapshot, note),
     people: peopleOf(snapshot, note),

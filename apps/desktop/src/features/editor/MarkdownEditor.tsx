@@ -81,6 +81,7 @@ function EditorBar({
   status: ReactNode;
   toggle: () => void;
 }) {
+  const inlineCopy = useCopy().editorInline;
   const es = useCopy();
   return (
     <div className={styles.bar} data-quiet={status == null || status === false || undefined}>
@@ -96,7 +97,7 @@ function EditorBar({
           type="button"
         >
           <span aria-hidden="true" className={styles.md}>
-            MD
+            {inlineCopy.markdownBadge}
           </span>
           {raw ? es.editor.backToText : es.editor.markdown}
         </button>

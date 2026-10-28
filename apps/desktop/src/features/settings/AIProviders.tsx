@@ -10,11 +10,12 @@ import type { useAISettings } from "./use-ai-settings";
 
 type View = ReturnType<typeof useAISettings>;
 function ModelCorrection({ provider, view }: { provider: AiProvider; view: View }) {
+  const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const [models, setModels] = useState<AiModel[]>(provider.models);
   return (
     <details>
-      <summary>Corregir capacidades detectadas</summary>
+      <summary>{inlineCopy.correctCapabilities}</summary>
       {models.map((model, index) => (
         <fieldset key={model.id}>
           <legend>{model.id}</legend>
@@ -58,7 +59,7 @@ function ModelCorrection({ provider, view }: { provider: AiProvider; view: View 
           })
         }
       >
-        Guardar capacidades
+        {inlineCopy.saveCapabilities}
       </Button>
     </details>
   );
@@ -69,38 +70,30 @@ interface AIProvidersProps {
 }
 
 export function AIProviders({ view, initiallyOpen = false }: AIProvidersProps) {
+  const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const [editing, setEditing] = useState<AiProvider | "new" | null>(initiallyOpen ? "new" : null);
   return (
-    <Group label="Proveedores">
+    <Group label={inlineCopy.providers}>
       <List>
-        <Row
-          title="En tu hub"
-          help="Whisper y pyannote · Sin clave. Sus valores los configura el operador."
-        />
+        <Row title={inlineCopy.inHub} help={inlineCopy.hubModelsHelp} />
         {view.settings?.providers
           .filter((p) => p.kind !== "hub")
           .map((p) => (
             <Row
               key={p.id}
               title={p.name}
-              help={`${p.base_url ?? ""} · ${p.key_configured ? "Clave guardada en el hub" : "Sin clave"}`}
+              help={`${p.base_url ?? ""} · ${p.key_configured ? inlineCopy.keyStored : inlineCopy.noKey}`}
             >
               <p>{p.models.map((m) => m.id).join(", ")}</p>
               <Button disabled={view.busy} onClick={() => setEditing(p)}>
-                Editar {p.name}
+                {inlineCopy.edit} {p.name}
               </Button>
               <ModelCorrection key={JSON.stringify(p.models)} provider={p} view={view} />
             </Row>
           ))}
-        <Row
-          title={copy.local}
-          help="Añade varios endpoints compatibles con OpenAI. Aunque estén en tu red, los datos salen del hub si la URL no es loopback."
-        />
-        <Row
-          title={copy.cloud}
-          help="OpenRouter · Gemini, OpenAI, Mistral y Azure llegarán más adelante."
-        />
+        <Row title={copy.local} help={inlineCopy.localHelp} />
+        <Row title={copy.cloud} help={inlineCopy.cloudHelp} />
         <Row
           title={
             <Button disabled={view.busy} onClick={() => setEditing("new")}>

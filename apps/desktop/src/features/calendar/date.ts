@@ -51,12 +51,14 @@ export function rangeDays(range: { days: number; start_ms: number }, timezone: s
 
 /** «Octubre 2026». */
 export function monthTitle(day: number): string {
-  const value = dateTime({
+  const value = new Intl.DateTimeFormat(getLocale(), {
     month: "long",
     timeZone: "UTC",
     year: "numeric",
-  }).format(day * DAY_MS);
-  return (value.charAt(0).toUpperCase() + value.slice(1)).replace(" de ", " ");
+  }).formatToParts(day * DAY_MS);
+  const month = value.find((part) => part.type === "month")?.value ?? "";
+  const year = value.find((part) => part.type === "year")?.value ?? "";
+  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
 }
 
 /** The ISO week number of a civil day. */

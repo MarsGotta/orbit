@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
 import { COLORS, typeLabel } from "./type-colors";
 export function MapNode({
@@ -15,9 +16,14 @@ export function MapNode({
   select: (path: string) => void;
   bright: boolean;
 }) {
+  const copy = useCopy().vaultReading;
   return (
     <g
-      aria-label={`${note.title} · ${typeLabel(note.type, note.role)} · ${note.links.length + note.backlink_count} enlaces`}
+      aria-label={copy.mapNode(
+        note.title,
+        typeLabel(note.type, note.role),
+        note.links.length + note.backlink_count,
+      )}
       aria-pressed={selected === note.path}
       data-isolated={note.links.length + note.backlink_count === 0}
 

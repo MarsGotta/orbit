@@ -9,6 +9,7 @@ import { Group, List, Row, SectionHeading } from "./layout";
 import { useAISettings } from "./use-ai-settings";
 
 export function AISettings({ agent, snapshot }: { agent?: AgentPort; snapshot?: AppView }) {
+  const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const view = useAISettings(agent);
   const subscriptions =
@@ -19,10 +20,7 @@ export function AISettings({ agent, snapshot }: { agent?: AgentPort; snapshot?: 
     <>
       <SectionHeading title={copy.title} lead={copy.lead} />
       <AIProviders view={view} />
-      <Group
-        label="Suscripciones"
-        help="Claude y ChatGPT sólo sirven a sus asistentes. Sus cuentas se gestionan en Asistentes."
-      >
+      <Group label={inlineCopy.subscriptions} help={inlineCopy.subscriptionsHelp}>
         <List>
           {subscriptions.map((a) => (
             <Row
@@ -30,16 +28,16 @@ export function AISettings({ agent, snapshot }: { agent?: AgentPort; snapshot?: 
               title={a.name}
               help={
                 a.account === "signed_in"
-                  ? "Conectada"
+                  ? inlineCopy.signedIn
                   : a.account === "expired"
-                    ? "Sesión caducada"
+                    ? inlineCopy.expired
                     : a.account === "signed_out"
-                      ? "Sin conectar"
-                      : "Estado de cuenta desconocido"
+                      ? inlineCopy.signedOut
+                      : inlineCopy.unknownAccount
               }
             />
           ))}
-          <Row title={<a href="#/settings/asistentes">Ir a Asistentes</a>} />
+          <Row title={<a href="#/settings/asistentes">{inlineCopy.assistants}</a>} />
         </List>
       </Group>
       <AIFunctions view={view} />

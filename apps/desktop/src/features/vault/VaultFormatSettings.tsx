@@ -19,10 +19,10 @@ function useFormat({
   const [linkStyle, setLinkStyle] = useState(configuration.link_style);
   const model = configuration.maintenance_model;
   const [busy, setBusy] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [feedback, setFeedback] = useState<{ saved: true } | { error: string } | null>(null);
   const save = async () => {
     setBusy(true);
-    setFeedback("");
+    setFeedback(null);
     const { kind, path, url, vault } = configuration;
     try {
       const result = await request(port, {
@@ -31,10 +31,10 @@ function useFormat({
       });
       if (result.outcome === "config") {
         saved(result.configuration);
-        setFeedback("Guardado en el hub.");
+        setFeedback({ saved: true });
       }
     } catch (error: unknown) {
-      setFeedback(message(error));
+      setFeedback({ error: message(error) });
     } finally {
       setBusy(false);
     }
@@ -50,6 +50,7 @@ export function FormatSettings({
   port?: VaultPort;
   saved: (value: VaultSettings) => void;
 }) {
+  const inlineCopy = useCopy().vaultSettings;
   const copy = useCopy().extras.vaultCopy;
   const { linkStyle, setLinkStyle, model, busy, feedback, save } = useFormat({
     configuration,
@@ -58,7 +59,7 @@ export function FormatSettings({
   });
   return (
     <>
-      <Group label="Vault">
+      <Group label={inlineCopy.vault}>
         <List>
           <Row
             help={
@@ -66,15 +67,15 @@ export function FormatSettings({
                 ? configuration.path
                 : `${configuration.url} · ${configuration.vault}`
             }
-            title="Copia de trabajo en el hub"
+            title={inlineCopy.workingCopy}
           >
             <span>
-              Conector de solo lectura:{" "}
-              {configuration.kind === "folder" ? "Carpeta en el hub" : "Fast Note Sync"}
+              {inlineCopy.readOnlyConnector}{" "}
+              {configuration.kind === "folder" ? inlineCopy.hubFolder : inlineCopy.sync}
             </span>
           </Row>
-          <Row help={copy.formatHelp} title="Formato" />
-          <Row help={copy.linkHelp} title="Enlaces entre notas">
+          <Row help={copy.formatHelp} title={inlineCopy.format} />
+          <Row help={copy.linkHelp} title={inlineCopy.noteLinks}>
             <LinkOptions busy={busy} linkStyle={linkStyle} setLinkStyle={setLinkStyle} />
           </Row>
         </List>
@@ -82,30 +83,30 @@ export function FormatSettings({
       <Maintainer model={model} />
       <div className={styles.actions}>
         <Button disabled={busy} onClick={() => void save()} size={36} variant="accent">
-          {busy ? "Comprobando…" : "Guardar configuración"}
+          {busy ? inlineCopy.checking : inlineCopy.save}
         </Button>
-        <span role="status">{feedback}</span>
+        <span role="status">
+          {feedback === null ? "" : "saved" in feedback ? inlineCopy.saved : feedback.error}
+        </span>
       </div>
     </>
   );
 }
 
 function Maintainer({ model }: { model: string }) {
+  const inlineCopy = useCopy().vaultSettings;
   const copy = useCopy().extras.vaultCopy;
   return (
-    <Group
-      help="Un trabajo del hub con su propio modelo. No se ejecuta en esta fase."
-      label="Quién lo mantiene"
-    >
+    <Group help={inlineCopy.maintainerHelp} label={inlineCopy.maintainer}>
       <List>
-        <Row title="Trabajo del hub">
-          <p>{model || "Sin modelo configurado"}</p>
-          <a href="#/settings/ia">Elegir modelo en Ajustes › IA</a>
+        <Row title={inlineCopy.hubJob}>
+          <p>{model || inlineCopy.noModel}</p>
+          <a href="#/settings/ia">{inlineCopy.chooseModel}</a>
         </Row>
-        <Row help={copy.schemaHelp} title="Esquema SCHEMA.md">
-          <a href={noteRoute("SCHEMA.md")}>Leer el esquema</a>
+        <Row help={copy.schemaHelp} title={inlineCopy.schema}>
+          <a href={noteRoute("SCHEMA.md")}>{inlineCopy.readSchema}</a>
         </Row>
-        <Row help={copy.untouched} title="Lo que no toca" />
+        <Row help={copy.untouched} title={inlineCopy.untouched} />
       </List>
     </Group>
   );
@@ -120,13 +121,14 @@ function LinkOptions({
   linkStyle: string;
   setLinkStyle: (value: string) => void;
 }) {
+  const inlineCopy = useCopy().vaultSettings;
   return (
     <fieldset className={styles.linkOptions} disabled={busy}>
-      <legend className={styles.visuallyHidden}>Estilo de enlaces</legend>
+      <legend className={styles.visuallyHidden}>{inlineCopy.linkStyle}</legend>
       {(
         [
-          ["markdown", "Markdown (OKF)"],
-          ["wikilink", "[[Wikilinks]]"],
+          ["markdown", inlineCopy.markdown],
+          ["wikilink", inlineCopy.wikilinks],
         ] as const
       ).map(([value, label]) => (
         <label key={value}>

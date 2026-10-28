@@ -1,0 +1,33 @@
+export const settingsInline = {
+  vaultFunctionHelp: "Se guarda para el próximo trabajo de destilado y revisión.",
+  assistantFunctionHelp:
+    "Se aplica a los asistentes compatibles con OpenAI; el modelo debe admitir herramientas.",
+  functions: "Funciones",
+  functionsHelp: "Cada función usa su elección; las demás conservan la suya.",
+  diarization: "Separación de voces",
+  diarizationHelp: "pyannote en tu hub · No se cambia desde aquí.",
+  openRouter: "OpenRouter",
+  provider: "Proveedor",
+  providerType: "Tipo de proveedor",
+  cancel: "Cancelar",
+  correctCapabilities: "Corregir capacidades detectadas",
+  saveCapabilities: "Guardar capacidades",
+  providers: "Proveedores",
+  inHub: "En tu hub",
+  hubModelsHelp: "Whisper y pyannote · Sin clave. Sus valores los configura el operador.",
+  keyStored: "Clave guardada en el hub",
+  noKey: "Sin clave",
+  edit: "Editar",
+  localHelp:
+    "Añade varios endpoints compatibles con OpenAI. Aunque estén en tu red, los datos salen del hub si la URL no es loopback.",
+  cloudHelp: "OpenRouter · Gemini, OpenAI, Mistral y Azure llegarán más adelante.",
+  subscriptions: "Suscripciones",
+  subscriptionsHelp:
+    "Claude y ChatGPT sólo sirven a sus asistentes. Sus cuentas se gestionan en Asistentes.",
+  signedIn: "Conectada",
+  expired: "Sesión caducada",
+  signedOut: "Sin conectar",
+  unknownAccount: "Estado de cuenta desconocido",
+  assistants: "Ir a Asistentes",
+  hubModel: "Modelo del hub",
+} as const;

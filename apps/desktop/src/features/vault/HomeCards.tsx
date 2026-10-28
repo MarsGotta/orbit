@@ -4,6 +4,7 @@ import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";
 export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   return (
     <section>
@@ -21,19 +22,20 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
               </div>
               <p>{note.description}</p>
               <small>
-                {note.start !== "" ? `Arranque ${note.start} · ` : ""}
-                {note.task_count} tareas abiertas
+                {note.start !== "" ? inlineCopy.projectStartAt(note.start) : ""}
+                {note.task_count} {inlineCopy.openTasks}
               </small>
             </a>
           ))}
       </div>
       {!catalog.notes.some((note) => note.role === "project") && (
-        <p className={styles.muted}>No hay proyectos en esta página del índice.</p>
+        <p className={styles.muted}>{inlineCopy.noProjects}</p>
       )}
     </section>
   );
 }
 export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
+  const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   return (
     <section>
@@ -66,7 +68,7 @@ export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
           </li>
         ))}
       </ul>
-      {catalog.recent.length === 0 && <p className={styles.muted}>No hay entradas en log.md.</p>}
+      {catalog.recent.length === 0 && <p className={styles.muted}>{inlineCopy.noActivity}</p>}
     </section>
   );
 }

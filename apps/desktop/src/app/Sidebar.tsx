@@ -96,7 +96,7 @@ export function Sidebar(props: SidebarProps) {
           active={view === "vault"}
           href={routeFor("vault")}
           icon="notes"
-          label="Notas"
+          label={es.shell.vault}
         />
         <SidebarItem
           active={view === "assistant"}

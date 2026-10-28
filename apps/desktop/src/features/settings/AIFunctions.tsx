@@ -15,6 +15,7 @@ interface FunctionRowProps {
 }
 
 function FunctionRow({ fn, providers, view }: FunctionRowProps) {
+  const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
   const options = providers.flatMap((provider) =>
     provider.models
@@ -58,24 +59,21 @@ function FunctionRow({ fn, providers, view }: FunctionRowProps) {
         </select>
       </div>
       {view.errorPlace === fn.id && view.error.length > 0 && <p role="alert">{view.error}</p>}
-      {fn.id === "vault" && <p>Se guarda para el próximo trabajo de destilado y revisión.</p>}
-      {fn.id === "assistants" && (
-        <p>
-          Se aplica a los asistentes compatibles con OpenAI; el modelo debe admitir herramientas.
-        </p>
-      )}
+      {fn.id === "vault" && <p>{inlineCopy.vaultFunctionHelp}</p>}
+      {fn.id === "assistants" && <p>{inlineCopy.assistantFunctionHelp}</p>}
     </Row>
   );
 }
 export function AIFunctions({ view }: { view: View }) {
+  const inlineCopy = useCopy().settingsInline;
   if (view.settings === null) return null;
   return (
-    <Group label="Funciones" help="Cada función usa su elección; las demás conservan la suya.">
+    <Group label={inlineCopy.functions} help={inlineCopy.functionsHelp}>
       <List busy={view.busy}>
         {view.settings.functions.map((fn) => (
           <FunctionRow key={fn.id} fn={fn} providers={view.settings?.providers ?? []} view={view} />
         ))}
-        <Row title="Separación de voces" help="pyannote en tu hub · No se cambia desde aquí." />
+        <Row title={inlineCopy.diarization} help={inlineCopy.diarizationHelp} />
       </List>
     </Group>
   );

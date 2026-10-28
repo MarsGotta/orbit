@@ -15,14 +15,14 @@ export function durationText(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1_000));
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
-  if (minutes === 0) return `${rest} s`;
-  return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+  const copy = getCopy().shellInline;
+  if (minutes === 0) return copy.seconds(rest);
+  return rest === 0 ? copy.minutes(minutes) : copy.minutesSeconds(minutes, rest);
 }
 
 /** «a», «a y b», «a, b y c». */
 function listText(subjects: string[]): string {
-  if (subjects.length < 2) return subjects.join("");
-  return `${subjects.slice(0, -1).join(", ")} y ${subjects[subjects.length - 1]}`;
+  return getCopy().shellInline.list(subjects);
 }
 
 /** What the folded line needs: the turn in the topic, or an answer's summary from the hub. */

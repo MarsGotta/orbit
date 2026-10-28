@@ -1,3 +1,5 @@
+import { getCopy } from "../../i18n";
+import { useCopy } from "../../i18n/CopyProvider";
 import { DependencyNode } from "./DependencyNode";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 import styles from "./VaultReading.module.css";
@@ -35,8 +37,8 @@ function layout(note: VaultNote) {
     const label =
       task?.text ??
       (id.endsWith("#milestone-start")
-        ? `Arranque${typeof note.properties.start === "string" ? ` · ${note.properties.start}` : ""}`
-        : `Referencia: ${id.split("#").pop() ?? id}`);
+        ? `${getCopy().vaultReading.milestoneStart}${typeof note.properties.start === "string" ? ` · ${note.properties.start}` : ""}`
+        : getCopy().vaultReading.reference(id.split("#").pop() ?? id));
     const blocked = note.dependencies.some(
       (edge) =>
         edge.dependent === id &&
@@ -60,16 +62,17 @@ function layout(note: VaultNote) {
 }
 
 export function DependencyDiagram({ note }: { note: VaultNote }) {
+  const inlineCopy = useCopy().vaultReading;
   const nodes = layout(note);
-  if (nodes.length === 0) return <p>No hay dependencias declaradas en esta nota.</p>;
+  if (nodes.length === 0) return <p>{inlineCopy.noDependencies}</p>;
   const width = Math.max(...nodes.map((node) => node.x)) + 190;
   const height = Math.max(...nodes.map((node) => node.y)) + 100;
   return (
     <div className={styles.dependency}>
-      <p className={styles.blockLabel}>Dependencias · se leen de las tareas y sus enlaces</p>
+      <p className={styles.blockLabel}>{inlineCopy.dependenciesLead}</p>
       <div className={styles.diagramScroll}>
         <svg
-          aria-label="Diagrama de dependencias"
+          aria-label={inlineCopy.dependencyDiagram}
           height={height}
           role="img"
           viewBox={`0 0 ${width} ${height}`}
@@ -97,11 +100,11 @@ export function DependencyDiagram({ note }: { note: VaultNote }) {
         </svg>
       </div>
       <details>
-        <summary>Dependencias en texto</summary>
+        <summary>{inlineCopy.dependenciesText}</summary>
         <ul>
           {note.dependencies.map((edge, i) => (
             <li key={i}>
-              {nodes.find((node) => node.id === edge.dependent)?.label} depende de{" "}
+              {nodes.find((node) => node.id === edge.dependent)?.label} {inlineCopy.dependsOn}{" "}
               {nodes.find((node) => node.id === edge.prerequisite)?.label}
             </li>
           ))}

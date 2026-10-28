@@ -8,6 +8,7 @@ export function TranscriptionModelChoice({
   model?: TranscriptionModel;
   onChange: (model?: TranscriptionModel) => void;
 }) {
+  const inlineCopy = useCopy().settingsInline;
   const modelCopy = useCopy().extras.transcription;
   return (
     <>
@@ -18,7 +19,7 @@ export function TranscriptionModelChoice({
           value={model ?? ""}
           onChange={(event) => onChange((event.target.value as TranscriptionModel) || undefined)}
         >
-          <option value="">Modelo del hub</option>
+          <option value="">{inlineCopy.hubModel}</option>
           <option value="whisper">{modelCopy.whisper}</option>
           <option value="mai">{modelCopy.mai}</option>
         </select>

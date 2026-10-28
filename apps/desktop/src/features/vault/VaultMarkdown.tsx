@@ -1,3 +1,4 @@
+import { useCopy } from "../../i18n/CopyProvider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { VaultMeta } from "../../bridge/generated/VaultMeta";
@@ -114,6 +115,7 @@ function CodeBlock({
   return <code className={className}>{children}</code>;
 }
 export function VaultMarkdown(props: Props) {
+  const copy = useCopy().vaultReading;
   return (
     <div className={styles.markdown}>
       <ReactMarkdown
@@ -126,7 +128,7 @@ export function VaultMarkdown(props: Props) {
           img: ({ alt }) => <span>{alt}</span>,
           input: ({ checked }) => (
             <input
-              aria-label="Tarea de solo lectura"
+              aria-label={copy.readOnlyTask}
               checked={checked}
               disabled
               readOnly
