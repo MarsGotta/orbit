@@ -12,8 +12,16 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-/** A port whose recording frame holds `meeting`, and the assistant's `pending`. */
-function portWith(meeting: Record<string, unknown>, pending: unknown = null) {
+/**
+ * A port whose recording frame holds `meeting`, the assistant's `pending`,
+ * and the hub's `settings` and open conversation (`chat`).
+ */
+function portWith(
+  meeting: Record<string, unknown>,
+  pending: unknown = null,
+  settings: Record<string, unknown> = {},
+  chat: Record<string, unknown> = {},
+) {
   const sent: AppCommand[] = [];
   const opened: string[] = [];
   const features = [
@@ -40,9 +48,9 @@ function portWith(meeting: Record<string, unknown>, pending: unknown = null) {
             feature === "recording"
               ? { meeting }
               : feature === "status"
-                ? { settings: {}, notices: [], notice: null }
+                ? { settings, notices: [], notice: null }
                 : feature === "assistant"
-                  ? { pending }
+                  ? { pending, ...chat }
                   : {},
         })),
       }) as unknown as AppBootstrap,
@@ -134,6 +142,22 @@ it("«Terminar sin guardar» asks in the panel first and then names the recordin
   await userEvent.click(screen.getByRole("button", { name: "Terminar sin guardar" }));
   await userEvent.click(screen.getByRole("button", { name: "Borrar y terminar" }));
   expect(sent).toEqual([{ command: "meeting_discard", recording_id: "rec-1" }]);
+});
+
+it("names the primary agent, not the agent of the conversation left open", async () => {
+  const agents = [
+    { id: "deimos", name: "Deimos" },
+    { id: "codex", name: "Codex" },
+  ];
+  const { port } = portWith(
+    { ...recording, call_panel: null },
+    null,
+    { agents, default_agent_id: "deimos" },
+    { agent_id: "codex" },
+  );
+  render(<PanelApp port={port} />);
+  expect(await screen.findByRole("button", { name: "Preguntar a Deimos" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Preguntar a Codex" })).toBeNull();
 });
 
 it("offers «Preguntar a Deimos» during a recording started by hand, with no call", async () => {

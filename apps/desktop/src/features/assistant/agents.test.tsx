@@ -12,7 +12,7 @@ import { applyFrame } from "../../state/feature-frame";
 import AssistantView from "./AssistantView";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
-import { conversationAgentName } from "./agents";
+import { conversationAgentName, primaryAgentName } from "./agents";
 
 /** The window's list column, where the conversations are drawn. */
 function ColumnHost() {
@@ -134,6 +134,13 @@ describe("the agent of a conversation", () => {
     expect(conversationAgentName(snapshot({}, TWO, "atlas"))).toBe("Atlas");
     // Before the daemon says which agents there are.
     expect(conversationAgentName(snapshot({}, [], undefined))).toBe("Deimos");
+  });
+
+  it("outside a conversation names the primary, whoever's conversation is open", () => {
+    expect(primaryAgentName(snapshot({ agent_id: "atlas" }))).toBe("Deimos");
+    expect(primaryAgentName(snapshot({ agent_id: "deimos" }, TWO, "atlas"))).toBe("Atlas");
+    // Before the daemon says which agents there are.
+    expect(primaryAgentName(snapshot({}, [], undefined))).toBe("Deimos");
   });
 });
 

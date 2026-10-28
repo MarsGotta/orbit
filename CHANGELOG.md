@@ -9,6 +9,11 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ### Fixed
 
+- Texts outside the «Asistente» view name the primary agent, who answers
+  them: the floating panel, «Preguntar» in a meeting, «Oye…», Ajustes and the
+  palette. Before, they named the agent of the conversation left open. The
+  palette's question now goes to the primary too; inside a conversation,
+  every text still names its agent.
 - «Ajustes › Notas» and the «Notas» section reach the hub again: the main
   window's capability now allows the vault order, which it refused before
   the request left the app. A test checks every order each window's

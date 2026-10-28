@@ -3,7 +3,7 @@ import type { AppCommand } from "../bridge/generated";
 import type { ErrorOrigin } from "../state/orbit-store";
 import type { AppView } from "../state/app-view";
 import type { ViewId } from "../state/ui";
-import { conversationAgentName } from "../features/assistant/agents";
+import { primaryAgentName } from "../features/assistant/agents";
 import { spanish } from "../i18n/es";
 import { askAssistant, paletteCommands, type PaletteActions } from "./palette-commands";
 import type { PaletteProps } from "./Palette";
@@ -21,7 +21,7 @@ export function usePaletteCommands(
   setMeetingOpen: Dispatch<SetStateAction<boolean>>,
   snapshot: AppView | null,
 ): PaletteContent {
-  const assistantName = snapshot ? conversationAgentName(snapshot) : undefined;
+  const assistantName = snapshot ? primaryAgentName(snapshot) : undefined;
   const nextMeeting = snapshot?.briefing?.next?.title ?? null;
   const copy = useMemo(() => spanish(assistantName), [assistantName]);
   return useMemo(() => {

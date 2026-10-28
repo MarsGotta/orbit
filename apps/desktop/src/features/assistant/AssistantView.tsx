@@ -6,10 +6,11 @@ import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
 import { Icon } from "../../design/Icon";
 import { Toast } from "../../design/Toast";
 import { ViewError } from "../../design/ViewError";
-import { useSpanish } from "../../i18n/AssistantCopy";
+import { AssistantCopy, useSpanish } from "../../i18n/AssistantCopy";
 import { useNow } from "../../use-now";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AddAssistant } from "./AddAssistant";
+import { conversationAgentName } from "./agents";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { AssistantSettingsPage } from "./AssistantSettingsPage";
 import { goTo, useAssistantRoute, type AssistantRoute } from "./assistant-route";
@@ -184,9 +185,16 @@ function AssistantScreen({
  * yet, it shows that it reads.
  */
 export default function AssistantView(props: AssistantViewProps) {
-  if (props.snapshot.chat.availability?.state === "unknown")
-    return <UnknownAssistant snapshot={props.snapshot} />;
-  return <Routed {...props} />;
+  // Outside this view every text names the primary; here, the conversation's agent.
+  return (
+    <AssistantCopy name={conversationAgentName(props.snapshot)}>
+      {props.snapshot.chat.availability?.state === "unknown" ? (
+        <UnknownAssistant snapshot={props.snapshot} />
+      ) : (
+        <Routed {...props} />
+      )}
+    </AssistantCopy>
+  );
 }
 
 /** Where the route says: an assistant's settings, or the conversation; the route follows it. */

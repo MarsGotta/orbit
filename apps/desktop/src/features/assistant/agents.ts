@@ -30,9 +30,19 @@ export function readsAloud(snapshot: AppView | null | undefined, agentId?: strin
 }
 
 /**
- * The name every text uses: the open conversation's agent; before the
- * agents are known, the hub's `assistant_name` (and «Deimos» before that).
+ * The name the Asistente view's texts use: the open conversation's agent;
+ * before the agents are known, the hub's `assistant_name` (and «Deimos»
+ * before that).
  */
 export function conversationAgentName(snapshot?: AppView | null): string | undefined {
   return agentFor(snapshot, snapshot?.chat?.agent_id)?.name ?? snapshot?.settings.assistant_name;
+}
+
+/**
+ * The name every text outside the Asistente view uses: the primary agent,
+ * who answers the panel, «Preguntar» and «Oye…» without a name, whoever's
+ * conversation was left open.
+ */
+export function primaryAgentName(snapshot?: AppView | null): string | undefined {
+  return agentFor(snapshot)?.name ?? snapshot?.settings.assistant_name;
 }

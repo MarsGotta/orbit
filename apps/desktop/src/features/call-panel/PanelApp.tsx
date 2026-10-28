@@ -12,7 +12,7 @@ import { AssistantCopy, useSpanish } from "../../i18n/AssistantCopy";
 import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
 import { OrbitStoreProvider } from "../../state/use-in-flight";
 import { voiceStatusText } from "../../app/meeting-question/copy";
-import { conversationAgentName } from "../assistant/agents";
+import { primaryAgentName } from "../assistant/agents";
 import { EndingCard, OfferCard, RecordingCard } from "./CallPanel";
 import { PanelAnswer } from "./PanelAnswer";
 import { PanelAsk } from "./PanelAsk";
@@ -28,7 +28,7 @@ import styles from "./CallPanel.module.css";
 export function PanelApp({ port }: { port: DaemonPort }) {
   const [store] = useState(() => createOrbitStore(port, { notices: false }));
   const crash = useStore(store, (state) => state.crash);
-  const assistantName = useStore(store, (state) => conversationAgentName(state.snapshot));
+  const assistantName = useStore(store, (state) => primaryAgentName(state.snapshot));
   useOrbitConnection(useStore(store, (state) => state.connect));
   useCrashReporting(crash);
   return (

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { AssistantCopy } from "../i18n/AssistantCopy";
-import { conversationAgentName } from "../features/assistant/agents";
+import { primaryAgentName } from "../features/assistant/agents";
 import { AssistantSessions } from "../features/assistant/AssistantSessions";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
 import { initializeUiStore, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
@@ -165,7 +165,7 @@ export function App({ port }: { port: DaemonPort }) {
   if (snapshot.connection.daemon === "lost") return <NotResponding onClose={quit} />;
   return (
     <OrbitStoreProvider store={store}>
-      <AssistantCopy name={conversationAgentName(snapshot)}>
+      <AssistantCopy name={primaryAgentName(snapshot)}>
         <AppContent
           agent={agent}
           vault={port.vault}

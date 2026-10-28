@@ -146,7 +146,7 @@ describe("what matches nothing goes to Deimos", () => {
     ).toBeTruthy();
     fireEvent.keyDown(input, { key: "Enter" });
     expect(deps.went).toEqual(["assistant"]);
-    expect(deps.sent).toEqual([[{ command: "chat", text: "ribera" }, "assistant"]]);
+    expect(deps.sent).toEqual([[{ command: "chat", text: "ribera", primary: true }, "assistant"]]);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

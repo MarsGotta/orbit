@@ -136,5 +136,6 @@ export function matchCommands(commands: PaletteCommand[], query: string): Palett
 /** What matches no command goes to the agent as a new message, in Assistant. */
 export function askAssistant(actions: PaletteActions, text: string): void {
   actions.navigate("assistant");
-  actions.send({ command: "chat", text }, "assistant");
+  // Nobody named: the primary answers, whoever's conversation is open.
+  actions.send({ command: "chat", text, primary: true }, "assistant");
 }
