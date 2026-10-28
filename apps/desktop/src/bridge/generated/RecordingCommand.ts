@@ -4,7 +4,7 @@ import type { MeetingEventReference } from "./MeetingEventReference";
 
 export type RecordingCommand = { "command": "meeting_start", title?: string, audio?: MeetingAudio, 
 /**
- * Stable identity of the occurrence selected in Hoy or Calendario.
+ * Stable identity of the occurrence selected in Today or Calendar.
  */
 event?: MeetingEventReference, 
 /**

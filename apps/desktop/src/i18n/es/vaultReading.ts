@@ -1,3 +1,10 @@
+import { counted, numberFormat } from "../locale";
+
+const notesCount = (count: number) => counted(count, "nota", "notas");
+const sourcesCount = (count: number) => counted(count, "fuente", "fuentes");
+const linkCount = (count: number) => counted(count, "enlace", "enlaces");
+const taskCount = (count: number) => counted(count, "tarea abierta", "tareas abiertas");
+
 export const vaultReading = {
   undeclaredSource: "Fuente no declarada",
   retry: "Reintentar",
@@ -14,7 +21,6 @@ export const vaultReading = {
   dependenciesText: "Dependencias en texto",
   dependsOn: "depende de",
   done: "Hecha",
-  openTasks: "tareas abiertas",
   noProjects: "No hay proyectos en esta página del índice.",
   noActivity: "No hay entradas en log.md.",
   noData: "Sin datos",
@@ -64,17 +70,13 @@ export const vaultReading = {
   closeSearch: "Cerrar búsqueda",
   readingTasks: "Leyendo tareas…",
   noTasksDue: "No hay tareas que venzan esta semana en esta página.",
-  notesAnd: "notas y",
-  sourcesIn: "fuentes en",
   sync: "Fast Note Sync",
   okf: "· OKF",
   looseNotes: "Notas sueltas",
   mapLabel: "Mapa de enlaces entre notas",
-  links: "enlaces",
   looseNote: " · nota suelta",
   openNote: "Abrir la nota",
-  mapList: "Lista equivalente del mapa ·",
-  notes: "notas",
+  mapList: (count: number) => `Lista equivalente del mapa · ${notesCount(count)}`,
   readOnlyTask: "Tarea de solo lectura",
   readOnly: "· Solo lectura",
   notesTitle: "Notas",
@@ -88,16 +90,20 @@ export const vaultReading = {
   byProject: "Por proyecto",
   noTasks: "No hay tareas en esta selección.",
   moreTasks: "Más tareas",
-  notesOnPage: "notas en esta página ·",
-  inVault: "en el vault",
   previousIndex: "Página anterior del índice",
   moreIndex: "Más notas del índice",
   createVault: "Crear tu vault",
   readingConnection: "Leyendo conexión…",
   where: "1 · Dónde",
   reviewBefore: (date: string) => `Revisar antes del ${date}`,
-  counts: (notes: number, sources: number) => `${notes} notas · ${sources} fuentes`,
-  taskCount: (count: number) => `${count} tareas abiertas`,
+  counts: (notes: number, sources: number) => `${notesCount(notes)} · ${sourcesCount(sources)}`,
+  taskCount,
+  linkCount,
+  pageCounts: (shown: number, total: number) =>
+    `${notesCount(shown)} en esta página · ${numberFormat().format(total)} en el vault`,
+  vaultCounts: (notes: number, sources: number, place: string) =>
+    `${notesCount(notes)} y ${sourcesCount(sources)} en ${place}`,
+  taskQueryUnreadable: "No se pudo leer esta consulta de tareas.",
   formatVersion: (version: string) => `OKF ${version} · lectura desde el hub`,
   blocked: "Bloqueada",
   pending: "Pendiente",
@@ -107,6 +113,7 @@ export const vaultReading = {
   milestoneStart: "Arranque",
   reference: (id: string) => `Referencia: ${id}`,
   projectStartAt: (date: string) => `Arranque ${date} · `,
-  mapNode: (title: string, type: string, links: number) => `${title} · ${type} · ${links} enlaces`,
+  mapNode: (title: string, type: string, links: number) =>
+    `${title} · ${type} · ${linkCount(links)}`,
   markdownToggle: (label: string) => `MD ${label}`,
 } as const;

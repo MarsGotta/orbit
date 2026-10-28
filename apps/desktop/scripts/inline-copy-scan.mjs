@@ -14,11 +14,14 @@ const comparisons = [
 ];
 
 function structural(node) {
+  if (ts.isJsxText(node)) return false;
   const parent = node.parent;
   if ((ts.isPropertyAssignment(parent) && parent.name === node) || ts.isCaseClause(parent))
     return true;
   if (ts.isBinaryExpression(parent) && comparisons.includes(parent.operatorToken.kind)) return true;
   for (let at = parent; at; at = at.parent) {
+    // A returned element renders its own children, even inside a components callback.
+    if (ts.isJsxElement(at) || ts.isJsxFragment(at)) return false;
     if (
       ts.isVariableDeclaration(at) &&
       /^(FIELDS|FOCUSABLE|SYSTEM_LIGHT|REDUCE)$/.test(at.name.getText())

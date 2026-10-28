@@ -96,7 +96,7 @@ function LoginItem({ send, settings }: { send: Send; settings: Settings }) {
   );
 }
 
-/** Ajustes › General: the account, this Mac, the look, the start and the updates. */
+/** Settings › General: the account, this Mac, the look, the start and the updates. */
 export function GeneralSection({
   onReopenOnboarding,
   send,

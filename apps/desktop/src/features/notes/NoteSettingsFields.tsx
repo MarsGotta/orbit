@@ -12,8 +12,8 @@ import { languageName } from "./notes-format";
 import { type Choice, LANGUAGES, templateName } from "./note-settings";
 import styles from "./Note.module.css";
 
-// The fields of «Cómo escribe Orbit esta nota»: Plantilla, Idioma de la
-// reunión, Diccionarios de palabras and «Usar lo mismo en toda la serie».
+// The fields of «Cómo escribe Orbit esta nota»: template, meeting
+// language, word dictionaries and «Usar lo mismo en toda la serie».
 
 function Select({
   label,

@@ -15,7 +15,7 @@ import {
 } from "./test-assistants";
 
 // The gear (annex 37–39): an assistant's own settings page, with what
-// Ajustes › Asistente showed for it, its connection and its plan's usage.
+// Settings › Assistant showed for it, its connection and its plan's usage.
 
 beforeEach(() => {
   vi.useFakeTimers({ now: NOW, toFake: ["Date"] });

@@ -141,7 +141,7 @@ function MoreButton({ send }: { send: Send }) {
 }
 
 /**
- * The 272 px column of Reuniones, in the window's list column: the meetings by day, one line each, the
+ * The 272 px column of Meetings, in the window's list column: the meetings by day, one line each, the
  * open one marked. «Cargar más» reads one more page of the hub's (fifty
  * meetings) when it has more.
  */

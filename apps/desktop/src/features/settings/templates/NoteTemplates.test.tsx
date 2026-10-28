@@ -4,7 +4,7 @@ import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibraryS
 import { blur, editorNamed, focusAt, typeText } from "../../editor/test-editor";
 import { NoteTemplates } from "./NoteTemplates";
 
-// Ajustes › Reuniones › Plantillas. Invented templates.
+// Settings › Meetings › Plantillas. Invented templates.
 
 const SECTIONS = [
   { name: "Perfil", instructions: "Experiencia que ha contado" },

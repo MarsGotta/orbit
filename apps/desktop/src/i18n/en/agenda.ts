@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { agendaEdit } from "./agendaEdit";
 
@@ -45,7 +46,8 @@ export const agenda = {
     recording: "Recording…",
     unanswered: "No response",
     timeRange: (start: string, end: string) => `${start} – ${end}`,
-    guests: (count: number) => (count === 1 ? "1 guest" : `${numberFormat().format(count)} guests`),
+    guests: (count: number) =>
+      pluralRules().select(count) === "one" ? "1 guest" : `${numberFormat().format(count)} guests`,
     videoCall: "Has a video call",
     untilDay: (weekday: string) => `Until ${weekday}`,
     // The month: the day picked and its agenda.
@@ -56,7 +58,7 @@ export const agenda = {
     dayCell: (day: string, count: number) =>
       count === 0
         ? `${day}, no events`
-        : `${day}, ${count === 1 ? "1 event" : `${numberFormat().format(count)} events`}`,
+        : `${day}, ${pluralRules().select(count) === "one" ? "1 event" : `${numberFormat().format(count)} events`}`,
     // The event panel.
     joinRecord: "Join and record",
     recordOnly: "Record only",
@@ -94,9 +96,11 @@ export const agenda = {
     },
     // This count is only for the calendar view; reading and sharing use all calendars.
     macCalendars: (count: number) =>
-      count === 1 ? "1 calendar" : `${numberFormat().format(count)} calendars`,
+      pluralRules().select(count) === "one"
+        ? "1 calendar"
+        : `${numberFormat().format(count)} calendars`,
     visibleCalendars: (visible: number, total: number) =>
-      `${numberFormat().format(visible)} of ${numberFormat().format(total)} ${total === 1 ? "calendar" : "calendars"}`,
+      `${numberFormat().format(visible)} of ${numberFormat().format(total)} ${pluralRules().select(total) === "one" ? "calendar" : "calendars"}`,
     visibleCalendarsLabel: "Visible calendars",
     showAllCalendars: "Show all",
     now: "Now",

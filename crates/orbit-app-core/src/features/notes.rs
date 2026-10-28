@@ -66,7 +66,7 @@ pub enum NotesCommand {
     NotesRefresh,
     /// «Cargar más»: one more page of the hub's list.
     NotesMore,
-    /// Hoy asks the hub for the next meeting's «Recordatorio personal».
+    /// Today asks the hub for the next meeting's «Recordatorio personal».
     ReminderRead {
         series_key: String,
     },

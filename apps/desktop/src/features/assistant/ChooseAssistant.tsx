@@ -48,7 +48,7 @@ function AssistantCard({
         <span className={styles.cardName}>
           <span className={styles.cardTitle}>
             <span id={id}>{agent.name}</span>
-            {primary && <span className={styles.pill}>{copy.principal}</span>}
+            {primary && <span className={styles.pill}>{copy.primaryBadge}</span>}
           </span>
           <span className={styles.cardService}>{copy.serviceCard(agent.service)}</span>
         </span>

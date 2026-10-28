@@ -201,7 +201,7 @@ fn show_status(
     view.settings.language = value.language;
 }
 
-/// The hub this Mac is paired with, as Ajustes shows it.
+/// The hub this Mac is paired with, as Settings shows it.
 fn settings_hub(value: &orbit_core::topics::status::Value) -> SettingsHubSnapshot {
     SettingsHubSnapshot {
         url: value

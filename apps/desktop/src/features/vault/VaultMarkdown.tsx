@@ -78,6 +78,7 @@ function CodeBlock({
   taskRange,
   ...props
 }: Props & { className?: string; children: React.ReactNode; taskRange?: unknown }) {
+  const copy = useCopy().vaultReading;
   const language = className?.replace("language-", "");
   if (language === "tasks") {
     const lines = String(children)
@@ -87,7 +88,7 @@ function CodeBlock({
     const query = props.note.queries.find(
       (query) => JSON.stringify(query.lines) === JSON.stringify(lines),
     );
-    if (query === undefined) return <p role="alert">No se pudo leer esta consulta de tareas.</p>;
+    if (query === undefined) return <p role="alert">{copy.taskQueryUnreadable}</p>;
     return (
       <>
         <VaultWarnings warnings={query.warnings} diagnostics={query.diagnostics} />

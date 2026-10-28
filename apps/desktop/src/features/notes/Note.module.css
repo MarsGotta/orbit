@@ -1,4 +1,4 @@
-/* Reuniones' main area: one meeting and its note (Nota.dc.html,
+/* Meetings' main area: one meeting and its note (Nota.dc.html,
    Nota-procesando.dc.html and Hablante.dc.html). */
 
 .view {
@@ -558,7 +558,7 @@
   font: var(--o-text-meta);
 }
 
-/* Transcripción. */
+/* Transcript. */
 .transcript {
   margin-top: var(--o-space-14);
 }
@@ -798,7 +798,7 @@
   font: 600 14px/1.4 var(--o-font-sans);
 }
 
-/* Notas privadas: the editor on the page, 720 wide to read (guide 6). */
+/* Notes privadas: the editor on the page, 720 wide to read (guide 6). */
 .privateNotes {
   max-width: 720px;
   margin-top: 18px;

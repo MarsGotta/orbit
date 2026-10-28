@@ -144,7 +144,7 @@ function Dictionary({ item, send }: { item: DictionarySnapshot; send: Send }) {
 }
 
 /**
- * Ajustes › Reuniones › Diccionarios: a card per dictionary, since a
+ * Settings › Meetings › Diccionarios: a card per dictionary, since a
  * meeting or a series can use several, each term with what it replaces
  * («en lugar de…») and «Quitar». Terms are added from a transcript;
  * here they are only renamed and removed.

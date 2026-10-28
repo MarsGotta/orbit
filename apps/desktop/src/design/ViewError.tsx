@@ -4,7 +4,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import styles from "./ViewError.module.css";
 
 /**
- * What the window offers beside a view's failure («Reintentar», «Copiar el
+ * What the window offers beside a view's failure («Reintentar», «Copy el
  * código»), given its words. The window knows the message behind them; a
  * view only passes the words it was given.
  */

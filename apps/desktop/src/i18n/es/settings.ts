@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { macPermissions } from "./permissions";
 import { settingsLists } from "./settingsLists";
@@ -12,16 +13,16 @@ const base = {
     title: "Ajustes",
     leads: {
       general: "Tu cuenta, este Mac y el aspecto de Orbit.",
-      privacidad: "Qué puede ver y oír Orbit en este Mac, y cómo pararlo todo.",
-      grabacion: "Qué hace Orbit cuando empiezas una videollamada.",
-      asistentes:
+      privacy: "Qué puede ver y oír Orbit en este Mac, y cómo pararlo todo.",
+      recording: "Qué hace Orbit cuando empiezas una videollamada.",
+      assistants:
         "Cada asistente se edita desde su conversación: el lápiz cambia su nombre, descripción y color; el engranaje abre el resto de sus ajustes.",
-      reuniones:
+      meetings:
         "Cómo se escriben las notas de tus reuniones y qué palabras corrige la transcripción. Lo que pasa después a tu vault está en Ajustes › Notas.",
     },
     index: "Secciones de ajustes",
     missing: (count: number) =>
-      count === 1 ? "Falta 1" : `Faltan ${numberFormat().format(count)}`,
+      pluralRules().select(count) === "one" ? "Falta 1" : `Faltan ${numberFormat().format(count)}`,
     appVersion: (version: string) => `Orbit ${version}`,
     exit: "Salir de Orbit",
     /** Closes Orbit in order and opens it again: the helper starts with it. */
@@ -94,12 +95,12 @@ const base = {
     errorReportsHelp:
       "Solo códigos de error. Nunca el contenido de tus reuniones ni de tus conversaciones.",
 
-    // Grabación y llamadas
+    // Recording and calls
     whenCall: "Cuando empieces una videollamada",
     whenCallLabel: "Al detectar una llamada",
     shortcuts: "Atajos desde cualquier app",
 
-    // Asistentes: a summary; each one's own settings are behind its gear.
+    // Assistants: a summary; each one's own settings are behind its gear.
     yourAssistants: "Tus asistentes",
     theirSettings: "Sus ajustes",
     theirSettingsLabel: (name: string) => `Ajustes de ${name}`,
@@ -115,7 +116,7 @@ const base = {
     today: "Hoy",
     yesterday: "Ayer",
 
-    // Reuniones
+    // Meetings
     templates: "Plantillas",
     dictionaries: "Diccionarios",
   },

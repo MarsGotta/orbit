@@ -15,6 +15,6 @@ engine: EngineSnapshot,
  */
 engine_tools: Array<string>, engine_tools_error?: string, history_error?: string, history: Array<ControlHistorySnapshot>, 
 /**
- * Ajustes › the assistant's folders: each one and whether it opens.
+ * Settings › the assistant's folders: each one and whether it opens.
  */
 folders: AssistantFoldersSnapshot, };

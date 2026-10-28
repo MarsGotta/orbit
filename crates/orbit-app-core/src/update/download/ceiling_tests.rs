@@ -2,7 +2,7 @@
 //! What each download is measured against, and what the refusal says.
 //!
 //! The failure being fixed is a real one: the updater on 0.3.9 told the
-//! owner that `install.sh` was "demasiado grande para un manifiesto". It is not
+//! owner that `install.sh` was "too large for a manifest". It is not
 //! a manifest, and the manifest — 162 bytes — was fine. One `fetch` measured
 //! both files against one 8 KiB number, and the installer had grown to
 //! 11 171 bytes.

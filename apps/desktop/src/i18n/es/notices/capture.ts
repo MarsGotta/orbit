@@ -1,3 +1,4 @@
+import { pluralRules } from "../../locale";
 import { numberFormat } from "../../locale";
 import { macPermissions } from "../permissions";
 import { systemPrivacy, worded, type Entries, NoticeData } from "./types";
@@ -48,7 +49,7 @@ export const capture = {
       if (data.fragments === 0) {
         const tries =
           typeof data.attempt === "number" && data.attempt > 0
-            ? ` tras ${numberFormat().format(data.attempt)} ${data.attempt === 1 ? "intento" : "intentos"}`
+            ? ` tras ${numberFormat().format(data.attempt)} ${pluralRules().select(data.attempt) === "one" ? "intento" : "intentos"}`
             : "";
         return `La grabación se cortó al empezar (${cutCause(data)}) y no pudo seguir${tries}: no llegó a grabar nada. Si la reunión sigue, empieza otra grabación.`;
       }

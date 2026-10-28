@@ -197,7 +197,7 @@ fn login_item(app: &tauri::App) -> LoginItemState {
         })
 }
 
-/// Ajustes shows the last installation's result, or why it cannot be read.
+/// Settings shows the last installation's result, or why it cannot be read.
 fn show_last_installation(client: &DaemonClient) {
     let Ok(home) = std::env::var("HOME") else {
         return;
@@ -277,7 +277,7 @@ mod tests {
 
     /// Each window may send every order its interface sends, through the
     /// real capabilities. In 0.12.6 `orbit_vault` was registered but not
-    /// allowed: Ajustes › Notas failed in the app while every interface
+    /// allowed: Settings › Notes failed in the app while every interface
     /// test, with a fake port, passed.
     #[test]
     fn each_window_may_send_every_order_its_interface_sends()

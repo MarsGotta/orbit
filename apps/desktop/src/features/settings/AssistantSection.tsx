@@ -22,7 +22,7 @@ import styles from "./SettingsView.module.css";
 // A limit's time passes while the section is open: read the clock each minute.
 const REPAINT_MS = 60_000;
 
-/** Leaves Ajustes for the Asistente's own screens. */
+/** Leaves Settings for the Assistant's own screens. */
 function goTo(hash: string) {
   window.location.hash = hash;
 }
@@ -54,7 +54,7 @@ function AssistantRows({ snapshot }: { snapshot: AppSnapshot }) {
                 )}
               </span>
               {agent.id === primaryId && agents.length > 1 && (
-                <span className={styles.pill}>{assistantsCopy.principal}</span>
+                <span className={styles.pill}>{assistantsCopy.primaryBadge}</span>
               )}
               {state !== null && (
                 <span
@@ -140,7 +140,7 @@ function PrimaryChoice({
 }
 
 /**
- * Ajustes › Asistentes, a summary: each assistant is edited from its
+ * Settings › Assistants, a summary: each assistant is edited from its
  * conversation (the pencil) and its gear (`#/assistant/<id>/settings`).
  * Below, the primary, the folders all of them may read and what they did on
  * this Mac. The hub does not yet say which assistant asked for each action,
@@ -161,7 +161,7 @@ export function AssistantSection({
   const agents = agentsOf(snapshot);
   return (
     <>
-      <SectionHeading lead={copy.leads.asistentes} title={base.shell.settingsSections.asistentes} />
+      <SectionHeading lead={copy.leads.assistants} title={base.shell.settingsSections.assistants} />
       {agents.length === 0 ? (
         <List>
           <p className={styles.empty}>{base.agents.none}</p>

@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { macPermissions } from "./permissions";
 import { settingsLists } from "./settingsLists";
@@ -12,16 +13,18 @@ const base = {
     title: "Settings",
     leads: {
       general: "Your account, this Mac and how Orbit looks.",
-      privacidad: "What Orbit can see and hear on this Mac, and how to stop everything.",
-      grabacion: "What Orbit does when you start a video call.",
-      asistentes:
+      privacy: "What Orbit can see and hear on this Mac, and how to stop everything.",
+      recording: "What Orbit does when you start a video call.",
+      assistants:
         "Edit each assistant from its conversation: the pencil changes its name, description and color; the gear opens its other settings.",
-      reuniones:
+      meetings:
         "How your meeting notes are written and which words transcription corrects. What reaches your vault afterward is in Settings › Notes.",
     },
     index: "Settings sections",
     missing: (count: number) =>
-      count === 1 ? "1 missing" : `${numberFormat().format(count)} missing`,
+      pluralRules().select(count) === "one"
+        ? "1 missing"
+        : `${numberFormat().format(count)} missing`,
     appVersion: (version: string) => `Orbit ${version}`,
     exit: "Quit Orbit",
     /** Closes Orbit in order and opens it again: the helper starts with it. */
@@ -92,12 +95,12 @@ const base = {
     errorReports: "Send anonymous error reports",
     errorReportsHelp: "Error codes only. Never the content of your meetings or conversations.",
 
-    // Grabación y llamadas
+    // Recording and calls
     whenCall: "When you start a video call",
     whenCallLabel: "When a call is detected",
     shortcuts: "Shortcuts from any app",
 
-    // Asistentes: a summary; each one's own settings are behind its gear.
+    // Assistants: a summary; each one's own settings are behind its gear.
     yourAssistants: "Your assistants",
     theirSettings: "Assistant settings",
     theirSettingsLabel: (name: string) => `Settings for ${name}`,
@@ -113,7 +116,7 @@ const base = {
     today: "Today",
     yesterday: "Yesterday",
 
-    // Reuniones
+    // Meetings
     templates: "Templates",
     dictionaries: "Dictionaries",
   },

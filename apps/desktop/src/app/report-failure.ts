@@ -54,7 +54,7 @@ export function reportingReads(
 }
 
 /**
- * Ajustes › Agentes' one call, reporting what it met: the Mac's refusal or
+ * Settings › Agents' one call, reporting what it met: the Mac's refusal or
  * the hub's code, never the text of a personality or a skill. The screen
  * says the cause with its numbers.
  */

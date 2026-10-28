@@ -11,7 +11,7 @@ import styles from "./AnnexSheet.module.css";
 
 const TAKEN = ["deimos", "ares"];
 
-/** Under an answer: Copiar and Escuchar with their echo, at rest and echoing. */
+/** Under an answer: Copy and Listen with their echo, at rest and echoing. */
 export function AnswerActions() {
   const copy = useFeedback();
   const [playing, setPlaying] = useState(false);

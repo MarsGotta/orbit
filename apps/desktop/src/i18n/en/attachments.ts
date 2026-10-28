@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import type { Refusal } from "../../bridge/refusal";
 import { fields } from "./refusalDetails";
@@ -145,7 +146,8 @@ export const attachmentsCopy = {
       WINDOW_TEXT_MISSING[cause] ??
       `Couldn’t read its text (cause ${cause}). Only the screenshot is attached.`,
     windowTextRefused: (reason: string) => `Its text wasn’t attached: ${reason}`,
-    pages: (pages: number) => (pages === 1 ? "1 page" : `${numberFormat().format(pages)} pages`),
+    pages: (pages: number) =>
+      pluralRules().select(pages) === "one" ? "1 page" : `${numberFormat().format(pages)} pages`,
     view: "View",
     viewImage: (name: string) => `View ${name}`,
     open: "Open",

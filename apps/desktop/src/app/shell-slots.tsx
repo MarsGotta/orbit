@@ -13,7 +13,7 @@ import styles from "./Shell.module.css";
 
 /**
  * Two places of the window that a view fills from inside itself: the list
- * column beside the sidebar (Reuniones, Asistente) and the start of the top
+ * column beside the sidebar (Meetings, Assistant) and the start of the top
  * bar, where a view with depth puts its trail or its own header instead of
  * the search box.
  */

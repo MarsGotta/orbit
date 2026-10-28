@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { getLocale } from "../locale";
 /** What the chat says about copying, retrying, listening and editing an answer. */
@@ -23,7 +24,7 @@ const base = {
     deletes: (paths?: number) =>
       paths === undefined
         ? "Deletes files. Can’t be undone."
-        : `Deletes ${numberFormat().format(paths)} ${paths === 1 ? "file" : "files"}. Can’t be undone.`,
+        : `Deletes ${numberFormat().format(paths)} ${pluralRules().select(paths) === "one" ? "file" : "files"}. Can’t be undone.`,
     deletesOneAtATime: "Only one delete command can be allowed at a time.",
     copyConversation: "Copy conversation",
     conversationPartial: (copied: number, total: number) =>

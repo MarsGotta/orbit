@@ -269,7 +269,7 @@ app_type! {
     pub struct CalendarSnapshot {
         pub authorization: CalendarAuthorizationSnapshot,
         /// Every calendar on the Mac, from its last listing; empty until the
-        /// helper has listed them (Ajustes says «desconocido» then).
+        /// helper has listed them (Settings says «desconocido» then).
         pub calendars: Vec<CalendarItemSnapshot>,
         /// What was read: the visible range, widened to cover today.
         pub window: CalendarWindowSnapshot,

@@ -9,7 +9,7 @@ export interface RadioListProps<T extends string> {
   onChange: (value: T) => void;
 }
 
-/** A list of options with an explanation each: «Qué audio grabar» in Nueva grabación. */
+/** A list of options with an explanation each: «Qué audio grabar» in New recording. */
 export function RadioList<T extends string>(props: RadioListProps<T>) {
   const { label, name, options, value, onChange } = props;
   return (

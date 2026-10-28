@@ -8,7 +8,7 @@ export interface SegmentedProps<T extends string> {
   onChange: (value: T) => void;
 }
 
-/** Día / 3 días / Semana / Mes / Agenda, Oscuro / Claro, Ocupada / Libre. */
+/** Day / 3 days / Week / Month / Agenda, Dark / Light, Busy / Free. */
 export function Segmented<T extends string>({
   label,
   options,

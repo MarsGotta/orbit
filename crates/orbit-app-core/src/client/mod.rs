@@ -35,7 +35,7 @@ const READ_WAIT_SECONDS: u64 = 10;
 const MAX_PROFILE_NAME_CHARS: usize = 80;
 const MAX_PROFILE_NAME_BYTES: usize = MAX_PROFILE_NAME_CHARS * 4;
 
-/// Where "Lo que Orbit hizo hoy" and "Escrito por Orbit" start reading: local
+/// Where “What Orbit did today” and “Written by Orbit” start reading: local
 /// midnight or twenty-four hours back, whichever is earlier. A local day is
 /// 23, 24 or 25 hours long, so a fixed day back missed the start of the day on
 /// which the clocks go back.
@@ -167,7 +167,7 @@ async fn follow_notes(weak: std::sync::Weak<ClientInner>, mut changes: watch::Re
             seen_library = Some(head.library_revision);
             client.read_library().await;
         }
-        // Hoy's next meeting: its series is read again when the
+        // Today's next meeting: its series is read again when the
         // meeting changes or any recording does (a task marked done).
         let target = client.next_series().await;
         let series = (target.clone(), head.revision);

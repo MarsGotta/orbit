@@ -1,4 +1,4 @@
-//! The series of Hoy's next meeting: its earlier meeting and the tasks of
+//! The series of Today's next meeting: its earlier meeting and the tasks of
 //! its note, read from the daemon, which reads them from the hub.
 use super::*;
 use crate::presentation::read_issue;
@@ -10,7 +10,7 @@ use serde_json::json;
 pub(super) type SeriesTarget = (String, i64, Option<String>);
 
 impl DaemonClient {
-    /// The series of the meeting Hoy shows next, if it belongs to one.
+    /// The series of the meeting Today shows next, if it belongs to one.
     pub(super) async fn next_series(&self) -> Option<SeriesTarget> {
         let local = self.local_snapshot();
         let topics = self.inner.topics.read().await;

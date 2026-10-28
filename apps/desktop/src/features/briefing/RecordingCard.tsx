@@ -37,7 +37,7 @@ function phaseLabel(meeting: AppSnapshot["meeting"], nowMs: number): string {
 }
 
 /**
- * Hoy while a meeting records (Grabando.dc.html): the time, private notes
+ * Today while a meeting records (Grabando.dc.html): the time, private notes
  * and «Terminar», what was left open last time and the shortcuts to ask
  * Deimos during the meeting.
  */

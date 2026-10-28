@@ -1,3 +1,4 @@
+import { settingsSectionKey } from "../state/ui";
 import { useCopy } from "../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { lazy as reactLazy, Suspense, useEffect } from "react";
@@ -162,7 +163,7 @@ function SettingsRoute({
         <Breadcrumbs
           trail={[
             { label: es.shell.settings, href: routeFor("settings") },
-            { label: es.shell.settingsSections[settingsSection] },
+            { label: es.shell.settingsSections[settingsSectionKey(settingsSection)] },
           ]}
         />
       </TopBarLeading>

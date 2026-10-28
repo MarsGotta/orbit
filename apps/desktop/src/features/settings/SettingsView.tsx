@@ -1,3 +1,4 @@
+import { settingsSectionKey } from "../../state/ui";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
@@ -58,8 +59,8 @@ function Section({
       return (
         <>
           <SectionHeading
-            lead={es.settings.leads.reuniones}
-            title={es.shell.settingsSections.reuniones}
+            lead={es.settings.leads.meetings}
+            title={es.shell.settingsSections.meetings}
           />
           <NoteTemplates
             daemon={snapshot.connection.daemon}
@@ -78,7 +79,7 @@ function Section({
 }
 
 /**
- * Ajustes: five sections with their index at the left and «Salir de Orbit»
+ * Settings: five sections with their index at the left and «Salir de Orbit»
  * with the version under it. The window's top bar names the one open
  * («Ajustes / Privacidad y permisos»), as the route does.
  */
@@ -101,7 +102,9 @@ export default function SettingsView(props: SettingsViewProps) {
               onClick={() => open(id)}
               type="button"
             >
-              <span className={styles.indexLabel}>{es.shell.settingsSections[id]}</span>
+              <span className={styles.indexLabel}>
+                {es.shell.settingsSections[settingsSectionKey(id)]}
+              </span>
               {id === "privacidad" && missing > 0 && (
                 <span className={styles.indexBadge}>
                   <span aria-hidden="true" className={styles.dot} />

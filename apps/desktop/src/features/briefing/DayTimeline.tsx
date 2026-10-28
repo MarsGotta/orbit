@@ -6,7 +6,7 @@ import { timeLabel } from "../calendar/date";
 import { localMinutes } from "./briefing-clock";
 import styles from "./BriefingView.module.css";
 
-// The band Hoy draws: a working day, 8:00 to 20:00 (Main.dc.html).
+// The band Today draws: a working day, 8:00 to 20:00 (Main.dc.html).
 const FROM = 8 * 60;
 const SPAN = 12 * 60;
 const TICKS = [

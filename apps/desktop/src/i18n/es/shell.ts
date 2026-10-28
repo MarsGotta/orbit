@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 // The window: the sidebar with its recording and call cards, the top bar
 // with its notices, and what the window says before Orbit answers.
@@ -37,12 +38,12 @@ function sidebarCopy(assistantName: string) {
       closeNotice: "Cerrar aviso",
       settingsSections: {
         general: "General",
-        privacidad: "Privacidad y permisos",
-        grabacion: "Grabación y llamadas",
-        asistentes: "Asistentes",
-        reuniones: "Reuniones",
-        notas: "Notas",
-        ia: "IA",
+        privacy: "Privacidad y permisos",
+        recording: "Grabación y llamadas",
+        assistants: "Asistentes",
+        meetings: "Reuniones",
+        notes: "Notas",
+        ai: "IA",
       },
     },
   } as const;
@@ -120,7 +121,9 @@ const noticesCopy = {
     rearming: "Reactivando…",
     more: (count: number) => `+${numberFormat().format(count)}`,
     moreLabel: (count: number) =>
-      count === 1 ? "Ver 1 aviso más" : `Ver ${numberFormat().format(count)} avisos más`,
+      pluralRules().select(count) === "one"
+        ? "Ver 1 aviso más"
+        : `Ver ${numberFormat().format(count)} avisos más`,
     all: "Avisos",
   },
   appState: {

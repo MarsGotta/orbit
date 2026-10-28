@@ -31,7 +31,7 @@ function options(argv) {
     return index >= 0 ? argv[index + 1] : undefined;
   };
   const out = value("--out");
-  if (!out) throw new Error("Falta --out <directorio> para las capturas");
+  if (!out) throw new Error("Screenshots require --out <directory>");
   const only = value("--only")?.split(",").filter(Boolean) ?? null;
   const theme = value("--theme");
   return { out: path.resolve(out), only, themes: theme ? [theme] : Object.keys(THEMES) };

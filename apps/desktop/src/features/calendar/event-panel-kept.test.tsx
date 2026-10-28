@@ -81,7 +81,7 @@ describe("the event panel keeps what was written", () => {
   it("an event typed and not saved yet is back in the panel when the person returns to the calendar", () => {
     const first = setup();
     draftOnSaturday();
-    // The person goes to Notas: the calendar view unmounts.
+    // The person goes to Notes: the calendar view unmounts.
     first.unmount();
     setup();
     expect(titleBox().value).toBe("Revisión con la gestoría");
@@ -166,7 +166,7 @@ describe("the event panel keeps what was written", () => {
     fireEvent.click(within(panel()).getByRole("button", { name: "Crear evento" }));
     const requestId = createdRequestId(first.send);
     expect(requestId).not.toBe("");
-    // The person goes to Notas before the calendar answers.
+    // The person goes to Notes before the calendar answers.
     first.unmount();
     const refused: WriteOutcome = {
       request_id: requestId,

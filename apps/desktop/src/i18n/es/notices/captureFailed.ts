@@ -1,3 +1,4 @@
+import { pluralRules } from "../../locale";
 import { numberFormat } from "../../locale";
 import type { Entries, NoticeData } from "./types";
 
@@ -27,7 +28,9 @@ function cause(data: NoticeData): string {
 
 function fragments(count: unknown): string | null {
   if (typeof count !== "number" || count <= 0) return null;
-  return count === 1 ? "1 fragmento" : `${numberFormat().format(count)} fragmentos`;
+  return pluralRules().select(count) === "one"
+    ? "1 fragmento"
+    : `${numberFormat().format(count)} fragmentos`;
 }
 
 /** What was kept of a recording, and what to do while the meeting goes on. */
@@ -57,15 +60,17 @@ function lostFilesText(data: NoticeData): string {
   const lost = damaged + missing + unfinished;
   const parts = [
     damaged > 0
-      ? `${numberFormat().format(damaged)} ${damaged === 1 ? "dañado" : "dañados"}`
+      ? `${numberFormat().format(damaged)} ${pluralRules().select(damaged) === "one" ? "dañado" : "dañados"}`
       : null,
     missing > 0
-      ? `${numberFormat().format(missing)} que ${missing === 1 ? "faltaba" : "faltaban"}`
+      ? `${numberFormat().format(missing)} que ${pluralRules().select(missing) === "one" ? "faltaba" : "faltaban"}`
       : null,
     unfinished > 0 ? `${numberFormat().format(unfinished)} a medio escribir` : null,
   ].filter((part) => part !== null);
   const files =
-    lost === 1 ? "1 archivo de audio" : `${numberFormat().format(lost)} archivos de audio`;
+    pluralRules().select(lost) === "one"
+      ? "1 archivo de audio"
+      : `${numberFormat().format(lost)} archivos de audio`;
   const which = parts.length > 0 ? ` (${parts.join(", ")})` : "";
   return `Al abrirse, Orbit no pudo recuperar ${files} de este Mac${which}; recuperó ${numberFormat().format(count(data.recovered))}.`;
 }

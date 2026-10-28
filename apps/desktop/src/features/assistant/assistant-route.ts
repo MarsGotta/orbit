@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * Where the Asistente is: the open conversation (`#/assistant`, or
+ * Where the Assistant is: the open conversation (`#/assistant`, or
  * `#/assistant/c/<id>` once it has one), «¿Con quién quieres hablar?»
  * (`#/assistant/new`), «Añadir un asistente» over the view
  * (`#/assistant/add`), an assistant's own conversation

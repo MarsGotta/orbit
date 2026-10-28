@@ -47,15 +47,15 @@ export function CallPreferenceList({
   );
 }
 
-/** Ajustes › Grabación y llamadas: what a call does, how long things last, the shortcuts. */
+/** Settings › Recording and calls: what a call does, how long things last, the shortcuts. */
 export function RecordingSection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
   const base = useCopy();
   const es = useCopy();
   return (
     <>
       <SectionHeading
-        lead={base.settings.leads.grabacion}
-        title={base.shell.settingsSections.grabacion}
+        lead={base.settings.leads.recording}
+        title={base.shell.settingsSections.recording}
       />
       <Group label={base.settings.whenCall}>
         <CallPreferenceList preference={snapshot.meeting.call_preference} send={send} />

@@ -3,7 +3,7 @@ import type { AgentCall } from "./AgentCall";
 import type { AgentOutcome } from "./AgentOutcome";
 
 /**
- * Ajustes › Agentes: one call to the hub and what came of it. The app
+ * Settings › Agents: one call to the hub and what came of it. The app
  * keeps nothing of it; the screen holds what it shows.
  */
 export type AgentAnswer = { call: AgentCall, outcome: AgentOutcome, };

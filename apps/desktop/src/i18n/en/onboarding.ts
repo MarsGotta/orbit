@@ -1,3 +1,4 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { listOf } from "./notes";
 import { macPermissions } from "./permissions";
@@ -39,7 +40,7 @@ const base = {
   code: "Pairing code",
   codeHelp: "Single use. Expires in 5 minutes.",
   codeDigits: (count: number) =>
-    `It has ${numberFormat().format(count)} ${count === 1 ? "digit" : "digits"}; it needs 6.`,
+    `It has ${numberFormat().format(count)} ${pluralRules().select(count) === "one" ? "digit" : "digits"}; it needs 6.`,
   deviceName: "This Mac’s name",
   pairFailed: "Couldn’t pair",
   pairFailedHint:

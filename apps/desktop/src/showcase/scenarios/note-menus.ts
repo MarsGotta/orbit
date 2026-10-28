@@ -12,7 +12,7 @@ import type { Scenario, Views } from "../scenario";
 import { reuniones, tab, transcriptSteps, withToday } from "./notes";
 import { withMeeting } from "./recording";
 
-// Reuniones' menus, windows, failures and notices.
+// Meetings' menus, windows, failures and notices.
 
 const opened = (views: Views) => withOpenNote(views);
 const menu = "role=button[name^='Plantilla:']";

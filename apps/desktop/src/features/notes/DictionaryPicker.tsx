@@ -3,7 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 
-// What Ajustes › Reuniones still takes from here: the note itself chooses
+// What Settings › Meetings still takes from here: the note itself chooses
 // its dictionary in «Cómo escribe Orbit esta nota» (NoteSettingsMenu.tsx).
 
 export function sendDictionary(send: (command: AppCommand) => void, request: DictionaryRequest) {

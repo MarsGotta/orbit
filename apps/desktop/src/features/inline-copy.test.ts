@@ -19,6 +19,10 @@ it("keeps interface copy in the typed catalogues", () => {
 });
 it.each([
   "<button>Continue</button>",
+  'function CodeBlock() { if (query === undefined) return <p role="alert">No se pudo leer esta consulta de tareas.</p>; }',
+  'const view = <Markdown components={{code: () => { return <p role="alert">No se pudo leer esta consulta de tareas.</p>; }}} />;',
+  'const view = <Rows>{rows.map(() => <p role="alert">Could not read this task query.</p>)}</Rows>',
+
   '<input placeholder="Search notes" />',
   '<input placeholder="https://sync.example.test" />',
   '<button>{busy ? "working" : "ready"}</button>',
@@ -28,6 +32,7 @@ it.each([
   "function label(n: number) { return `Found ${n} notes`; }",
 ])("rejects newly written interface copy: %s", (code) => {
   expect(inlineCopy("features/example.tsx", code)).not.toEqual([]);
+  expect(inlineCopy("features/vault/VaultMarkdown.tsx", code)).not.toEqual([]);
 });
 it("ignores comments, types, ids and CSS attributes", () => {
   expect(

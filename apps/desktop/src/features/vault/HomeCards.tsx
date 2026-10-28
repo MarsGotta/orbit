@@ -23,7 +23,7 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
               <p>{note.description}</p>
               <small>
                 {note.start !== "" ? inlineCopy.projectStartAt(note.start) : ""}
-                {note.task_count} {inlineCopy.openTasks}
+                {inlineCopy.taskCount(note.task_count)}
               </small>
             </a>
           ))}

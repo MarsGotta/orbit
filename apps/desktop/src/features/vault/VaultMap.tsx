@@ -120,7 +120,7 @@ export function VaultMap({ notes }: { notes: VaultMeta[] }) {
             <h2>{picked.title}</h2>
             <p>{picked.description}</p>
             <p>
-              {picked.links.length + picked.backlink_count} {inlineCopy.links}
+              {inlineCopy.linkCount(picked.links.length + picked.backlink_count)}
               {picked.links.length + picked.backlink_count === 0 ? inlineCopy.looseNote : ""}
             </p>
             <a href={noteRoute(picked.path)}>{inlineCopy.openNote}</a>
@@ -128,14 +128,12 @@ export function VaultMap({ notes }: { notes: VaultMeta[] }) {
         )}
       </div>
       <details>
-        <summary>
-          {inlineCopy.mapList} {filtered.length} {inlineCopy.notes}
-        </summary>
+        <summary>{inlineCopy.mapList(filtered.length)}</summary>
         <ul>
           {filtered.map((note) => (
             <li key={note.path}>
               <a href={noteRoute(note.path)}>{note.title}</a> ·{" "}
-              {note.links.length + note.backlink_count} {inlineCopy.links}
+              {inlineCopy.linkCount(note.links.length + note.backlink_count)}
             </li>
           ))}
         </ul>

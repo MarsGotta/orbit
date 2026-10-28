@@ -7,7 +7,7 @@ import type { Send } from "./send";
 import styles from "./BriefingView.module.css";
 
 /**
- * Hoy without the calendar (Estados.dc.html, tile 09). macOS asks only
+ * Today without the calendar (Estados.dc.html, tile 09). macOS asks only
  * once: before that, «Permitir acceso al calendario» asks it and waits for
  * its answer; once denied, the way back is in System Settings.
  */

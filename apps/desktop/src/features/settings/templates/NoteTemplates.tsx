@@ -150,7 +150,7 @@ interface NoteTemplatesProps {
 }
 
 /**
- * Ajustes › Reuniones › Plantillas: Orbit's templates first, marked as
+ * Settings › Meetings › Plantillas: Orbit's templates first, marked as
  * such, then the user's own; create, edit, reorder and delete, saved as they type.
  */
 export function NoteTemplates({

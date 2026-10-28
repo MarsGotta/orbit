@@ -3,7 +3,7 @@ import { getLocale } from "../locale";
 /** Thousands with a dot, as Spanish writes them: 16.384. */
 const number = (value: number) => value.toLocaleString(getLocale());
 
-/** Ajustes' lists: the assistant's folders and what a detected call does. */
+/** Settings' lists: the assistant's folders and what a detected call does. */
 export const settingsLists = {
   // The assistant's folders: choosing one in the macOS panel is the whole
   // permission; nothing here switches it on or off.

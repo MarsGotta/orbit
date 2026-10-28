@@ -752,7 +752,7 @@ async fn daemon_status_supplies_permissions_to_app() -> Result<(), Box<dyn Error
 }
 
 /// With the permission, the app shows every calendar and the
-/// week without anyone listing or choosing anything, and Ajustes counts them.
+/// week without anyone listing or choosing anything, and Settings counts them.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_app_shows_every_calendar_without_being_asked() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::Builder::new()

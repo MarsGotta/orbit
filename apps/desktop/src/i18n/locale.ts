@@ -31,3 +31,12 @@ export function formatQuantity(value: unknown): string {
     ? numberFormat().format(value)
     : String(value);
 }
+
+/** Select at call time so count wording follows a live locale change. */
+export function pluralRules() {
+  return { select: (count: number) => new Intl.PluralRules(current).select(count) };
+}
+
+export function counted(count: number, one: string, other: string): string {
+  return `${numberFormat().format(count)} ${pluralRules().select(count) === "one" ? one : other}`;
+}

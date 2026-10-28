@@ -1,11 +1,12 @@
+import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 import { transcriptionRefusals } from "./transcription";
 import { mmss } from "../../time-format";
 
-// Reuniones: the list of meetings and the transcript of one. Each meeting
+// Meetings: the list of meetings and the transcript of one. Each meeting
 // has a note; «Notas» names the vault that comes later (decided 2026-10-22).
 const count = (value: number, one: string, many: string) =>
-  `${numberFormat().format(value)} ${value === 1 ? one : many}`;
+  `${numberFormat().format(value)} ${pluralRules().select(value) === "one" ? one : many}`;
 
 /** «Bruno», «Bruno y Celia», «Bruno, Celia y Dora». */
 export function listOf(items: string[]): string {
@@ -102,9 +103,9 @@ export const notes = {
     // A completed pass that kept spans of the live draft where the new text
     // lost them or looped: not a failure, the better of the two was used.
     keptDraft: (spans: number) =>
-      `En ${numberFormat().format(spans)} ${spans === 1 ? "tramo" : "tramos"} se mantuvo la transcripción en vivo, que era mejor.`,
+      `En ${numberFormat().format(spans)} ${pluralRules().select(spans) === "one" ? "tramo" : "tramos"} se mantuvo la transcripción en vivo, que era mejor.`,
     unmatchedSpeakerNames: (value: number) =>
-      `${numberFormat().format(value)} ${value === 1 ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
+      `${numberFormat().format(value)} ${pluralRules().select(value) === "one" ? "nombre de una voz que ya no está no se trasladó" : "nombres de voces que ya no están no se trasladaron"} a otras voces.`,
     // The harness reads the transcript from this line on (scripts/e2e-mac/checks.py).
     transcriptHelp:
       "Pulsa un nombre para cambiar quién habla. Pasa el ratón por una palabra y púlsala para corregirla: la corrección se guarda en los diccionarios de esta reunión.",
@@ -149,7 +150,7 @@ export const notes = {
     wherePut: (name: string) => `¿Dónde pongo «${name}»?`,
     onlyThisTurn: (at: string) => `Solo en este turno (${at})`,
     allSpeakerTurns: (turns: number, name: string) =>
-      turns === 1
+      pluralRules().select(turns) === "one"
         ? `En todos los turnos de ${name}`
         : `En los ${numberFormat().format(turns)} turnos de ${name}`,
     back: "Atrás",
@@ -161,7 +162,7 @@ export const notes = {
     pressToCorrect: "Pulsa para corregir",
     correct: (word: string) => `Corregir «${word}»`,
     timesHere: (times: number) =>
-      times === 1
+      pluralRules().select(times) === "one"
         ? "Sale 1 vez en esta reunión."
         : `Sale ${numberFormat().format(times)} veces en esta reunión.`,
     shouldSay: "Debe decir",

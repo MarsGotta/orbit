@@ -13,10 +13,10 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
   label: string;
   size: IconButtonSize;
   tip?: TooltipPlacement;
-  /** Copiar's echo: tracked with `useFeedback`, it turns to ✓ and `doneLabel` once done. */
+  /** Copy's echo: tracked with `useFeedback`, it turns to ✓ and `doneLabel` once done. */
   feedback?: Feedback;
   doneLabel?: string;
-  /** Escuchar's echo: while what it started goes on, it shows this, in the accent. */
+  /** Listen's echo: while what it started goes on, it shows this, in the accent. */
   active?: { icon: IconName; label: string };
   /** The control a menu hangs from needs to be found. */
   ref?: Ref<HTMLButtonElement>;

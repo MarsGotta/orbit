@@ -7,7 +7,7 @@ import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
 import type { AppView } from "../../state/app-view";
 import SettingsView from "./SettingsView";
 
-// Ajustes › Asistentes: a summary of the assistants, each one edited from
+// Settings › Assistants: a summary of the assistants, each one edited from
 // its conversation. Names, accounts and folders are invented.
 
 afterEach(() => {
