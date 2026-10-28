@@ -41,11 +41,15 @@ from support_network_fence import install
 
 FENCE = install()
 # Every check that can pass or fail; 16, the menu bar's, is always skipped.
-ALL = [*range(1, 16), 17, 18, 19]
+ALL = [*range(1, 16), 17, 18, 19, 20]
 SKIPPED = {16: "skipped"}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
-FOLLOWS = {7: {18: "unchecked"}}
+FOLLOWS = {
+    7: {18: "unchecked"},
+    # An interrupted capture ends the script before its audio/UI evidence.
+    20: {n: "unchecked" for n in ALL if n not in (10, 20)},
+}
 
 
 @pytest.fixture(autouse=True)
@@ -166,7 +170,8 @@ def test_each_check_fails_against_its_spoiled_example(number, tmp_path):
     assert detail, "a failure without a cause"
     for follower in FOLLOWS.get(number, {}):
         why = next(r["detail"] for r in results if r["number"] == follower)
-        assert f"(check {number})" in why, why
+        cause = "change the default input" if number == 20 else f"(check {number})"
+        assert cause in why, why
 
 
 # ── The parts ───────────────────────────────────────────────────────────────
@@ -831,3 +836,19 @@ def test_check_ten_accepts_a_question_but_rejects_actual_failures(code):
         assert not checks.c10_no_failures(evidence(failed, notice_class))[0]
     # Even a question must be rejected if a producer still reports it as a failure.
     assert not checks.c10_no_failures(evidence(code, "fixable"))[0]
+
+
+def test_input_route_changes_are_exercised_during_the_same_recording(good):
+    results, directory = good
+    data = json.loads((directory / "report.json").read_text())
+    assert statuses(results).get(20) == "pass"
+    steps = [step["name"] for step in data["steps"]]
+    assert steps.index("first half of the script") < steps.index(
+        "change the default input during the meeting and restore it"
+    )
+    route = data["audio_route"]
+    ident = data["recording"]["id"]
+    assert route["away"]["recording_id"] == ident
+    assert route["back"]["recording_id"] == ident
+    assert route["back"]["gaps"] > route["away"]["gaps"] > 0
+    assert all(route[side]["code"] == "audio_route_recovered" for side in ("away", "back"))

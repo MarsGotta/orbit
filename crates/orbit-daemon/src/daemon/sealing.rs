@@ -23,6 +23,7 @@ impl Runtime {
         // The cause goes with the notice its caller says (`say_failure`).
         if let Err(error) = &sealed {
             self.capture.seal_cause = Some(super::capture_lane::seal_cause(error));
+            self.capture.seal_failure_active = true;
         }
         sealed
     }
@@ -108,10 +109,15 @@ impl Runtime {
                         orbit_core::notice::NoticeKey::Fragments,
                         failure.owed as u64,
                     );
-                self.say_failure(notice, &failure.message);
+                let first = !self.capture.seal_failure_active;
+                self.capture.seal_failure_active = true;
+                if first {
+                    self.say(notice);
+                }
                 if report_failure {
                     bail!(failure.message);
                 }
+                self.drop_audio_event(None, &failure.message);
                 return Ok(());
             }
             if self.capture.pending_seals.is_empty() || Instant::now() >= deadline {
@@ -137,6 +143,10 @@ impl Runtime {
         }
         if applied {
             self.defer_sealed_snapshot()?;
+            if failure.is_none() && self.capture.pending_seals.is_empty() {
+                self.capture.seal_failure_active = false;
+                self.finish_audio_failures();
+            }
         }
         Ok(failure)
     }
@@ -222,7 +232,7 @@ impl Runtime {
 
     /// The capture's own upkeep: the local flush of audio a stop left
     /// behind, sealing retries, a deferred drain, a call's health and its
-    /// drain. A failure here puts the audio at risk and cuts what is live.
+    /// drain. Refused seals remain queued and are counted without cutting.
     pub(super) fn maintain_capture(
         &mut self,
     ) -> impl std::future::Future<Output = Result<()>> + '_ {
@@ -230,7 +240,10 @@ impl Runtime {
             Box::pin(self.retry_full_stop_send()).await?;
             self.retry_retired_stream_stops().await;
             let flush_stopped = self.flush_owed_stopped_audio().await;
-            let seal_retry = self.retry_due_seals();
+            if let Some(error) = self.retry_due_seals() {
+                self.capture.seal_retry_at = Some(Instant::now() + SEAL_RETRY_DELAY);
+                self.drop_audio_event(None, &error.to_string());
+            }
             // Before the tick, never after. `Event::Tick` is what
             // interrupts a recording that has been finalizing too long, so a
             // finish that is ready to happen has to happen first — otherwise
@@ -248,7 +261,7 @@ impl Runtime {
             // capture maintenance; `schedule_upload` may observe it again
             // idempotently when admitting network work.
             let tail = Box::pin(self.queue_finalize()).await;
-            fold_capture_failures(flush_stopped, seal_retry, tail)
+            fold_capture_failures(flush_stopped, None, tail)
         })
     }
 
@@ -277,12 +290,8 @@ impl Runtime {
         }
     }
 
-    /// A failed sealing retry is still the capture's own failure and still
-    /// reaches the containment table, but only after this turn's whole
-    /// upkeep has run. Before, the `?` here returned before the deferred
-    /// drain, the core `Tick` (the finalize deadline), the call checks and
-    /// the queued finalize, so a disk that kept refusing seals also froze
-    /// them.
+    /// Return the seal refusal for gap accounting after the retry. It never
+    /// skips the deferred drain, core tick, call checks or queued closure.
     fn retry_due_seals(&mut self) -> Option<anyhow::Error> {
         if !self.capture.pending_seals.is_empty()
             && self

@@ -527,3 +527,66 @@ async fn no_chunk_of_a_thrown_away_recording_goes_up() -> Result<()> {
     assert_eq!(job.state, orbit_store::JobState::Queued);
     Ok(())
 }
+
+#[tokio::test]
+async fn voice_recordings_cannot_enter_the_meeting_deletion_outbox() -> Result<()> {
+    for kind in ["voice_turn", "voice_call"] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, _) = fixture(directory.path())?;
+        runtime.fixture_store.enqueue_job(&orbit_store::Job {
+            id: format!("recording-{TODAY}"),
+            kind: "recording_manifest".into(),
+            state: orbit_store::JobState::Succeeded,
+            created_at: START,
+            payload: json!({"recording_kind":kind}),
+        })?;
+        assert!(
+            runtime.command(delete(TODAY)).await.is_err(),
+            "{kind} accepted as a meeting"
+        );
+        assert!(runtime.reader.note_orders()?.is_empty());
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_permanent_local_deletion_refusal_is_logged_once_and_not_retried() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let hub = hub_with(&[TODAY]);
+    let url = fake_hub::start(hub).await?;
+    let (mut runtime, _) = fixture(directory.path())?;
+    runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
+    runtime.fixture_store.enqueue_job(&orbit_store::Job {
+        id: format!("recording-{TODAY}"),
+        kind: "recording_manifest".into(),
+        state: orbit_store::JobState::Succeeded,
+        created_at: START,
+        payload: json!({"recording_kind":"voice_turn"}),
+    })?;
+    // A durable delete left by an older daemon which did not validate the kind.
+    runtime
+        .keep_order(orbit_core::note_outbox::QueuedOrder::Meeting {
+            recording_id: TODAY.into(),
+            order: orbit_core::note_outbox::NoteOrder::Delete { discarded: false },
+        })
+        .await?;
+    let mut events = runtime.notes.test_events();
+    pair(&mut runtime, &url);
+    ready(&mut runtime, true).await?;
+    for tick in 0..4 {
+        settle(&mut runtime, &mut events, START + tick * 60_000).await?;
+    }
+    let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
+    assert_eq!(
+        log.matches("meeting_delete_on_mac_failed").count(),
+        1,
+        "{log}"
+    );
+    assert!(
+        runtime
+            .reader
+            .get_job(&format!("recording-{TODAY}"))?
+            .is_some()
+    );
+    Ok(())
+}

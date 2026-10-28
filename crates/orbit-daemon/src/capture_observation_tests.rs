@@ -71,12 +71,8 @@ fn observation_identifies_the_exact_source_stream_rate_and_decoded_pcm() -> Resu
 fn invalid_original_never_returns_an_observation_or_changes_accepted_bytes() -> Result<()> {
     for (field, invalid) in [
         ("pcm_s16le_base64", json!("%%%")),
-        ("sample_rate", json!(48_000)),
         ("channels", json!(2)),
-        ("sequence", json!(3)),
-        ("stream_id", json!("other-stream")),
         ("stream_id", json!("x".repeat(129))),
-        ("monotonic_ns", json!(0)),
         ("source", json!("unknown")),
         ("capture_epoch_id", json!("../invalid")),
     ] {
@@ -217,5 +213,67 @@ fn preroll_updates_only_derived_voice_not_original_or_signal() -> Result<()> {
     assert!(replay.signal.is_none());
     assert!(replay.segments.is_empty());
     assert_eq!(buffer.voice.as_ref().context("voice absent")?.pcm, pcm);
+    Ok(())
+}
+
+#[test]
+fn a_new_stream_clock_or_sequence_seals_the_tail_and_reanchors() -> Result<()> {
+    for (field, changed) in [
+        ("stream_id", json!("new-stream")),
+        ("monotonic_ns", json!(0)),
+        ("sequence", json!(9)),
+    ] {
+        let mut buffer = CaptureBuffer::default();
+        buffer.begin_recording("meeting".into())?;
+        let pcm = vec![1; 200];
+        buffer.ingest_observed(&frame("mic_local", "mic", 0, &pcm), 100)?;
+        let mut next = frame("mic_local", "mic", 1, &pcm);
+        next[field] = changed;
+        let result = buffer.ingest_observed(&next, 200)?;
+        assert_eq!(result.gap, Some("mic_local"), "{field}");
+        assert_eq!(result.segments[0].pcm, pcm);
+        let tail = buffer.flush(true);
+        assert_eq!(tail[0].metadata.started_at_ms, 200, "{field}");
+        assert_eq!(tail[0].metadata.sequence, 1);
+        assert_eq!(tail[0].metadata.first_sample, 100);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_declared_hole_already_accounts_for_the_next_stretch() -> Result<()> {
+    let mut buffer = CaptureBuffer::default();
+    buffer.begin_recording("meeting".into())?;
+    buffer.ingest_observed(&frame("mic_local", "mic", 0, &[1; 200]), 100)?;
+    assert_eq!(buffer.restart_source("mic_local")?.len(), 1);
+    let mut next = frame("mic_local", "new-stream", 9, &[2; 200]);
+    next["monotonic_ns"] = json!(0);
+    let result = buffer.ingest_observed(&next, 200)?;
+    assert!(result.gap.is_none(), "the declared hole was counted twice");
+    assert_eq!(buffer.flush(true)[0].pcm, vec![2; 200]);
+    Ok(())
+}
+
+/// The hub joins a track's chunks into one stream of one format: a frame in
+/// another one is refused (its caller counts the hole) and the track keeps
+/// its own, so the next frame in it goes on.
+#[test]
+fn a_frame_in_another_format_is_refused_and_the_track_keeps_its_own() -> Result<()> {
+    let mut buffer = CaptureBuffer::default();
+    buffer.begin_recording("meeting".into())?;
+    let pcm = vec![1; 200];
+    buffer.ingest_observed(&frame("mic_local", "mic", 0, &pcm), 100)?;
+    let mut other = frame("mic_local", "mic", 1, &pcm);
+    other["sample_rate"] = json!(16000);
+    assert!(buffer.ingest_observed(&other, 200).is_err());
+    let next = buffer.ingest_observed(&frame("mic_local", "mic", 2, &pcm), 300)?;
+    assert_eq!(next.gap, Some("mic_local"), "the refused frame left a hole");
+    let rates: Vec<u32> = next
+        .segments
+        .iter()
+        .chain(buffer.flush(true).iter())
+        .map(|segment| segment.metadata.sample_rate)
+        .collect();
+    assert!(rates.iter().all(|rate| *rate != 16000), "{rates:?}");
     Ok(())
 }

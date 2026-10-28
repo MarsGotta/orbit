@@ -60,12 +60,17 @@ impl Runtime {
     /// leaves closed calls out of its list (`kind: voice_call`); these rows
     /// are the Mac's own, which the hub has not seen. A voice note is never
     /// closed, so it has no row here.
-    fn voice_call(&self, recording: &str) -> bool {
+    fn voice_recording(&self, recording: &str) -> bool {
         self.reader
             .get_job(&format!("recording-{recording}"))
             .ok()
             .flatten()
-            .is_some_and(|job| job.payload["recording_kind"] == "voice_call")
+            .is_some_and(|job| {
+                matches!(
+                    job.payload["recording_kind"].as_str(),
+                    Some("voice_call" | "voice_turn")
+                )
+            })
     }
 
     /// The recordings of this Mac the hub does not have whole yet: the one
@@ -116,7 +121,7 @@ impl Runtime {
                 continue;
             };
             if active.is_some_and(|active| active.id == recording_id)
-                || self.voice_call(recording_id)
+                || self.voice_recording(recording_id)
             {
                 continue;
             }

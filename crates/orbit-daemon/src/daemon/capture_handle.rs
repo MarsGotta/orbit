@@ -24,6 +24,10 @@ pub(super) struct CaptureHandle {
     /// The cut that left the recording interrupted, while it waits to
     /// resume or close (`cut_recovery`).
     pub(super) recovery: Option<cut_recovery::CutRecovery>,
+    pub(super) frame_failures: Option<(String, u64)>,
+    pub(super) seal_failure_active: bool,
+    #[cfg(test)]
+    pub(super) recovery_time: Option<tokio::time::Instant>,
 }
 
 impl CaptureHandle {
@@ -39,6 +43,10 @@ impl CaptureHandle {
             seal_retry_at: None,
             interruption: None,
             recovery,
+            frame_failures: None,
+            seal_failure_active: false,
+            #[cfg(test)]
+            recovery_time: None,
         }
     }
 }

@@ -92,7 +92,7 @@ pub(super) enum NoteEvent {
     Purged {
         recording: String,
         scope: orbit_store::DeletionScope,
-        outcome: std::result::Result<orbit_store::Deleted, String>,
+        outcome: std::result::Result<orbit_store::Deleted, deletion::PurgeFailure>,
     },
 }
 
@@ -316,7 +316,7 @@ impl Runtime {
                 recording,
                 scope,
                 outcome,
-            } => self.purge_answer(recording, scope, outcome, now_ms),
+            } => self.purge_answer(recording, scope, outcome, now_ms).await?,
         }
         Ok(())
     }

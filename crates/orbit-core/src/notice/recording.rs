@@ -4,6 +4,9 @@
 macro_rules! recording_notices {
     ([$next:ident $(, $rest:ident)*] ; $($entries:tt)*) => {
         $next! { [$($rest),*] ; $($entries)*
+            /// OS notification after a prolonged cut. CaptureCut already owns
+            /// the window's message; this event must not leave a stale wait there.
+            RecordingCutWaiting = 165 => Silent,
             RecordingSilenceQuestion = 163 => Working,
             RecordingSilenceResolved = 164 => Silent,
             CaptureStarting = 0 => Silent,

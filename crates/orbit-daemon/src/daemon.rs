@@ -84,6 +84,7 @@ mod vault;
 use bridge::{BridgeAsk, BridgeKind, BridgeReleaseReason, BridgeSlots};
 use kernel::DurableSnapshot;
 pub use shutdown::{SHUTDOWN_BUDGET, SNAPSHOT_RECEIPT_GRACE};
+mod audio_holes;
 mod helper;
 mod helper_waits;
 mod sources;

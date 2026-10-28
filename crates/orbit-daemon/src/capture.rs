@@ -24,6 +24,8 @@ pub struct ObservedPcmSignal {
 pub struct IngestedAudio {
     pub segments: Vec<Segment>,
     pub signal: Option<ObservedPcmSignal>,
+    /// A discontinuity detected before this frame; the tail is already sealed.
+    pub gap: Option<&'static str>,
 }
 
 mod tracks;
@@ -100,9 +102,8 @@ impl CaptureBuffer {
 
     /// A producer declared a hole (a new route, or audio it dropped on
     /// purpose). Seal the tail so the missing time never becomes contiguous
-    /// PCM; only the producer sequence restarts, not the meeting or chunk
-    /// counters, and the stream identity and clock are still checked. A voice
-    /// turn on the same microphone skips the hole the same way.
+    /// PCM; the producer re-anchors without resetting the meeting or chunk
+    /// counters. A voice turn on the same microphone skips the hole the same way.
     pub fn restart_source(&mut self, source: &str) -> Result<Vec<Segment>> {
         restart_source(&mut self.tracks, &mut self.voice, source)
     }
@@ -144,7 +145,8 @@ pub fn restart_source(
 /// One frame into the recording (when `record` and its source feeds it) and
 /// into the voice turn on the microphone. Every check runs before anything is
 /// appended, the recording's first and the voice turn's next, so a refused
-/// frame changes neither.
+/// malformed frame changes neither. Recording discontinuities seal the tail
+/// and re-anchor; voice turns retain their stricter continuity checks.
 pub fn ingest(
     tracks: &mut RecordingTracks,
     voice: &mut Option<VoiceBuffer>,
@@ -184,9 +186,6 @@ pub fn ingest(
         pcm: &pcm,
     };
     let recording = record && tracks.records(source);
-    if recording {
-        tracks.check(&checked)?;
-    }
     if source == "mic_local"
         && let Some(voice) = voice.as_mut()
     {
@@ -197,8 +196,18 @@ pub fn ingest(
         return Ok(IngestedAudio {
             segments: Vec::new(),
             signal: None,
+            gap: None,
         });
     }
+    if recording {
+        tracks.check_format(&checked)?;
+    }
+    let gap = recording && tracks.discontinuous(&checked);
+    let mut segments = if gap {
+        tracks.restart_source(source)?
+    } else {
+        Vec::new()
+    };
     // Never decode base64 again or trust separately declared native levels.
     // Measurement is optional; a missing level must not discard valid audio.
     let signal = measure_s16le(&pcm).map(|level| ObservedPcmSignal {
@@ -207,11 +216,15 @@ pub fn ingest(
         sample_rate: rate,
         level,
     });
-    let segments = tracks.append(&checked, now_ms)?;
-    Ok(IngestedAudio { segments, signal })
+    segments.extend(tracks.append(&checked, now_ms)?);
+    Ok(IngestedAudio {
+        segments,
+        signal,
+        gap: gap.then_some(source),
+    })
 }
 
-/// Decode a single observed mono frame with hard bounds before base64 allocation.
+/// Decode a single observed mono/stereo frame with hard bounds before base64 allocation.
 pub fn frame_pcm(frame: &Value) -> Result<Vec<u8>> {
     let decoded =
         NativeAudioFrameRef::from_value(frame).context("Evento audio con campo o tipo inválido")?;
@@ -221,10 +234,14 @@ pub fn frame_pcm(frame: &Value) -> Result<Vec<u8>> {
 fn frame_pcm_decoded(frame: &NativeAudioFrameRef<'_>) -> Result<Vec<u8>> {
     let rate = frame.sample_rate;
     let frames = frame.frames;
-    if !(8_000..=192_000).contains(&rate) || frame.channels != 1 || frames == 0 || frames > rate {
+    if !(8_000..=192_000).contains(&rate)
+        || !(1..=2).contains(&frame.channels)
+        || frames == 0
+        || frames > rate
+    {
         bail!("Formato de audio fuera de límites");
     }
-    let expected_bytes = usize::try_from(frames)? * 2;
+    let expected_bytes = usize::try_from(frames)? * usize::from(frame.channels) * 2;
     let encoded = frame.pcm_s16le_base64;
     if encoded.len() > expected_bytes.div_ceil(3) * 4 {
         bail!("PCM codificado fuera de límites");

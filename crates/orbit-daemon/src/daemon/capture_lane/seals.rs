@@ -3,7 +3,7 @@
 //!
 //! PCM ownership ends at a durable store receipt, never at an attempted
 //! write. This queue is volatile: it survives a recoverable I/O failure, not
-//! process death or power loss. Capture is stopped on failure, never expanded.
+//! process death or power loss. Capture keeps going within the same bound.
 use super::{CaptureLane, DestinationInvalid, LaneCore, Receipt};
 use crate::capture::Segment;
 use crate::daemon::store_actor::{CapturePort, StoreCompletion};
@@ -13,7 +13,7 @@ use std::{path::Path, sync::Arc};
 /// Unsealed audio the lane may hold while the writer is slow or refusing:
 /// what protects the daemon's memory from a disk that stopped. 64 MiB is over
 /// half an hour of one 16 kHz track; past it the loss is declared as gaps
-/// and the capture is cut, never held in a larger queue.
+/// without growing the queue or cutting the capture.
 pub(in crate::daemon) const MAX_PENDING_BYTES: usize = 64 * 1024 * 1024;
 /// The same protection counted in segments, for many short tails.
 pub(in crate::daemon) const MAX_PENDING_SEGMENTS: usize = 4096;

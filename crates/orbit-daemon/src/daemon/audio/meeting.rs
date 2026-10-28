@@ -173,6 +173,7 @@ impl Runtime {
             let decision = decide(&self.state, Event::CaptureStarted, now())?;
             self.store_actor.snapshot(&decision.state).await?;
             self.state = decision.state;
+            self.confirm_cut_resumed();
         }
         Ok(())
     }

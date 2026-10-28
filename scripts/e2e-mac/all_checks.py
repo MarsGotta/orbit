@@ -1,19 +1,26 @@
 """Every check of the real test on the Mac, run over the evidence.
 
 The checks live by subject: checks.py (1 to 12), meeting_control_checks.py
-(13 to 16), drafts_panel_checks.py (17 and 18), and silence_recording.py (19).
+(13 to 16), drafts_panel_checks.py (17 and 18), silence_recording.py (19), and audio_route.py (20).
 This runs them in order and says what none of them can see.
 """
 
 from __future__ import annotations
 
+import audio_route
 import checks
 import drafts_panel_checks
 import meeting_control_checks
 import silence_recording
 from checks import Unchecked, failure_lines, result
 
-MODULES = (checks, meeting_control_checks, drafts_panel_checks, silence_recording)
+MODULES = (
+    checks,
+    meeting_control_checks,
+    drafts_panel_checks,
+    silence_recording,
+    audio_route,
+)
 NAMES = {number: name for module in MODULES for number, name in module.NAMES.items()}
 CHECKS = {number: check for module in MODULES for number, check in module.CHECKS.items()}
 # What the run cannot see, said in every report.

@@ -46,6 +46,7 @@ DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIRECTORY))
 
 import all_checks
+import audio_route
 import checks
 import drafts_panel
 import first_run
@@ -181,6 +182,7 @@ def bounds() -> dict[str, tuple[float, str]]:
             "the same bound the production hub's unit gives to stop (TimeoutStopSec=30)",
         ),
         **meeting_controls.BOUNDS,
+        **audio_route.BOUNDS,
         **drafts_panel.bounds(_rust_constant),
         **silence_recording.bounds(_rust_constant),
     }
@@ -261,6 +263,7 @@ class RemoteMac:
                 str(DIRECTORY / "mac_system.py"),
                 str(DIRECTORY / "mac_waits.py"),
                 str(DIRECTORY / "mac_silence.py"),
+                str(DIRECTORY / "audio_route.py"),
                 str(DIRECTORY / "meeting-script.txt"),
                 str(DIRECTORY / "windows.swift"),
                 str(DIRECTORY / "pointer.swift"),
@@ -313,6 +316,9 @@ class RemoteMac:
 
     def read(self, what, ident=None):
         return self._call(30, "read", what, *([ident] if ident else []))
+
+    def switch_input(self, name=None):
+        return self._call(30, "switch-input", *([name] if name else []))
 
     def say(self, part):
         # Each part is under a minute of speech at say's default rate.
@@ -563,6 +569,8 @@ class RealTest:
 
         with self.step("first half of the script"):
             self.mac.say("part1")
+
+        audio_route.exercise(self)
 
         panel = None
         with self.step("«Oye Deimos» and its answer in the panel", (7,), critical=False):
@@ -878,6 +886,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "delete": ev.get("delete"),
         "panel_hold": ev.get("panel_hold"),
         "silence": ev.get("silence"),
+        "audio_route": ev.get("audio_route"),
         "drafts": ev.get("drafts"),
         "welcome_skipped": ev.get("welcome_skipped"),
     }

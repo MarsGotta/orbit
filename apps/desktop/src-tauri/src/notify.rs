@@ -19,6 +19,7 @@ static WATCHER: Mutex<Watcher> = Mutex::new(Watcher {
     in_flight: false,
     pending: None,
     last_notice_sequence: 0,
+    recording_cut_notified: false,
 });
 
 /// A turn that worked at least this long ends with a notification when Orbit
@@ -48,6 +49,7 @@ pub fn duration_text(ms: u64) -> String {
 #[derive(Debug, Default)]
 pub struct Watcher {
     last_notice_sequence: u64,
+    recording_cut_notified: bool,
     in_flight: bool,
     pending: Option<String>,
 }
@@ -139,16 +141,16 @@ pub fn follow<R: tauri::Runtime>(app: &tauri::AppHandle<R>, chat: &ChatSnapshot)
     post(app, notice, false);
 }
 
-/// The existing macOS notification channel also alerts a silence question,
-/// even while the window is in front. System notification permission applies.
-pub fn follow_silence<R: tauri::Runtime>(
+/// Recording interruptions and silence questions use the macOS channel even
+/// while Orbit is in front. Only the system notification permission applies.
+pub fn follow_system_notices<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     notices: &[orbit_core::notice::Notice],
 ) {
     let pending = WATCHER
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
-        .observe_silence(notices);
+        .observe_system_notices(notices);
     for notice in pending {
         post(app, notice, true);
     }
@@ -174,7 +176,10 @@ fn post<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notice: TurnNotice, sound:
 }
 
 impl Watcher {
-    pub fn observe_silence(&mut self, notices: &[orbit_core::notice::Notice]) -> Vec<TurnNotice> {
+    pub fn observe_system_notices(
+        &mut self,
+        notices: &[orbit_core::notice::Notice],
+    ) -> Vec<TurnNotice> {
         use orbit_core::notice::NoticeCode;
         let mut result = Vec::new();
         for notice in notices {
@@ -184,6 +189,13 @@ impl Watcher {
             else {
                 continue;
             };
+            if let Some(body) = self.recording_notice(notice) {
+                result.push(TurnNotice {
+                    title: "Orbit".into(),
+                    body,
+                });
+                continue;
+            }
             let (body, resolved) = match notice.code {
                 NoticeCode::CallSilenceQuestion => (
                     "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
@@ -212,6 +224,60 @@ impl Watcher {
             .unwrap_or(self.last_notice_sequence)
             .max(self.last_notice_sequence);
         result
+    }
+}
+
+impl Watcher {
+    fn recording_notice(&mut self, notice: &orbit_core::notice::Notice) -> Option<String> {
+        use orbit_core::notice::{DataValue, NoticeCode, NoticeKey};
+        match notice.code {
+            NoticeCode::CaptureStarting
+            | NoticeCode::RecordingFinishing
+            | NoticeCode::RecordingFinished
+            | NoticeCode::RecordingDiscarded => {
+                self.recording_cut_notified = false;
+                None
+            }
+            NoticeCode::RecordingCutWaiting => {
+                self.recording_cut_notified = true;
+                Some("La grabación se ha cortado. Orbit intenta seguir grabando.".into())
+            }
+            NoticeCode::RecordingResumedAfterCut => {
+                let notified = std::mem::take(&mut self.recording_cut_notified);
+                if !notified {
+                    return None;
+                }
+                let duration = match notice.data.get(&NoticeKey::ElapsedMs) {
+                    Some(DataValue::Int(ms)) if *ms >= 0 => duration_text(*ms as u64),
+                    _ => "un tiempo que no se pudo medir".into(),
+                };
+                Some(format!("La grabación sigue. Faltan {duration}."))
+            }
+            NoticeCode::RecordingClosedAfterCut => {
+                self.recording_cut_notified = false;
+                let cause = match notice.data.get(&NoticeKey::Cause) {
+                    Some(DataValue::Token(code)) => recording_cause(code.as_str()),
+                    _ => "no se pudo recuperar la captura".into(),
+                };
+                Some(format!(
+                    "La grabación se ha cerrado: {cause}. Lo grabado está guardado."
+                ))
+            }
+            _ => None,
+        }
+    }
+}
+
+fn recording_cause(code: &str) -> String {
+    match code {
+        "helper_lost" => "el ayudante del Mac se desconectó".into(),
+        "session_inactive" => "el Mac se durmió o cambió de usuario".into(),
+        "restart" => "Orbit se reinició".into(),
+        "daemon_heartbeat_expired" => "el servicio de Orbit dejó de responder".into(),
+        "privacy_stop" => "la parada de privacidad".into(),
+        "capture_finalize_timed_out" => "el Mac no confirmó el final".into(),
+        "cause_not_saved" => "la causa no quedó guardada".into(),
+        _ => format!("no se pudo recuperar la captura ({code})"),
     }
 }
 

@@ -112,6 +112,9 @@ async fn a_cut_meeting_is_resumed_or_closed_without_anyone_acting() -> Result<()
         .handle_native_event(json!({"event":"helper_disconnected"}))
         .await;
     runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(1));
+    runtime
         .handle_native_event(json!({"event":"ready","capabilities":[]}))
         .await;
     let mut reopened = false;
@@ -124,6 +127,9 @@ async fn a_cut_meeting_is_resumed_or_closed_without_anyone_acting() -> Result<()
                 runtime
                     .handle_native_event(granted_status(&command["id"]))
                     .await;
+                runtime
+                    .capture
+                    .advance_recovery_clock(Duration::from_secs(30));
             }
         }
     }
@@ -347,6 +353,9 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
     while receiver.try_recv().is_ok() {}
     assert_eq!(phase(&runtime), Some(orbit_core::CapturePhase::Interrupted));
     runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(1));
+    runtime
         .handle_native_event(json!({"event":"ready","capabilities":[]}))
         .await;
     let mut reopened = None;
@@ -357,6 +366,9 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
                 runtime
                     .handle_native_event(granted_status(&command["id"]))
                     .await;
+                runtime
+                    .capture
+                    .advance_recovery_clock(Duration::from_secs(30));
             }
             if command["command"] == "audio_start" {
                 reopened = Some(command);
@@ -396,7 +408,7 @@ async fn a_meeting_live_when_the_daemon_died_goes_on_after_the_restart() -> Resu
 /// The helper comes back after a loss: its `ready`, then the answer to the
 /// `status` it is asked for. Returns the orders that followed, after one
 /// maintenance turn.
-async fn helper_returns(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> Vec<Value> {
+async fn helper_ready(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> Vec<Value> {
     runtime
         .handle_native_event(json!({"event":"ready","capabilities":[]}))
         .await;
@@ -411,6 +423,18 @@ async fn helper_returns(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Val
             }
             orders.push(command);
         }
+    }
+    orders
+}
+
+async fn helper_returns(runtime: &mut Runtime, receiver: &mut mpsc::Receiver<Value>) -> Vec<Value> {
+    let mut orders = helper_ready(runtime, receiver).await;
+    runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(30));
+    runtime.run_maintenance().await;
+    while let Ok(command) = receiver.try_recv() {
+        orders.push(command);
     }
     orders
 }
@@ -438,6 +462,9 @@ async fn a_cut_before_the_first_chunk_resumes_the_recording() -> Result<()> {
         recording.ended_at_ms, None,
         "an empty recording a resumable cut stopped is not closed yet"
     );
+    runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(1));
     let orders = helper_returns(&mut runtime, &mut receiver).await;
     assert!(
         orders.iter().any(|order| order["command"] == "audio_start"),
@@ -463,65 +490,127 @@ async fn a_cut_before_the_first_chunk_resumes_the_recording() -> Result<()> {
     Ok(())
 }
 
-/// A recording that keeps failing at its very start does not loop: it is
-/// resumed three times, and the next cut closes it empty and says why.
+/// Consecutive cuts wait progressively and never exhaust a resume allowance.
 #[tokio::test]
-async fn a_recording_that_keeps_failing_at_its_start_closes_empty_after_three_tries() -> Result<()>
-{
+async fn five_consecutive_cuts_resume_with_growing_waits() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let (mut runtime, mut receiver) = fixture(directory.path())?;
+    runtime.capture.advance_recovery_clock(Duration::ZERO);
     start(&mut runtime, &mut receiver).await?;
-    let mut resumes = 0;
-    for _ in 0..6 {
+    for seconds in [1, 2, 5, 10, 30] {
         runtime
             .handle_native_event(json!({"event":"helper_disconnected"}))
             .await;
-        let orders = helper_returns(&mut runtime, &mut receiver).await;
-        let Some(start) = orders
+        runtime
+            .capture
+            .advance_recovery_clock(std::time::Duration::ZERO);
+        let early = helper_ready(&mut runtime, &mut receiver).await;
+        assert!(
+            !early.iter().any(|order| order["command"] == "audio_start"),
+            "resumed before {seconds}s"
+        );
+        runtime
+            .capture
+            .advance_recovery_clock(std::time::Duration::from_secs(seconds));
+        let mut orders = Vec::new();
+        for _ in 0..3 {
+            runtime.run_maintenance().await;
+            while let Ok(order) = receiver.try_recv() {
+                orders.push(order);
+            }
+        }
+        let start = orders
             .iter()
             .find(|order| order["command"] == "audio_start")
-        else {
-            break;
-        };
-        resumes += 1;
+            .context("did not resume")?;
         runtime
             .handle_native_event(json!({"event":"response","id":start["id"],"ok":true,
-                "result":{"stream_id":start["stream_id"]}}))
+            "result":{"stream_id":start["stream_id"]}}))
             .await;
+        assert_eq!(phase(&runtime), Some(CapturePhase::Recording));
+        assert!(
+            runtime
+                .reader
+                .get_job("finalize-reunion-sintetica")?
+                .is_none()
+        );
     }
-    assert_eq!(resumes, 3, "resumed {resumes} times");
-    let recording = runtime
-        .state
-        .durable
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_missing_helper_announces_the_cut_then_closes_at_two_minutes() -> Result<()> {
+    use orbit_core::notice::NoticeCode;
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    let stream = start(&mut runtime, &mut receiver).await?;
+    runtime.handle_native_event(frame(&stream, 0, 8000)).await;
+    crate::daemon::audio::tests::settle_seal_receipts(&mut runtime).await?;
+    runtime.capture.advance_recovery_clock(Duration::ZERO);
+    runtime
+        .handle_native_event(json!({"event":"helper_disconnected"}))
+        .await;
+    runtime
         .capture
-        .recording
-        .as_ref()
-        .context("recording absent")?;
+        .advance_recovery_clock(Duration::from_secs(4));
+    runtime.run_maintenance().await;
+    assert!(!crate::daemon::turn::said::has(
+        &runtime.state,
+        NoticeCode::RecordingCutWaiting
+    ));
+    runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(1));
+    runtime.run_maintenance().await;
+    assert!(crate::daemon::turn::said::has(
+        &runtime.state,
+        NoticeCode::RecordingCutWaiting
+    ));
+    runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(114));
+    runtime.run_maintenance().await;
     assert!(
-        recording.ended_at_ms.is_some(),
-        "the failing recording was left open"
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .context("recording")?
+            .ended_at_ms
+            .is_none()
     );
-    let closure = runtime
-        .reader
-        .get_job("finalize-reunion-sintetica")?
-        .context("the empty recording has no closure")?;
-    assert_eq!(closure.payload["interruption"]["cause"], "helper_lost");
-    let closed = runtime
-        .state
-        .durable
-        .notice_log
-        .records()
-        .iter()
-        .find(|notice| notice.code == orbit_core::notice::NoticeCode::RecordingClosedAfterCut)
-        .cloned()
-        .context("the closure is not said")?;
-    assert_eq!(
-        closed.data.get(&orbit_core::notice::NoticeKey::Fragments),
-        Some(&orbit_core::notice::DataValue::Int(0))
+    runtime
+        .capture
+        .advance_recovery_clock(Duration::from_secs(1));
+    runtime.run_maintenance().await;
+    assert!(
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .context("recording")?
+            .ended_at_ms
+            .is_some()
     );
-    assert_eq!(
-        closed.data.get(&orbit_core::notice::NoticeKey::Attempt),
-        Some(&orbit_core::notice::DataValue::Int(3))
+    assert!(
+        runtime
+            .reader
+            .get_job("finalize-reunion-sintetica")?
+            .is_some()
+    );
+    assert!(crate::daemon::turn::said::has(
+        &runtime.state,
+        NoticeCode::RecordingClosedAfterCut
+    ));
+    assert!(
+        runtime
+            .reader
+            .chunk_receipt("reunion-sintetica-mic_local-0")?
+            .is_some()
     );
     Ok(())
 }

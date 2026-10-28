@@ -104,7 +104,7 @@ class DryRunSystem(mac_side.System):
             return self.cua.command(list(command[1:]))
         if command[0] == "SwitchAudioSource":
             if "-a" in command:
-                return 0, f"{self.input}\n{mac_side.BLACKHOLE}\n", ""
+                return 0, f"Micrófono del MacBook Pro\n{mac_side.BLACKHOLE}\n", ""
             if "-c" in command:
                 return 0, self.input + "\n", ""
             self.input = command[-1]

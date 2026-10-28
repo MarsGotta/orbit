@@ -405,48 +405,18 @@ async fn an_unverifiable_inventory_is_shown_with_its_numbers_and_stops_nothing()
 }
 
 #[tokio::test]
-async fn audio_that_cannot_be_kept_whole_cuts_the_recording_not_orbit() {
+async fn a_format_change_starts_a_new_stretch_without_cutting() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
-    runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
     let stream = start_recording(&mut runtime, &mut helper).await;
     runtime.handle_native_event(frame(&stream, 0, 8_000)).await;
-    // The same track changes format under the recording: what follows can no
-    // longer be stored as the same recording with integrity.
     runtime.handle_native_event(frame(&stream, 1, 16_000)).await;
-
-    assert!(!runtime.state.privacy_stopped(), "{:?}", said(&runtime));
+    assert!(!runtime.state.privacy_stopped());
     let recording = runtime.state.durable.capture.recording.as_ref().unwrap();
-    assert_eq!(recording.phase, CapturePhase::Interrupted);
-    let notice = said(&runtime).join(" | ");
-    assert!(notice.contains("Formato de pista cambiado"), "{notice}");
-    assert!(notice.contains("\"capture_cut\""), "{notice}");
-    assert!(!notice.contains("rearm"), "{notice}");
-    let commands = names(&sent(&mut helper));
-    assert!(
-        !commands.contains(&"privacy_stop".to_owned()),
-        "the helper is not latched: {commands:?}"
-    );
-    assert!(
-        commands.contains(&"capture_stop".to_owned()),
-        "the helper is told to stop capturing: {commands:?}"
-    );
-    // The microphone does not reopen on its own, tick after tick.
-    for _ in 0..3 {
-        runtime.run_maintenance().await;
-    }
-    assert!(!names(&sent(&mut helper)).contains(&"audio_start".to_owned()));
-    assert_eq!(
-        runtime
-            .state
-            .durable
-            .capture
-            .recording
-            .as_ref()
-            .unwrap()
-            .phase,
-        CapturePhase::Interrupted
-    );
+    assert_eq!(recording.phase, CapturePhase::Recording);
+    assert_eq!(recording.gaps, 1);
+    assert!(!said(&runtime).join(" | ").contains("capture_cut"));
+    assert!(!names(&sent(&mut helper)).contains(&"capture_stop".to_owned()));
 }
 
 #[tokio::test]
@@ -716,7 +686,7 @@ async fn a_fault_of_another_vertical_is_said_and_the_recording_goes_on() {
 /// The capture's side: its own upkeep failing (a fragment the
 /// disk will not take) cuts the live recording with its cause.
 #[tokio::test]
-async fn a_fault_of_the_capture_itself_cuts_the_recording() {
+async fn a_seal_failure_counts_a_gap_and_keeps_recording() {
     let directory = tempfile::tempdir().unwrap();
     let (mut runtime, mut helper) = fixture(directory.path()).unwrap();
     runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
@@ -757,21 +727,24 @@ async fn a_fault_of_the_capture_itself_cuts_the_recording() {
             .as_ref()
             .unwrap()
             .phase,
-        CapturePhase::Interrupted,
+        CapturePhase::Recording,
         "{:?}",
         said(&runtime)
     );
     assert!(
-        said(&runtime)
-            .join(" | ")
-            .contains("mantenimiento de la captura")
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .unwrap()
+            .gaps
+            > 0
     );
-    assert!(names(&sent(&mut helper)).contains(&"capture_stop".to_owned()));
-    assert!(!runtime.state.privacy_stopped());
+    assert!(!said(&runtime).join(" | ").contains("capture_cut"));
 }
 
-/// Which helper events are the capture's own. Read before the
-/// event is handled, while the order a response answers is still pending.
 #[tokio::test]
 async fn only_the_capture_s_own_events_count_as_capture_failures() {
     let directory = tempfile::tempdir().unwrap();

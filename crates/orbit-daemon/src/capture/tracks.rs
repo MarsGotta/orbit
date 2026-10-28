@@ -178,29 +178,40 @@ impl RecordingTracks {
         Ok(())
     }
 
-    /// Refuses a frame that would not continue its track: another format, a
-    /// sequence or stream that does not follow, or a clock that went back.
-    pub(super) fn check(&self, frame: &TrackFrame<'_>) -> Result<()> {
-        let Some(track) = self.tracks.get(frame.source) else {
-            return Ok(());
-        };
-        if track.rate != frame.rate || track.channels != frame.channels {
-            bail!("Formato de pista cambiado; inicia una grabación nueva");
-        }
-        if track
-            .native_sequence
-            .is_some_and(|previous| previous.checked_add(1) != Some(frame.native_sequence))
-            || track
-                .native_stream
-                .as_deref()
-                .is_some_and(|previous| previous != frame.stream)
-            || track
-                .last_monotonic_ns
-                .is_some_and(|previous| frame.monotonic_ns < previous)
+    /// A track keeps the format it started with: the hub joins its chunks
+    /// into one stream. The helper converts every route to it, so a frame in
+    /// another format is refused (and counted as a hole), never a new format.
+    pub(super) fn check_format(&self, frame: &TrackFrame<'_>) -> Result<()> {
+        if self
+            .tracks
+            .get(frame.source)
+            .is_some_and(|track| track.rate != frame.rate || track.channels != frame.channels)
         {
-            bail!("Discontinuidad en la secuencia o reloj de audio");
+            bail!("Formato de pista cambiado; se descarta el fragmento");
         }
         Ok(())
+    }
+
+    /// A discontinuity starts another stretch of the same track. It is a
+    /// hole, never a reason to stop the recorder.
+    pub(super) fn discontinuous(&self, frame: &TrackFrame<'_>) -> bool {
+        self.tracks.get(frame.source).is_some_and(|track| {
+            // A declared gap or resume already sealed the old stretch. Its
+            // next frame owns a fresh clock without counting it twice.
+            if track.native_sequence.is_none() {
+                return false;
+            }
+            track
+                .native_sequence
+                .is_some_and(|previous| previous.checked_add(1) != Some(frame.native_sequence))
+                || track
+                    .native_stream
+                    .as_deref()
+                    .is_some_and(|previous| previous != frame.stream)
+                || track
+                    .last_monotonic_ns
+                    .is_some_and(|previous| frame.monotonic_ns < previous)
+        })
     }
 
     /// Appends a checked frame and seals the track once it holds a second.
@@ -263,7 +274,7 @@ impl RecordingTracks {
     }
 
     /// A producer declared a hole: the tail is sealed so the missing time
-    /// never becomes contiguous PCM; only the producer sequence restarts.
+    /// never becomes contiguous PCM; the producer clock and sequence re-anchor.
     pub(super) fn restart_source(&mut self, source: &str) -> Result<Vec<Segment>> {
         let mut segments = Vec::new();
         if let (Some(id), Some(track)) = (self.recording_id.as_deref(), self.tracks.get_mut(source))
@@ -271,7 +282,7 @@ impl RecordingTracks {
             if !track.pcm.is_empty() {
                 segments.push(seal(id, self.capture_epoch_id.as_deref(), source, track)?);
             }
-            track.native_sequence = None;
+            track.forget_producer();
         }
         Ok(segments)
     }

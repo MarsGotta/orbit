@@ -55,6 +55,7 @@ import time
 import uuid
 from pathlib import Path
 
+import audio_route
 from mac_controls import PARTS, MacFailure
 from mac_drafts_panel import COMMANDS as DRAFTS_AND_PANEL
 from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
@@ -599,6 +600,9 @@ class Mac(DraftsAndPanel, CuaDriver):
             f"  tools: [{tools}]\n"
         )
 
+    def switch_input(self, name=None) -> dict:
+        return audio_route.switch_input(self, name)
+
     def activate(self) -> dict:
         """Brings Orbit Pruebas to the front and to the current Space.
 
@@ -671,6 +675,8 @@ def main(argv: list[str], mac: Mac | None = None) -> int:
             output = mac.restore(max_s)
         elif command == "logs":
             output = mac.logs()
+        elif command == "switch-input" and len(rest) <= 1:
+            output = mac.switch_input(rest[0] if rest else None)
         elif command == "activate":
             output = mac.activate()
         elif command in DRAFTS_AND_PANEL:

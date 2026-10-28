@@ -168,5 +168,6 @@ export const noticeClass = {
   call_silence_resolved: "silent",
   recording_silence_question: "working",
   recording_silence_resolved: "silent",
+  recording_cut_waiting: "silent",
   unknown: "failed",
 } as const satisfies Record<NoticeCode, NoticeClass>;

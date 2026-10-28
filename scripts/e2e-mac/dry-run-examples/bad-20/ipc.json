@@ -1,0 +1,22 @@
+{
+ "waits": {
+  "audio-route": {
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000001",
+        "phase": "interrupted",
+        "gaps": 1
+       }
+      }
+     }
+    },
+    {"topic": "notices", "knowledge": {"state": "present", "value": {"notices": []}}}
+   ]
+  }
+ }
+}

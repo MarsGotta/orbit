@@ -190,3 +190,126 @@ async fn a_device_change_under_a_voice_note_cancels_the_note_and_keeps_the_meeti
     assert!(!said::has(&runtime.state, NoticeCode::CaptureCut));
     Ok(())
 }
+
+#[tokio::test]
+async fn holes_and_bad_frames_leave_queued_audio_recording() -> Result<()> {
+    for variant in ["sequence", "clock", "format", "channels", "malformed"] {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, mut receiver) = fixture(directory.path())?;
+        runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
+        let (_, remote) = two_track_meeting(&mut runtime, &mut receiver).await?;
+        runtime
+            .handle_native_event(frame("remote_app", &remote, 0, 100))
+            .await;
+        let mut changed = frame("remote_app", &remote, 8, 200);
+        match variant {
+            "clock" => {
+                runtime
+                    .handle_native_event(gap("remote_app", &remote, "audio_ring_overflow"))
+                    .await;
+                changed["monotonic_ns"] = json!(1);
+            }
+            "format" => changed["sample_rate"] = json!(16000),
+            "channels" => {
+                changed["channels"] = json!(2);
+                changed["pcm_s16le_base64"] = json!(STANDARD.encode(vec![1; 3_200]));
+            }
+            "malformed" => changed["pcm_s16le_base64"] = json!("!"),
+            _ => {}
+        }
+        runtime.handle_native_event(changed).await;
+        for seq in 9..15 {
+            runtime
+                .handle_native_event(frame("remote_app", &remote, seq, 300 + seq))
+                .await;
+        }
+        assert_eq!(phase(&runtime), Some(CapturePhase::Recording), "{variant}");
+        let recording = runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .context("recording")?;
+        assert!(recording.gaps > 0, "{variant}");
+        assert!(
+            recording
+                .tracks
+                .iter()
+                .any(|track| track.name == "remote_app" && track.gaps > 0),
+            "{variant}"
+        );
+        assert!(
+            !said::has(&runtime.state, NoticeCode::CaptureCut),
+            "{variant}"
+        );
+        let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
+        assert!(!log.contains("stop_contained"), "{variant}: {log}");
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_capture_task_drops_a_bad_burst_once_and_serves_the_queued_frames() -> Result<()> {
+    use crate::daemon::capture_lane::test_support;
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
+    let (_, remote) = two_track_meeting(&mut runtime, &mut receiver).await?;
+    runtime.settle_capture_lane().await;
+    let (mut task, bridge) = test_support::spawn_task(&runtime)?;
+    for seq in 1..=8 {
+        let mut event = frame("remote_app", &remote, seq, seq * 100);
+        if (2..=4).contains(&seq) {
+            event["pcm_s16le_base64"] = json!("!");
+        }
+        bridge.send(test_support::frame(seq, event)).await?;
+    }
+    runtime.capture_barrier(Some(8)).await;
+    runtime.serve_forwarded(None).await;
+    task.stop();
+    assert_eq!(phase(&runtime), Some(CapturePhase::Recording));
+    let recording = runtime
+        .state
+        .durable
+        .capture
+        .recording
+        .as_ref()
+        .context("recording")?;
+    assert_eq!(recording.gaps, 3);
+    assert!(!said::has(&runtime.state, NoticeCode::CaptureCut));
+    let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
+    assert_eq!(log.matches("audio_frames_dropped").count(), 1, "{log}");
+    assert!(log.contains("\"count\":\"3\""), "{log}");
+    assert!(!log.contains("stop_contained"), "{log}");
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_repeating_seal_refusal_is_one_counted_diagnostic_and_never_cuts() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, mut receiver) = fixture(directory.path())?;
+    runtime.diagnostics = Some(crate::diagnostics::DiagnosticLog::in_root(directory.path()));
+    let (_, remote) = two_track_meeting(&mut runtime, &mut receiver).await?;
+    let destination = runtime
+        .paths
+        .store
+        .join("chunks/two-tracks-remote_app-0.orbit");
+    std::fs::create_dir(&destination)?;
+    for seq in 0..20 {
+        runtime
+            .handle_native_event(frame("remote_app", &remote, seq, seq * 100))
+            .await;
+    }
+    assert_eq!(phase(&runtime), Some(CapturePhase::Recording));
+    assert!(!said::has(&runtime.state, NoticeCode::CaptureCut));
+    std::fs::remove_dir(&destination)?;
+    runtime
+        .command(orbit_core::protocol::Command::MeetingFinish)
+        .await?;
+    runtime.settle_capture_lane().await;
+    let log = std::fs::read_to_string(directory.path().join("logs/daemon.log"))?;
+    assert_eq!(log.matches("audio_frames_dropped").count(), 1, "{log}");
+    assert!(!log.contains("stop_contained"), "{log}");
+    Ok(())
+}

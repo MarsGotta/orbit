@@ -109,6 +109,102 @@
    ]
   },
   {
+   "wait": "audio-route",
+   "topics": [
+    "recording",
+    "notices"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000001",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": "microphone_only",
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 1,
+        "finalizing_since_ms": null
+       }
+      }
+     }
+    },
+    {
+     "topic": "notices",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "notices": [
+        {
+         "code": "audio_route_recovered",
+         "sequence": 1,
+         "data": {
+          "elapsed_ms": 150,
+          "origin": "mic_local"
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "wait": "audio-route",
+   "topics": [
+    "recording",
+    "notices"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000001",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": "microphone_only",
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 2,
+        "finalizing_since_ms": null
+       }
+      }
+     }
+    },
+    {
+     "topic": "notices",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "notices": [
+        {
+         "code": "audio_route_recovered",
+         "sequence": 2,
+         "data": {
+          "elapsed_ms": 150,
+          "origin": "mic_local"
+         }
+        }
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
    "wait": "listening",
    "topics": [
     "recording"

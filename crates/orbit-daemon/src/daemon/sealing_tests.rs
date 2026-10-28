@@ -180,14 +180,8 @@ async fn a_failed_seal_retry_does_not_skip_the_rest_of_the_turn() -> Result<()> 
             .map(|since| since.saturating_sub(orbit_core::FINALIZING_TIMEOUT_MS + 1_000));
     }
 
-    let maintenance = runtime.maintain_capture().await;
-    let error = maintenance
-        .err()
-        .context("the failed retry must still reach the containment table")?;
-    assert!(
-        format!("{error:#}").contains("El destino del fragmento no es un archivo regular"),
-        "the refusal must keep its cause: {error:#}"
-    );
+    runtime.maintain_capture().await?;
+    // A failed seal is counted without cutting; the finalize tick still ran.
     assert_eq!(
         runtime
             .state

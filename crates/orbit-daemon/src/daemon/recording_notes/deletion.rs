@@ -28,7 +28,10 @@ use orbit_core::{
     refusal::{Expected, Parameter, Refusal},
 };
 use orbit_store::{Deleted, DeletionScope, JobState, WaitingOrder};
+mod worker;
 use std::collections::BTreeMap;
+pub(super) use worker::PurgeFailure;
+use worker::purge_steps;
 
 /// Chunks deleted per store operation. A one-second chunk per track makes a
 /// four-hour meeting about 29 000 of them; 256 a step keeps the writer free
@@ -51,6 +54,8 @@ pub(in crate::daemon) struct Deletions {
     purged: BTreeMap<String, DeletionScope>,
     /// The next try of a deletion the store refused, by meeting.
     retry_at_ms: BTreeMap<String, i64>,
+    /// Permanent refusals stay refused, including discarded orders still owed.
+    refused: std::collections::BTreeSet<String>,
 }
 
 /// A route this hub does not have: FastAPI's 405 on a path it knows for
@@ -86,6 +91,7 @@ impl Runtime {
     /// away with «Terminar sin guardar» instead.
     pub(in crate::daemon) async fn delete_meeting(&mut self, recording_id: String) -> Result<()> {
         check_recording(&recording_id)?;
+        self.require_meeting(&recording_id)?;
         if self
             .state
             .durable
@@ -112,6 +118,18 @@ impl Runtime {
             order: NoteOrder::Delete { discarded: false },
         })
         .await
+    }
+
+    fn require_meeting(&self, recording_id: &str) -> Result<()> {
+        if let Some(manifest) = self.reader.get_job(&format!("recording-{recording_id}"))?
+            && matches!(
+                manifest.payload["recording_kind"].as_str(),
+                Some("voice_turn" | "voice_call")
+            )
+        {
+            bail!("La grabación es una nota de voz o una llamada, no una reunión");
+        }
+        Ok(())
     }
 
     /// «Terminar sin guardar», confirmed. The order to the hub is kept
@@ -312,7 +330,11 @@ impl Runtime {
             let outcome = supervision
                 .guard(crate::supervision::Actor::NoteDeletion, purge)
                 .await
-                .unwrap_or_else(|_| Err("El borrado en este Mac falló; se reintentará".into()));
+                .unwrap_or_else(|_| {
+                    Err(PurgeFailure::Retry(
+                        "El borrado en este Mac falló; se reintentará".into(),
+                    ))
+                });
             let event = NoteEvent::Purged {
                 recording,
                 scope,
@@ -323,13 +345,13 @@ impl Runtime {
     }
 
     /// A deletion on this Mac ended.
-    pub(super) fn purge_answer(
+    pub(super) async fn purge_answer(
         &mut self,
         recording: String,
         scope: DeletionScope,
-        outcome: std::result::Result<Deleted, String>,
+        outcome: std::result::Result<Deleted, PurgeFailure>,
         now_ms: i64,
-    ) {
+    ) -> Result<()> {
         self.notes.deletions.purging = None;
         match outcome {
             Ok(deleted) => {
@@ -354,9 +376,28 @@ impl Runtime {
                 }
                 self.notes.head.touch_recording(&recording);
             }
-            Err(error) => {
-                // Said in the log with its cause; tried again, never dropped.
-                self.log("meeting_delete_on_mac_failed", &[("error", &error)]);
+            Err(PurgeFailure::Permanent(error)) => {
+                self.log(
+                    "meeting_delete_on_mac_failed",
+                    &[("error", &error), ("retry", "false")],
+                );
+                let deletions = &mut self.notes.deletions;
+                deletions.owed.remove(&recording);
+                deletions.retry_at_ms.remove(&recording);
+                deletions.refused.insert(recording.clone());
+                // Retire the obsolete meeting order, never the voice data it
+                // accidentally named. Otherwise the outbox re-sends its hub
+                // delete and re-owes the same local purge on every turn.
+                if let Some(sent) = self.notes.outbox.meeting_delete(&recording) {
+                    self.forget_order(OrderLane::Meeting(recording), sent)
+                        .await?;
+                }
+            }
+            Err(PurgeFailure::Retry(error)) => {
+                self.log(
+                    "meeting_delete_on_mac_failed",
+                    &[("error", &error), ("retry", "true")],
+                );
                 let deletions = &mut self.notes.deletions;
                 deletions.owed.entry(recording.clone()).or_insert(scope);
                 deletions.retry_at_ms.insert(
@@ -366,6 +407,7 @@ impl Runtime {
             }
         }
         self.start_due_purge(now_ms);
+        Ok(())
     }
 
     /// Whether the lane's delete may go now: not while the meeting closes,
@@ -378,43 +420,13 @@ impl Runtime {
             return true;
         };
         let deletions = &self.notes.deletions;
-        if deletions.purging.as_deref() == Some(recording)
+        if deletions.refused.contains(recording)
+            || deletions.purging.as_deref() == Some(recording)
             || deletions.owed.get(recording) == Some(&DeletionScope::Everything)
         {
             return false;
         }
         discarded || !self.closing(recording)
-    }
-}
-
-/// The deletion's steps, each a bounded run of the writer, until the store
-/// says it is done.
-async fn purge_steps(
-    port: crate::daemon::store_actor::CapturePort,
-    recording: String,
-    scope: DeletionScope,
-) -> std::result::Result<Deleted, String> {
-    let mut total = Deleted::default();
-    loop {
-        let id = recording.clone();
-        let step = match port
-            .begin_run(move |store| Ok(store.delete_recording(&id, scope, PURGE_STEP_CHUNKS)?))
-        {
-            Ok(receipt) => receipt.wait().await,
-            Err(error) => Err(error),
-        };
-        match step {
-            Ok(step) => {
-                total.chunks += step.chunks;
-                total.jobs += step.jobs;
-                total.records += step.records;
-                total.orders += step.orders;
-                if step.done {
-                    return Ok(total);
-                }
-            }
-            Err(error) => return Err(format!("{error:#}")),
-        }
     }
 }
 
@@ -429,6 +441,9 @@ impl crate::daemon::recording_notes::NotesHandle {
 
     fn owe_purge(&mut self, recording: &str, scope: DeletionScope) {
         let deletions = &mut self.deletions;
+        if deletions.refused.contains(recording) {
+            return;
+        }
         let owed = deletions.owed.entry(recording.to_owned()).or_insert(scope);
         if scope == DeletionScope::Everything {
             *owed = scope;

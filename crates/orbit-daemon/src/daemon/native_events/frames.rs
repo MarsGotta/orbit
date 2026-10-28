@@ -37,21 +37,13 @@ impl Runtime {
             .context("Evento audio sin objeto")?
             .insert("capture_epoch_id".into(), Value::String(stream_id));
         let turn_action = self.prepare_call_frame(event, received_at_ms).await?;
-        let ingested = match self.capture.buffer.ingest_observed(event, received_at_ms) {
-            Ok(ingested) => ingested,
-            Err(error) => {
-                let source = NativeAudioFrameRef::from_value(event)?.source;
-                if let Err(gap_error) = self.note_bound_audio_gap(source) {
-                    self.log(
-                        "native_audio_gap_failed",
-                        &[("cause", &gap_error.to_string())],
-                    );
-                }
-                return Err(error);
-            }
-        };
+        let ingested = self.capture.buffer.ingest_observed(event, received_at_ms)?;
+        if let Some(source) = ingested.gap {
+            self.note_audio_hole(source, "audio_discontinuity")?;
+        }
         self.observe_recording_signal(ingested.signal, std::time::Instant::now());
         self.seal(ingested.segments)?;
+        self.finish_audio_failures();
         self.finish_call_frame(turn_action).await?;
         Ok(())
     }
@@ -63,11 +55,9 @@ impl Runtime {
             // the recording keeps going and no privacy stop is
             // requested. A gap that arrives for a paused meeting or
             // for a stream this Mac no longer owns cannot be
-            // attributed to a recording the helper is still feeding,
-            // so it bails closed unless the Mac is already tearing
-            // the audio graph down (in which case the gap is part of
-            // the teardown and is dropped without re-triggering a
-            // stop).
+            // attributed to a recording the helper is still feeding.
+            // Malformed or unattributable gaps are dropped by the same
+            // containment as damaged frames; neither can stop capture.
             match orbit_core::failure::classify_gap(&self.state) {
                 Outcome::Degraded { kind, .. } => {
                     let recording_attributable = self
@@ -92,7 +82,7 @@ impl Runtime {
                         // declared it: the tail before the hole is sealed and
                         // the producer's next sequence is accepted, so the
                         // hole never becomes contiguous PCM and never cuts the
-                        // meeting. The stream and its clock are still checked.
+                        // meeting. The next frame re-anchors its stream and clock.
                         let rate = self.capture.buffer.track_rate(gap.source);
                         let segments = self.capture.buffer.restart_source(gap.source)?;
                         self.seal(segments)?;

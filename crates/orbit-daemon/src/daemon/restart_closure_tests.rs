@@ -137,6 +137,9 @@ async fn a_meeting_the_restart_cut_is_not_closed_at_start_and_goes_on() -> Resul
     runtime
         .handle_native_event(json!({"event":"ready","capabilities":[]}))
         .await;
+    runtime
+        .capture
+        .advance_recovery_clock(std::time::Duration::from_secs(1));
     let mut reopened = false;
     for _ in 0..3 {
         runtime.run_maintenance().await;
@@ -145,6 +148,9 @@ async fn a_meeting_the_restart_cut_is_not_closed_at_start_and_goes_on() -> Resul
                 runtime
                     .handle_native_event(granted_status(&command["id"]))
                     .await;
+                runtime
+                    .capture
+                    .advance_recovery_clock(std::time::Duration::from_secs(30));
             }
             reopened |= command["command"] == "audio_start";
         }

@@ -301,6 +301,9 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
         "with the helper gone nothing is left draining"
     );
     // Without a helper, the upkeep waits for it and reopens nothing.
+    runtime
+        .capture
+        .advance_recovery_clock(std::time::Duration::from_secs(1));
     runtime.run_maintenance().await;
     while let Ok(command) = receiver.try_recv() {
         assert_ne!(command["command"], "audio_start", "no helper to open it");
@@ -331,6 +334,9 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
         runtime.state.capabilities().microphone_state() == orbit_core::PermissionState::Granted,
         "the returning helper's status must re-observe the permissions"
     );
+    runtime
+        .capture
+        .advance_recovery_clock(std::time::Duration::from_secs(30));
     runtime.run_maintenance().await;
     let reopened = loop {
         let command = receiver
@@ -350,6 +356,10 @@ async fn a_returning_helper_restores_the_capability_and_resumes_the_cut_recordin
     assert_eq!(recording.id, "native-bridge-meeting", "the same recording");
     assert_eq!(recording.phase, CapturePhase::Starting);
     assert_ne!(reopened["stream_id"], json!(stream), "a new segment");
+    runtime
+        .handle_native_event(json!({"event":"response", "id":reopened["id"], "ok":true,
+        "result":{"stream_id":reopened["stream_id"]}}))
+        .await;
     assert!(said::has(
         &runtime.state,
         NoticeCode::RecordingResumedAfterCut

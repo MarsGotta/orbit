@@ -160,17 +160,71 @@ fn silence_questions_notify_once_including_the_foreground_without_content() {
     let mut watcher = Watcher::default();
     let mut call = Notice::new(NoticeCode::CallSilenceQuestion);
     call.sequence = Some(8);
-    let first = watcher.observe_silence(&[call.clone()]);
+    let first = watcher.observe_system_notices(&[call.clone()]);
     assert_eq!(first.len(), 1);
     assert_eq!(
         first[0].body,
         "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos"
     );
-    assert!(watcher.observe_silence(&[call]).is_empty());
+    assert!(watcher.observe_system_notices(&[call]).is_empty());
     let mut meeting = Notice::new(NoticeCode::RecordingSilenceQuestion);
     meeting.sequence = Some(9);
     assert_eq!(
-        watcher.observe_silence(&[meeting])[0].body,
+        watcher.observe_system_notices(&[meeting])[0].body,
         "¿Sigue la reunión? La termino y la guardo en 30 s"
+    );
+}
+
+#[test]
+fn recording_notices_post_in_front_once_without_meeting_content() {
+    use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
+    let mut watcher = Watcher::default();
+    let mut cut = Notice::new(NoticeCode::RecordingCutWaiting);
+    cut.sequence = Some(1);
+    let mut resumed =
+        Notice::new(NoticeCode::RecordingResumedAfterCut).with(NoticeKey::ElapsedMs, 12_000_u64);
+    resumed.sequence = Some(2);
+    let mut closed = Notice::new(NoticeCode::RecordingClosedAfterCut)
+        .with_token(NoticeKey::Cause, "helper_lost");
+    closed.sequence = Some(3);
+    // This channel is called even in front, just like silence questions.
+    let notices = watcher.observe_system_notices(&[cut.clone(), resumed.clone(), closed.clone()]);
+    assert_eq!(
+        notices.iter().map(|n| n.body.as_str()).collect::<Vec<_>>(),
+        [
+            "La grabación se ha cortado. Orbit intenta seguir grabando.",
+            "La grabación sigue. Faltan 12 s.",
+            "La grabación se ha cerrado: el ayudante del Mac se desconectó. Lo grabado está guardado.",
+        ]
+    );
+    assert!(notices.iter().all(|n| n.title == "Orbit"));
+    assert!(
+        watcher
+            .observe_system_notices(&[cut, resumed, closed])
+            .is_empty()
+    );
+}
+
+#[test]
+fn a_brief_cut_and_a_new_meeting_do_not_reuse_an_earlier_cut_notification() {
+    use orbit_core::notice::{Notice, NoticeCode};
+    let mut watcher = Watcher::default();
+    let mut resumed = Notice::new(NoticeCode::RecordingResumedAfterCut);
+    resumed.sequence = Some(1);
+    assert!(
+        watcher
+            .observe_system_notices(&[resumed.clone()])
+            .is_empty()
+    );
+    let mut cut = Notice::new(NoticeCode::RecordingCutWaiting);
+    cut.sequence = Some(2);
+    assert_eq!(watcher.observe_system_notices(&[cut]).len(), 1);
+    let mut started = Notice::new(NoticeCode::CaptureStarting);
+    started.sequence = Some(3);
+    resumed.sequence = Some(4);
+    assert!(
+        watcher
+            .observe_system_notices(&[started, resumed])
+            .is_empty()
     );
 }

@@ -7,6 +7,14 @@ is in Spanish; the labels quoted below are the ones it shows.
 
 ## [Unreleased]
 
+### Fixed
+
+- Audio gaps, damaged frames and device format changes keep meeting recordings
+  running. Real capture cuts keep retrying with backoff, and macOS notifications
+  report prolonged cuts, recovery and automatic closure after two minutes away.
+- Voice notes and assistant calls are refused before entering meeting deletion;
+  permanent local deletion refusals are logged once and retired.
+
 ## [0.12.9] - 2026-10-28
 
 ### Fixed

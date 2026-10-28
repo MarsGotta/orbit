@@ -9,8 +9,12 @@ impl Runtime {
     pub(in crate::daemon) async fn handle_native_event(&mut self, event: Value) {
         let about = self.native_event_label(&event);
         let capture = self.native_event_touches_capture(&event);
+        let audio = matches!(event["event"].as_str(), Some("audio" | "gap"));
+        let source = event["source"].as_str().map(str::to_owned);
         if let Err(error) = self.native_event(event).await {
-            if capture {
+            if audio {
+                self.drop_audio_event(source.as_deref(), &error.to_string());
+            } else if capture {
                 self.contain(
                     StopCause::CaptureEventFailed,
                     &format!("Fallo al tratar un evento de captura del Mac ({about}): {error}."),

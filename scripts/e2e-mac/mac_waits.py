@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 
+from audio_route import recovered
 from mac_controls import CONTROL_WAITS, MacFailure, notes_list
 from mac_drafts_panel import PANEL_WAITS
 from mac_silence import silence_question
@@ -240,6 +241,7 @@ def call_listening(state: dict, _arg):
 # says, the read it repeats (on a change of the `notes` head and at least
 # every READ_INTERVAL_S).
 WAITS = {
+    "audio-route": (("recording", "notices"), recovered, None),
     "paired": (("status",), paired, None),
     "recording": (("recording",), recording, None),
     "listening": (("recording",), listening, None),

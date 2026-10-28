@@ -80,6 +80,9 @@ pub(super) fn serve_frame(
             return false;
         }
     };
+    if let Some(source) = ingested.gap {
+        forward(core, seq, ForwardedItem::AudioHole { source });
+    }
     if let Some(signal) = ingested.signal {
         if core.outbox.signals.len() >= MAX_PENDING_SIGNALS {
             core.outbox.signals.remove(0);

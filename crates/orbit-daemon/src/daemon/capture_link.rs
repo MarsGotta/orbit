@@ -138,6 +138,9 @@ impl Runtime {
         for (signal, at) in signals {
             self.observe_recording_signal(Some(signal), at);
         }
+        if !self.recording_active() {
+            self.finish_audio_failures();
+        }
         let steady = self.capture_steady();
         let view = self.upload_view();
         {
@@ -176,36 +179,24 @@ impl Runtime {
     async fn serve_forwarded_item(&mut self, item: ForwardedItem) {
         match item {
             ForwardedItem::Event(event) => self.handle_native_event(event).await,
-            ForwardedItem::FrameFailed { frame, error } => {
-                if let Ok(identity) =
-                    orbit_core::wire::native::NativeAudioIdentityRef::from_value(&frame)
-                    && let Err(gap_error) = self.note_bound_audio_gap(identity.source)
-                {
-                    self.log(
-                        "native_audio_gap_failed",
-                        &[("cause", &gap_error.to_string())],
-                    );
+            ForwardedItem::AudioHole { source } => {
+                if let Err(error) = self.note_audio_hole(source, "audio_discontinuity") {
+                    self.drop_audio_event(Some(source), &error.to_string());
                 }
-                // Only an `audio` frame fails here: its label, as the
-                // loop's own containment names it (`native_event_label`).
-                self.contain_capture_event("audio", &error).await;
+            }
+            ForwardedItem::FrameFailed { frame, error } => {
+                let source = frame["source"].as_str();
+                self.drop_audio_event(source, &error);
             }
             ForwardedItem::Segments { segments } => {
                 if let Err(error) = self.seal(segments) {
-                    self.contain_capture_event("audio", &error.to_string())
-                        .await;
+                    self.drop_audio_event(None, &error.to_string());
                 }
             }
             ForwardedItem::SealRefused { error } => {
-                self.contain_capture_event("audio", &error).await;
+                self.drop_audio_event(None, &error);
             }
         }
-    }
-
-    /// What a failed capture event has always done (`handle_native_event`).
-    async fn contain_capture_event(&mut self, about: &str, error: &str) {
-        let text = format!("Fallo al tratar un evento de captura del Mac ({about}): {error}.");
-        self.contain(StopCause::CaptureEventFailed, &text).await;
     }
 
     /// Before the loop serves the helper event at `seq`: the task has handled

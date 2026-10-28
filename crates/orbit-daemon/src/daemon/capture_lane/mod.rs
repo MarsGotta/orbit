@@ -36,14 +36,16 @@ pub(super) use uploads::{UploadReport, UploadView};
 pub(super) enum ForwardedItem {
     /// A helper event the task did not serve: the loop serves it as before.
     Event(Value),
-    /// A frame the recording refused (a hole, a changed format): the loop
-    /// declares it and contains the capture as it does its own.
+    /// A new stretch the task already sealed/re-anchored; only counting remains.
+    AudioHole { source: &'static str },
+    /// A damaged frame the recording could not decode or seal: the loop
+    /// declares the dropped frame as a gap without stopping capture.
     FrameFailed { frame: Value, error: String },
     /// Segments the task cut but could not admit (the reserve is full): the
     /// loop admits them, with the gaps and the notice that come with that.
     Segments { segments: Vec<Segment> },
     /// A seal the task admitted could not be handed to the writer: the loop
-    /// contains it as it contains its own.
+    /// counts it as a gap and keeps capturing.
     SealRefused { error: String },
 }
 
