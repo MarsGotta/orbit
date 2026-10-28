@@ -7,10 +7,10 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
-- The Mac menu bar, application menus, notifications and Rust presentation copy follow the interface language and update when it changes.
-
 ### Changed
 
+- The Mac menu bar, application menus, notifications and the Rust side's
+  copy follow the interface language and update when it changes.
 - Move remaining desktop interface labels, accessible names and helper copy into
   the English and Spanish catalogues. Enforce the migration with an AST check
   in the UI test gate, including the app shell, design components and state.
