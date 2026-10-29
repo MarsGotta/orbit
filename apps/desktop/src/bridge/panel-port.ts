@@ -11,6 +11,9 @@ import { TauriPort } from "./tauri-port";
  * its window is allowed.
  */
 export class PanelPort extends TauriPort {
+  resizePanel(height: number): Promise<void> {
+    return invoke("orbit_panel_resize", { height });
+  }
   override send(command: AppCommand, op: string): Promise<CommandReceipt> {
     if (!Object.hasOwn(panelOrders, command.command)) {
       return Promise.reject(new Error(`El panel de llamadas no envía la orden ${command.command}`));

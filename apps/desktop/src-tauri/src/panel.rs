@@ -9,12 +9,7 @@
 //! `orbit://feature/<id>` events.
 
 use orbit_app_core::features::FeatureFrame;
-use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
-
-/// The user is writing a question in the panel: it keeps the keyboard
-/// and the room for the field until it is sent or cancelled.
-static ASKING: AtomicBool = AtomicBool::new(false);
 
 /// The panel window's label, named by its capability (`capabilities/panel.json`).
 pub const PANEL_LABEL: &str = "panel";
@@ -28,30 +23,10 @@ const PANEL_WIDTH: f64 = 340.0;
 /// bar) the panel sits, in logical points, as macOS notifications do.
 const PANEL_MARGIN: f64 = 16.0;
 
-// The window is as tall as the one card the interface shows
-// (`features/call-panel`), in logical points: 14 of padding each side, the
-// card's lines and its 32 point buttons. None limits what a card says: the
-// answer scrolls, and stays whole in the conversation.
-
-/// A call to answer: its app, its event and «Grabar» / «Ahora no». Mirrors
-/// `height` of the panel window in `tauri.conf.json`.
+/// Initial size before the webview reports its intrinsic content height.
+/// Mirrors only the initial `height` in `tauri.conf.json`, not a content limit.
+#[cfg(test)]
 pub const PANEL_HEIGHT: f64 = 120.0;
-
-/// The call ended: the countdown, its bar and «Seguir grabando».
-pub const PANEL_ENDING_HEIGHT: f64 = 132.0;
-
-/// A recording in progress: its time, what it records, «Preguntar a Deimos»
-/// and «Parar», and whether «Oye Deimos» listens (up to two lines).
-pub const PANEL_RECORDING_HEIGHT: f64 = 164.0;
-
-/// A question being written: the field, the minutes it listens to, a line
-/// for a question too long, «Cancelar» and «Preguntar».
-pub const PANEL_ASK_HEIGHT: f64 = 200.0;
-
-/// A question to Deimos and its answer: the question, a few lines of answer
-/// (it scrolls past them), what Deimos asks to do meanwhile and «Otra
-/// pregunta».
-pub const PANEL_ANSWER_HEIGHT: f64 = 300.0;
 
 /// Whether the panel must be visible after `frame`: only the recording frame
 /// decides it — a call to answer, a question to Deimos, or a recording in
@@ -68,42 +43,65 @@ pub fn panel_visible(frame: &FeatureFrame) -> Option<bool> {
     }
 }
 
-/// The panel's height after `frame`: that of the card the interface shows,
-/// in its order (a call to answer, a call that ended, a question, the
-/// recording). The question being written is `ASKING`'s.
-pub fn panel_height(frame: &FeatureFrame) -> Option<f64> {
-    use orbit_app_core::CallPanelSnapshot;
-    match frame {
-        FeatureFrame::Recording { view, .. } => Some(match &view.meeting.call_panel {
-            Some(CallPanelSnapshot::Offer { .. }) => PANEL_HEIGHT,
-            Some(CallPanelSnapshot::Ending { .. }) => PANEL_ENDING_HEIGHT,
-            _ if view.meeting.question.is_some() => PANEL_ANSWER_HEIGHT,
-            _ => PANEL_RECORDING_HEIGHT,
-        }),
-        _ => None,
-    }
-}
-
 /// The panel takes the keyboard only while the user writes a question;
 /// otherwise it never takes it from the call. A failure is said and the
 /// field stays visible.
 pub fn focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>, focus: bool) {
-    ASKING.store(focus, Ordering::Relaxed);
     let Some(window) = app.get_webview_window(PANEL_LABEL) else {
         return;
     };
-    if focus
-        && let Err(error) = window.set_size(tauri::LogicalSize::new(PANEL_WIDTH, PANEL_ASK_HEIGHT))
-    {
-        eprintln!("No se pudo ajustar el tamaño del panel flotante: {error}");
-    }
     if let Err(error) = window.set_focusable(focus) {
         eprintln!("No se pudo cambiar el foco del panel flotante: {error}");
         return;
     }
+    crate::application_menu::panel_editing(app, focus);
     if focus && let Err(error) = window.set_focus() {
         eprintln!("No se pudo dar el foco al panel flotante: {error}");
     }
+}
+
+/// Fits measured content inside the visible work area, leaving the same edge
+/// margins as placement. The screen, not a per-state height, limits the window.
+pub fn content_height(measured: f64, work_height: u32, scale: f64) -> Option<f64> {
+    if !measured.is_finite() || measured <= 0.0 || !scale.is_finite() || scale <= 0.0 {
+        return None;
+    }
+    let available = f64::from(work_height) / scale - 2.0 * PANEL_MARGIN;
+    (available >= 1.0).then(|| measured.ceil().min(available.floor()))
+}
+
+/// The panel can request only its intrinsic height. Rust owns width, screen
+/// limits and placement; this command changes neither focus nor recording.
+#[tauri::command]
+pub fn orbit_panel_resize<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    height: f64,
+) -> Result<(), String> {
+    let window = app
+        .get_webview_window(PANEL_LABEL)
+        .ok_or("The panel window is unavailable")?;
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| error.to_string())?
+        .or_else(|| window.primary_monitor().ok().flatten())
+        .ok_or("The panel monitor work area is unavailable")?;
+    let height = content_height(
+        height,
+        monitor.work_area().size.height,
+        monitor.scale_factor(),
+    )
+    .ok_or("Panel height and monitor scale must be positive finite numbers")?;
+    let current = window
+        .inner_size()
+        .ok()
+        .zip(window.scale_factor().ok())
+        .map(|(size, scale)| f64::from(size.height) / scale);
+    if current.is_none_or(|current| (current - height).abs() > 0.5) {
+        window
+            .set_size(tauri::LogicalSize::new(PANEL_WIDTH, height))
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 /// Physical pixels of a point on the desktop.
@@ -139,18 +137,13 @@ pub fn top_right(
 /// Only a change acts: the recording frame arrives several times a second
 /// with the audio meters, and showing an already visible window again would
 /// order it to the front each time.
-pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visible: bool, height: f64) {
+pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visible: bool) {
     let Some(window) = app.get_webview_window(PANEL_LABEL) else {
         return;
     };
     let shown = window.is_visible().unwrap_or(false);
-    let height = if ASKING.load(Ordering::Relaxed) {
-        PANEL_ASK_HEIGHT
-    } else {
-        height
-    };
     if !visible {
-        ASKING.store(false, Ordering::Relaxed);
+        crate::application_menu::panel_editing(app, false);
         if shown {
             if let Err(error) = window.hide() {
                 eprintln!("No se pudo ocultar el panel de llamadas: {error}");
@@ -161,16 +154,6 @@ pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visible: bool, height
             }
         }
         return;
-    }
-    let size = window
-        .inner_size()
-        .ok()
-        .zip(window.scale_factor().ok())
-        .map(|(size, scale)| f64::from(size.height) / scale);
-    if size.is_none_or(|current| (current - height).abs() > 0.5)
-        && let Err(error) = window.set_size(tauri::LogicalSize::new(PANEL_WIDTH, height))
-    {
-        eprintln!("No se pudo ajustar el tamaño del panel flotante: {error}");
     }
     if shown {
         return;

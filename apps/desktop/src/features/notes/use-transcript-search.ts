@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type Match, findMatches } from "./transcript-search";
+import { useWindowActions } from "../../state/window-actions";
 
 /**
  * The transcript's search, always at hand: the query, its matches and the one
  * in focus. ⌘F puts the cursor in it; ↵ and ⇧↵ move between matches, and only
  * a match the user moved to scrolls into view (nothing moves on opening).
  */
-export function useTranscriptSearch(texts: string[]) {
+export function useTranscriptSearch(texts: string[], available = true) {
   const [query, setQuery] = useState("");
   const [current, setCurrent] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -21,6 +22,12 @@ export function useTranscriptSearch(texts: string[]) {
     return grouped;
   }, [matches]);
   useEffect(() => {
+    if (!available) return;
+    const find = () => {
+      input.current?.focus();
+      input.current?.select();
+    };
+    useWindowActions.setState({ findTranscript: find });
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
@@ -29,8 +36,12 @@ export function useTranscriptSearch(texts: string[]) {
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (useWindowActions.getState().findTranscript === find)
+        useWindowActions.setState({ findTranscript: null });
+    };
+  }, [available]);
   useEffect(() => setCurrent(0), [query]);
   const total = matches.length;
   const focused = matches[Math.min(current, total - 1)] as Match | undefined;

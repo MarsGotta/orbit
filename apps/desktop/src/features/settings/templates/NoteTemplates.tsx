@@ -1,6 +1,6 @@
 import { getCopy } from "../../../i18n";
 import { useCopy } from "../../../i18n/CopyProvider";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AppCommand } from "../../../bridge/generated";
 import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
@@ -10,17 +10,11 @@ import { Toast } from "../../../design/Toast";
 import { Group, SkeletonRows } from "../layout";
 import { LibraryStatus } from "./LibraryStatus";
 import { type Restoring, restoreNotice } from "./restore-notice";
-import {
-  type RemovedTemplate,
-  draftOf,
-  newTemplateId,
-  restoreCommand,
-  saveCommand,
-} from "./template-draft";
+import { type RemovedTemplate, draftOf, newTemplateId, saveCommand } from "./template-draft";
 import { TemplateEditor } from "./TemplateEditor";
 import { TemplateList } from "./TemplateList";
 import styles from "./Templates.module.css";
-import { HUB_CONFIRMATION_MS } from "../../../state/ceilings";
+import { type Undoable, useDeleteUndo } from "./use-delete-undo";
 
 interface Editing {
   /** One editing session: a new one starts only when the user picks another. */
@@ -40,15 +34,6 @@ function blank(): NoteTemplateDetailSnapshot {
     pending: true,
   };
 }
-
-/** One delete the user can still undo; `key` restarts the ten seconds. */
-interface Undoable {
-  key: number;
-  removed: RemovedTemplate;
-}
-
-/** A promise it returns settles once the daemon answered the order. */
-type Send = (command: AppCommand) => unknown;
 
 /**
  * «Plantilla «X» borrada · N series vuelven a General · Deshacer»
@@ -93,52 +78,6 @@ function DeleteNotices({
   );
 }
 
-/** The delete the user can still undo, and the undo they pressed. */
-function useDeleteUndo(send: Send, error: string | null, daemon: DaemonConnection) {
-  const [deleted, setDeleted] = useState<Undoable | null>(null);
-  const [restoring, setRestoring] = useState<Restoring | null>(null);
-  // A daemon that is not ready while an undo waits may have restarted, and
-  // a restart loses the answers it kept in memory.
-  useEffect(() => {
-    if (daemon !== "ready")
-      setRestoring((current) =>
-        current === null || current.interrupted ? current : { ...current, interrupted: true },
-      );
-  }, [daemon]);
-  return {
-    deleted,
-    restoring,
-    onClose: () => setDeleted(null),
-    onUndo: (removed: RemovedTemplate) => {
-      const requestId = newTemplateId();
-      setRestoring({
-        removed,
-        requestId,
-        settled: false,
-        errorBefore: error,
-        interrupted: daemon !== "ready",
-      });
-      // Nothing settles an undo the hub never answers: past this, it is unknown.
-      setTimeout(
-        () =>
-          setRestoring((current) =>
-            current?.requestId === requestId ? { ...current, expired: true } : current,
-          ),
-        HUB_CONFIRMATION_MS,
-      );
-      void Promise.resolve(send(restoreCommand(removed, requestId))).then(() =>
-        setRestoring((current) =>
-          current?.removed === removed ? { ...current, settled: true } : current,
-        ),
-      );
-    },
-    deletedNow: (removed: RemovedTemplate) => {
-      setRestoring(null);
-      setDeleted((current) => ({ key: (current?.key ?? 0) + 1, removed }));
-    },
-  };
-}
-
 interface NoteTemplatesProps {
   /** The connection with the daemon, which a restart takes through
    *  `connecting` or `lost`. */
@@ -146,7 +85,7 @@ interface NoteTemplatesProps {
   /** The refusal of Settings' last order, as the view shows it. */
   error?: string | null;
   library: NoteLibrarySnapshot | null | undefined;
-  send: Send;
+  send: (command: AppCommand) => unknown;
 }
 
 /**

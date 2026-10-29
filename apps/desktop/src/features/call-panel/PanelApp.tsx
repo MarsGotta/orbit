@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { useCrashReporting } from "../../app/use-crash-reporting";
 import { useOrbitConnection } from "../../app/useOrbitConnection";
@@ -18,14 +18,17 @@ import { PanelAnswer } from "./PanelAnswer";
 import { PanelAsk } from "./PanelAsk";
 import { openPanelLink } from "./panel-links";
 import styles from "./CallPanel.module.css";
+import { usePanelSize } from "./use-panel-size";
+import { followWindowPreferences } from "../../state/window-preferences";
 
 /**
  * The root of the floating panel's window. It follows the same
  * frames as the main window and renders only what the panel has to say:
  * a call, a recording to ask Deimos about, and a question with its answer.
- * The window itself is shown, hidden and sized by the app from the same frames.
+ * Frames decide visibility; the rendered content supplies the height to the host.
  */
 export function PanelApp({ port }: { port: DaemonPort }) {
+  useEffect(() => followWindowPreferences(), []);
   const [store] = useState(() => createOrbitStore(port, { notices: false }));
   const crash = useStore(store, (state) => state.crash);
   const assistantName = useStore(store, (state) => primaryAgentName(state.snapshot));
@@ -105,10 +108,10 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
     );
   }
   return (
-    <div className={styles.root} data-panel-root>
+    <PanelSurface port={port}>
       {card}
       <Refusals texts={[...said, links.refused]} />
-    </div>
+    </PanelSurface>
   );
 }
 
@@ -153,4 +156,16 @@ function usePanelLinks(port: DaemonPort) {
     void openPanelLink(port, url).then(setRefused);
   };
   return { open, refused };
+}
+
+/** Intrinsic content remains independent of the screen-constrained scroll viewport. */
+function PanelSurface({ port, children }: { port: DaemonPort; children: ReactNode }) {
+  const content = usePanelSize(port);
+  return (
+    <div className={styles.viewport}>
+      <div className={styles.root} data-panel-root ref={content}>
+        {children}
+      </div>
+    </div>
+  );
 }

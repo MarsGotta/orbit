@@ -400,20 +400,21 @@
   margin-left: 5px;
 }
 .markdown {
+  font-size: calc(14px * var(--o-reading-scale, 1));
   border-top: 1px solid var(--o-line);
   padding-top: 12px;
 }
 .markdown h2 {
-  font-size: 20px;
+  font-size: calc(20px * var(--o-reading-scale, 1));
   font-weight: 600;
   margin: 24px 0 14px;
 }
 .markdown h3 {
-  font-size: 16px;
+  font-size: calc(16px * var(--o-reading-scale, 1));
 }
 .markdown p,
 .markdown li {
-  font-size: 14px;
+  font-size: calc(14px * var(--o-reading-scale, 1));
   line-height: 1.7;
 }
 .markdown ul,
@@ -431,7 +432,7 @@
 }
 .markdown table {
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: calc(12px * var(--o-reading-scale, 1));
 }
 .markdown td,
 .markdown th {
@@ -451,7 +452,7 @@
   border-radius: 8px;
   padding: 16px;
   font:
-    12px/1.7 ui-monospace,
+    calc(12px * var(--o-reading-scale, 1))/1.7 ui-monospace,
     Menlo,
     monospace;
   color: var(--o-ink2);

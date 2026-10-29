@@ -86,9 +86,10 @@ fn window_capabilities_keep_the_panel_command_boundary() -> Result<(), Box<dyn s
             "core:event:allow-unlisten",
             "allow-orbit-snapshot",
             "allow-orbit-panel-send",
+            "allow-orbit-panel-resize",
             "allow-orbit-report"
         ]),
-        "the panel listens to its frames, answers a call and records its own failures; \
+        "the panel listens to its frames, sends panel orders, reports its height and failures; \
          it emits nothing"
     );
     let main: serde_json::Value =
@@ -97,10 +98,12 @@ fn window_capabilities_keep_the_panel_command_boundary() -> Result<(), Box<dyn s
     let permissions = main["permissions"].as_array().ok_or("main permissions")?;
     assert!(
         !permissions.iter().any(|permission| {
-            permission
-                .as_str()
-                .or_else(|| permission["identifier"].as_str())
-                == Some("allow-orbit-panel-send")
+            matches!(
+                permission
+                    .as_str()
+                    .or_else(|| permission["identifier"].as_str()),
+                Some("allow-orbit-panel-send" | "allow-orbit-panel-resize")
+            )
         }),
         "the main window must not invoke panel-only orders: {permissions:?}"
     );
@@ -218,10 +221,7 @@ fn thinking() -> orbit_app_core::MeetingQuestionSnapshot {
 fn a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
     let asked = recording_with(None, Some(thinking()));
     assert_eq!(asked.as_ref().and_then(panel_visible), Some(true));
-    assert_eq!(
-        asked.as_ref().and_then(panel_height),
-        Some(PANEL_ANSWER_HEIGHT)
-    );
+
     let call = recording_with(
         Some(CallPanelSnapshot::Offer {
             call_id: "call-1".into(),
@@ -230,15 +230,15 @@ fn a_question_to_deimos_shows_the_panel_with_room_for_the_answer() {
         }),
         None,
     );
-    assert_eq!(call.as_ref().and_then(panel_height), Some(PANEL_HEIGHT));
+    assert_eq!(call.as_ref().and_then(panel_visible), Some(true));
     let quiet = recording_with(None, None);
     assert_eq!(quiet.as_ref().and_then(panel_visible), Some(false));
 }
 
 /// A recording started by hand has no call to answer, and «Preguntar a
 /// Deimos» is offered during it as during a detected call's: the panel
-/// shows while any recording runs or is paused (`ask`), at the height of
-/// the recording card, and goes when it ends.
+/// shows while any recording runs or is paused (`ask`), sized from its
+/// content, and goes when it ends.
 #[test]
 fn any_recording_shows_the_panel_to_ask_deimos() {
     let recording = recording(None).map(|frame| match frame {
@@ -262,55 +262,23 @@ fn any_recording_shows_the_panel_to_ask_deimos() {
         other => other,
     });
     assert_eq!(recording.as_ref().and_then(panel_visible), Some(true));
-    assert_eq!(
-        recording.as_ref().and_then(panel_height),
-        Some(PANEL_RECORDING_HEIGHT)
-    );
 }
 
-/// The window is the card it shows, one at a time, in the order the
-/// interface picks it (`PanelApp.tsx`): the countdown of a call that ended
-/// comes before a question, so its height does too.
+/// Measured content may grow and shrink; only the screen limits it. Retina
+/// dimensions are physical, while the card's measurements are logical points.
 #[test]
-fn the_panel_is_as_tall_as_the_card_it_shows() {
-    let ending = || CallPanelSnapshot::Ending {
-        recording_id: "rec-1".into(),
-        application: "zoom.us".into(),
-        ends_at_ms: 13_000,
-    };
-    let height = |frame: Option<FeatureFrame>| frame.as_ref().and_then(panel_height);
-    assert_eq!(
-        height(recording_with(Some(ending()), None)),
-        Some(PANEL_ENDING_HEIGHT)
-    );
-    assert_eq!(
-        height(recording_with(Some(ending()), Some(thinking()))),
-        Some(PANEL_ENDING_HEIGHT)
-    );
-    let by_call = CallPanelSnapshot::Recording {
-        recording_id: "rec-1".into(),
-        application: "zoom.us".into(),
-        event_title: Some("Ribera Norte".into()),
-    };
-    assert_eq!(
-        height(recording_with(Some(by_call), None)),
-        Some(PANEL_RECORDING_HEIGHT)
-    );
-    let heights = [
-        PANEL_HEIGHT,
-        PANEL_ENDING_HEIGHT,
-        PANEL_RECORDING_HEIGHT,
-        PANEL_ASK_HEIGHT,
-        PANEL_ANSWER_HEIGHT,
-    ];
-    assert!(
-        heights.windows(2).all(|pair| pair[0] < pair[1]),
-        "{heights:?}"
-    );
+fn measured_content_fits_the_screen_without_state_specific_heights() {
+    assert_eq!(content_height(278.25, 1800, 2.0), Some(279.0));
+    assert_eq!(content_height(421.0, 1800, 2.0), Some(421.0));
+    assert_eq!(content_height(1600.0, 1800, 2.0), Some(868.0));
+    assert_eq!(content_height(132.0, 900, 1.0), Some(132.0));
+    assert_eq!(content_height(f64::NAN, 900, 1.0), None);
+    assert_eq!(content_height(-10.0, 900, 1.0), None);
+    assert_eq!(content_height(100.0, 900, 0.0), None);
 }
 
 /// The configuration opens the panel at the width of the 340 point card
-/// and at the offer's height, the constants the code resizes it with.
+/// with an initial height, before content is measured.
 #[test]
 fn the_configured_panel_window_is_the_card() -> Result<(), Box<dyn std::error::Error>> {
     let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))?;

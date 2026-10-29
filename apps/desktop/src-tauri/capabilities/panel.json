@@ -1,13 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "panel",
-  "description": "Floating call panel: listens to its frames, reads the initial state, only answers a call (orbit_panel_send) and records its failures (orbit_report). It emits no events and invokes no other orders.",
+  "description": "Floating call panel: listens to frames, reads the initial state, sends its panel orders, reports its content height and records failures. It emits no events.",
   "windows": ["panel"],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-orbit-snapshot",
     "allow-orbit-panel-send",
+    "allow-orbit-panel-resize",
     "allow-orbit-report"
   ]
 }

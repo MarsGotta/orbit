@@ -23,6 +23,8 @@ import { FailureActionsProvider } from "./FailureActions";
 import { useScopedSend } from "./use-scoped-send";
 import { OrbitStoreProvider } from "../state/use-in-flight";
 import { flushBeforeQuit } from "../state/quit-flush";
+import { useWindowPreferences } from "../state/window-preferences";
+import { useWindowMenu } from "./use-window-menu";
 
 export interface AppContentProps {
   palette: PaletteContent;
@@ -57,6 +59,7 @@ function ColumnHost() {
 }
 
 function AppContent(props: AppContentProps) {
+  const sidebar = useWindowPreferences((state) => state.sidebar);
   const [done, setDone] = useState(onboardingWasCompleted);
   const [requested, setRequested] = useState<OnboardingRequest>(null);
   const dispatch = useCommandDispatch(props.send);
@@ -64,13 +67,15 @@ function AppContent(props: AppContentProps) {
   const onRecord = () => props.setMeetingOpen(true);
   return (
     <ShellSlots>
-      <div className={styles.app} data-app-content>
-        <Sidebar
-          onRecord={onRecord}
-          send={recordingDispatch}
-          snapshot={props.snapshot}
-          view={props.view}
-        />
+      <div className={styles.app} data-app-content data-sidebar-hidden={!sidebar || undefined}>
+        {sidebar && (
+          <Sidebar
+            onRecord={onRecord}
+            send={recordingDispatch}
+            snapshot={props.snapshot}
+            view={props.view}
+          />
+        )}
         <ColumnHost />
         <div className={styles.mainColumn}>
           <TopBar
@@ -146,6 +151,7 @@ export function AppRoot({ port, app }: { port: DaemonPort; app: ReturnType<typeo
   const quit = () => void send({ command: "quit" });
 
   useWindowLifecycle(port);
+  useWindowMenu(port, snapshot, fromRecording, () => setMeetingOpen(true));
 
   if (!snapshot && error) return <NotResponding onClose={quit} />;
   if (!snapshot)

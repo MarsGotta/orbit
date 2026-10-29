@@ -23,6 +23,12 @@
   flex-direction: column;
 }
 
+/* Keep macOS's overlay traffic lights clear when navigation is folded away. */
+.app[data-sidebar-hidden] .columnHost:empty + .mainColumn > header,
+.app[data-sidebar-hidden] .listHeader {
+  padding-left: 88px;
+}
+
 /* The 272 px list of Meetings and Assistant, the window's full height. */
 .listColumn {
   width: var(--o-w-list);

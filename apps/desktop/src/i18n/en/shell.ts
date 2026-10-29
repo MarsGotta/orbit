@@ -15,6 +15,8 @@ function sidebarCopy(assistantName: string) {
       /** The agent every text names by default: the open conversation's. */
       assistantName,
       viewsLabel: "Main",
+      hideSidebar: "Hide Sidebar",
+      showSidebar: "Show Sidebar",
       breadcrumbsLabel: "Where you are",
       record: "Record meeting",
       recordShortcut: "⌃⌥M",

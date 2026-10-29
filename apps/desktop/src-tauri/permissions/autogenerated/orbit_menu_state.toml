@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-menu-state"
+description = "Enables the orbit_menu_state command without any pre-configured scope."
+commands.allow = ["orbit_menu_state"]
+
+[[permission]]
+identifier = "deny-orbit-menu-state"
+description = "Denies the orbit_menu_state command without any pre-configured scope."
+commands.deny = ["orbit_menu_state"]

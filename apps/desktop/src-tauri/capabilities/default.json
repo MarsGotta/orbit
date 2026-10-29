@@ -11,6 +11,7 @@
     "allow-orbit-agent",
     "allow-orbit-vault",
     "allow-orbit-send",
+    "allow-orbit-menu-state",
     "allow-orbit-report",
     "allow-orbit-attachment-add",
     "allow-orbit-attachment-content",

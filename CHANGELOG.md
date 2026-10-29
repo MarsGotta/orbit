@@ -52,6 +52,11 @@ English and Spanish; labels quoted below may use either language.
 - The Mac bundle includes a layered Icon Composer app icon using the existing
   orbital motif, with the legacy ICNS retained for macOS 15. Packaging requires
   Xcode 26 or later and verifies that the icon compiler produced Assets.car.
+- Application menus expose Settings, recording, conversation, transcript search
+  and privacy stop actions. The sidebar can be hidden, reading text can grow to
+  200%, and both choices are remembered on this Mac. Template deletion remains
+  undoable after its toast closes. The recording panel fits its rendered content
+  and scrolls when it reaches the screen's visible area.
 
 - The real-test harness supports an English pass with `run --language en`,
   alongside its default Spanish pass. Both use checked exports of Orbit’s own

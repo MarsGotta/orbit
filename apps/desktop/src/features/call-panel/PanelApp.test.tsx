@@ -12,6 +12,37 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("reports intrinsic content height again when muted, discard and refusal content grows", async () => {
+  let measure: ResizeObserverCallback = () => undefined;
+  const observe = vi.fn();
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: ResizeObserverCallback) {
+        measure = callback;
+      }
+      observe = observe;
+      disconnect() {}
+    },
+  );
+  const resizePanel = vi.fn(async () => undefined);
+  try {
+    const { port } = portWith({ ...recording, microphone_muted: true });
+    Object.assign(port, { resizePanel });
+    render(<PanelApp port={port} />);
+    await screen.findByText("Repaso de la obra");
+    const root = document.querySelector("[data-panel-root]")!;
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue({ height: 278.25 } as DOMRect);
+    act(() => measure([], {} as ResizeObserver));
+    expect(resizePanel).toHaveBeenLastCalledWith(279);
+    vi.spyOn(root, "getBoundingClientRect").mockReturnValue({ height: 421 } as DOMRect);
+    act(() => measure([], {} as ResizeObserver));
+    expect(resizePanel).toHaveBeenLastCalledWith(421);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 /**
  * A port whose recording frame holds `meeting`, the assistant's `pending`,
  * and the hub's `settings` and open conversation (`chat`).

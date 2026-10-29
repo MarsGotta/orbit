@@ -160,7 +160,7 @@ export function TranscriptTab({ note, send, library, onRedoSummary }: Transcript
   const { renamed, picked, fix } = changes;
   const turns = note.transcript.turns;
   const texts = useMemo(() => turns.map((turn) => shownText(turn, fix)), [turns, fix]);
-  const search = useTranscriptSearch(texts);
+  const search = useTranscriptSearch(texts, !arriving(note));
   const redo = useRetranscribe(note, send);
   const [wordAnchor, setWordAnchor] = useState<HTMLElement | null>(null);
   const redoSummary = onRedoSummary ?? (() => void send(rewrite(note)));

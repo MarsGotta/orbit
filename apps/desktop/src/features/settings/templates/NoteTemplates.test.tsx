@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 import { blur, editorNamed, focusAt, typeText } from "../../editor/test-editor";
@@ -58,6 +58,53 @@ function library(state: "available" | "unknown" = "available"): NoteLibrarySnaps
 }
 
 afterEach(cleanup);
+
+it("does not mistake a refusal shown before Undo for a failed template restore", async () => {
+  const data = library();
+  const send = vi.fn();
+  const view = render(<NoteTemplates library={data} send={send} />);
+  fireEvent.click(screen.getByRole("button", { name: "Entrevista" }));
+  fireEvent.click(screen.getByRole("button", { name: "Borrar plantilla" }));
+  data.items = data.items.filter((item) => item.id !== "entrevista");
+  view.rerender(<NoteTemplates error="Earlier refusal" library={data} send={send} />);
+  fireEvent.keyDown(window, { key: "z", metaKey: true });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("restores the last deleted template with Command-Z after its toast expires, without taking text undo", async () => {
+  vi.useFakeTimers();
+  try {
+    const send = vi.fn();
+    render(<NoteTemplates library={library()} send={send} />);
+    fireEvent.click(screen.getByRole("button", { name: "Entrevista" }));
+    fireEvent.click(screen.getByRole("button", { name: "Borrar plantilla" }));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.queryByRole("button", { name: "Deshacer" })).toBeNull();
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.focus();
+    fireEvent.keyDown(field, { key: "z", metaKey: true });
+    expect(send.mock.calls.some(([command]) => command.request.action === "restore_template")).toBe(
+      false,
+    );
+    field.remove();
+    fireEvent.keyDown(window, { key: "z", metaKey: true });
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        command: "note_library",
+        request: expect.objectContaining({ action: "restore_template", template_id: "entrevista" }),
+      }),
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+  } finally {
+    vi.useRealTimers();
+  }
+});
 
 it("lists Orbit's templates marked «de Orbit» and edits one that saves itself", () => {
   render(<NoteTemplates library={library()} send={vi.fn()} />);
