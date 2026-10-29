@@ -81,29 +81,6 @@ impl TopicCache {
         self.topics.get(&id).map(Arc::as_ref)
     }
 
-    /// Shared heads and reads let projection inputs be compared without walking
-    /// note or transcript payloads. A receipt/freshness change is also an input.
-    pub(crate) fn changed(&self, other: &Self, id: TopicId) -> bool {
-        let same_head = match (self.topics.get(&id), other.topics.get(&id)) {
-            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
-            (None, None) => true,
-            _ => false,
-        };
-        let reads = |cache: &Self| cache.reads.values().filter(|read| read.topic == id).count();
-        !same_head
-            || reads(self) != reads(other)
-            || self
-                .reads
-                .iter()
-                .filter(|(_, read)| read.topic == id)
-                .any(|(key, read)| {
-                    other
-                        .reads
-                        .get(key)
-                        .is_none_or(|next| !Arc::ptr_eq(read, next))
-                })
-    }
-
     pub fn observe(&mut self, frame: TopicFrame) {
         let received_at_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
