@@ -147,9 +147,11 @@ SSH:
   survives. Nobody should be using the Mac while it runs. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
   `blackhole-2ch`, `switchaudio-osx` and a Spanish system voice; the run
-  switches the audio input and restores it afterwards. Check 16 reads the last
-  menus built inside Orbit Pruebas through its [test bridge](docs/testing/test-bridge.md);
-  every other interface press and read still uses CuaDriver. Orbit itself must be
+  switches the audio input and restores it afterwards. All presses, typing and readings inside
+  Orbit Pruebas use its [test bridge](docs/testing/test-bridge.md), including
+  check 16's native menu snapshot. CuaDriver is started only around check 21,
+  which reads macOS accessibility once before and once during recording.
+  Check 18 still moves the real pointer through the Swift script. Orbit itself must be
   closed, because both builds register the same global shortcuts.
 - `dry-run` walks the same orchestrator and checks on Linux against the example
   states in `scripts/e2e-mac/dry-run-examples/`. It proves the logic of the

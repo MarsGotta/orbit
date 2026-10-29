@@ -161,7 +161,7 @@ fn windows<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Value {
         rows.push(json!({"label":label,"window_id":found.windowNumber(),"visible":found.isVisible(),
             "frame":{"x":frame.origin.x,"y":frame.origin.y,"width":frame.size.width,"height":frame.size.height}}));
     }
-    json!({"ok":true,"windows":rows,"coordinates":"appkit_screen_points_bottom_left"})
+    json!({"ok":true,"pid":std::process::id(),"windows":rows,"coordinates":"appkit_screen_points_bottom_left"})
 }
 #[cfg(not(target_os = "macos"))]
 fn windows<R: tauri::Runtime>(_app: &tauri::AppHandle<R>) -> Value {

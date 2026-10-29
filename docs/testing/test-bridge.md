@@ -73,36 +73,82 @@ same byte ceiling. These are engineering budgets, not Mac latency measurements.
 
 ## Harness scope and reviewer acceptance
 
-This step changes check 16 only: during the first recording, the harness calls
-`mac.py bridge-menus`. It requires exactly one enabled «Silenciar» row, one
-enabled «Terminar sin guardar…» row, and a recording time in the tray title.
-`dry-run-examples/good/bridge.json` passes; `bad-16/bridge.json` disables the
-mute row and fails only check 16. All other presses, reads, pointer work,
-shortcuts, relaunches and CuaDriver lifecycle remain on their existing paths.
-The English harness migration is a later step.
+All web-view presses, typing and reads use the bridge through `interface.py`.
+Each reading is saved under the run's `trees/` folder with its original query
+and byte count. The semantic tree retains headings, text leaves, editable
+values and descriptions, list hierarchy and transcript order. Queries retain
+matching rows and their ancestors; a size refusal never becomes an empty view.
+The original twenty checks keep their evidence and meaning. Check 16 still
+reads the last native menu state through `mac.py bridge-menus`.
 
-Linux verifies the protocol with a fake desktop boundary, the injected DOM
-against controlled React fixtures, build exclusion, and all dry-run checks.
-It cannot prove real WebKit event delivery, AppKit menus or window numbers.
-On a consented, idle Mac with the isolated Orbit Pruebas fixtures, the reviewer
-must check:
+A reading also returns an opaque `target` for each semantic element, alongside
+its exact role and accessible name. The driver preserves existing explicit
+first-match choices (for example, the sidebar before a duplicate breadcrumb),
+then sends that chosen target with the full role/name guard. The view still
+requires exactly one match. Targets use document nonces and weak node references,
+so another node taking the same position cannot receive a stale press. Only
+connected nodes are retained; reloads/relaunches invalidate old targets. A
+request without a target still searches the whole view and refuses duplicates.
 
-1. Build the normal app and the test app. Only the test app creates the bridge
-   socket; its mode is 0600, under the test data directory. Quit and reopen it:
-   the old socket goes and the new process answers without a bridge restart.
-2. Select Spanish and run the full real harness. Check 16 must pass, not skip;
-   inspect the actual status-item menu for enabled «Silenciar» and
-   «Terminar sin guardar…», and verify its time matches the recording and ticks.
-   Compare `bridge-menus` with the displayed tray and application menus.
-3. Through the socket, press one harmless named DOM button in the main window
-   and one in the visible panel. Verify their actual UI transitions. Type into
-   a named controlled field, then navigate away/back to verify React retained
-   the value. A missing/duplicate name must refuse with 0/the duplicate count.
-   Use synthetic content and read-only or reversible controls, not live accounts.
-4. Compare `read` with the visible controls, their labels and text. Confirm
-   hidden controls do not match. Compare `windows` to both app windows, then
-   use each returned number with `screencapture -l` to identify the right window.
-   Keep only necessary synthetic evidence outside the public repository.
-5. Confirm an unresponsive/reloading view refuses within two seconds and a
-   delayed action does not run after expiry. A timed-out action remains an
-   uncertain outcome: inspect before taking any next action.
+`mac.py bridge-call JSON` opens a fresh socket per request. After the Dock's
+quit, `drafts_panel.py` waits for the relaunched app's bridge, refreshes the pid
+and window number, and reads the recovered composer. The Mac-side draft step
+still types, reads the value back from the named field and immediately sends
+the Apple Event in a single remote call. It never starts/restarts CuaDriver.
+
+Check 18 retains `pointer.swift` and the daemon's held/released facts. Its
+panel readings now use the bridge. The Dock's quit, BlackHole, `say` and
+`SwitchAudioSource` retain their original native paths. No new global shortcut
+is pressed: the harness did not press those shortcuts before this migration.
+
+Check 21 independently reads macOS accessibility through CuaDriver, with no
+input tool granted in its manifest. The sidebar replaces «Grabar reunión» with
+the recording card, so a single simultaneous snapshot cannot see both it and
+«Terminar». The check takes exactly one AX sample before recording and one
+during it, within one short CuaDriver session surrounding recording start.
+Before each AX sample the bridge waits for the intended button to render;
+there is no native AX polling. Both samples require the sidebar links «Hoy»,
+«Calendario», «Reuniones», «Notas», «Asistente» and «Ajustes». The AX trees are
+stripped of the system menu bar before being saved as `accessibility-*.txt`.
+A `finally` block uses the strict stop that waits until no CuaDriver answers;
+cleanup retries an interrupted stop only for the driver's recorded pid.
+
+`dry_bridge.py` replays the app-view boundary from `screens/` and
+`transitions.json`; the fake CuaDriver can read only the independent
+`accessibility-*.md` fixtures and refuses every input tool. The good example
+passes all 21 checks; `bad-21` removes an AX button name without changing DOM
+behavior or any of the original checks. The original spoiled examples still
+fail their own checks. Cross-language tests run the actual injected DOM code
+and pass its trees to the existing list, transcript and recovered-draft checks.
+
+Expected runtime is shorter because per-action CuaDriver subprocesses and AX
+walks, the panel's WindowServer lookup, and the CuaDriver restart after quitting
+are removed. One SSH round trip per bridge request and all audio, pointer-hold,
+silence, hub and relaunch waits remain. The two new AX samples cost one scoped
+CuaDriver session. No Mac timing improvement is claimed until the reviewer
+measures complete runs under the same conditions.
+
+Linux verifies the protocol, injected DOM, public driver and dry-run checks.
+It cannot prove WebKit delivery, AppKit behavior or real AX visibility. On a
+consented, idle Mac with the isolated Orbit Pruebas fixtures, the reviewer must:
+
+1. Rebuild Orbit Pruebas with the current bridge and run the full Spanish
+   harness. All 21 checks must pass, including 16, 17, 18 and the new 21.
+2. Inspect saved bridge trees for the transcript's times/speakers/text, meeting
+   titles and day groups, editable title values, muted spans and draft recovery.
+   Confirm every web-view press/type is a DOM action. Repeated controls must
+   target the intended sidebar/list/tab element, and stale targets must refuse.
+3. Verify `accessibility-idle.txt` and `accessibility-recording.txt` contain
+   the real macOS AX trees, the expected buttons and all sidebar names, without
+   the system menu bar or Recent Items. Confirm CuaDriver has one short session,
+   only two `get_window_state` calls and no click/type/key call. It must be gone
+   before the script's first half and stay stopped through the Dock relaunch.
+4. Confirm the panel is held by the real pointer and releases after it leaves;
+   bridge reads must show both states. The Dock's quit must close the process;
+   the next process must supply a fresh pid/window number, recover the exact
+   typed draft and show «Recuperado…» without restarting CuaDriver.
+5. Confirm audio input is restored and no CuaDriver remains after a failure or
+   interruption, including one during check 21. Measure whole-run time against
+   the previous run under comparable conditions; do not shorten audio or hold
+   waits to claim a speedup. Keep only necessary synthetic evidence outside
+   the public repository.

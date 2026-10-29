@@ -1,12 +1,12 @@
 {
  "saved": {
-  "click:Abrir": "note-other"
+  "press:Abrir": "note-other"
  },
  "note-other": {
-  "click:Resumen": "note-summary",
-  "click:Acciones": "note-actions",
-  "click:Transcripción": "note-transcript",
-  "click:Reuniones": "notes-list",
-  "click:Asistente": "assistant"
+  "press:Resumen": "note-summary",
+  "press:Acciones": "note-actions",
+  "press:Transcripción": "note-transcript",
+  "press:Reuniones": "notes-list",
+  "press:Asistente": "assistant"
  }
 }

@@ -8,15 +8,13 @@ reading of the test hub's database (hub_traces.py), and the test hub itself —
 started from this tree on loopback with a Whisper and a note model that do
 not exist and are never called, and stopped again.
 
-What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the system
-commands of the Mac (say, SwitchAudioSource, open, ps), the test bridge's
-menu reply (bridge.json), Orbit Pruebas's socket
-(the frames each wait sees, the reads, the commands), its logs, and
-CuaDriver's command line (`status`, `call`, `stop`: the windows, the tree of
-each screen, which screen a click, a key, a quit or the pointer leads to, and
-a refusal when the example says so), and what the test hub keeps of each
-recording (hub.json: the dry run's hub never has one). An example other than
-«good» holds only the files that differ from «good».
+What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the Mac's
+system commands, the in-app bridge's semantic trees (screens/), menu reply
+(bridge.json), and transitions of presses, typing, pointer motion and quits
+(transitions.json); the daemon's socket and logs; CuaDriver's two independent
+accessibility snapshots (accessibility-*.md); and what the hub keeps (hub.json).
+The fake CuaDriver refuses every input tool. An example other than good holds
+only the files that differ from good.
 
 A dry run that passes says the logic of the test holds. It is not the real
 test and does not count as one.
@@ -25,25 +23,23 @@ test and does not count as one.
 from __future__ import annotations
 
 import json
-import math
 import plistlib
 import socket
 import tempfile
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 
 import isolated_hub
 import mac as mac_side
 import mac_engine
 import real_test
+from dry_bridge import MAIN_WINDOW, PANEL_WINDOW, PID, DryRunBridge, DryRunView, query_filter
 from interface import StepFailed
 
+__all__ = ["PID", "query_filter"]
+
 EXAMPLES = Path(__file__).resolve().parent / "dry-run-examples"
-PID = 4242
 CUA_PID = 4343
-MAIN_WINDOW = 11
-PANEL_WINDOW = 12
 # cua-driver walks at most 2 000 nodes of a window (ax/tree.rs) and then says so.
 MAX_NODES = 2000
 
@@ -93,7 +89,8 @@ class DryRunSystem(mac_side.System):
         self.app_open = False
         self.signals: list[tuple[int, int]] = []
         self.pauses: list[float] = []
-        self.cua = DryRunCua(example, paths.logs)
+        self.view = DryRunView(example, paths.logs)
+        self.cua = DryRunCua(example, self.view)
 
     def _quit(self) -> None:
         """Orbit Pruebas ends, as on the Apple Event «quit»."""
@@ -117,6 +114,8 @@ class DryRunSystem(mac_side.System):
         if command[0] == "open":
             # Orbit Pruebas «starts»: its logs are the example's, and on a
             # second start they are still the first one's (the data stays).
+            if not self.app_open:
+                self.view.generation += 1
             self.app_open = True
             self.paths.logs.mkdir(parents=True, exist_ok=True)
             for name in ("report-daemon.log", "report-app.log", "daemon.log"):
@@ -128,10 +127,10 @@ class DryRunSystem(mac_side.System):
         if command[0] == "osascript":
             # The Apple Event «quit», what the Dock sends.
             self._quit()
-            self.cua.follow("apple-event:quit")
+            self.view.follow("apple-event:quit")
             return 0, "", ""
         if command[0] == "swift" and command[1].endswith("pointer.swift"):
-            return self.cua.pointer(int(command[2]), command[3])
+            return self.view.pointer(int(command[2]), command[3])
         if command[0] == "sw_vers":
             return 0, "26.1\n", ""
         if list(command) == ["id", "-F"]:
@@ -145,6 +144,10 @@ class DryRunSystem(mac_side.System):
             ]
             return 0, "".join(json.dumps(row) + "\n" for row in rows), ""
         if command[0] == "say":
+            if self.cua.running:
+                raise mac_side.MacFailure(
+                    "CuaDriver was left running outside the accessibility step"
+                )
             return 0, "", ""
         return 1, "", f"command the dry run does not expect: {command}"
 
@@ -163,18 +166,18 @@ class DryRunSystem(mac_side.System):
     def processes(self) -> list[tuple[int, str]]:
         rows = []
         if self.app_open:
-            rows.append((PID, str(self.paths.app / mac_side.MEMBERS[0])))
+            rows.append((self.view.pid, str(self.paths.app / mac_side.MEMBERS[0])))
         if self.cua.running:
             rows.append((CUA_PID, mac_engine.CUA_APP + "Contents/MacOS/CuaDriver"))
         return rows
 
     def signal(self, pid: int, number: int) -> None:
         self.signals.append((pid, number))
-        if pid == PID:
+        if pid == self.view.pid:
             self.app_open = False
 
     def wait_exit(self, pids: list[int], max_s: float) -> list[int]:
-        if PID in pids:
+        if self.view.pid in pids:
             self.app_open = False
         return []
 
@@ -247,53 +250,28 @@ class DryRunOrbit:
         raise TimeoutError
 
 
-class DryRunBridge:
-    """The in-app bridge boundary; only check 16 calls it in this step."""
-
-    def __init__(self, example: Example):
-        self.example = example
-
-    def call(self, request: dict) -> dict:
-        if request != {"command": "menus"}:
-            raise mac_side.MacFailure(f"unexpected test bridge request: {request}")
-        return self.example.json("bridge.json")
-
-
-def query_filter(markdown: str, query: str) -> str:
-    """cua-driver's `query`: matching lines and their ancestors."""
-    lines = markdown.splitlines()
-    needle = query.lower()
-    kept = set()
-    for position, line in enumerate(lines):
-        if needle in line.lower():
-            kept.add(position)
-            indent = len(line) - len(line.lstrip())
-            for earlier in range(position - 1, -1, -1):
-                other = len(lines[earlier]) - len(lines[earlier].lstrip())
-                if other < indent:
-                    kept.add(earlier)
-                    indent = other
-    return "\n".join(lines[i] for i in sorted(kept)) + "\n"
+# What macOS answered on a real run before WebKit had built its tree: only
+# the window's own buttons.
+WINDOW_CHROME_ONLY = """- [0] AXWindow "Orbit" [actions=[raise]]
+  - [1] AXButton [actions=[press]]
+  - [2] AXButton [actions=[press,zoomwindow,showmenu]]
+  - [3] AXButton [actions=[press]]
+"""
 
 
 class DryRunCua:
-    """CuaDriver's command line: `status`, `serve` through `open`, `call` and
-    `stop`. A call answers from the tree of the current screen and moves to
-    another screen as the example's transitions.json says; the example's
-    cua.json can make it refuse a tool, as the real driver words it."""
+    """CuaDriver lifecycle and read-only AX snapshots. It cannot drive the UI;
+    cua.json can refuse an accessibility reading, or answer its first reads of
+    each state with the window's own buttons only (chrome_only_reads)."""
 
-    def __init__(self, example: Example, logs: Path):
-        self.example = example
-        self.logs = logs
-        self.transitions = example.base("transitions.json")
-        self.transitions.update(example.overrides("transitions.json"))
+    def __init__(self, example, view):
+        self.example, self.view = example, view
         self.refusals = example.overrides("cua.json").get("refusals", {})
-        self.screen = "home"
-        # What the floating panel shows: the pointer can change it.
-        self.panel = "panel"
+        self.chrome_only = example.overrides("cua.json").get("chrome_only_reads", 0)
+        self.reads = {}
         self.running = False
-        self.mode = "bounded"
-        self.serve: list[str] | None = None
+        self.mode = example.overrides("cua.json").get("mode", "bounded")
+        self.serve = None
         self.stopped = False
 
     def start(self, command: list[str]) -> tuple[int, str, str]:
@@ -332,115 +310,18 @@ class DryRunCua:
                 return 1, "", str(cause)
         return 1, "", f"cua-driver command the dry run does not expect: {arguments}"
 
-    def _log(self, name: str, row: dict) -> None:
-        """A report-log line, stamped now, as the daemon writes it."""
-        # Rounded up to the millisecond the log keeps, so the line never
-        # seems to come before what wrote it.
-        instant = datetime.fromtimestamp(math.ceil(time.time() * 1000) / 1000, UTC)
-        row = dict(row, ts=instant.isoformat(timespec="milliseconds").replace("+00:00", "Z"))
-        with open(self.logs / name, "a", encoding="utf-8") as log:
-            log.write(json.dumps(row) + "\n")
-        # A dry-run step lasts well under a millisecond; this one lasts past
-        # the stamped instant, as a real one does.
-        time.sleep(0.005)
-
-    def _tree(self, window: int) -> str:
-        name = self.panel if window == PANEL_WINDOW else self.screen
-        return self.example.text(f"screens/{name}.md")
-
-    def follow(self, key: str) -> None:
-        """The main window's screen after `key`, when the example names one."""
-        target = self.transitions.get(self.screen, {}).get(key)
-        if target is not None:
-            self.screen = target
-
-    def pointer(self, window_id: int, where: str) -> tuple[int, str, str]:
-        """pointer.swift: the pointer over the panel (a 340 point card at the
-        top right of a Retina screen) or beside it."""
-        target = self.transitions.get(self.panel, {}).get(f"pointer:{where}")
-        if target is not None:
-            self.panel = target
-        inside = where == "over"
-        row = {
-            "window_id": window_id,
-            "bounds": {"x": 1084.0, "y": 49.0, "width": 340.0, "height": 300.0},
-            "before": {"x": 700.0, "y": 450.0},
-            "after": {"x": 1254.0 if inside else 1044.0, "y": 199.0},
-            "warped": True,
-            "inside": inside,
-            "scale": 2.0,
-        }
-        return 0, json.dumps(row) + "\n", ""
-
-    def call(self, tool: str, arguments: dict) -> dict:
-        if tool not in mac_side.TOOLS:
-            raise StepFailed(f"tool '{tool}' is outside the capability manifest")
-        if arguments.get("pid") != PID:
-            raise StepFailed(
-                f"desktop application pid {arguments.get('pid')} is outside the capability manifest"
-            )
-        if tool == "list_windows":
-            return {
-                "windows": [
-                    {
-                        "pid": PID,
-                        "window_id": MAIN_WINDOW,
-                        "app_name": "Orbit Pruebas",
-                        "title": "Orbit",
-                        # As on the real Mac (run 7): on another Space.
-                        "is_on_screen": False,
-                    },
-                    # Never the floating panel: cua-driver lists layer 0 only
-                    # (list_windows.rs), as the real Mac showed on 2026-10-17.
-                ]
-            }
-        markdown = self._tree(arguments["window_id"])
-        if tool == "get_window_state":
-            lines = markdown.splitlines()
-            notice = ""
-            if len(lines) > MAX_NODES:
-                # The walk stops at the cap and says so after the tree.
-                markdown = "\n".join(lines[:MAX_NODES]) + "\n"
-                notice = (
-                    f"\n⚠️  AX tree truncated at {MAX_NODES} nodes (app has a very large "
-                    "accessibility tree — Arc, Electron, or similar). Element indices above "
-                    "are still valid. Use pixel clicks for elements not visible in this "
-                    "partial tree."
-                )
-            if "query" in arguments:
-                markdown = query_filter(markdown, arguments["query"])
-            if arguments["window_id"] == MAIN_WINDOW:
-                # A screen that changes once it was read: the window's first
-                # paint, before the webview drew anything.
-                self.follow("read")
-            return {"tree_markdown": markdown + notice, "elements": []}
-        if tool == "press_key":
-            key = "+".join([*arguments.get("modifiers", []), arguments["key"]])
-            self.follow(f"press_key:{key}")
-            return {"ok": True}
-        import ax_tree
-
-        node = next(
-            (n for n in ax_tree.parse(markdown) if n.index == arguments.get("element_index")),
-            None,
-        )
-        if node is None:
-            raise StepFailed(
-                f"{tool}: there is no element {arguments.get('element_index')} in «{self.screen}»"
-            )
-        if tool == "type_text":
-            self.example.message = arguments["text"]
-        key = f"{tool}:{node.text()}"
-        target = self.transitions.get(self.screen, {}).get(key)
-        if isinstance(target, dict):
-            # A transition can also leave a line in a report log, stamped now,
-            # as the daemon would while that click happens.
-            for name, row in target.get("log", {}).items():
-                self._log(name, row)
-            target = target["to"]
-        if target is not None:
-            self.screen = target
-        return {"ok": True}
+    def call(self, tool, arguments):
+        if tool != "get_window_state" or arguments.get("pid") != self.view.pid:
+            raise StepFailed(f"CuaDriver only permits the read-only accessibility check: {tool}")
+        phase = "idle" if self.view.screen in ("home", "briefing") else "recording"
+        self.reads[phase] = self.reads.get(phase, 0) + 1
+        if self.reads[phase] <= self.chrome_only:
+            return {"tree_markdown": WINDOW_CHROME_ONLY}
+        tree = self.example.text(f"accessibility-{phase}.md")
+        lines = tree.splitlines()
+        if len(lines) > MAX_NODES:
+            tree = "\n".join(lines[:MAX_NODES]) + f"\nAX tree truncated at {MAX_NODES} nodes\n"
+        return {"tree_markdown": tree}
 
 
 class DryRunHub:
@@ -479,10 +360,9 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
     (mac_paths.app / "Contents" / "Info.plist").write_bytes(
         plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
     )
+    system = DryRunSystem(example, mac_paths)
     mac = real_test.InProcessMac(
-        mac_side.Mac(
-            mac_paths, DryRunSystem(example, mac_paths), DryRunOrbit(example), DryRunBridge(example)
-        )
+        mac_side.Mac(mac_paths, system, DryRunOrbit(example), DryRunBridge(example, system.view))
     )
     paths = isolated_hub.Paths(root / "orbit-pruebas")
     isolated_hub.prepare_secrets(paths)
@@ -513,5 +393,6 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
         test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
     # Nor does a replayed panel change with time: it is read at once.
     test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")
+    test.bounds["accessibility-tree"] = (2, "cua.json may hold back the first reads")
     test.hub_kept = DryRunHub(example, test.hub_kept)
     return test.run(), run_directory

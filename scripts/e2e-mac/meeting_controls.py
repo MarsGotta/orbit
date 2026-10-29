@@ -54,7 +54,7 @@ BOUNDS = {
         ),
     ),
 }
-# What each reading of these steps asks CuaDriver for (real_test.READS).
+# What each reading of these steps asks the bridge for (real_test.READS).
 # «Micrófono silenciado» and «Reactivar micrófono» both contain the first; the
 # list of meetings after a deletion is read whole: a few rows.
 READS = {

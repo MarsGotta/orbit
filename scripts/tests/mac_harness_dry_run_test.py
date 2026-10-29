@@ -41,7 +41,7 @@ from support_network_fence import install
 
 FENCE = install()
 # Every check can pass or fail, including the menu bar through the bridge.
-ALL = list(range(1, 21))
+ALL = list(range(1, 22))
 SKIPPED = {}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
@@ -49,7 +49,7 @@ FOLLOWS = {
     7: {18: "unchecked"},
     # An interrupted capture ends the script before its audio/UI evidence.
     # «Oye Deimos» (7) and its panel (18) come before the input change.
-    20: {n: "unchecked" for n in ALL if n not in (7, 10, 16, 18, 20)},
+    20: {n: "unchecked" for n in ALL if n not in (7, 10, 16, 18, 20, 21)},
 }
 
 
@@ -194,8 +194,8 @@ def test_the_menu_bar_never_reaches_the_evidence(tmp_path):
     class Bridge:
         last_reply_bytes = len(read)
 
-        def action(self, tool, arguments):
-            return {"tree_markdown": read, "snapshot_id": "s1"}
+        def call(self, request):
+            return {"tree_markdown": read, "elements": []}
 
     ui = interface.Interface(Bridge(), tmp_path, 7)
     nodes = ui.read(interface.Window(7, 1, "Orbit Pruebas"), "home", None)
@@ -415,27 +415,19 @@ def test_the_quit_types_its_draft_and_confirms_it_on_screen_right_before_quittin
     system = dry_run.DryRunSystem(example, paths)
     mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
     system.app_open = True
-    system.cua.running = True
-    system.cua.screen = "assistant"
-    typing = {
-        "pid": dry_run.PID,
-        "window_id": dry_run.MAIN_WINDOW,
-        "element_index": 6,
-        "snapshot_id": None,
-        "text": "Borrador inventado 1a2b3c",
-        "delivery_mode": "foreground",
-    }
+    system.view.generation = 1
+    system.view.screen = "assistant"
+    mac.bridge = dry_run.DryRunBridge(example, system.view)
+    ui = interface.Interface(mac.bridge, tmp_path, dry_run.PID)
+    typing = ui.typing(
+        ui.windows()["main"], "Mensaje para", "Borrador inventado 1a2b3c", contains=True
+    )
 
     done = mac.draft_and_quit("apple-event", json.dumps(typing), 1.0, 1.0)
 
-    calls = [c for c in system.commands if c[0] == str(paths.cua)]
-    tools = [c[2] for c in calls]
-    # Typed, read back from the box, and only then the quit: no other
-    # command between them.
-    assert tools[-2:] == ["type_text", "get_window_state"]
-    after = system.commands[system.commands.index(calls[-1]) + 1 :]
-    assert after[0][0] == "osascript", after
-    assert "press_key" not in tools
+    assert [request["command"] for request in mac.bridge.calls][-2:] == ["type", "read"]
+    assert not any(command[0] == str(paths.cua) for command in system.commands)
+    assert system.commands[0][0] == "osascript"
     assert done["quit"] == "apple-event"
     assert done["in_box"] is True
     assert done["came_back"] == 0
@@ -451,11 +443,15 @@ def test_a_draft_that_never_reached_the_box_is_not_quit_on(tmp_path):
     system = dry_run.DryRunSystem(example, paths)
     mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
     system.app_open = True
-    system.cua.running = True
-    # The empty composer: typing there leads to no screen showing the text.
-    system.cua.screen = "briefing"
-    typing = {"pid": dry_run.PID, "window_id": dry_run.MAIN_WINDOW, "element_index": 1}
-    typing |= {"text": "Borrador inventado 4d5e6f", "delivery_mode": "foreground"}
+    system.view.generation = 1
+    system.view.screen = "assistant"
+    mac.bridge = dry_run.DryRunBridge(example, system.view)
+    ui = interface.Interface(mac.bridge, tmp_path, dry_run.PID)
+    typing = ui.typing(
+        ui.windows()["main"], "Mensaje para", "Borrador inventado 4d5e6f", contains=True
+    )
+    # The fake view accepts the event but never paints the typed draft.
+    system.view.transitions["assistant"] = {}
 
     with pytest.raises(mac_side.MacFailure, match="did not show"):
         mac.draft_and_quit("apple-event", json.dumps(typing), 0.0, 1.0)
@@ -469,10 +465,13 @@ def test_the_quit_apple_event_goes_to_orbit_pruebas_by_its_bundle_identifier(tmp
     system = dry_run.DryRunSystem(example, paths)
     mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
     system.app_open = True
-    system.cua.running = True
-    system.cua.screen = "assistant"
-    typing = {"pid": dry_run.PID, "window_id": dry_run.MAIN_WINDOW, "element_index": 6}
-    typing |= {"text": "Borrador inventado 7a8b9c", "delivery_mode": "foreground"}
+    system.view.generation = 1
+    system.view.screen = "assistant"
+    mac.bridge = dry_run.DryRunBridge(example, system.view)
+    ui = interface.Interface(mac.bridge, tmp_path, dry_run.PID)
+    typing = ui.typing(
+        ui.windows()["main"], "Mensaje para", "Borrador inventado 7a8b9c", contains=True
+    )
 
     mac.draft_and_quit("apple-event", json.dumps(typing), 1.0, 1.0)
 
@@ -920,3 +919,224 @@ def test_bridge_connection_failure_names_the_transport_and_command(capsys):
     assert "test bridge transport failed for menus" in error
     assert "errno 2" in error
     assert "no retry" in error
+
+
+def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
+    results, directory = dry_run.run("good", tmp_path)
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 22)}
+    data = json.loads((directory / "report.json").read_text())
+    assert set(data["accessibility"]["trees"]) == {"idle", "recording"}
+    assert (directory / "trees/accessibility-idle.txt").is_file()
+    assert (directory / "trees/accessibility-recording.txt").is_file()
+    assert data["cua"]["sessions"] == 1
+    assert all(row["source"] == "bridge" for row in data["reads"])
+    assert data["drafts"][0]["reconnected"]["window_id"] != data["drafts"][0]["previous_window_id"]
+    assert any(directory.joinpath("trees").glob("*draft-after*"))
+
+
+def test_accessibility_failure_does_not_change_any_other_check(tmp_path):
+    results, _ = dry_run.run("bad-21", tmp_path)
+    assert {row["number"]: row["status"] for row in results} == {
+        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+    }
+
+
+def test_accessibility_waits_for_webkit_to_build_its_tree(tmp_path):
+    # Real run of 2026-10-29: the first macOS read held only the window's own
+    # buttons, and check 21 failed although the app named every control.
+    results, directory = dry_run.run("accessibility-lazy-tree", tmp_path)
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 22)}
+    data = json.loads((directory / "report.json").read_text())
+    assert data["accessibility"]["reads"] == {"idle": 3, "recording": 3}
+    assert "Grabar reunión" in (directory / "trees/accessibility-idle.txt").read_text()
+
+
+def test_interface_sends_a_guarded_bridge_press_and_saves_its_reading(tmp_path):
+    class Bridge:
+        def __init__(self):
+            self.calls = []
+
+        def call(self, request):
+            self.calls.append(request)
+            if request["command"] == "windows":
+                return {
+                    "ok": True,
+                    "windows": [{"label": "main", "window_id": 17, "visible": True}],
+                }
+            if request["command"] == "read":
+                return {
+                    "ok": True,
+                    "tree_markdown": '- [3] AXButton "Record"\n',
+                    "elements": [
+                        {
+                            "index": 3,
+                            "role": "button",
+                            "name": "Record",
+                            "text": "Record",
+                            "target": [0],
+                        }
+                    ],
+                }
+            return {"ok": True, "count": 1}
+
+    bridge = Bridge()
+    ui = interface.Interface(bridge, tmp_path, 42)
+    main = ui.windows()["main"]
+    ui.press(main, "Record", ("AXButton",))
+    assert bridge.calls[-1] == {
+        "command": "press",
+        "window": "main",
+        "role": "button",
+        "name": "Record",
+        "target": [0],
+    }
+    assert (tmp_path / "001-find-Record.txt").read_text() == '- [3] AXButton "Record"\n'
+
+
+def _dom_read(html, request=None):
+    """Run the actual injected DOM function, then feed its wire tree to checks."""
+    import subprocess
+
+    source = (ROOT / "apps/desktop/src-tauri/src/test_bridge/dom.js").read_text()
+    javascript = """
+import { JSDOM } from 'jsdom';
+import { readFileSync } from 'node:fs';
+const fixture = JSON.parse(readFileSync(0, 'utf8'));
+const { window } = new JSDOM(fixture.html, {runScripts: 'outside-only'});
+window.HTMLElement.prototype.getClientRects = () => [new window.DOMRect(0, 0, 100, 30)];
+window.TextEncoder = TextEncoder;
+const request = {command:'read', deadline:Date.now()+2000, max_reply_bytes:500000, ...fixture.request};
+const result = window.eval('(() => { const run = '+fixture.source+'; return run('+JSON.stringify(request)+'); })()');
+process.stdout.write(JSON.stringify(result));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", javascript],
+        cwd=ROOT / "apps/desktop",
+        input=json.dumps({"html": html, "source": source, "request": request or {}}),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+    reply = json.loads(result.stdout)
+    assert reply["ok"], reply
+    return reply
+
+
+def test_actual_dom_projection_keeps_list_structure_and_never_reads_an_unloaded_list_as_empty():
+    import ax_tree
+
+    html = """<aside aria-label="Lista de reuniones"><header><h2>Reuniones</h2>
+    <button aria-label="Actualizar">↻</button></header><div><section><h3>Hoy</h3>
+    <a href="#one"><span><span>Invented meeting</span><time>10:00</time></span><span>Ready</span></a>
+    </section></div></aside><main><a href="#meetings">Reuniones</a><h1>Other view</h1></main>"""
+    tree = _dom_read(html)["tree_markdown"]
+    assert meeting_control_checks.listed(ax_tree.parse(tree)) == ["Invented meeting"]
+    unloaded = html.replace(
+        "<section><h3>Hoy</h3>", "<section><p>Leyendo tus reuniones del hub…</p><h3>Hoy</h3>"
+    )
+    assert (
+        meeting_control_checks.listed(ax_tree.parse(_dom_read(unloaded)["tree_markdown"])) is None
+    )
+
+
+def test_actual_dom_projection_keeps_transcript_times_speakers_and_words_without_duplication():
+    import ax_tree
+
+    html = """<div><p>Pulsa un nombre para cambiar quién habla.</p>
+    <article><time>00:00</time><div><button>Invented speaker</button><p>Hello <span>world</span>.</p></div></article>
+    <article><time>00:05</time><div><button>Invented speaker</button><p>Second turn.</p></div></article>
+    </div><aside aria-label="Aviso de Orbit"><p>A notice</p></aside>"""
+    tree = _dom_read(html)["tree_markdown"]
+    _, turns = ax_tree.transcript(ax_tree.parse(tree), "Pulsa un nombre", "Aviso de Orbit")
+    assert [(turn.time, turn.speaker) for turn in turns] == [
+        ("00:00", "Invented speaker"),
+        ("00:05", "Invented speaker"),
+    ]
+    assert turns[0].text == "Hello world."
+    assert turns[1].text == "Second turn."
+
+
+def test_actual_dom_projection_keeps_the_recovered_composer_field_and_its_value():
+    html = """<label>Mensaje para Atlas<textarea>Invented draft</textarea></label>
+    <p>Recuperado el borrador que no llegaste a enviar.</p>"""
+    tree = _dom_read(html)["tree_markdown"]
+    row = {
+        "quit": "apple-event",
+        "text": "Invented draft",
+        "gap_s": 0.01,
+        "closed": 1,
+        "in_box": True,
+        "came_back": 0,
+        "stored": True,
+    }
+    assert drafts_panel_checks.c17_drafts(
+        {"drafts": [row], "trees": {"draft-after-apple-event": tree}}
+    )[0]
+    empty = _dom_read(html.replace("Invented draft", ""))["tree_markdown"]
+    assert not drafts_panel_checks.c17_drafts(
+        {"drafts": [row], "trees": {"draft-after-apple-event": empty}}
+    )[0]
+
+
+def test_bridge_driver_finds_a_sidebar_label_beside_dynamic_metadata(tmp_path):
+    html = '<nav aria-label="Principal"><a href="#meetings"><span>Reuniones</span><span>1 en curso</span></a></nav>'
+
+    class View:
+        def __init__(self):
+            self.calls = []
+
+        def call(self, request):
+            self.calls.append(request)
+            if request["command"] == "read":
+                return _dom_read(html, request)
+            return {"ok": True, "count": 1}
+
+    view = View()
+    ui = interface.Interface(view, tmp_path)
+    ui.press(interface.Window(42, 11, "Orbit"), "Reuniones", ("AXLink",), first=True)
+    assert view.calls[-1]["name"] == "Reuniones1 en curso"
+    assert len(view.calls[-1]["target"]) == 3
+
+
+@pytest.mark.parametrize(
+    "phase,label,role",
+    [
+        ("idle", "Grabar reunión", "AXButton"),
+        ("recording", "Terminar", "AXButton"),
+        *[
+            ("recording", label, "AXLink")
+            for label in ("Hoy", "Calendario", "Reuniones", "Notas", "Asistente", "Ajustes")
+        ],
+    ],
+)
+def test_accessibility_check_fails_if_any_required_control_loses_its_name(phase, label, role):
+    import accessibility
+
+    trees = {
+        name: (SCREENS / "good" / f"accessibility-{name}.md").read_text()
+        for name in ("idle", "recording")
+    }
+    assert accessibility.c21_accessibility({"accessibility": {"trees": trees}})[0]
+    trees[phase] = trees[phase].replace(f'{role} "{label}"', f'{role} "Unnamed control"')
+    ok, detail = accessibility.c21_accessibility({"accessibility": {"trees": trees}})
+    assert not ok
+    assert label in detail and phase in detail
+
+
+def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibility(tmp_path):
+    paths = mac_side.Paths(tmp_path / "fixture")
+    manifest = mac_side.Mac(paths).manifest(42)
+    assert "tools: [get_window_state]" in manifest
+    assert "press_key" not in manifest and "type_text" not in manifest and "click" not in manifest
+    results, _ = dry_run.run("own-process", tmp_path / "run")
+    assert {row["number"]: row["status"] for row in results} == {
+        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+    }
+
+
+def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(tmp_path):
+    results, _ = dry_run.run("accessibility-start-refused", tmp_path)
+    assert {row["number"]: row["status"] for row in results} == {
+        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+    }

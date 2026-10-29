@@ -8,8 +8,8 @@
 ~/.orbit-pruebas/secretos. `run` is the real run: it starts the test profile
 of Hermes and the test hub here, prepares the Mac over SSH (ORBIT_MAC_HOST,
 ORBIT_MAC_SSH_KEY, as the release scripts), records a synthetic meeting in
-Orbit Pruebas clicking and reading its interface through CuaDriver — started
-bounded to Orbit Pruebas and stopped again — with three lines of it muted
+Orbit Pruebas clicking and reading its interface through its in-app bridge,
+with CuaDriver scoped to check 21's two read-only accessibility samples, with three lines of it muted
 («Silenciar»), sends Deimos a voice note and opens a call with it over Orbit
 Pruebas's socket, throws a second recording away («Terminar sin guardar»),
 deletes the first meeting («Borrar reunión»), quits Orbit Pruebas right
@@ -45,6 +45,7 @@ from pathlib import Path
 DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIRECTORY))
 
+import accessibility
 import all_checks
 import audio_route
 import checks
@@ -56,7 +57,7 @@ import mac as mac_side
 import mac_controls
 import meeting_controls
 import silence_recording
-from interface import CuaBridge, Interface, StepFailed
+from interface import InAppBridge, Interface, StepFailed
 
 ROOT = DIRECTORY.parents[1]
 BASE = Path.home() / ".orbit-pruebas"
@@ -119,6 +120,10 @@ def bounds() -> dict[str, tuple[float, str]]:
         ),
         "paired": (30, "provisional: the daemon connecting to the test hub, not measured"),
         "cua-driver": (30, "provisional: the start of CuaDriver's daemon, not measured"),
+        "accessibility-tree": (
+            10,
+            "provisional: WebKit builds its tree when macOS first asks, not measured",
+        ),
         "call": (
             120,
             "cua-driver call stops waiting for its daemon at 120 s (daemon.rs, send_request)",
@@ -188,13 +193,8 @@ def bounds() -> dict[str, tuple[float, str]]:
     }
 
 
-# What each reading of the main window asks CuaDriver for (cua-driver's
-# `query`: the matching rows and their ancestors). A check reads only what it
-# needs; the answer stays small (the path from CuaDriver has no byte bound,
-# only its 120 s and its walk of at most 2 000 nodes, whose cut is named).
-# Static texts are what a person reads on screen: the times, speakers and
-# words of the transcript, the summary, the messages, any pill or notice.
-# Measured sizes go to the report.
+# Queries for the bridge's semantic tree: matching rows and their ancestors.
+# Unfiltered readings preserve hierarchy for transcript, list and draft checks.
 READS: dict[str, str | None] = {
     # «Transcribiendo…», «Escribiendo la nota» and «Escribiendo el resumen…»
     # all contain it.
@@ -209,8 +209,7 @@ READS: dict[str, str | None] = {
     # Read whole: every turn's speaker is a button (it opens the speaker menu,
     # TranscriptSegment.tsx), not a static text, and no one query holds both
     # the times and texts and the speakers. A two-minute meeting is a few
-    # dozen turns, far under the 2 000 nodes CuaDriver walks; a cut tree fails
-    # by name all the same.
+    # dozen turns. The bridge refuses oversized replies with their byte counts.
     "note-transcript": None,
     "assistant-answered": "AXStaticText",
     "assistant-reopened": "AXStaticText",
@@ -355,6 +354,9 @@ class RemoteMac:
             60 + max_s, "panel-pointer", str(window_id), where, question, "--max", str(max_s)
         )
 
+    def bridge_call(self, request):
+        return self._call(12, "bridge-call", json.dumps(request, ensure_ascii=False))
+
     def bridge_menus(self):
         return self._call(12, "bridge-menus")
 
@@ -449,6 +451,7 @@ class RealTest:
         )
         self.ui: Interface | None = None
         self.main = None
+        self.cua_active = False
 
     @contextmanager
     def step(self, name: str, checks_: tuple[int, ...] = (), critical: bool = True):
@@ -543,33 +546,33 @@ class RealTest:
             self.wait_mac("paired")
 
     def drive_interface(self) -> None:
-        with self.step("CuaDriver, bounded to Orbit Pruebas"):
-            self.ev["cua"] = self.mac.engine_start(self.bounds["cua-driver"][0])
-        self.ui = Interface(
-            CuaBridge(self.mac), self.directory / "trees", self.ev["cua"]["app_pid"]
-        )
+        self.ui = Interface(InAppBridge(self.mac), self.directory / "trees")
         ui = self.ui
         with self.step("Orbit Pruebas's window"):
             self.main = self.open_main("home")
 
-        with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
-            # «Grabar reunión» of the sidebar, in every view (Sidebar.tsx); the
-            # sidebar comes first in the tree, before any view's own button.
-            ui.press(self.main, "Grabar reunión", ("AXButton",), first=True)
-            # Microphone only: the script plays into BlackHole, the default
-            # input, and with system audio too every line would be recorded
-            # twice.
-            # «Qué audio grabar» is a list of radios, each labelled with its
-            # explanation (AudioSourceField.tsx): pressed by its name.
-            ui.press(self.main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
-            ui.press(self.main, "Empezar a grabar", ("AXButton",))
-            recording = self.wait_mac("recording")
-            self.ev["recording"] = dict(recording)
-            if recording.get("audio") != "microphone_only":
-                raise StepFailed(
-                    f"the recording started with audio «{recording.get('audio')}», not "
-                    "«microphone_only»: «Qué audio grabar» did not change to «Solo mi micrófono»"
-                )
+        with accessibility.session(self) as capture:
+            capture("idle")
+            with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
+                # «Grabar reunión» of the sidebar, in every view (Sidebar.tsx); the
+                # sidebar comes first in the tree, before any view's own button.
+                ui.press(self.main, "Grabar reunión", ("AXButton",), first=True)
+                # Microphone only: the script plays into BlackHole, the default
+                # input, and with system audio too every line would be recorded
+                # twice.
+                # «Qué audio grabar» is a list of radios, each labelled with its
+                # explanation (AudioSourceField.tsx): pressed by its name.
+                ui.press(self.main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
+                ui.press(self.main, "Empezar a grabar", ("AXButton",))
+                recording = self.wait_mac("recording")
+                self.ev["recording"] = dict(recording)
+                if recording.get("audio") != "microphone_only":
+                    raise StepFailed(
+                        f"the recording started with audio «{recording.get('audio')}», not "
+                        "«microphone_only»: «Qué audio grabar» did not change to «Solo mi micrófono»"
+                    )
+
+            capture("recording")
 
         with self.step(
             "read the recording's menu bar through the test bridge", (16,), critical=False
@@ -590,7 +593,7 @@ class RealTest:
             answered_at = time.monotonic()
             if self.ev["question"].get("stage") == "answered":
                 # The panel hides 45 s after the answer (ANSWER_SHOWN_MS).
-                panel = ui.panel(self.mac.floating, self.bounds["screen"][0])
+                panel = ui.panel(self.bounds["screen"][0])
                 self.measure(
                     "screen",
                     ui.read_until(
@@ -628,8 +631,7 @@ class RealTest:
 
         # «Reunión guardada» opens nothing: the note is not written yet.
         # «Tu nota está lista» says when it is, with «Abrir», and goes away by
-        # itself after ten seconds; every round trip to the engine takes
-        # seconds (real runs 2 and 3 of 2026-10-20 missed a notice's link), so
+        # itself after ten seconds; a notice can disappear between reads, so
         # it is pressed as soon as the note is final, before anything else
         # waits.
         with self.step("«Abrir» from «Tu nota está lista»", (6,), critical=False):
@@ -797,7 +799,7 @@ class RealTest:
         ui = self.ui
         # The window appears after the app's first paint, a little after
         # its daemon answers; 20 s is far above the ~1 s it takes, and the
-        # engine offers no window event to wait on instead.
+        # bridge offers no window event to wait on instead.
         self.mac.activate()
         deadline = time.monotonic() + 20
         while True:
@@ -816,9 +818,10 @@ class RealTest:
         return main
 
     def clean_up(self) -> None:
-        with self.step("stop CuaDriver", critical=False):
-            # Always, and first: nothing may keep acting on the Mac.
-            self.ev.setdefault("cua", {}).update(self.mac.engine_stop(self.bounds["close"][0]))
+        if self.cua_active:
+            with self.step("stop CuaDriver left by the accessibility check", critical=False):
+                self.ev["cua"].update(self.mac.engine_stop(self.bounds["close"][0]))
+                self.cua_active = False
         with self.step("close Orbit Pruebas and give the audio input back", critical=False):
             self.ev["restored"] = self.mac.restore(self.bounds["close"][0])
             came_back = self.ev["restored"]["orbit_pruebas"].get("came_back", 0)
@@ -893,6 +896,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "restored": ev.get("restored"),
         "reads": ev.get("reads"),
         "cua": ev.get("cua"),
+        "accessibility": ev.get("accessibility"),
         "discard": ev.get("discard"),
         "delete": ev.get("delete"),
         "panel_hold": ev.get("panel_hold"),
@@ -920,7 +924,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
     for s in ev["steps"]:
         status = "ok" if s.get("ok", True) else f"FAILED: {s.get('cause')}"
         lines.append(f"  {s['name']}: {status} ({s.get('end', s['start']) - s['start']:.1f} s)")
-    lines += ["", "Engine reads (bytes of CuaDriver's answer):"]
+    lines += ["", "Bridge reads (bytes of the in-app reply):"]
     for read in ev.get("reads") or []:
         lines.append(
             f"  {read['label']} [{read['query'] or 'whole window'}]: "

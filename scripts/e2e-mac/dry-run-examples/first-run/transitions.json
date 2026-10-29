@@ -3,6 +3,6 @@
   "read": "welcome"
  },
  "welcome": {
-  "click:Configurarlo más tarde": "briefing"
+  "press:Configurarlo más tarde": "briefing"
  }
 }

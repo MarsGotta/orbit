@@ -1,12 +1,13 @@
 """Every check of the real test on the Mac, run over the evidence.
 
 The checks live by subject: checks.py (1 to 12), meeting_control_checks.py
-(13 to 16), drafts_panel_checks.py (17 and 18), silence_recording.py (19), and audio_route.py (20).
+(13 to 16), drafts_panel_checks.py (17 and 18), silence_recording.py (19), audio_route.py (20), and accessibility.py (21).
 This runs them in order and says what none of them can see.
 """
 
 from __future__ import annotations
 
+import accessibility
 import audio_route
 import checks
 import drafts_panel_checks
@@ -20,6 +21,7 @@ MODULES = (
     drafts_panel_checks,
     silence_recording,
     audio_route,
+    accessibility,
 )
 NAMES = {number: name for module in MODULES for number, name in module.NAMES.items()}
 CHECKS = {number: check for module in MODULES for number, check in module.CHECKS.items()}

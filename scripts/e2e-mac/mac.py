@@ -21,18 +21,16 @@ exits 1.
     logs                      the report logs of Orbit Pruebas and the call's audio lines of daemon.log
     activate                  brings Orbit Pruebas to the front
     floating                  Orbit Pruebas's windows above the normal layer (the floating panel)
+    bridge-call JSON         one bounded request to the in-app bridge
     bridge-menus             the last menus built inside Orbit Pruebas (check 16 only)
     engine-start --max S      starts CuaDriver, bounded to Orbit Pruebas, under its own identity
     engine-call TOOL JSON     one CuaDriver tool call
     engine-stop --max S       stops the CuaDriver this test started, by its pid
 
-The clicks and web-view readings go through CuaDriver, the
-standalone computer-use driver (cua-driver 0.28.2, /Applications/CuaDriver.app)
-with its own macOS permissions, used since Orbit Pruebas's own engine refused
-the test's readings in run 5. The test starts CuaDriver bounded by a capability
-manifest that allows five tools on Orbit Pruebas alone, targets only Orbit
-Pruebas's exact pid, and stops it. Check 16 alone reads the last native menus
-through the in-app test bridge (bridge-menus); no other UI operation uses it.
+The in-app bridge drives all web-view presses, typing and reads. CuaDriver
+is started only for read-only macOS accessibility samples (check 21), under
+its own identity and bounded to Orbit Pruebas's exact pid. Pointer motion
+uses pointer.swift; the Dock's quit uses an Apple Event.
 
 It never touches the user's Orbit, its data or its Keychain: Orbit Pruebas has
 its own bundle, data directory and Keychain service (orbit_bundle, feature
@@ -74,9 +72,9 @@ BUNDLE_ID = "app.orbit.companion.pruebas"
 DATA_DIRECTORY = "com.MarsGotta.OrbitPruebas"
 SCRIPT = Path(__file__).resolve().with_name("meeting-script.txt")
 BLACKHOLE = "BlackHole 2ch"
-# What CuaDriver may do for the test, and nothing more: find Orbit Pruebas's
-# windows, read them, click, type and choose a value.
-TOOLS = ("list_windows", "get_window_state", "click", "type_text", "press_key")
+# CuaDriver only reads the app's macOS accessibility tree for check 21.
+# No input tool is granted; the in-app bridge owns DOM actions.
+TOOLS = ("get_window_state",)
 VALIDITY = "3h"
 IDLE = "1h"
 
@@ -331,6 +329,11 @@ class Mac(DraftsAndPanel, CuaDriver):
         self.orbit = orbit or OrbitIpc(paths.socket)
         self.bridge = bridge or TestBridge(paths.bridge, MAX_LINE_BYTES)
 
+    def bridge_call(self, request: dict) -> dict:
+        result = self.bridge.call(request)
+        size = getattr(self.bridge, "last_reply_bytes", None)
+        return {"result": result, "bytes": size}
+
     def bridge_menus(self) -> dict:
         return self.bridge.call({"command": "menus"})
 
@@ -571,8 +574,8 @@ class Mac(DraftsAndPanel, CuaDriver):
         return pids[0]
 
     def manifest(self, app_pid: int) -> str:
-        """The capability manifest CuaDriver is started with: the five tools
-        the test uses, on Orbit Pruebas only — its bundle identifier, its
+        """The capability manifest CuaDriver is started with: the read-only tool
+        the accessibility check uses, on Orbit Pruebas only — its bundle identifier, its
         executable and the pid it runs with now — and nothing else: no other
         app, no display, no browser, no files, no processes to end
         (session_manifest.rs, cua-driver-rs-v0.28.2)."""
@@ -581,9 +584,9 @@ class Mac(DraftsAndPanel, CuaDriver):
         return (
             "# CuaDriver for Orbit's real test: Orbit Pruebas only, these tools only.\n"
             "version: 3\n"
-            "# The longest run is under three hours (the note waits up to 52 min).\n"
+            "# Existing validity ceiling; check 21 explicitly stops its short session.\n"
             f"expires_after: {VALIDITY}\n"
-            "# The longest silence between two calls is the wait for the note.\n"
+            "# Idle expiry is a fallback, never a substitute for the strict stop.\n"
             f"idle_timeout: {IDLE}\n"
             "resources:\n"
             "  apps:\n"
@@ -680,6 +683,8 @@ def main(argv: list[str], mac: Mac | None = None) -> int:
             output = mac.activate()
         elif command in DRAFTS_AND_PANEL:
             output = DRAFTS_AND_PANEL[command](mac, rest)
+        elif command == "bridge-call" and len(rest) == 1:
+            output = mac.bridge_call(json.loads(rest[0]))
         elif command == "bridge-menus" and not rest:
             output = mac.bridge_menus()
         elif command == "engine-start":
