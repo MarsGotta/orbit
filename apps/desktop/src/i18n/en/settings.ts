@@ -47,6 +47,7 @@ const base = {
     reopenOnboarding: "Show welcome again",
     appearance: "Appearance",
     theme: "Theme",
+    system: "System",
     dark: "Dark",
     light: "Light",
     startup: "When your Mac starts",

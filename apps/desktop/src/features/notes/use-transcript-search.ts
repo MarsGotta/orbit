@@ -11,6 +11,15 @@ export function useTranscriptSearch(texts: string[]) {
   const [current, setCurrent] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const matches = useMemo(() => findMatches(texts, query), [texts, query]);
+  const bySegment = useMemo(() => {
+    const grouped = new Map<number, Match[]>();
+    for (const match of matches) {
+      const group = grouped.get(match.segment);
+      if (group) group.push(match);
+      else grouped.set(match.segment, [match]);
+    }
+    return grouped;
+  }, [matches]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
@@ -38,6 +47,7 @@ export function useTranscriptSearch(texts: string[]) {
     query,
     total,
     matches,
+    bySegment,
     focused,
     turnRef,
     setQuery,

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { NoteTab } from "../features/notes/note-tabs";
 
 export type ViewId = "briefing" | "calendar" | "notes" | "vault" | "assistant" | "settings";
 
@@ -77,6 +78,8 @@ interface UiState {
   view: ViewId;
   settingsSection: SettingsSection;
   selectedNote: { recordingId: string; title: string } | null;
+  noteTabs: Record<string, NoteTab>;
+  selectNoteTab: (recordingId: string, tab: NoteTab) => void;
   selectedCalendarEventId: string | null;
   navigate: (view: ViewId) => void;
   openSettings: (section: SettingsSection) => void;
@@ -93,6 +96,9 @@ export const useUiStore = create<UiState>((set) => ({
   view: "briefing",
   settingsSection: "general",
   selectedNote: null,
+  noteTabs: {},
+  selectNoteTab: (recordingId, tab) =>
+    set((state) => ({ noteTabs: { ...state.noteTabs, [recordingId]: tab } })),
   selectedCalendarEventId: null,
   navigate: (view) => {
     set({ view, settingsSection: "general", selectedCalendarEventId: null });

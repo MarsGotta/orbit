@@ -24,7 +24,7 @@ const base = {
     },
     {
       title: "Assistants that lend a hand",
-      body: "Ask them, call them or request help on your Mac. They ask for permission before acting.",
+      body: "On your Mac, assistants act with the macOS access you give Orbit. On the hub, they ask with a card before each command or edit. Stopping everything cuts them off at once.",
     },
   ],
   planLabel: "What’s next",

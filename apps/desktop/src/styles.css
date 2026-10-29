@@ -31,17 +31,3 @@ input {
   outline: 2px solid var(--o-accText);
   outline-offset: 2px;
 }
-
-::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
-}
-
-::-webkit-scrollbar-thumb {
-  border-radius: var(--o-radius-pill);
-  background: var(--o-scrollbar);
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}

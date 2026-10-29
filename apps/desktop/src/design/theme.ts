@@ -1,21 +1,23 @@
 import { useSyncExternalStore } from "react";
 
 export type Theme = "dark" | "light";
+export type ThemeChoice = Theme | "system";
 
 /** Shared by both windows of the app: the floating panel reads what the main window wrote. */
 const THEME_KEY = "orbit.ui.theme.local";
 const SYSTEM_LIGHT = "(prefers-color-scheme: light)";
 
-// What was fixed in this window when storage refused to keep it.
-let fixedHere: Theme | null = null;
+// Undefined reads storage; null follows the system when storage refused the choice.
+let fixedHere: Theme | null | undefined;
 const listeners = new Set<() => void>();
 
 function fixedTheme(): Theme | null {
+  if (fixedHere !== undefined) return fixedHere;
   try {
     const stored = window.localStorage.getItem(THEME_KEY);
-    return stored === "light" || stored === "dark" ? stored : fixedHere;
+    return stored === "light" || stored === "dark" ? stored : null;
   } catch {
-    return fixedHere;
+    return null;
   }
 }
 
@@ -32,6 +34,10 @@ export function currentTheme(): Theme {
   return fixedTheme() ?? systemTheme();
 }
 
+function themeChoice(): ThemeChoice {
+  return fixedTheme() ?? "system";
+}
+
 /** Without a fixed theme nothing is set and the stylesheet follows the system. */
 function apply(): void {
   const fixed = fixedTheme();
@@ -42,12 +48,18 @@ function apply(): void {
 
 /** Fixes the other theme, from the top bar or from Settings, and remembers it. */
 export function toggleTheme(): void {
-  const next: Theme = currentTheme() === "dark" ? "light" : "dark";
+  chooseTheme(currentTheme() === "dark" ? "light" : "dark");
+}
+
+/** System removes the fixed preference so both windows follow macOS again. */
+export function chooseTheme(next: ThemeChoice): void {
+  fixedHere = next === "system" ? null : next;
   try {
-    window.localStorage.setItem(THEME_KEY, next);
+    if (next === "system") window.localStorage.removeItem(THEME_KEY);
+    else window.localStorage.setItem(THEME_KEY, next);
+    fixedHere = undefined;
   } catch {
     // The choice stays in effect for this window while storage is unavailable.
-    fixedHere = next;
   }
   apply();
 }
@@ -77,4 +89,8 @@ function subscribe(listener: () => void): () => void {
 
 export function useTheme(): Theme {
   return useSyncExternalStore(subscribe, currentTheme);
+}
+
+export function useThemeChoice(): ThemeChoice {
+  return useSyncExternalStore(subscribe, themeChoice);
 }

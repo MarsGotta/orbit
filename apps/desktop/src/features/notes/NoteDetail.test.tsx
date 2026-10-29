@@ -18,6 +18,25 @@ function tabs() {
   return screen.getAllByRole("tab").map((tab) => tab.textContent);
 }
 
+it("restores each recording’s chosen tab after Notes unmounts", () => {
+  const first = { ...writtenNote(), recording_id: "remember-first" };
+  const second = { ...writtenNote(), recording_id: "remember-second" };
+  const { view } = detail(first);
+  fireEvent.click(screen.getByRole("tab", { name: "Transcripción" }));
+  view.rerender(<NoteDetail error={null} note={second} send={vi.fn()} />);
+  expect(screen.getByRole("tab", { name: "Resumen" }).getAttribute("aria-selected")).toBe("true");
+  fireEvent.click(screen.getByRole("tab", { name: "Acciones · 3" }));
+  view.unmount();
+  const restored = detail(first);
+  expect(screen.getByRole("tab", { name: "Transcripción" }).getAttribute("aria-selected")).toBe(
+    "true",
+  );
+  restored.view.rerender(<NoteDetail error={null} note={second} send={vi.fn()} />);
+  expect(screen.getByRole("tab", { name: "Acciones · 3" }).getAttribute("aria-selected")).toBe(
+    "true",
+  );
+});
+
 describe("the parts of a written note", () => {
   it("opens on the summary, with the open tasks counted in their tab", () => {
     detail(writtenNote());

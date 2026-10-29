@@ -1,6 +1,6 @@
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
-import { useState } from "react";
+import { useUiStore } from "../../state/ui";
 import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
 import type { NoteListItem } from "../../bridge/generated/NoteListItem";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
@@ -22,9 +22,9 @@ import styles from "./Note.module.css";
 
 /** The tab the user chose for this note, or the one the note's state suggests. */
 function useNoteTab(note: OpenNoteSnapshot): [NoteTab, (tab: NoteTab) => void] {
-  const [chosen, setChosen] = useState<{ id: string; tab: NoteTab } | null>(null);
-  const tab = chosen?.id === note.recording_id ? chosen.tab : defaultTab(note);
-  return [tab, (next) => setChosen({ id: note.recording_id, tab: next })];
+  const chosen = useUiStore((state) => state.noteTabs[note.recording_id]);
+  const select = useUiStore((state) => state.selectNoteTab);
+  return [chosen ?? defaultTab(note), (next) => select(note.recording_id, next)];
 }
 
 /** Summary · Actions · N · Transcript · Private notes; the count once the note is written. */

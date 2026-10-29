@@ -37,6 +37,13 @@ English and Spanish; labels quoted below may use either language.
   the app, daemon and hub. Hub conformance and device diagnostics use English
   while retaining their error codes and measurements. Automatic recording titles
   from the keyboard shortcut follow the selected interface language.
+- Appearance can follow the system again from Settings, meeting tabs keep each
+  recording's selection while the app runs, and scrolling uses platform styles.
+  Filled buttons preserve label contrast on hover. Recording mute copy and the
+  welcome distinguish Orbit's recording, macOS access and hub approval in both
+  languages. The recording discard question focuses Keep Recording and restores
+  focus on cancellation. Transcript search groups matches once
+  per query instead of scanning them again for every turn.
 
 - The real-test harness supports an English pass with `run --language en`,
   alongside its default Spanish pass. Both use checked exports of Orbit’s own

@@ -75,7 +75,7 @@ function Turns({ note, changes, words, container, texts, search, busy, onAnchor 
                   anchorRef={onAnchor}
                   fixed={ours ? (fix.places.get(turn.index) ?? []) : []}
                   focused={search.focused}
-                  matches={search.matches.filter((match) => match.segment === position)}
+                  matches={search.bySegment.get(position) ?? []}
                   onPick={(span) =>
                     setPicked(
                       same(picked, turn.index, span)

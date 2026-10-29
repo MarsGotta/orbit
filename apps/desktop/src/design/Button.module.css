@@ -15,7 +15,7 @@
   cursor: pointer;
   transition:
     background var(--o-dur-fast),
-    filter var(--o-dur-fast),
+    box-shadow var(--o-dur-fast),
     color var(--o-dur-fast);
 }
 
@@ -46,7 +46,7 @@
 
 .accent:hover:not(:disabled),
 .danger:hover:not(:disabled) {
-  filter: brightness(1.08);
+  box-shadow: inset 0 0 0 1px var(--o-white);
 }
 
 .outline,

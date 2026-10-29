@@ -335,11 +335,17 @@ it("«Silenciar» mutes only her microphone, and says it once the Mac confirmed 
   render(<PanelApp port={port} />);
   await userEvent.click(await screen.findByRole("button", { name: "Silenciar" }));
   expect(sent).toEqual([{ command: "microphone_mute", muted: true }]);
-  expect(screen.queryByText("Micrófono silenciado")).toBeNull();
+  expect(
+    screen.queryByText("Tu voz queda fuera de la grabación de Orbit. Tu videollamada sigue igual."),
+  ).toBeNull();
   cleanup();
   const muted = portWith({ ...byCall, microphone_muted: true });
   render(<PanelApp port={muted.port} />);
-  expect(await screen.findByText("Micrófono silenciado")).toBeTruthy();
+  expect(
+    await screen.findByText(
+      "Tu voz queda fuera de la grabación de Orbit. Tu videollamada sigue igual.",
+    ),
+  ).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Reactivar micrófono" }));
   expect(muted.sent).toEqual([{ command: "microphone_mute", muted: false }]);
 });

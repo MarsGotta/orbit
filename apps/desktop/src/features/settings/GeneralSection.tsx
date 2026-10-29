@@ -6,7 +6,7 @@ import { useFeedback } from "../../design/feedback";
 import { Field } from "../../design/Field";
 import { Segmented } from "../../design/Segmented";
 import { Skeleton } from "../../design/Skeleton";
-import { toggleTheme, useTheme, type Theme } from "../../design/theme";
+import { chooseTheme, useThemeChoice, type ThemeChoice } from "../../design/theme";
 
 import { LoginItem } from "./NativeSettings";
 import { Group, List, SectionHeading } from "./layout";
@@ -57,19 +57,18 @@ function NameField({ send, settings }: { send: Send; settings: Settings }) {
   );
 }
 
-/** Oscuro / Claro: fixes the theme on this Mac, as the top bar's button does. */
+/** System follows macOS; Light and Dark fix the theme on this Mac. */
 function Appearance() {
   const base = useCopy();
-  const theme = useTheme();
+  const theme = useThemeChoice();
   return (
-    <Segmented<Theme>
+    <Segmented<ThemeChoice>
       label={base.settings.theme}
-      onChange={(next) => {
-        if (next !== theme) toggleTheme();
-      }}
+      onChange={chooseTheme}
       options={[
-        { value: "dark", label: base.settings.dark },
+        { value: "system", label: base.settings.system },
         { value: "light", label: base.settings.light },
+        { value: "dark", label: base.settings.dark },
       ]}
       value={theme}
     />

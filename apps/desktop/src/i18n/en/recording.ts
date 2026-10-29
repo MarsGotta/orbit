@@ -1,11 +1,16 @@
 import { numberFormat } from "../locale";
 export const recording = {
-  // «Silenciar»: the recording's or the call's microphone, never the other
-  // side of the call. The card says it once the Mac confirmed it.
+  // The assistant call's microphone. Recording has its own scoped copy below.
   microphoneMute: {
     mute: "Mute",
     unmute: "Unmute",
     muted: "Microphone muted",
+  },
+  recordingMute: {
+    help: "Leaves your voice out of Orbit’s recording. Your video call is unchanged.",
+    mute: "Mute",
+    unmute: "Unmute",
+    muted: "Your voice is left out of Orbit’s recording. Your video call is unchanged.",
   },
   meeting: {
     // Opens «Nueva grabación»; the menu bar alone starts at once.
