@@ -9,6 +9,10 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- The Mac bundle includes a layered Icon Composer app icon using the existing
+  orbital motif, with the legacy ICNS retained for macOS 15. Packaging requires
+  Xcode 26 or later and verifies that the icon compiler produced Assets.car.
+
 - The real-test harness supports an English pass with `run --language en`,
   alongside its default Spanish pass. Both use checked exports of Orbit’s own
   catalogues, including native menus, and retain all 21 checks and screen

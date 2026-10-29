@@ -656,6 +656,7 @@ class ReleaseBuildTests(unittest.TestCase):
             target = fixture / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
+        shutil.copytree(ROOT / "Icon", fixture / "Icon")
         bundle = fixture / "scripts/macos/bundle.sh"
         bundle.write_text(
             bundle.read_text().replace(
@@ -718,6 +719,10 @@ class ReleaseBuildTests(unittest.TestCase):
         self.tool(
             "xcrun",
             '#!/bin/sh\necho "xcrun $*" >> "$ORBIT_TEST_LOG"\n'
+            'if [ "$1" = actool ]; then\n'
+            '  while [ "$1" != --compile ]; do shift; done\n'
+            '  printf "compiled icon fixture" > "$2/Assets.car"\n'
+            'fi\n'
             'case "$*" in *"notarytool submit"*) echo \'{"id":"synthetic"}\';;'
             ' *"notarytool info"*) echo \'{"status":"Accepted"}\';; esac\n',
         )

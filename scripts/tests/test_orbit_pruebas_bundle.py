@@ -40,6 +40,7 @@ class VariantBuildTests(unittest.TestCase):
             tools / "uname",
             '#!/bin/sh\nif [ "$1" = "-m" ]; then echo arm64; else echo Darwin; fi\n',
         )
+        self._executable(tools / "xcrun", "#!/bin/sh\nexit 0\n")
         for tool in ("swift", "pnpm", "cargo"):
             # One line per call: the tool, then each argument on its own field.
             self._executable(

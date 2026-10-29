@@ -7,7 +7,7 @@ release_test_tools
 
 # Run on the target Mac architecture. No credentials are written into the bundle.
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "Orbit's package is built on macOS 15+ with Xcode 16+." >&2
+  echo "Orbit's package is built on macOS with Xcode 26 or later; the app supports macOS 15+." >&2
   exit 1
 fi
 orbit_repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -106,6 +106,10 @@ if [[ -e "$orbit_bundle" || -e "$orbit_archive" ]]; then
   echo "A package already exists in $orbit_output. Use ORBIT_OUTPUT_DIR for a new build." >&2
   exit 1
 fi
+if ! xcrun --find actool >/dev/null 2>&1; then
+  echo "actool is missing: install Xcode 26 or later and select it with xcode-select." >&2
+  exit 1
+fi
 cd -- "$orbit_repo"
 swift test --package-path native/macos
 pnpm --dir apps/desktop install --frozen-lockfile
@@ -123,6 +127,21 @@ cp -- "$orbit_swift_bin/OrbitNative" "$orbit_bundle/Contents/MacOS/OrbitNative"
 cp -- "$orbit_cua_driver" "$orbit_engine_binary"
 cp -- apps/desktop/src-tauri/icons/icon.icns "$orbit_bundle/Contents/Resources/icon.icns"
 cp -- native/macos/Info.plist "$orbit_bundle/Contents/Info.plist"
+# Only the layered icon targets macOS 26. The app keeps its macOS 15 minimum
+# and its existing icon.icns fallback; actool's generated ICNS is not shipped.
+orbit_icon_work="$(mktemp -d)"
+trap 'rm -rf -- "$orbit_icon_work"' EXIT
+xcrun actool "$orbit_repo/Icon/AppIcon.icon" --compile "$orbit_icon_work" \
+  --platform macosx --minimum-deployment-target 26.0 --app-icon AppIcon \
+  --output-partial-info-plist "$orbit_icon_work/partial.plist" \
+  --output-format human-readable-text --errors --warnings
+if [[ ! -s "$orbit_icon_work/Assets.car" ]]; then
+  echo "actool wrote no Assets.car for Icon/AppIcon.icon; check the icon source and Xcode version." >&2
+  exit 1
+fi
+cp -- "$orbit_icon_work/Assets.car" "$orbit_bundle/Contents/Resources/Assets.car"
+rm -rf -- "$orbit_icon_work"
+trap - EXIT
 bash scripts/macos/copy-localizations.sh "$orbit_bundle/Contents/Resources"
 cp -- LICENSE "$orbit_bundle/Contents/Resources/LICENSE"
 cp -- third-party/cua-driver/LICENSE.md \

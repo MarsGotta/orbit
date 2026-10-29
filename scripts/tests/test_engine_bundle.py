@@ -17,9 +17,12 @@ ENGINE = "Contents/Helpers/Orbit Engine.app"
 
 class EngineBundleTests(unittest.TestCase):
     def test_engine_bundle_has_its_own_identity_and_is_signed_before_orbit(self):
-        for pruebas in (False, True):
+        for pruebas, icon_result in (
+            (False, "compiled"), (True, "compiled"),
+            (False, "empty"), (False, "failed"),
+        ):
             with (
-                self.subTest(pruebas=pruebas),
+                self.subTest(pruebas=pruebas, icon_result=icon_result),
                 tempfile.TemporaryDirectory() as temporary,
             ):
                 root = Path(temporary)
@@ -51,6 +54,8 @@ class EngineBundleTests(unittest.TestCase):
                     target.write_bytes(b"inert fixture")
                 tools = root / "bin"
                 tools.mkdir()
+                icon = ROOT / "Icon/AppIcon.icon"
+                shutil.copytree(icon, root / "Icon/AppIcon.icon")
 
                 def executable(name, text):
                     path = tools / name
@@ -62,6 +67,22 @@ class EngineBundleTests(unittest.TestCase):
                     '#!/bin/sh\nif [ "$1" = -m ]; then echo arm64; else echo Darwin; fi\n',
                 )
                 executable("swift", f'#!/bin/sh\necho "{root}/swift"\n')
+                executable(
+                    "xcrun",
+                    f'#!{sys.executable}\nimport pathlib, sys\n'
+                    'args = sys.argv[1:]\n'
+                    'if args == ["--find", "actool"]: print(sys.argv[0]); sys.exit(0)\n'
+                    'assert args[0] == "actool", args\n'
+                    'for flag, value in (("--app-icon", "AppIcon"), ("--platform", "macosx"), '
+                    '("--minimum-deployment-target", "26.0")):\n'
+                    '    assert args[args.index(flag) + 1] == value, args\n'
+                    'assert pathlib.Path(args[1], "icon.json").is_file(), args\n'
+                    f'if {icon_result!r} == "failed": print("synthetic compiler failure", file=sys.stderr); sys.exit(42)\n'
+                    f'if {icon_result!r} == "empty": sys.exit(0)\n'
+                    'output = pathlib.Path(args[args.index("--compile") + 1])\n'
+                    '(output / "Assets.car").write_bytes(b"compiled icon fixture")\n'
+                    '(output / "AppIcon.icns").write_bytes(b"generated fallback fixture")\n',
+                )
                 for name in ("ditto", "shasum"):
                     executable(name, "#!/bin/sh\nexit 0\n")
                 pnpm, cargo = listings(root / "listings")
@@ -126,6 +147,12 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                     text=True,
                     timeout=30,
                 )
+                if icon_result != "compiled":
+                    self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                    reason = "actool wrote no Assets.car" if icon_result == "empty" else "synthetic compiler failure"
+                    self.assertIn(reason, result.stdout + result.stderr)
+                    self.assertFalse(log.exists(), "an incomplete icon must not be signed")
+                    continue
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 name = "Orbit Pruebas" if pruebas else "Orbit"
                 bundle = root / "dist" / f"{name}.app"
@@ -147,6 +174,12 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 self.assertFalse((bundle / "Contents/MacOS/cua-driver").exists())
                 info = plistlib.loads((engine / "Contents/Info.plist").read_bytes())
                 parent = plistlib.loads((bundle / "Contents/Info.plist").read_bytes())
+                self.assertEqual(parent.get("CFBundleIconName"), "AppIcon")
+                self.assertEqual(parent["CFBundleIconFile"], "icon.icns")
+                resources = bundle / "Contents/Resources"
+                self.assertEqual((resources / "Assets.car").read_bytes(), b"compiled icon fixture")
+                self.assertEqual((resources / "icon.icns").read_bytes(), b"inert fixture")
+                self.assertFalse((resources / "AppIcon.icns").exists())
                 self.assertEqual(
                     info["CFBundleIdentifier"],
                     parent["CFBundleIdentifier"] + ".cua-driver",

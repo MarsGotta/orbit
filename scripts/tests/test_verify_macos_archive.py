@@ -226,8 +226,8 @@ class ArchiveVerificationTests(unittest.TestCase):
                 external.write_bytes(manifest(architecture))
                 report = verify.verify_archive(path, **options, manifest=external)
                 # The nested engine app adds its plist and resource seal; the
-                # third-party notice is one more.
-                self.assertEqual(report["members"], 24)
+                # third-party notice and compiled icon are one each.
+                self.assertEqual(report["members"], 25)
                 self.assertEqual(report["source_commit"], COMMIT)
                 self.assertEqual(report["architecture"], architecture)
                 self.assertFalse(report["signature_verified"])
@@ -249,6 +249,15 @@ class ArchiveVerificationTests(unittest.TestCase):
             changed(entries(), driver, mode=stat.S_IFREG | 0o644),
             message="executable without",
         )
+
+    def test_compiled_icon_is_accepted_and_required_in_the_archive(self):
+        name = verify.RESOURCES + "/Assets.car"
+        without_icon = [entry for entry in entries() if entry[0] != name]
+        path, options = self.fixture(
+            without_icon + [(name, b"compiled icon fixture", stat.S_IFREG | 0o644)]
+        )
+        verify.verify_archive(path, **options)
+        self.rejected(without_icon, message="required bundle files are missing")
 
     def test_nested_engine_identity_is_required_and_cannot_be_the_parent(self):
         original = entries()
@@ -425,7 +434,7 @@ class ArchiveVerificationTests(unittest.TestCase):
     def test_a_notarized_package_carries_its_stapled_ticket(self):
         path, options = self.fixture(entries(stapled=True))
         report = verify.verify_archive(path, **options)
-        self.assertEqual(report["members"], 25)
+        self.assertEqual(report["members"], 26)
         self.assertTrue(report["manifest_notarized"])
         self.assertTrue(report["stapled_ticket"])
         # Present and marked is not valid: nothing here talks to Apple.
@@ -465,7 +474,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             if not entry[0].endswith("/") and entry[0] not in verify.OPTIONAL_FILES
         ]
         path, options = self.fixture(original)
-        self.assertEqual(verify.verify_archive(path, **options)["members"], 10)
+        self.assertEqual(verify.verify_archive(path, **options)["members"], 11)
 
     def test_duplicate_casefold_and_unicode_nfc_collisions(self):
         for first, second in (

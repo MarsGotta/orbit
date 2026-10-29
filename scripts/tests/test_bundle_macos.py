@@ -231,6 +231,14 @@ class PreludeTests(unittest.TestCase):
         self.assert_refused((code, stderr), f"expected '{expected}'")
         self.assertIn("cua-driver 0.0.1", stderr)
 
+    def test_missing_actool_is_reported_before_building(self):
+        tools = self.scratch / "bin"
+        self._executable(tools / "xcrun", "#!/bin/sh\nexit 1\n")
+        self.assert_refused(
+            self.package(ORBIT_CUA_DRIVER_BINARY=self.driver(verified_driver_version())),
+            "actool is missing: install Xcode 26 or later",
+        )
+
 
     def test_notarization_credentials_are_demanded_whole_or_not_at_all(self):
         # Half a credential set fails on Apple's side after the entire build
