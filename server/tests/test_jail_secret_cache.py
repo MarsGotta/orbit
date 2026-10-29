@@ -73,7 +73,9 @@ async def test_cache_refreshes_in_background_and_warm_launches_do_not_scan(
         assert visits == [root, root]
 
 
-async def test_first_launch_waits_for_initial_scan(environment, kernel_root, monkeypatch):
+async def test_first_launch_accepts_a_scan_slower_than_thirty_seconds(
+    environment, kernel_root, monkeypatch
+):
     settings, agent, work, root = fixtures(environment, kernel_root, monkeypatch)
     secret = root / ".env"
     secret.touch()
@@ -86,10 +88,17 @@ async def test_first_launch_waits_for_initial_scan(environment, kernel_root, mon
         return original(*args)
 
     monkeypatch.setattr(jail_secrets, "scan_root", held_scan)
+    loop = asyncio.get_running_loop()
+    clock = loop.time
+    elapsed = 0
+    monkeypatch.setattr(loop, "time", lambda: clock() + elapsed)
     async with running_cache(settings):
         pending = asyncio.create_task(launch(settings, agent, work))
         try:
             assert await asyncio.to_thread(entered.wait, 10)
+            elapsed = 31
+            for _ in range(10):
+                await asyncio.sleep(0)
             assert not pending.done()
         finally:
             release.set()
@@ -158,6 +167,7 @@ async def test_initial_wait_is_bounded_without_cancelling_the_scan(
         return original(*args)
 
     monkeypatch.setattr(jail_secrets, "scan_root", held)
+    wait_limit = jail_secret_cache.INITIAL_SCAN_WAIT_SECONDS
     monkeypatch.setattr(jail_secret_cache, "INITIAL_SCAN_WAIT_SECONDS", 0)
     async with running_cache(settings) as cache:
         try:
@@ -167,7 +177,7 @@ async def test_initial_wait_is_bounded_without_cancelling_the_scan(
             assert refused.value.numbers["cause"] == "secret_scan_timeout"
         finally:
             release.set()
-        monkeypatch.setattr(jail_secret_cache, "INITIAL_SCAN_WAIT_SECONDS", 30)
+        monkeypatch.setattr(jail_secret_cache, "INITIAL_SCAN_WAIT_SECONDS", wait_limit)
         await cache.wait_ready()
         assert (await launch(settings, agent, work))[-1] == "--"
 

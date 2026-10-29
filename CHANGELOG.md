@@ -26,6 +26,11 @@ English and Spanish; labels quoted below may use either language.
   and early exit for abandoned wake phrases. Document disposable-calendar writes
   and the independent silent remote-audio prerequisite.
 
+- The hub restores secret-scan paths saved less than ten minutes ago while
+  refreshing them in the background. Without a fresh snapshot, assistants wait
+  up to 126 seconds for discovery instead of refusing after thirty seconds.
+  Snapshots contain paths and timestamps only and are replaced atomically with
+  owner-only permissions.
 
 ### Changed
 

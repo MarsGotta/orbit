@@ -294,9 +294,16 @@ permissions. Deleted files are removed from the mount list at admission.
 `__pycache__`, tool caches, `.tox`, `.nox`, `build` and `dist` are skipped.
 Reaching either bound emits one Spanish hub warning for that root with the
 bound and counts; the assistant still starts with the files found so far hidden.
-Warm assistant starts use the cached list without walking the tree. Until the
-first scan finishes they wait at most thirty seconds, then refuse calmly if
-no snapshot is available. A failed refresh retains the preceding snapshot.
+Warm assistant starts use the cached list without walking the tree. Successful
+scans are saved atomically as `secret-scan.json` in the hub's data directory,
+with mode `0600`, paths and per-root completion times, never file contents.
+After restart, snapshots less than ten minutes old are usable immediately
+while discovery refreshes them. Missing, older, future-dated or unusable
+snapshots require a new scan. Until it finishes, the first assistant waits at
+most 126 seconds, twice a reported 63-second cold restart scan; a timeout
+refuses admission without cancelling discovery. A failed refresh retains the
+preceding in-memory snapshot. Saved snapshots larger than 16 MiB are not reused;
+that startup parsing budget does not reduce discovery or masking limits.
 New files are discovered at the next scan and masked for subsequent assistant
 starts; existing processes retain their original mounts. This is bounded
 periodic discovery, not continuous monitoring or complete host secret detection:
