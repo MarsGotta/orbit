@@ -42,6 +42,9 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
+from harness_copy import language_scope, render
+from harness_copy import text as copy_text
+
 DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(DIRECTORY))
 
@@ -56,6 +59,7 @@ import isolated_hub
 import mac as mac_side
 import mac_controls
 import meeting_controls
+import meeting_language
 import silence_recording
 from interface import InAppBridge, Interface, StepFailed
 
@@ -118,8 +122,14 @@ def bounds() -> dict[str, tuple[float, str]]:
                 "macOS takes to open it (provisional)"
             ),
         ),
-        "paired": (30, "provisional: the daemon connecting to the test hub, not measured"),
-        "cua-driver": (30, "provisional: the start of CuaDriver's daemon, not measured"),
+        "paired": (
+            30,
+            "provisional: the daemon connecting to the test hub, not measured",
+        ),
+        "cua-driver": (
+            30,
+            "provisional: the start of CuaDriver's daemon, not measured",
+        ),
         "accessibility-tree": (
             10,
             "provisional: WebKit builds its tree when macOS first asks, not measured",
@@ -128,8 +138,14 @@ def bounds() -> dict[str, tuple[float, str]]:
             120,
             "cua-driver call stops waiting for its daemon at 120 s (daemon.rs, send_request)",
         ),
-        "recording": (30, "provisional: the start of the microphone capture, not measured"),
-        "listening": (300, "provisional: the first time, macOS downloads the Spanish speech model"),
+        "recording": (
+            30,
+            "provisional: the start of the microphone capture, not measured",
+        ),
+        "listening": (
+            300,
+            "provisional: the first time, macOS downloads the selected on-device speech model",
+        ),
         "answer": (
             180,
             "provisional: Orbit does not bound a Hermes turn; this is the test's patience",
@@ -150,7 +166,10 @@ def bounds() -> dict[str, tuple[float, str]]:
                 f"{ProcessingConfiguration.model_fields['timeout_seconds'].default:.0f} s"
             ),
         ),
-        "screen": (10, "the interface receives the pushed changes; covers two engine reads"),
+        "screen": (
+            10,
+            "the interface receives the pushed changes; covers two engine reads",
+        ),
         "first-view": (
             20,
             (
@@ -177,7 +196,10 @@ def bounds() -> dict[str, tuple[float, str]]:
                 "Orbit does not bound that opening"
             ),
         ),
-        "session": (30, "provisional: opening a conversation stored in the hub, not measured"),
+        "session": (
+            30,
+            "provisional: opening a conversation stored in the hub, not measured",
+        ),
         "close": (
             exit_s + 15,
             f"the app gives its daemon {exit_s} s to exit (DAEMON_EXIT_WAIT), plus a margin",
@@ -196,14 +218,13 @@ def bounds() -> dict[str, tuple[float, str]]:
 # Queries for the bridge's semantic tree: matching rows and their ancestors.
 # Unfiltered readings preserve hierarchy for transcript, list and draft checks.
 READS: dict[str, str | None] = {
-    # «Transcribiendo…», «Escribiendo la nota» and «Escribiendo el resumen…»
-    # all contain it.
-    "note-ready": "ribiendo",
+    # Read all busy-state labels, whose words and order differ by language.
+    "note-ready": None,
     # The opened note's title is the field «Título de la reunión» in its
     # first-level heading (editable, it renames the meeting); the list beside
     # it names the note too, as a row, so a row is never taken for it.
-    "note-from-notice": "Título de la reunión",
-    "note-from-list": "Título de la reunión",
+    "note-from-notice": None,
+    "note-from-list": None,
     "note-summary": "AXStaticText",
     "note-actions": "AXCheckBox",
     # Read whole: every turn's speaker is a button (it opens the speaker menu,
@@ -256,6 +277,12 @@ class RemoteMac:
                 "-q",
                 *self.options,
                 str(DIRECTORY / "mac.py"),
+                str(DIRECTORY / "mac_cli.py"),
+                str(DIRECTORY / "harness_copy.py"),
+                str(DIRECTORY / "meeting_language.py"),
+                str(DIRECTORY / "ui-copy.json"),
+                str(DIRECTORY / "native-copy.json"),
+                str(DIRECTORY / "meeting-script-en.txt"),
                 str(DIRECTORY / "mac_controls.py"),
                 str(DIRECTORY / "mac_bridge.py"),
                 str(DIRECTORY / "mac_drafts_panel.py"),
@@ -274,12 +301,15 @@ class RemoteMac:
             timeout=SSH_MARGIN_S,
         )
 
+    language = "es"
+
     def _call(self, bound_s: float, *arguments: str) -> dict:
         # A non-interactive SSH session has no /opt/homebrew/bin, where
         # SwitchAudioSource lives (scripts/release/mac-build.sh says the same).
         remote = (
             "PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin "
-            f"python3 {REMOTE}/mac.py " + " ".join(shlex.quote(a) for a in arguments)
+            f"python3 {REMOTE}/mac.py --language {self.language} "
+            + " ".join(shlex.quote(a) for a in arguments)
         )
         try:
             done = subprocess.run(
@@ -351,7 +381,13 @@ class RemoteMac:
     def panel_pointer(self, window_id, where, question, max_s):
         # `swift` compiles pointer.swift first (as `floating`), then the wait.
         return self._call(
-            60 + max_s, "panel-pointer", str(window_id), where, question, "--max", str(max_s)
+            60 + max_s,
+            "panel-pointer",
+            str(window_id),
+            where,
+            question,
+            "--max",
+            str(max_s),
         )
 
     def bridge_call(self, request):
@@ -412,7 +448,12 @@ class RealTest:
         directory: Path,
         hermes: bool,
         providers: dict | None = None,
+        language: str = "es",
     ):
+        if language not in ("es", "en"):
+            raise ValueError(f"unsupported test language {language!r}")
+        self.language = language
+        mac.language = language
         self.mac = mac
         self.paths = paths
         self.host = host
@@ -421,9 +462,13 @@ class RealTest:
         self.hermes = hermes
         self.providers = providers
         self.bounds = bounds()
-        self.script = mac_side.script_parts(mac_side.SCRIPT.read_text(encoding="utf-8"))
+        with language_scope(language):
+            self.script = mac_side.script_parts(
+                meeting_language.script_path().read_text(encoding="utf-8")
+            )
         span = mac_controls.muted_span(self.script)
         self.ev: dict = {
+            "language": language,
             "steps": [],
             "waits": [],
             "trees": {},
@@ -519,7 +564,11 @@ class RealTest:
         with self.step("test hub"):
             self.paths.config.write_text(
                 isolated_hub.config_text(
-                    self.paths, self.host, isolated_hub.HERMES_PORT, self.providers
+                    self.paths,
+                    self.host,
+                    isolated_hub.HERMES_PORT,
+                    self.providers,
+                    language=self.language,
                 ),
                 encoding="utf-8",
             )
@@ -529,7 +578,8 @@ class RealTest:
             )
             self.processes.append(process)
             self.measure(
-                "hub", isolated_hub.wait_health(self.hub_url, process, self.bounds["hub"][0])
+                "hub",
+                isolated_hub.wait_health(self.hub_url, process, self.bounds["hub"][0]),
             )
 
     @property
@@ -556,26 +606,33 @@ class RealTest:
             with self.step("start recording from the interface", (1, 2, 3, 4, 5, 6, 7)):
                 # «Grabar reunión» of the sidebar, in every view (Sidebar.tsx); the
                 # sidebar comes first in the tree, before any view's own button.
-                ui.press(self.main, "Grabar reunión", ("AXButton",), first=True)
+                ui.press(self.main, copy_text("shell.record"), ("AXButton",), first=True)
                 # Microphone only: the script plays into BlackHole, the default
                 # input, and with system audio too every line would be recorded
                 # twice.
                 # «Qué audio grabar» is a list of radios, each labelled with its
                 # explanation (AudioSourceField.tsx): pressed by its name.
-                ui.press(self.main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
-                ui.press(self.main, "Empezar a grabar", ("AXButton",))
+                ui.press(
+                    self.main,
+                    copy_text("meeting.sourceMicrophone"),
+                    ("AXRadioButton",),
+                    contains=True,
+                )
+                ui.press(self.main, copy_text("meeting.record"), ("AXButton",))
                 recording = self.wait_mac("recording")
                 self.ev["recording"] = dict(recording)
                 if recording.get("audio") != "microphone_only":
                     raise StepFailed(
                         f"the recording started with audio «{recording.get('audio')}», not "
-                        "«microphone_only»: «Qué audio grabar» did not change to «Solo mi micrófono»"
+                        f"""«microphone_only»: «{copy_text("meeting.sourceLabel")}» did not change to «{copy_text("meeting.sourceMicrophone")}»"""
                     )
 
             capture("recording")
 
         with self.step(
-            "read the recording's menu bar through the test bridge", (16,), critical=False
+            "read the recording's menu bar through the test bridge",
+            (16,),
+            critical=False,
         ):
             self.ev["menus"] = self.mac.bridge_menus()
 
@@ -583,7 +640,11 @@ class RealTest:
             self.mac.say("part1")
 
         panel = None
-        with self.step("«Oye Deimos» and its answer in the panel", (7,), critical=False):
+        with self.step(
+            f"""«{copy_text("recordingCard.wakePhrase")}» and its answer in the panel""",
+            (7,),
+            critical=False,
+        ):
             try:
                 self.wait_mac("listening")
             finally:
@@ -601,7 +662,7 @@ class RealTest:
                         "panel",
                         READS["panel"],
                         # Shown only with the answer whole (PanelAnswer.tsx).
-                        lambda text: "Queda también en tu conversación" in text,
+                        lambda text: copy_text("floatingPanel.alsoInConversation") in text,
                         self.bounds["screen"][0],
                     ),
                 )
@@ -618,7 +679,7 @@ class RealTest:
             # «Terminar» is always in sight on the sidebar's recording card
             # (RecordingCard.tsx; run 14 found the old pill's only under a mouse
             # hover): pressed by accessibility, as the keyboard would.
-            ui.press(self.main, "Terminar", ("AXButton",), first=True)
+            ui.press(self.main, copy_text("meeting.finish"), ("AXButton",), first=True)
 
         with self.step("the saved recording", (1, 2, 3, 4, 5, 6)):
             saved = self.wait_mac("saved", self.ev["recording"]["id"])
@@ -634,8 +695,12 @@ class RealTest:
         # itself after ten seconds; a notice can disappear between reads, so
         # it is pressed as soon as the note is final, before anything else
         # waits.
-        with self.step("«Abrir» from «Tu nota está lista»", (6,), critical=False):
-            ui.press(self.main, "Abrir", ("AXLink", "AXButton"))
+        with self.step(
+            f"""«{copy_text("noteScreen.open")}» from «{copy_text("noteScreen.ready")}»""",
+            (6,),
+            critical=False,
+        ):
+            ui.press(self.main, copy_text("noteScreen.open"), ("AXLink", "AXButton"))
             # What the page shows once it opens.
             ui.read(self.main, "find the note just opened (whole window)", None)
 
@@ -651,9 +716,9 @@ class RealTest:
                         not any(
                             t in text
                             for t in (
-                                "Transcribiendo",
-                                "Escribiendo la nota",
-                                "Escribiendo el resumen",
+                                copy_text("noteScreen.steps.transcript.active"),
+                                copy_text("noteScreen.listWriting"),
+                                copy_text("noteScreen.steps.summary.active"),
                             )
                         )
                     ),
@@ -677,11 +742,15 @@ class RealTest:
             # window says what is there instead.
             ui.read(self.main, "find the notice's note (whole window)", None)
 
-        with self.step("open the note from the list of meetings (Reuniones)", (6,), critical=False):
+        with self.step(
+            f"""open the note from the list of meetings ({copy_text("shell.notes")})""",
+            (6,),
+            critical=False,
+        ):
             # The sidebar names the section «Reuniones», a link (Sidebar.tsx). An
             # open note's breadcrumb in the top bar is a second «Reuniones»
             # link; the sidebar comes first in the tree.
-            ui.press(self.main, "Reuniones", ("AXLink",), first=True)
+            ui.press(self.main, copy_text("shell.notes"), ("AXLink",), first=True)
             # The list and the opened note name it by the meeting's title
             # (decided on 2026-10-17).
             title = checks._title(self.ev)
@@ -702,9 +771,9 @@ class RealTest:
 
         with self.step("the note's tabs", (1, 2, 3, 4, 5), critical=False):
             for tab, label in (
-                ("Resumen", "note-summary"),
-                ("Acciones", "note-actions"),
-                ("Transcripción", "note-transcript"),
+                (copy_text("noteScreen.summaryTab"), "note-summary"),
+                (copy_text("noteScreen.actionsTab"), "note-actions"),
+                (copy_text("noteScreen.transcriptTab"), "note-transcript"),
             ):
                 # «Acciones · 3»: the open tasks are counted in the tab's name.
                 ui.press(
@@ -718,14 +787,12 @@ class RealTest:
 
         with self.step("the Assistant", (8,), critical=False):
             # What is typed to the assistant, in the product's language.
-            message = (
-                f"Prueba de Orbit {uuid.uuid4().hex[:6]}: contesta sólo con la palabra recibido."
-            )
+            message = meeting_language.chat_message(uuid.uuid4().hex[:6])
             self.ev["chat"] = {"message": message}
-            ui.press(self.main, "Asistente", ("AXLink",))
+            ui.press(self.main, copy_text("shell.assistant"), ("AXLink",))
             # «Mensaje para Deimos»: the field names the conversation's agent.
-            ui.type_into(self.main, "Mensaje para", message, contains=True)
-            ui.press(self.main, "Enviar", ("AXButton",))
+            ui.type_into(self.main, copy_text("assistant.composerPrefix"), message, contains=True)
+            ui.press(self.main, copy_text("chat.send"), ("AXButton",))
             done = self.wait_mac("chat", message)
             self.ev["chat"].update(done)
             answered = self.bounds["screen"][0]
@@ -750,7 +817,13 @@ class RealTest:
                     f"conversation {done['session']} is not among the {len(sessions)} "
                     "the hub lists, with its start date"
                 )
-            ui.press(self.main, "Nueva conversación", ("AXButton",), contains=True, first=True)
+            ui.press(
+                self.main,
+                copy_text("assistant.newSession"),
+                ("AXButton",),
+                contains=True,
+                first=True,
+            )
             # Each conversation of the list is a link named by its start («Hoy, 09:31»).
             ui.press(self.main, earlier["app_title"], ("AXLink",), contains=True, first=True)
             self.wait_mac("session", done["session"])
@@ -770,7 +843,7 @@ class RealTest:
         with self.step("a voice note to Deimos", (11,), critical=False):
             spoken = self.mac.voice_note()
             self.ev["voice_note"] = {
-                "phrase": mac_side.VOICE_NOTE,
+                "phrase": meeting_language.voice_note_phrase(),
                 "spoken": spoken,
                 **self.wait_mac("voice-note"),
             }
@@ -846,6 +919,10 @@ class RealTest:
             self.ev["hub_log"] = log.read_text(encoding="utf-8") if log.exists() else None
 
     def run(self) -> list[dict]:
+        with language_scope(self.language):
+            return self._run()
+
+    def _run(self) -> list[dict]:
         self.directory.mkdir(parents=True, exist_ok=True)
         (self.directory / "trees").mkdir(exist_ok=True)
         try:
@@ -887,6 +964,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
     """report.json for machines, report.txt for people. No content but the
     synthetic meeting's, which is invented."""
     data = {
+        "language": ev.get("language", "es"),
         "results": results,
         "steps": ev["steps"],
         "waits": ev["waits"],
@@ -908,7 +986,10 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
     (directory / "report.json").write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    lines = [f"Real test on the Mac · {directory.name}", ""]
+    lines = [
+        f"Real test on the Mac · {directory.name} · language {ev.get('language', 'es')}",
+        "",
+    ]
     for r in results:
         lines.append(f"{r['number']:>2}. [{r['status']}] {r['name']}")
         lines.append(f"    {r['detail']}")
@@ -916,10 +997,10 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
             lines.append(f"    log {row['log']}: code {row['code']}, op {row['op']}")
     if ev.get("welcome_skipped"):
         where = ", ".join(ev["welcome_skipped"])
-        skipped = f"Orbit Pruebas {first_run.REPORTED} ({where}); «{first_run.SKIP}» skipped it."
+        skipped = f"Orbit Pruebas {first_run.REPORTED} ({where}); «{copy_text('onboarding.skipAll')}» skipped it."
         lines += ["", skipped]
     lines += ["", "Not covered:"]
-    lines += [f"  {text}" for text in all_checks.NOT_COVERED]
+    lines += [f"  {render(text)}" for text in all_checks.NOT_COVERED]
     lines += ["", "Steps:"]
     for s in ev["steps"]:
         status = "ok" if s.get("ok", True) else f"FAILED: {s.get('cause')}"
@@ -947,7 +1028,11 @@ def run_directory(base: Path) -> Path:
 
 def tailnet_ip() -> str:
     done = subprocess.run(
-        ["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=15, check=True
+        ["tailscale", "ip", "-4"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=True,
     )
     address = done.stdout.split()[0]
     if isolated_hub.ipaddress.ip_address(address) not in isolated_hub.TAILNET:
@@ -955,9 +1040,9 @@ def tailnet_ip() -> str:
     return address
 
 
-def run_real() -> int:
+def run_real(language: str = "es") -> int:
     paths = isolated_hub.Paths(BASE)
-    isolated_hub.config_text(paths, "127.0.0.1", isolated_hub.HERMES_PORT)
+    isolated_hub.config_text(paths, "127.0.0.1", isolated_hub.HERMES_PORT, language=language)
     isolated_hub.required_environment("ORBIT_TEST_HERMES_TOKEN_ENV")
     for secret in (paths.hermes_token,):
         if not secret.exists() or secret.stat().st_mode & 0o077:
@@ -966,7 +1051,8 @@ def run_real() -> int:
             )
     try:
         mac = RemoteMac(
-            os.environ.get("ORBIT_MAC_HOST", ""), os.environ.get("ORBIT_MAC_SSH_KEY", "")
+            os.environ.get("ORBIT_MAC_HOST", ""),
+            os.environ.get("ORBIT_MAC_SSH_KEY", ""),
         )
         host = tailnet_ip()
     except (ValueError, RuntimeError, OSError, subprocess.SubprocessError) as cause:
@@ -980,7 +1066,15 @@ def run_real() -> int:
                 f"port {address}:{port} is in use; the test does not touch what uses it"
             )
     directory = run_directory(BASE)
-    test = RealTest(mac, paths, host, isolated_hub.HUB_PORT, directory, hermes=True)
+    test = RealTest(
+        mac,
+        paths,
+        host,
+        isolated_hub.HUB_PORT,
+        directory,
+        hermes=True,
+        language=language,
+    )
 
     # Closing the terminal or a plain `kill` still cleans up: the run goes to
     # its `finally` as with Ctrl-C.
@@ -998,10 +1092,12 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Orbit's real test on the Mac")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("prepare", help="creates, once, the test's keys in ~/.orbit-pruebas")
-    commands.add_parser("run", help="the real test, against the Mac")
+    run_parser = commands.add_parser("run", help="the real test, against the Mac")
+    run_parser.add_argument("--language", choices=("es", "en"), default="es")
     dry_run_parser = commands.add_parser(
         "dry-run", help="a dry run on Linux against example states; not the test"
     )
+    dry_run_parser.add_argument("--language", choices=("es", "en"), default="es")
     dry_run_parser.add_argument("--example", default="good")
     dry_run_parser.add_argument("--directory", type=Path)
     options = parser.parse_args(argv)
@@ -1010,10 +1106,10 @@ def main(argv: list[str]) -> int:
         print("Created: " + (", ".join(created) if created else "nothing; they already existed"))
         return 0
     if options.command == "run":
-        return run_real()
+        return run_real(options.language)
     import dry_run
 
-    results, directory = dry_run.run(options.example, options.directory)
+    results, directory = dry_run.run(options.example, options.directory, language=options.language)
     print((directory / "report.txt").read_text(encoding="utf-8"))
     return 0 if checks.passed(results) else 1
 

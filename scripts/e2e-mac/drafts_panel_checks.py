@@ -10,22 +10,22 @@ from __future__ import annotations
 import ax_tree
 import checks
 from checks import _fact, _tree
+from harness_copy import Aliases, Messages
+from harness_copy import text as copy_text
 
-NAMES = {
-    17: "A draft survives the Dock's quit and comes back with «Recuperado…»",
-    18: "The panel holds its answer under the pointer and lets it go after",
-}
+NAMES = Messages(
+    {
+        17: "A draft survives the Dock's quit and comes back with «{assistant.draftRecovered}»",
+        18: "The panel holds its answer under the pointer and lets it go after",
+    }
+)
 
 # The app's own texts (apps/desktop/src/i18n/es/assistant.ts): the
 # composer's label, `Mensaje para ${assistantName}`, and `draftRecovered`. The
 # dry-run test checks them against that file.
-TEXTS = {
-    "composer": "Mensaje para",
-    "recovered": "Recuperado el borrador que no llegaste a enviar.",
-}
+TEXTS = Aliases({"composer": "assistant.composerPrefix", "recovered": "assistant.draftRecovered"})
 # The panel shows this under an answer only once it is whole (PanelAnswer.tsx);
 # check 7 reads it too.
-ANSWER_WHOLE = "Queda también en tu conversación"
 QUIT_NAMES = {
     "apple-event": "the Dock's quit (the Apple Event «quit»)",
 }
@@ -108,16 +108,25 @@ def c17_drafts(ev: dict) -> tuple[bool, str]:
 def c18_panel_hold(ev: dict) -> tuple[bool, str]:
     hold = ev.get("panel_hold")
     if hold is None:
-        raise checks.Unchecked("no answer of «Oye Deimos» reached the panel to hold (check 7)")
+        raise checks.Unchecked(
+            f"""no answer of «{copy_text("recordingCard.wakePhrase")}» reached the panel to hold (check 7)"""
+        )
     over, away = _fact(hold, "over"), _fact(hold, "away")
     answer = _fact(ev, "question").get("answer") or ""
     held = ax_tree.all_text(_tree(ev, "panel-held"))
     after = f"{hold['held_for_s']:.0f} s after it arrived (it shows {hold['shown_s']:.0f} s alone)"
     if hold["held_for_s"] < hold["required_s"]:
         return False, f"the panel was read {after}, before {hold['required_s']:.0f} s"
-    if ANSWER_WHOLE not in held or checks._missing_words(answer, held):
-        return False, f"with the pointer over it, {after}, the panel no longer shows the answer"
-    if ANSWER_WHOLE in ax_tree.all_text(_tree(ev, "panel-released")):
+    if copy_text("floatingPanel.alsoInConversation") not in held or checks._missing_words(
+        answer, held
+    ):
+        return (
+            False,
+            f"with the pointer over it, {after}, the panel no longer shows the answer",
+        )
+    if copy_text("floatingPanel.alsoInConversation") in ax_tree.all_text(
+        _tree(ev, "panel-released")
+    ):
         return False, (
             f"{away['seconds']} s after the pointer left, the daemon let the answer go and "
             "the panel still shows the answer"

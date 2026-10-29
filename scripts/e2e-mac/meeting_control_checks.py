@@ -14,21 +14,21 @@ import re
 import ax_tree
 import checks
 from checks import _fact, _transcript, _tree
+from harness_copy import Aliases, Messages
+from harness_copy import text as copy_text
 
-NAMES = {
-    13: "«Silenciar» leaves its stretch out of the recording and the note marks it",
-    14: "«Terminar sin guardar» leaves no note and nothing of the recording, here or on the hub",
-    15: "«Borrar reunión» asks first and leaves nothing of the meeting, here or on the hub",
-    16: "The menu bar offers «Silenciar» and «Terminar sin guardar…» and shows the time",
-}
+NAMES = Messages(
+    {
+        13: "«{microphoneMute.mute}» leaves its stretch out of the recording and the note marks it",
+        14: "«{discard.action}» leaves no note and nothing of the recording, here or on the hub",
+        15: "«{noteScreen.deleteMeeting}» asks first and leaves nothing of the meeting, here or on the hub",
+        16: "The menu bar offers «{native.mute}» and «{native.discard}» and shows the time",
+    }
+)
 
 # What these checks cannot see, said in every report after checks.NOT_COVERED.
 NOT_COVERED = (
-    (
-        "«Silenciar» and «Terminar sin guardar» anywhere but the sidebar's «Grabando» card "
-        "(the floating panel, the menu bar, a call with Deimos), and that «Oye Deimos» is "
-        "not heard while muted: the run presses the card's alone."
-    ),
+    "«{microphoneMute.mute}» and «{discard.action}» outside the sidebar recording card, and whether «{recordingCard.wakePhrase}» is heard while muted: the run presses only the card's controls.",
 )
 
 
@@ -44,37 +44,34 @@ class Skipped(Exception):
 # notices/capture.ts `recording_discarded`, noteScreen.ts `meetingMenu`,
 # `deleteMeeting`, `deleteQuestion` and `ready`. The dry-run test checks each
 # against those files.
-TEXTS = {
-    "mute": "Silenciar",
-    "unmute": "Reactivar micrófono",
-    "muted": "Micrófono silenciado",
-    "muted_line": "Micrófono silenciado · ",
-    "discard": "Terminar sin guardar",
-    "discard_confirm": "Borrar y terminar",
-    "discarded": "Reunión descartada",
-    "note_ready": "Tu nota está lista",
-    "list": "Reuniones",
-    "refresh": "Actualizar",
-    "load_more": "Cargar más reuniones",
-    "today": "Hoy",
-    "yesterday": "Ayer",
-    "this_week": "Esta semana",
-    "last_30_days": "Últimos 30 días",
-    "before": "Antes",
-    "list_loading": "Leyendo tus reuniones del hub…",
-    "list_failed": "No se pudo leer la lista de reuniones. Vuelve a intentarlo.",
-    "list_needs_hub": "Tus reuniones se leen del hub. Aparecerán cuando Orbit se conecte.",
-    "meeting_menu": "Más",
-    "delete": "Borrar reunión",
-    "delete_question": "¿Borrar esta reunión?",
-}
-DAY_GROUPS = tuple(
-    TEXTS[group] for group in ("today", "yesterday", "this_week", "last_30_days", "before")
+TEXTS = Aliases(
+    {
+        "mute": "microphoneMute.mute",
+        "unmute": "microphoneMute.unmute",
+        "muted": "microphoneMute.muted",
+        "muted_line": "notes.mutedPrefix",
+        "discard": "discard.action",
+        "discard_confirm": "discard.confirm",
+        "discarded": "notices.recording_discarded.text",
+        "note_ready": "noteScreen.ready",
+        "list": "shell.notes",
+        "refresh": "notes.refresh",
+        "load_more": "notes.loadMore",
+        "today": "notes.today",
+        "yesterday": "notes.yesterday",
+        "this_week": "notes.thisWeek",
+        "last_30_days": "notes.last30Days",
+        "before": "notes.before",
+        "list_loading": "notes.loadingIndex",
+        "list_failed": "notes.indexFailed",
+        "list_needs_hub": "notes.needsHub",
+        "meeting_menu": "noteScreen.meetingMenu",
+        "delete": "noteScreen.deleteMeeting",
+        "delete_question": "noteScreen.deleteQuestion",
+    }
 )
-# What the list says in place of its rows while it has not been read whole.
-LIST_UNREAD = (TEXTS["list_loading"], TEXTS["list_failed"], TEXTS["list_needs_hub"])
-# «Micrófono silenciado · 12:04 – 12:30»: from the meeting's start (mmss).
-MUTED_SPAN = re.compile(r"^Micrófono silenciado · (\S+) – (\S+)$")
+DAY_KEYS = ("today", "yesterday", "this_week", "last_30_days", "before")
+UNREAD_KEYS = ("list_loading", "list_failed", "list_needs_hub")
 # The code the daemon logs when «Terminar sin guardar» took (NoticeCode).
 DISCARDED_CODE = "recording_discarded"
 
@@ -89,10 +86,12 @@ def _own_words(lines: list[str], script: list[str]) -> set[str]:
 
 
 def _muted_line(lines: list[str], duration_ms: int) -> str | None:
-    """Why the one «Micrófono silenciado · …» line is wrong, or None."""
+    """Why the one muted-microphone line is wrong, or None."""
     if len(lines) != 1:
-        return f"the transcript shows {len(lines)} «Micrófono silenciado · …» lines, not one"
-    found = MUTED_SPAN.match(lines[0])
+        return f"the transcript shows {len(lines)} muted-microphone lines, not one"
+    pattern = re.escape(copy_text("notes.mutedMicrophone"))
+    pattern = pattern.replace(re.escape("{start}"), r"(\S+)").replace(re.escape("{end}"), r"(\S+)")
+    found = re.fullmatch(pattern, lines[0])
     start, end = (ax_tree.seconds(t) for t in found.groups()) if found else (None, None)
     if start is None or end is None or not start < end or end * 1000 > duration_ms:
         return f"«{lines[0]}» is not a stretch within the recording ({duration_ms // 1000} s)"
@@ -105,10 +104,13 @@ def c13_mute(ev: dict) -> tuple[bool, str]:
     if TEXTS["muted"] not in [text for node in card for text in node.texts()]:
         return (
             False,
-            "with the microphone muted, the «Grabando» card does not say «Micrófono silenciado»",
+            f"""with the microphone muted, the «{copy_text("meeting.recording")}» card does not say «{copy_text("microphoneMute.muted")}»""",
         )
     if not any(n.role == "AXButton" and TEXTS["unmute"] in n.texts() for n in card):
-        return False, "with the microphone muted, the card offers no «Reactivar micrófono»"
+        return (
+            False,
+            f"""with the microphone muted, the card offers no «{copy_text("microphoneMute.unmute")}»""",
+        )
     before, segments = _transcript(ev)
     texts = before + [s.text for s in segments]
     lines = [t for t in texts if t.startswith(TEXTS["muted_line"])]
@@ -119,7 +121,10 @@ def c13_mute(ev: dict) -> tuple[bool, str]:
     script = [*_fact(ev, "script"), *span["muted"]]
     back = sorted(_own_words(span["muted"], script) & heard)
     if back:
-        return False, f"{len(back)} words said while muted are in the transcript: {', '.join(back)}"
+        return (
+            False,
+            f"{len(back)} words said while muted are in the transcript: {', '.join(back)}",
+        )
     for side in ("before", "after"):
         own = _own_words(span[side], script)
         recall = len(own & heard) / len(own) if own else 0.0
@@ -131,7 +136,7 @@ def c13_mute(ev: dict) -> tuple[bool, str]:
             )
     muted = _own_words(span["muted"], script)
     return True, (
-        f"the card said «Micrófono silenciado»; «{lines[0]}»; none of the {len(muted)} words "
+        f"the card said «{copy_text('microphoneMute.muted')}»; «{lines[0]}»; none of the {len(muted)} words "
         "said only while muted came back, and the words around it did"
     )
 
@@ -190,12 +195,14 @@ def listed(nodes: list[ax_tree.Node]) -> list[str] | None:
         day = False
         for sibling in siblings[1:]:
             first, texts = sibling[0], _texts(sibling)
-            if first.role == "AXHeading" and any(text in DAY_GROUPS for text in texts):
+            if first.role == "AXHeading" and any(
+                text in (TEXTS[key] for key in DAY_KEYS) for text in texts
+            ):
                 day = True
             elif first.role == "AXLink" and day:
                 names.append(sibling[1].text() if len(sibling) > 1 else first.text())
             elif not (first.role == "AXButton" and TEXTS["load_more"] in texts):
-                if not names and any(text in LIST_UNREAD for text in texts):
+                if not names and any(text in (TEXTS[key] for key in UNREAD_KEYS) for text in texts):
                     return None
                 break
         return names
@@ -205,7 +212,9 @@ def listed(nodes: list[ax_tree.Node]) -> list[str] | None:
 def note_still_open(nodes: list[ax_tree.Node], title: str) -> bool:
     """The note of the meeting `title` is open: its title field names it."""
     return any(
-        node.role == "AXTextField" and checks.TITLE_FIELD in node.texts() and node.value == title
+        node.role == "AXTextField"
+        and copy_text("noteScreen.titleLabel") in node.texts()
+        and node.value == title
         for node in nodes
     )
 
@@ -229,7 +238,7 @@ def c14_discard(ev: dict) -> tuple[bool, str]:
     if TEXTS["discarded"] not in ax_tree.all_text(_tree(ev, "discard-notice")):
         logged = any(f.get("code") == DISCARDED_CODE for f in _logged(ev))
         return False, (
-            "«Reunión descartada» was not on screen right after «Borrar y terminar» (it shows "
+            f"""«{copy_text("notices.recording_discarded.text")}» was not on screen right after «{copy_text("discard.confirm")}» (it shows """
             f"5 s); the daemon {'did' if logged else 'did not'} log «{DISCARDED_CODE}»"
         )
     trees = ev.get("trees", {})
@@ -240,7 +249,10 @@ def c14_discard(ev: dict) -> tuple[bool, str]:
         and TEXTS["note_ready"] in ax_tree.all_text(ax_tree.parse(text))
     ]
     if ready:
-        return False, f"«Tu nota está lista» appeared after the recording was discarded ({ready})"
+        return (
+            False,
+            f"«{copy_text('noteScreen.ready')}» appeared after the recording was discarded ({ready})",
+        )
     title = (discard.get("recording") or {}).get("title") or ""
     wrong = _gone_from_list(ev, "discard-meetings", title) or _left_on_hub(
         "discarded recording", discard
@@ -249,7 +261,7 @@ def c14_discard(ev: dict) -> tuple[bool, str]:
         return False, wrong
     chunks = discard["hub_before"]["rows"].get("chunks", 0)
     return True, (
-        f"«Reunión descartada»; no note; gone from «Reuniones»; the {chunks} chunks the hub had "
+        f"«{TEXTS['discarded']}»; no note; gone from «{TEXTS['list']}»; the {chunks} chunks the hub had "
         "are gone with everything else, and its tombstone is kept"
     )
 
@@ -273,7 +285,10 @@ def c15_delete(ev: dict) -> tuple[bool, str]:
     _fact(deletion, "gone")
     question = ax_tree.all_text(_tree(ev, "delete-question"))
     if TEXTS["delete_question"] not in question:
-        return False, "the first «Borrar reunión» did not ask «¿Borrar esta reunión?» first"
+        return (
+            False,
+            f"""the first «{copy_text("noteScreen.deleteMeeting")}» did not ask «{copy_text("noteScreen.deleteQuestion")}» first""",
+        )
     title = deletion.get("title") or ""
     wrong = _gone_from_list(ev, "delete-meetings", title) or _left_on_hub(
         "deleted meeting", deletion
@@ -281,10 +296,13 @@ def c15_delete(ev: dict) -> tuple[bool, str]:
     if wrong:
         return False, wrong
     if title and note_still_open(_tree(ev, "delete-meetings"), title):
-        return False, f"the note of «{title}» is still open beside the list after its deletion"
+        return (
+            False,
+            f"the note of «{title}» is still open beside the list after its deletion",
+        )
     kinds = len(deletion["hub_before"]["rows"])
     return True, (
-        f"asked first; gone from «Reuniones»; the hub's rows of it in {kinds} tables are gone "
+        f"asked first; gone from «{TEXTS['list']}»; the hub's rows of it in {kinds} tables are gone "
         "and its tombstone is kept"
     )
 
@@ -295,7 +313,7 @@ def c16_menu_bar(ev: dict) -> tuple[bool, str]:
         return False, "the test bridge refused menus: " + json.dumps(menus)
     tray = menus.get("tray") or {}
     rows = tray.get("rows") or []
-    for name in (TEXTS["mute"], TEXTS["discard"] + "…"):
+    for name in (copy_text("native.mute"), copy_text("native.discard")):
         matches = [row for row in rows if row.get("name") == name]
         if len(matches) != 1 or matches[0].get("enabled") is not True:
             return (
@@ -305,7 +323,10 @@ def c16_menu_bar(ev: dict) -> tuple[bool, str]:
     title = tray.get("title") or ""
     if ax_tree.seconds(title) is None:
         return False, f"the menu bar title has no recording time: «{title}»"
-    return True, f"enabled «Silenciar» and «Terminar sin guardar…»; recording time «{title}»"
+    return (
+        True,
+        f"enabled «{copy_text('native.mute')}» and «{copy_text('native.discard')}»; recording time «{title}»",
+    )
 
 
 CHECKS = {13: c13_mute, 14: c14_discard, 15: c15_delete, 16: c16_menu_bar}

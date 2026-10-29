@@ -1,3 +1,4 @@
 Alex                en_US    # Most people recognize me by my voice.
 Mónica              es_ES    # Hola, me llamo Mónica y soy una voz española.
 Jorge               es_ES    # Hola, me llamo Jorge y soy una voz española.
+Samantha            en_US    # Hello, my name is Samantha.

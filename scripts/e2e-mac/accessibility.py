@@ -11,11 +11,25 @@ from contextlib import contextmanager
 
 import ax_tree
 from checks import _fact
+from harness_copy import Aliases, Messages
+from harness_copy import text as copy_text
 from interface import StepFailed
 
-NAMES = {21: "macOS sees the recording buttons and sidebar links by name"}
+NAMES = Messages({21: "macOS sees the recording buttons and sidebar links by name"})
 NOT_COVERED = ()
-LINKS = ("Hoy", "Calendario", "Reuniones", "Notas", "Asistente", "Ajustes")
+LINKS = Aliases(
+    {
+        key: "shell." + key
+        for key in (
+            "briefing",
+            "calendar",
+            "notes",
+            "vault",
+            "assistant",
+            "settings",
+        )
+    }
+)
 # Between macOS accessibility reads while WebKit builds its tree; each read is
 # a CuaDriver call over SSH, so a shorter pause only adds calls.
 AX_RETRY_S = 0.5
@@ -31,21 +45,24 @@ def _named(nodes, role, label):
 
 def c21_accessibility(ev: dict) -> tuple[bool, str]:
     sample = _fact(ev, "accessibility")
-    for phase, button in (("idle", "Grabar reunión"), ("recording", "Terminar")):
+    for phase, button in (
+        ("idle", copy_text("shell.record")),
+        ("recording", copy_text("meeting.finish")),
+    ):
         tree = (sample.get("trees") or {}).get(phase)
         if not tree:
             return False, f"no macOS accessibility tree for {phase}"
         if "AX tree truncated at" in tree:
             return False, f"macOS accessibility tree for {phase} was truncated"
         nodes = ax_tree.parse(tree)
-        missing = [label for label in LINKS if not _named(nodes, "AXLink", label)]
+        missing = [label for label in LINKS.values() if not _named(nodes, "AXLink", label)]
         if not _named(nodes, "AXButton", button):
             missing.append(button)
         if missing:
             return False, f"macOS accessibility in {phase}: missing names {missing}"
     return (
         True,
-        "macOS names the sidebar links, «Grabar reunión» before recording and «Terminar» during it",
+        f"""macOS names the sidebar links, «{copy_text("shell.record")}» before recording and «{copy_text("meeting.finish")}» during it""",
     )
 
 
@@ -60,7 +77,7 @@ def session(test):
             if not confirmed:
                 raise StepFailed("read-only CuaDriver startup was not confirmed")
             main = test.main
-            button = "Grabar reunión" if phase == "idle" else "Terminar"
+            button = copy_text("shell.record") if phase == "idle" else copy_text("meeting.finish")
             label = f"accessibility-{phase}-ready"
             bound = test.bounds["screen"][0]
             test.ui.read_nodes_until(

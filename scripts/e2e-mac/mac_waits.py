@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 
 from audio_route import recovered
+from harness_copy import language
+from harness_copy import text as copy_text
 from mac_controls import CONTROL_WAITS, MacFailure, notes_list
 from mac_drafts_panel import PANEL_WAITS
 from mac_silence import silence_question
@@ -62,7 +64,10 @@ def listening(state: dict, _arg):
         return {"voice_trigger": "listening"}
     why = (voice.get("why") or {}) if voice.get("state") == "not_listening" else {}
     if why.get("cause") in _NOT_LISTENING:
-        raise MacFailure(f"«Oye Deimos» is not listening: {json.dumps(why, ensure_ascii=False)}")
+        raise MacFailure(
+            f"«{copy_text('recordingCard.wakePhrase')}» is not listening ({'en-US' if language() == 'en' else 'es-ES'} on-device speech): {json.dumps(why, ensure_ascii=False)}"
+        )
+    state["seen"] = f"on-device speech ({language()}): {json.dumps(voice, ensure_ascii=False)}"
     return None
 
 
@@ -79,7 +84,7 @@ def answer(state: dict, _arg):
     question = (_value(state.get("recording")) or {}).get("question") or {}
     if question.get("origin") != "voice":
         state["seen"] = (
-            "no voice question: «Oye Deimos» opened none"
+            f"""no voice question: «{copy_text("recordingCard.wakePhrase")}» opened none"""
             if not question
             else f"a question of origin «{question.get('origin')}», not voice"
         )

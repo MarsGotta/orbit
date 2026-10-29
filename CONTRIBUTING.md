@@ -136,7 +136,7 @@ SSH:
   `~/.orbit-pruebas/`, and deletes only the drafts (`orbit.draft.` keys) from
   Orbit Pruebas's own WebKit storage (`~/Library/WebKit/app.orbit.companion.pruebas`),
   which also keeps the first run's completion and the theme.
-- `run` is the real test: it records a synthetic meeting in Orbit Pruebas by
+- `run` (Spanish by default) or `run --language en` is the real test: it records a synthetic meeting in Orbit Pruebas by
   clicking and reading its interface (past a first run's welcome, skipped with
   «Configurarlo más tarde» and said in the report), with part of it muted, sends a voice
   note, opens a call, throws a second recording away, deletes the first
@@ -146,14 +146,19 @@ SSH:
   reopens Orbit Pruebas once (the Dock's quit) to check a draft
   survives. Nobody should be using the Mac while it runs. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
-  `blackhole-2ch`, `switchaudio-osx` and a Spanish system voice; the run
+  `blackhole-2ch`, `switchaudio-osx` and voices for the selected language
+  (two English voices for the English pass), plus the corresponding on-device
+  speech recognition; the run
   switches the audio input and restores it afterwards. All presses, typing and readings inside
   Orbit Pruebas use its [test bridge](docs/testing/test-bridge.md), including
   check 16's native menu snapshot. CuaDriver is started only around check 21,
-  which reads macOS accessibility once before and once during recording.
+  which reads macOS accessibility before and during recording. Active labels
+  come from checked catalogue exports; see [language passes](docs/testing/test-bridge.md#language-passes)
+  for regeneration commands and Mac acceptance.
   Check 18 still moves the real pointer through the Swift script. Orbit itself must be
   closed, because both builds register the same global shortcuts.
-- `dry-run` walks the same orchestrator and checks on Linux against the example
+- `dry-run --language en` covers the English pass; `dry-run` defaults to Spanish.
+  Both walk the same orchestrator and checks on Linux against the example
   states in `scripts/e2e-mac/dry-run-examples/`. It proves the logic of the
   checks, not Orbit, and the gate runs it.
 

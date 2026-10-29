@@ -9,6 +9,12 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- The real-test harness supports an English pass with `run --language en`,
+  alongside its default Spanish pass. Both use checked exports of Orbit’s own
+  catalogues, including native menus, and retain all 21 checks and screen
+  evidence. English speech uses two installed system voices and en-US
+  on-device recognition.
+
 - The real-test harness drives Orbit Pruebas's windows through the in-app
   bridge, preserving semantic screen evidence and reconnecting after the
   Dock's quit. CuaDriver is scoped to a new read-only accessibility check;
@@ -18,8 +24,7 @@ English and Spanish; labels quoted below may use either language.
 
 - Orbit Pruebas has an owner-only local test bridge for DOM presses, typing,
   visible elements, native menu snapshots and window numbers. The real-test
-  harness uses it for the menu-bar check; its other interface actions still
-  use CuaDriver. The published app excludes the bridge at compile time.
+  harness uses it for interface actions and native menu snapshots. The published app excludes the bridge at compile time.
 
 ## [0.13.0] - 2026-10-29
 

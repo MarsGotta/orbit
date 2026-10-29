@@ -152,3 +152,83 @@ consented, idle Mac with the isolated Orbit Pruebas fixtures, the reviewer must:
    the previous run under comparable conditions; do not shorten audio or hold
    waits to claim a speedup. Keep only necessary synthetic evidence outside
    the public repository.
+
+## Language passes
+
+`real_test.py run` keeps the Spanish pass. `real_test.py run --language en`
+selects one English pass; it does not run both. `dry-run --language en` follows
+the same path with synthetic boundaries. The report records `language` and the
+Mac's selected voices and locale; the checks, evidence and native-input scope
+remain the same.
+
+`harness_copy.py` reads `ui-copy.json` and `native-copy.json`, generated from
+Orbit's executable TypeScript catalogues/formatters and compiled Rust tables.
+The native export also includes the core's owner-name fallback (currently
+language-independent). Active labels are looked up by key, including buttons,
+links, first-run actions, notices, note tabs, silence, panel title, wake phrase,
+menu rows and busy/recovery states. Operator messages quote the active pass's
+labels. Conversation dates and clocks are evaluated by the app’s `sessionWhen`
+formatter, including en-US AM/PM, rather than a second month-name table.
+
+The app's Vitest and Rust tests compare both exports with current catalogues;
+a stale export fails the gate. The harness tests validate literal key references,
+including refusal branches, and resolve alias collections in both passes. A
+missing key is a refusal, never fallback to another language. To intentionally
+refresh the exports after changing copy, from the repository root:
+
+```sh
+ORBIT_UPDATE_TEST_CATALOGUES=1 cargo test -p orbit-desktop real_test_native_catalogue_export_is_current
+(cd apps/desktop && ORBIT_UPDATE_TEST_CATALOGUES=1 pnpm exec vitest run src/i18n/harness-export.test.ts)
+```
+
+Then run the normal gate without that update variable. The updater is explicit;
+ordinary tests only compare. `legacy_ui.py` deliberately retains removed Spanish
+wording as negative regression assertions; those strings have no current
+catalogue keys and must never return. Invented meeting speech, model-response
+fixtures and text the harness itself types are content, not copied app labels.
+The English replay translates UI strings by catalogue key and pairs the two
+meeting scripts line by line, with a small separate dictionary for invented
+model/note prose. It does not duplicate the screens.
+
+The English Mac needs two voices listed by `say -v '?'` with an `en_` locale;
+the harness prefers `en_US`. Fewer than two refuses before preparation changes
+the input or opens the app, naming the count and requirement. The Spanish pass
+retains its existing one-voice fallback. Both parts use the same two assigned
+voices throughout. Preparation writes the selected language into only Orbit
+Pruebas's `presentation.toml`, and pins only that test bundle's `AppleLanguages`
+to `en-US` or `es-ES` so WebKit and the helper agree on region. It does not
+change the Mac's global languages or Orbit's released identity.
+
+For English wake recognition, macOS 26 on-device speech must support en-US and
+have its model installed (or finish downloading within the existing 300-second
+listening bound). Unsupported/unavailable/failed recognition fails check 7 with
+the helper's cause and expected locale. A download that never becomes listening
+fails within the bound and reports the last trigger state/progress. No typed
+question substitutes for the voice question. The English script says “Hey
+Deimos”; the voice note and assistant message are English too. The isolated hub
+transcribes in English, and its existing note pipeline follows that meeting
+language.
+
+On the Mac, run the default Spanish pass and a separate English pass with the
+same isolated fixtures. Both must pass 21/21. For the English run inspect:
+
+1. `report.json`/`report.txt` say `en`; `mac.locale` says `en-US` and two voices
+   were selected. Confirm the helper uses en_US and hears “Hey Deimos”. Verify
+   first-run skip (if shown), sidebar, tabs, panel and recording controls are
+   English; CuaDriver remains scoped to check 21.
+2. The transcript contains both voices' English script content with the account's
+   microphone name, relative times, no repeated/empty entries and none of the
+   three muted lines' exclusive words. Its header says English. The summary and
+   actions are English, with owners/dates and the decision retained.
+3. The ready notice opens that note; busy text disappears. Assistant history,
+   the voice note's English transcription/answer, the completed panel answer,
+   discard/delete confirmations and the silence question all work in English.
+   Native tray rows read “Mute” and “End without saving…” and show recording time.
+4. The Dock relaunch recovers the exact English draft and the English recovery
+   notice, with fresh bridge targets. Inspect saved bridge and native AX trees;
+   check 21 must see the English button/sidebar names. Audio routing restores.
+5. On an isolated fixture without enough English voices, verify refusal before
+   audio switching. With unavailable English speech, verify check 7 reports its
+   cause (or bounded download progress), rather than passing or substituting a
+   typed question. Confirm global language preferences and the released app
+   remain untouched.

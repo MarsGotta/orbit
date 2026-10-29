@@ -16,7 +16,6 @@ not import it.
 """
 
 import json
-import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -32,6 +31,7 @@ sys.path.insert(0, str(ROOT / "server" / "tests"))
 import drafts_panel_checks
 import dry_run
 import first_run
+import harness_copy
 import interface
 import mac as mac_side
 import mac_controls
@@ -120,7 +120,9 @@ def _skips(directory: Path) -> tuple[dict, str, int]:
     was pressed: each press is found by one read of its own."""
     data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     report = (directory / "report.txt").read_text(encoding="utf-8")
-    presses = [r["label"] for r in data["reads"]].count(f"find {first_run.SKIP}")
+    presses = [r["label"] for r in data["reads"]].count(
+        f"find {harness_copy.text('onboarding.skipAll')}"
+    )
     return data, report, presses
 
 
@@ -237,23 +239,12 @@ def test_the_note_s_language_is_read_before_its_dictionaries():
 
 
 def test_the_texts_the_controls_look_for_are_the_app_s():
-    # The checks of «Silenciar», «Terminar sin guardar» and «Borrar reunión»
-    # press and read the app's own Spanish texts: a change there must not
-    # leave the harness looking for an old one.
-    sources = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted((ROOT / "apps" / "desktop" / "src" / "i18n" / "es").rglob("*.ts"))
-        if not path.name.endswith(".test.ts")
-    )
-    texts = dict(meeting_control_checks.TEXTS)
-    prefix = texts.pop("muted_line")
-    for name, text in texts.items():
-        assert f'"{text}"' in sources, f"{name}: «{text}» is not a text of the app"
-    line = re.search(rf"`({re.escape(prefix)}\$\{{[^}}]+\}} – \$\{{[^}}]+\}})`", sources)
-    assert line is not None, "the transcript's «Micrófono silenciado · … – …» changed"
-    # The first run's way out and the main window's button.
-    assert f'skipAll: "{first_run.SKIP}"' in sources
-    assert f'record: "{first_run.MAIN}"' in sources
+    harness_copy.validate_references()
+    for selected in ("es", "en"):
+        with harness_copy.language_scope(selected):
+            for module in (meeting_control_checks, drafts_panel_checks):
+                assert all(module.TEXTS.values())
+            assert harness_copy.text("native.discard").endswith("…")
 
 
 def test_what_the_hub_keeps_is_counted_in_every_table_that_names_it(tmp_path):
@@ -313,7 +304,10 @@ def test_a_meeting_is_gone_only_from_a_list_read_whole():
     state = {"recording": recording, "read": {"items": [other]}}
     assert mac_controls.gone(state, "r1") is None
     assert "still at «recording»" in state["seen"]
-    assert mac_controls.gone({"read": {"items": [other]}}, "r1") == {"gone": "r1", "listed": 1}
+    assert mac_controls.gone({"read": {"items": [other]}}, "r1") == {
+        "gone": "r1",
+        "listed": 1,
+    }
 
 
 SCREENS = ROOT / "scripts" / "e2e-mac" / "dry-run-examples"
@@ -345,7 +339,10 @@ def test_the_list_of_meetings_is_recognised_as_macos_shows_it():
     assert "still" in (gone(after_discard, "meetings", FIRST) or "")
     # Nothing left: the list is read, and empty, with or without the deleted
     # meeting's note still open beside it (tree 055).
-    for name in ("good/screens/meetings-empty.md", "deleted-note-open/screens/meetings-empty.md"):
+    for name in (
+        "good/screens/meetings-empty.md",
+        "deleted-note-open/screens/meetings-empty.md",
+    ):
         assert gone(screen(name), "meetings", FIRST) is None, name
     # A list not read yet, or no list at all, never says a meeting is gone.
     assert "does not show" in (gone({"trees": {"meetings": LOADING}}, "meetings", FIRST) or "")
@@ -409,7 +406,9 @@ def test_the_quit_is_the_dock_s_only(tmp_path):
     assert system.commands == [] and system.app_open
 
 
-def test_the_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitting(tmp_path):
+def test_the_quit_types_its_draft_and_confirms_it_on_screen_right_before_quitting(
+    tmp_path,
+):
     example = dry_run.Example("good")
     paths = mac_side.Paths(tmp_path)
     system = dry_run.DryRunSystem(example, paths)
@@ -602,9 +601,8 @@ def test_the_draft_is_looked_for_in_webkit_s_own_storage(tmp_path):
 
 def test_the_texts_of_the_draft_check_are_the_app_s():
     source = ROOT / "apps" / "desktop" / "src"
-    assistant = (source / "i18n" / "es" / "assistant.ts").read_text(encoding="utf-8")
-    assert f'draftRecovered: "{drafts_panel_checks.TEXTS["recovered"]}"' in assistant
-    assert f"composerLabel: `{drafts_panel_checks.TEXTS['composer']} ${{" in assistant
+    assert drafts_panel_checks.TEXTS["recovered"] == harness_copy.text("assistant.draftRecovered")
+    assert drafts_panel_checks.TEXTS["composer"] == harness_copy.text("assistant.composerPrefix")
     drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")
     composer = (source / "features" / "assistant" / "use-composer.ts").read_text(encoding="utf-8")
     assert f'DRAFT_PREFIX = "{mac_drafts_panel.DRAFT_PREFIX}";' in drafts
@@ -626,7 +624,13 @@ RECOVERED = '    - AXStaticText = "Recuperado el borrador que no llegaste a envi
 
 
 def _draft_row(**fields):
-    return {"quit": "apple-event", "text": "Borrador uno", "gap_s": 0.3, "came_back": 0, **fields}
+    return {
+        "quit": "apple-event",
+        "text": "Borrador uno",
+        "gap_s": 0.3,
+        "came_back": 0,
+        **fields,
+    }
 
 
 def test_the_draft_check_says_the_quit_lost_its_draft():
@@ -701,7 +705,9 @@ def test_the_answer_is_released_only_once_the_daemon_lets_it_go():
     assert released({"recording": {"state": "present", "value": {}}}, "q1") == {"gone": "q1"}
 
 
-def test_an_answer_still_on_screen_after_the_daemon_let_it_go_fails_the_panel_check(good):
+def test_an_answer_still_on_screen_after_the_daemon_let_it_go_fails_the_panel_check(
+    good,
+):
     _, directory = good
     data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     panel = (SCREENS / "good" / "screens" / "panel.md").read_text(encoding="utf-8")
@@ -1033,7 +1039,8 @@ def test_actual_dom_projection_keeps_list_structure_and_never_reads_an_unloaded_
     tree = _dom_read(html)["tree_markdown"]
     assert meeting_control_checks.listed(ax_tree.parse(tree)) == ["Invented meeting"]
     unloaded = html.replace(
-        "<section><h3>Hoy</h3>", "<section><p>Leyendo tus reuniones del hub…</p><h3>Hoy</h3>"
+        "<section><h3>Hoy</h3>",
+        "<section><p>Leyendo tus reuniones del hub…</p><h3>Hoy</h3>",
     )
     assert (
         meeting_control_checks.listed(ax_tree.parse(_dom_read(unloaded)["tree_markdown"])) is None
@@ -1106,7 +1113,14 @@ def test_bridge_driver_finds_a_sidebar_label_beside_dynamic_metadata(tmp_path):
         ("recording", "Terminar", "AXButton"),
         *[
             ("recording", label, "AXLink")
-            for label in ("Hoy", "Calendario", "Reuniones", "Notas", "Asistente", "Ajustes")
+            for label in (
+                "Hoy",
+                "Calendario",
+                "Reuniones",
+                "Notas",
+                "Asistente",
+                "Ajustes",
+            )
         ],
     ],
 )
@@ -1124,7 +1138,9 @@ def test_accessibility_check_fails_if_any_required_control_loses_its_name(phase,
     assert label in detail and phase in detail
 
 
-def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibility(tmp_path):
+def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibility(
+    tmp_path,
+):
     paths = mac_side.Paths(tmp_path / "fixture")
     manifest = mac_side.Mac(paths).manifest(42)
     assert "tools: [get_window_state]" in manifest
@@ -1135,8 +1151,227 @@ def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibil
     }
 
 
-def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(tmp_path):
+def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(
+    tmp_path,
+):
     results, _ = dry_run.run("accessibility-start-refused", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
         n: "fail" if n == 21 else "pass" for n in range(1, 22)
     }
+
+
+def test_english_pass_through_the_public_cli(tmp_path):
+    import real_test
+
+    assert real_test.main(["dry-run", "--language", "en", "--directory", str(tmp_path)]) == 0
+    report = json.loads((tmp_path / "run/report.json").read_text())
+    assert report["language"] == "en"
+    assert [r["number"] for r in report["results"] if r["status"] == "pass"] == ALL
+    assert "English" in report["results"][0]["name"]
+    assert "Mute" in report["results"][15]["detail"]
+    assert "Silenciar" not in report["results"][15]["detail"]
+    presentation = mac_side.Paths(tmp_path / "mac").data / "presentation.toml"
+    assert 'language = "en"' in presentation.read_text()
+    config = tmp_path / "orbit-pruebas/orbit.toml"
+    assert 'language = "en"' in config.read_text()
+    assert harness_copy.language() == "es"
+    assert report["mac"]["locale"] == "en-US"
+    assert len(report["mac"]["voices"]) == 2
+
+
+def test_catalogue_lookup_refuses_a_missing_key():
+    import harness_copy
+
+    with pytest.raises(KeyError, match="no.such.key"):
+        harness_copy.text("no.such.key", catalogue_language="en")
+
+
+def test_english_speech_is_selected_and_missing_voices_refuse():
+    import harness_copy
+
+    with harness_copy.language_scope("en"):
+        assert mac_side.voices("Aster en_US # Hello\nLinden en_GB # Hello\nMora es_ES # Hola") == [
+            "Aster",
+            "Linden",
+        ]
+        assert mac_side.voices("Mora es_ES # Hola") == []
+        parts = mac_side.script_parts(mac_side.script_path().read_text())
+        assert len(parts) == 3
+        assert parts[1][0][1].startswith("Hey Deimos,")
+        assert "respond" in mac_side.voice_note_phrase()
+
+
+# The test Mac on 2026-10-29: macOS lists its novelty voices first. The
+# Spanish pass speaks with Eddy and Flo; the English one must too, not
+# with «Albert» and «Bad News».
+MAC_VOICES = """Albert              en_US    # Hello! My name is Albert.
+Bad News            en_US    # Hello! My name is Bad News.
+Daniel              en_GB    # Hello! My name is Daniel.
+Eddy (English (UK)) en_GB    # Hello! My name is Eddy.
+Eddy (English (US)) en_US    # Hello! My name is Eddy.
+Eddy (Spanish (Spain)) es_ES    # ¡Hola! Me llamo Eddy.
+Flo (English (US))  en_US    # Hello! My name is Flo.
+Flo (Spanish (Spain)) es_ES    # ¡Hola! Me llamo Flo.
+Mónica              es_ES    # ¡Hola! Me llamo Mónica.
+Samantha            en_US    # Hello! My name is Samantha.
+"""
+
+
+@pytest.mark.parametrize(
+    "language,expected",
+    [
+        ("es", ["Eddy (Spanish (Spain))", "Flo (Spanish (Spain))"]),
+        ("en", ["Eddy (English (US))", "Flo (English (US))"]),
+    ],
+)
+def test_both_passes_speak_with_the_same_voice_families(language, expected):
+    import harness_copy
+
+    with harness_copy.language_scope(language):
+        assert mac_side.voices(MAC_VOICES)[:2] == expected
+
+
+@pytest.mark.parametrize("listing,count", [("Mora es_ES # Hola", 0), ("Aster en_US # Hello", 1)])
+def test_mac_cli_refuses_missing_english_voices_before_preparation(
+    tmp_path, capsys, listing, count
+):
+    class System:
+        def run_checked(self, *command):
+            assert command == ("say", "-v", "?")
+            return listing
+
+    mac = mac_side.Mac(mac_side.Paths(tmp_path), System())
+    assert mac_side.main(["--language", "en", "say", "part1"], mac) == 1
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert f"{count} English voices" in error and "needs 2" in error
+
+
+@pytest.mark.parametrize("cause", ["locale_unsupported", "unavailable", "failed"])
+def test_mac_cli_refuses_missing_english_on_device_speech(tmp_path, capsys, cause):
+    class Orbit:
+        def subscribe(self, topics, max_s, beat_s):
+            yield (
+                "recording",
+                {
+                    "state": "present",
+                    "value": {"voice_trigger": {"state": "not_listening", "why": {"cause": cause}}},
+                },
+            )
+
+    mac = mac_side.Mac(mac_side.Paths(tmp_path), orbit=Orbit())
+    assert mac_side.main(["--language", "en", "wait", "listening", "--max", "1"], mac) == 1
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert "Hey Deimos" in error and "en-US" in error and cause in error
+
+
+def test_keys_on_an_unreached_refusal_path_are_also_checked(tmp_path):
+    (tmp_path / "refusal.py").write_text('def refuse():\n    return copy_text("no.such.key")\n')
+    with pytest.raises(KeyError, match="no.such.key"):
+        harness_copy.validate_references(tmp_path)
+
+
+def test_english_transcript_requires_english_metadata_and_script_words():
+    import checks
+    import meeting_language
+
+    with harness_copy.language_scope("en"):
+        script = [
+            line
+            for part in mac_side.script_parts(meeting_language.script_path().read_text())
+            for _, line in part
+        ]
+        how = harness_copy.text("noteScreen.howLabel", template="General", language="English")
+        marker = harness_copy.text("notes.transcriptHelp")
+
+        def evidence(language_label, spoken):
+            return {
+                "language": "en",
+                "script": script,
+                "trees": {
+                    "note-transcript": f'- AXButton "{language_label}"\n- AXStaticText = "{marker}"\n'
+                    f'- AXStaticText = "00:00"\n- AXButton "Alina Reed"\n- AXStaticText = "{spoken}"\n'
+                },
+            }
+
+        assert checks.c1_language(evidence(how, " ".join(script)))[0]
+        wrong = how.replace("English", harness_copy.text("notes.languages.es"))
+        assert not checks.c1_language(evidence(wrong, " ".join(script)))[0]
+        assert not checks.c1_language(evidence(how, "Una reunión completamente diferente."))[0]
+
+
+def test_mac_side_modules_remain_python_39_syntax():
+    import ast
+
+    for name in ("mac", "mac_cli", "harness_copy", "meeting_language", "mac_waits"):
+        source = (ROOT / "scripts/e2e-mac" / f"{name}.py").read_text()
+        ast.parse(source, feature_version=(3, 9))
+
+
+@pytest.mark.parametrize("arguments,selected", [([], "es"), (["--language", "en"], "en")])
+def test_run_cli_selects_exactly_one_language(monkeypatch, arguments, selected):
+    import real_test
+
+    observed = []
+    monkeypatch.setattr(real_test, "run_real", lambda language: observed.append(language) or 0)
+    assert real_test.main(["run", *arguments]) == 0
+    assert observed == [selected]
+
+
+def test_english_session_title_uses_the_apps_regional_clock():
+    import time
+
+    at = time.strptime("2025-10-16 10:01", "%Y-%m-%d %H:%M")
+    later = time.strptime("2026-10-29 15:00", "%Y-%m-%d %H:%M")
+    with harness_copy.language_scope("en"):
+        assert mac_side.session_title(at, later) == "Oct 16, 2025, 10:01 AM"
+        assert mac_side.session_title(at, at) == harness_copy.text(
+            "shellInline.todayAt", time="10:01 AM"
+        )
+
+
+def test_english_speech_download_refuses_with_its_last_progress(tmp_path, capsys):
+    class Orbit:
+        def subscribe(self, topics, max_s, beat_s):
+            assert max_s == 1
+            yield (
+                "recording",
+                {
+                    "state": "present",
+                    "value": {"voice_trigger": {"state": "downloading", "percent": 17}},
+                },
+            )
+            raise TimeoutError
+
+    mac = mac_side.Mac(mac_side.Paths(tmp_path), orbit=Orbit())
+    assert mac_side.main(["--language", "en", "wait", "listening", "--max", "1"], mac) == 1
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert "within 1 s" in error and "downloading" in error and "17" in error
+
+
+@pytest.mark.parametrize("listing,count", [("Mora es_ES # Hola", 0), ("Aster en_US # Hello", 1)])
+def test_english_prepare_refuses_before_switching_input_or_launching(
+    tmp_path, capsys, listing, count
+):
+    import plistlib
+
+    example = dry_run.Example("good", "en")
+    paths = mac_side.Paths(tmp_path)
+    (paths.app / "Contents").mkdir(parents=True)
+    (paths.app / "Contents/Info.plist").write_bytes(
+        plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
+    )
+
+    class System(dry_run.DryRunSystem):
+        def run(self, *command):
+            if command == ("say", "-v", "?"):
+                return 0, listing, ""
+            return super().run(*command)
+
+    system = System(example, paths)
+    mac = mac_side.Mac(paths, system, dry_run.DryRunOrbit(example))
+    assert mac_side.main(["--language", "en", "prepare", "--max", "1"], mac) == 1
+    assert f"{count} English voices" in json.loads(capsys.readouterr().out)["error"]
+    assert not system.app_open and not paths.data.exists()
+    assert not any(
+        command[0] == "SwitchAudioSource" and "-s" in command for command in system.commands
+    )

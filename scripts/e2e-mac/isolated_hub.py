@@ -111,7 +111,14 @@ def prepare_secrets(paths: Paths) -> list[str]:
     return created
 
 
-def config_text(paths: Paths, host: str, hermes_port: int, providers: dict | None = None) -> str:
+def config_text(
+    paths: Paths,
+    host: str,
+    hermes_port: int,
+    providers: dict | None = None,
+    *,
+    language: str = "es",
+) -> str:
     """The test hub's orbit.toml. `providers` replaces Whisper and the note
     model only in the dry run, which must not call the real ones."""
     p = (
@@ -136,6 +143,8 @@ def config_text(paths: Paths, host: str, hermes_port: int, providers: dict | Non
         diarization = (
             f'\n[diarization]\npython = "{python}"\nbundle = "{bundle}"\ngpu_lock = "{lock}"\n'
         )
+    if language not in ("es", "en"):
+        raise ValueError(f"unsupported transcription language {language!r}")
     return f"""# Test hub of Orbit's real test. scripts/e2e-mac writes it on every run.
 data_dir = "{paths.hub / "data"}"
 key_file = "{paths.hub / "storage.key"}"
@@ -149,7 +158,7 @@ allowed_hosts = ["{host}"]
 [meeting_transcription]
 endpoint = "{p["whisper"]}"
 model = "{WHISPER_MODEL}"
-language = "es"
+language = "{language}"
 
 [processing]
 endpoint = "{p["processing"]}"

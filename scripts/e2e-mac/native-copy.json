@@ -1,0 +1,449 @@
+{
+  "core": {
+    "owner_name": "Yo"
+  },
+  "en": {
+    "answer_body": "Worked for {duration}",
+    "answer_title": "Answer ready",
+    "application_menu": [
+      [
+        "about",
+        "About Orbit"
+      ],
+      [
+        "services",
+        "Services"
+      ],
+      [
+        "hide",
+        "Hide Orbit"
+      ],
+      [
+        "hide_others",
+        "Hide Others"
+      ],
+      [
+        "file",
+        "File"
+      ],
+      [
+        "close",
+        "Close Window"
+      ],
+      [
+        "edit",
+        "Edit"
+      ],
+      [
+        "undo",
+        "Undo"
+      ],
+      [
+        "redo",
+        "Redo"
+      ],
+      [
+        "cut",
+        "Cut"
+      ],
+      [
+        "copy",
+        "Copy"
+      ],
+      [
+        "paste",
+        "Paste"
+      ],
+      [
+        "select_all",
+        "Select All"
+      ],
+      [
+        "view",
+        "View"
+      ],
+      [
+        "fullscreen",
+        "Full Screen"
+      ],
+      [
+        "window",
+        "Window"
+      ],
+      [
+        "minimize",
+        "Minimize"
+      ],
+      [
+        "maximize",
+        "Zoom"
+      ],
+      [
+        "help",
+        "Help"
+      ]
+    ],
+    "approval_body": "Asks for permission to continue",
+    "approval_title": "Needs your permission",
+    "ask_about": "I want to ask about the note “{title}” ({id}).",
+    "audio_daemon": "The Orbit service is still starting; audio sources have not been observed yet.",
+    "audio_helper": "The Mac helper is still starting; audio sources have not been observed yet.",
+    "audio_reading": "Audio sources have been loading since {since_ms} ms.",
+    "audio_transcription": "Transcription in progress: {completed} groups completed, {pending} pending, {failed} failed, queued: {queued}.",
+    "audio_unobserved": "Audio sources have not been observed yet.",
+    "call_silence": "Are you still there? I’ll hang up in 15 seconds if you don’t respond",
+    "capture_failed": "capture could not be recovered",
+    "cause_not_saved": "the cause was not saved",
+    "closed": "Recording was closed: {cause}. Your recording is saved.",
+    "confirm_discard": "Delete and end",
+    "cut": "Recording was interrupted. Orbit is trying to keep recording.",
+    "discard": "End without saving…",
+    "discard_question": "End without saving? The recording will be deleted and no note will be written.",
+    "finalize_timeout": "the Mac did not confirm the end",
+    "finish": "End recording",
+    "heartbeat_expired": "the Orbit service stopped responding",
+    "helper_lost": "the Mac helper disconnected",
+    "keep_recording": "Keep recording",
+    "meeting_title": "Meeting",
+    "mute": "Mute",
+    "no": "no",
+    "open": "Open Orbit",
+    "panel_title": "Orbit · call",
+    "pending_daemon": "the Orbit service is starting",
+    "pending_helper": "the Mac helper is starting",
+    "pending_reading": "reading since {since_ms} ms",
+    "pending_transcription": "transcription: {completed} completed, {pending} pending, {failed} failed, queued: {queued}",
+    "pending_unobserved": "not observed yet",
+    "privacy_stop": "privacy stop",
+    "question_body": "Needs your answer to continue",
+    "question_title": "Has a question",
+    "quit": "Quit Orbit",
+    "read_failed": "Couldn’t complete the read ({code}).",
+    "read_failures": [
+      [
+        "read_calendars_invalid",
+        "Calendar list: unreadable calendar {index}: {diagnostic}"
+      ],
+      [
+        "read_calendars_cursor",
+        "Calendar list: repeated cursor or cursor from another read"
+      ],
+      [
+        "read_calendars_count",
+        "Calendar list: {count} calendars read out of {total} advertised"
+      ],
+      [
+        "read_mismatch",
+        "The response belongs to a different read."
+      ],
+      [
+        "read_missing",
+        "The Orbit service did not return the read."
+      ],
+      [
+        "read_note_empty",
+        "The note details were empty."
+      ],
+      [
+        "read_note_invalid",
+        "The note document is invalid: {diagnostic}"
+      ],
+      [
+        "read_note_mismatch",
+        "The response belongs to a different note."
+      ],
+      [
+        "read_turn_invalid",
+        "A transcript turn is invalid: {diagnostic}"
+      ],
+      [
+        "read_turn_cursor",
+        "The transcript cursor repeated after {count} of {total} turns."
+      ],
+      [
+        "read_turn_limit",
+        "The transcript did not finish within {max} pages ({count} turns)."
+      ],
+      [
+        "read_library_invalid",
+        "A library item is invalid: {diagnostic}"
+      ],
+      [
+        "read_library_cursor",
+        "The library cursor repeated after {count} of {total} items."
+      ],
+      [
+        "read_list_invalid",
+        "A note in the list is invalid: {diagnostic}"
+      ],
+      [
+        "read_series_empty",
+        "The meeting series was empty."
+      ],
+      [
+        "read_series_invalid",
+        "The meeting series is invalid: {diagnostic}"
+      ],
+      [
+        "read_reminder_title",
+        "The meeting has no title for saving a reminder."
+      ],
+      [
+        "read_reminder_empty",
+        "The reminder was empty."
+      ],
+      [
+        "read_reminder_invalid",
+        "The reminder is invalid: {diagnostic}"
+      ],
+      [
+        "read_engine_tools_invalid",
+        "The engine catalogue contains an invalid name."
+      ]
+    ],
+    "record": "Record meeting now",
+    "recording_silence": "Is the meeting still going? I’ll end it and save it in 30 s",
+    "restart": "Orbit restarted",
+    "resumed": "Recording is back. Missing {duration}.",
+    "session_inactive": "the Mac went to sleep or switched users",
+    "stop": "Stop everything",
+    "unknown_duration": "an unmeasured amount of time",
+    "unmute": "Unmute microphone",
+    "update": "Update to {version}",
+    "update_call_live": "End the call before updating.",
+    "update_call_pending": "Call status is pending ({detail}); wait before updating.",
+    "update_call_refused": "Couldn’t read call status: {detail}",
+    "update_call_stale": "Call status is out of date; wait before updating.",
+    "update_call_unknown": "Call status is unknown; wait before updating.",
+    "update_call_unobserved": "Call status has not been observed yet; wait before updating.",
+    "update_recording_live": "End the recording before updating.",
+    "update_recording_pending": "Recording status is pending ({detail}); wait before updating.",
+    "update_recording_refused": "Couldn’t read recording status: {detail}",
+    "update_recording_stale": "Recording status is out of date; wait before updating.",
+    "update_recording_unknown": "Recording status is unknown; wait before updating.",
+    "update_recording_unobserved": "Recording status has not been observed yet; wait before updating.",
+    "yes": "yes"
+  },
+  "es": {
+    "answer_body": "Trabajó {duration}",
+    "answer_title": "Respuesta lista",
+    "application_menu": [
+      [
+        "about",
+        "Acerca de Orbit"
+      ],
+      [
+        "services",
+        "Servicios"
+      ],
+      [
+        "hide",
+        "Ocultar Orbit"
+      ],
+      [
+        "hide_others",
+        "Ocultar otros"
+      ],
+      [
+        "file",
+        "Archivo"
+      ],
+      [
+        "close",
+        "Cerrar ventana"
+      ],
+      [
+        "edit",
+        "Edición"
+      ],
+      [
+        "undo",
+        "Deshacer"
+      ],
+      [
+        "redo",
+        "Rehacer"
+      ],
+      [
+        "cut",
+        "Cortar"
+      ],
+      [
+        "copy",
+        "Copiar"
+      ],
+      [
+        "paste",
+        "Pegar"
+      ],
+      [
+        "select_all",
+        "Seleccionar todo"
+      ],
+      [
+        "view",
+        "Visualización"
+      ],
+      [
+        "fullscreen",
+        "Pantalla completa"
+      ],
+      [
+        "window",
+        "Ventana"
+      ],
+      [
+        "minimize",
+        "Minimizar"
+      ],
+      [
+        "maximize",
+        "Zoom"
+      ],
+      [
+        "help",
+        "Ayuda"
+      ]
+    ],
+    "approval_body": "Pide permiso para seguir",
+    "approval_title": "Necesita tu permiso",
+    "ask_about": "Quiero preguntar sobre la nota «{title}» ({id}).",
+    "audio_daemon": "El daemon aún está arrancando; el inventario de audio no se ha observado.",
+    "audio_helper": "El helper del Mac aún está arrancando; el inventario de audio no se ha observado.",
+    "audio_reading": "El inventario de audio se está leyendo desde {since_ms} ms.",
+    "audio_transcription": "ASR en curso: {completed} grupos transcritos, {pending} pendientes, {failed} fallidos, en cola: {queued}.",
+    "audio_unobserved": "El inventario de audio aún no se ha observado.",
+    "call_silence": "¿Sigues ahí? Si no dices nada, cuelgo en 15 segundos",
+    "capture_failed": "no se pudo recuperar la captura",
+    "cause_not_saved": "la causa no quedó guardada",
+    "closed": "La grabación se ha cerrado: {cause}. Lo grabado está guardado.",
+    "confirm_discard": "Borrar y terminar",
+    "cut": "La grabación se ha cortado. Orbit intenta seguir grabando.",
+    "discard": "Terminar sin guardar…",
+    "discard_question": "¿Terminar sin guardar? Se borra lo grabado y no se escribe nota.",
+    "finalize_timeout": "el Mac no confirmó el final",
+    "finish": "Terminar grabación",
+    "heartbeat_expired": "el servicio de Orbit dejó de responder",
+    "helper_lost": "el ayudante del Mac se desconectó",
+    "keep_recording": "Seguir grabando",
+    "meeting_title": "Reunión",
+    "mute": "Silenciar",
+    "no": "no",
+    "open": "Abrir Orbit",
+    "panel_title": "Orbit · llamada",
+    "pending_daemon": "el servicio de Orbit está arrancando",
+    "pending_helper": "el ayudante del Mac está arrancando",
+    "pending_reading": "se está leyendo desde {since_ms} ms",
+    "pending_transcription": "transcripción: {completed} terminados, {pending} pendientes, {failed} fallidos, en cola: {queued}",
+    "pending_unobserved": "aún no observado",
+    "privacy_stop": "la parada de privacidad",
+    "question_body": "Necesita tu respuesta para seguir",
+    "question_title": "Tiene una pregunta",
+    "quit": "Salir de Orbit",
+    "read_failed": "No se pudo completar la lectura ({code}).",
+    "read_failures": [
+      [
+        "read_calendars_invalid",
+        "AgendaCalendars: calendario {index} ilegible: {diagnostic}"
+      ],
+      [
+        "read_calendars_cursor",
+        "AgendaCalendars: cursor repetido o de otra lectura"
+      ],
+      [
+        "read_calendars_count",
+        "AgendaCalendars: {count} calendarios leídos de {total} anunciados"
+      ],
+      [
+        "read_mismatch",
+        "La respuesta pertenece a otra lectura"
+      ],
+      [
+        "read_missing",
+        "El daemon no entregó la lectura"
+      ],
+      [
+        "read_note_empty",
+        "El detalle de la nota llegó vacío"
+      ],
+      [
+        "read_note_invalid",
+        "Documento de la nota no válido: {diagnostic}"
+      ],
+      [
+        "read_note_mismatch",
+        "La respuesta pertenece a otra nota"
+      ],
+      [
+        "read_turn_invalid",
+        "Intervención no válida: {diagnostic}"
+      ],
+      [
+        "read_turn_cursor",
+        "Cursor repetido tras {count} de {total} intervenciones"
+      ],
+      [
+        "read_turn_limit",
+        "La transcripción no terminó en {max} páginas ({count} intervenciones)"
+      ],
+      [
+        "read_library_invalid",
+        "Elemento de la biblioteca no válido: {diagnostic}"
+      ],
+      [
+        "read_library_cursor",
+        "Cursor repetido tras {count} de {total} elementos de la biblioteca"
+      ],
+      [
+        "read_list_invalid",
+        "Nota no válida en la lista: {diagnostic}"
+      ],
+      [
+        "read_series_empty",
+        "La serie de la reunión llegó vacía"
+      ],
+      [
+        "read_series_invalid",
+        "Serie de la reunión no válida: {diagnostic}"
+      ],
+      [
+        "read_reminder_title",
+        "La reunión no tiene título con el que guardar el recordatorio"
+      ],
+      [
+        "read_reminder_empty",
+        "El recordatorio llegó vacío"
+      ],
+      [
+        "read_reminder_invalid",
+        "Recordatorio no válido: {diagnostic}"
+      ],
+      [
+        "read_engine_tools_invalid",
+        "El catálogo del motor contiene un nombre no válido."
+      ]
+    ],
+    "record": "Grabar reunión ahora",
+    "recording_silence": "¿Sigue la reunión? La termino y la guardo en 30 s",
+    "restart": "Orbit se reinició",
+    "resumed": "La grabación sigue. Faltan {duration}.",
+    "session_inactive": "el Mac se durmió o cambió de usuario",
+    "stop": "Parar todo",
+    "unknown_duration": "un tiempo que no se pudo medir",
+    "unmute": "Reactivar micrófono",
+    "update": "Actualizar a la {version}",
+    "update_call_live": "Termina la llamada antes de actualizar.",
+    "update_call_pending": "El estado de la llamada está pendiente ({detail}); espera antes de actualizar.",
+    "update_call_refused": "No se pudo conocer el estado de la llamada: {detail}",
+    "update_call_stale": "El estado de la llamada está desactualizado; espera antes de actualizar.",
+    "update_call_unknown": "No se conoce si hay una llamada; espera antes de actualizar.",
+    "update_call_unobserved": "Aún no se conoce el estado de la llamada; espera antes de actualizar.",
+    "update_recording_live": "Termina la grabación antes de actualizar.",
+    "update_recording_pending": "El estado de la grabación está pendiente ({detail}); espera antes de actualizar.",
+    "update_recording_refused": "No se pudo conocer el estado de la grabación: {detail}",
+    "update_recording_stale": "El estado de la grabación está desactualizado; espera antes de actualizar.",
+    "update_recording_unknown": "No se conoce si hay una grabación; espera antes de actualizar.",
+    "update_recording_unobserved": "Aún no se conoce el estado de la grabación; espera antes de actualizar.",
+    "yes": "sí"
+  }
+}

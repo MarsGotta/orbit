@@ -5,6 +5,7 @@ mod es;
 pub mod presentation;
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(serde::Serialize))]
 pub struct Copy {
     pub update_recording_unobserved: &'static str,
     pub update_call_unobserved: &'static str,
@@ -161,3 +162,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod harness_export;
