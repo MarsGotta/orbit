@@ -212,6 +212,26 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         XCTAssertNil(policy.step)
     }
 
+    /// Real test of 2026-10-29, English: the volatile results started at
+    /// 56.58 s and the final one, with a comma after «Hey», at 57.30 s. The
+    /// phrase follows the final result instead of being dropped as revised.
+    func testAFinalResultThatStartsLaterKeepsThePhrase() throws {
+        var policy = SpokenQuestionPolicy(locale: .englishUS)
+        XCTAssertNil(policy.heard(.init(text: "Hey Deimos, what are we discussing?",
+                                        start: 56.58, end: 61.6, isFinal: false)))
+        XCTAssertNil(policy.heard(.init(text: "Hey, Deimos, what are we discussing?",
+                                        start: 57.3, end: 60.3, isFinal: true)))
+        XCTAssertTrue(policy.listening)
+        if case .abandoned = policy.step { XCTFail("the phrase was dropped as revised") }
+        var spoken: SpokenQuestion?
+        var time = 61.6
+        while spoken == nil, time < 75 {
+            time += 0.1
+            spoken = policy.voice(at: time, speaking: false)
+        }
+        XCTAssertEqual(spoken?.text, "what are we discussing?")
+    }
+
     func testNoQuestionDuringTheWaitReportsItsCauseAndTimes() throws {
         var policy = SpokenQuestionPolicy()
         XCTAssertNil(policy.heard(.init(text: "Oye, Demos", start: 0, end: 1, isFinal: true)))

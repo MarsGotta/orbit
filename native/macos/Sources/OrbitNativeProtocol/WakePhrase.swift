@@ -396,10 +396,21 @@ public struct SpokenQuestionPolicy {
                 lastVoice = max(lastVoice, found.segment.end)
             }
         } else if currentQuestion() == nil {
-            // The words changed and no longer open with the phrase
-            // («Oye, Demos» became «Oye, demos por cerrado…»).
-            abandon(.phraseRevised)
-            reset(ignoring: ignoreBefore)
+            if let phrase, segment.isFinal, segment.start < phrase.heardAt,
+               WakePhrase.match(after: segment.text, assistantNames: assistantNames,
+                                locale: locale)?.name == phrase.name {
+                // The final result replaced the phrase's volatile ones but
+                // starts later, still opening with the phrase: the English
+                // recognizer trims the silence before «Hey» (real test,
+                // 2026-10-29: volatile results from 56.58 s, the final one
+                // «Hey, Deimos, …» from 57.30 s). The phrase follows it.
+                self.phrase = (segment.start, phrase.heardAt, phrase.name)
+            } else {
+                // The words changed and no longer open with the phrase
+                // («Oye, Demos» became «Oye, demos por cerrado…»).
+                abandon(.phraseRevised)
+                reset(ignoring: ignoreBefore)
+            }
         }
         let spoken = decide()
         if spoken != nil { step = nil }
