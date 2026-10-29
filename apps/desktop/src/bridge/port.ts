@@ -6,6 +6,7 @@ import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { NoticeClass } from "./generated/NoticeClass";
 import type { NoticeData } from "../i18n";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
+import type { MenuAction, MenuState } from "./window-menu";
 
 export type FrameListener = (frame: FeatureFrame) => void;
 export type Unsubscribe = () => void;
@@ -23,6 +24,9 @@ export interface Report {
 }
 
 export interface DaemonPort {
+  onMenuAction?(listener: (action: MenuAction) => void): Promise<Unsubscribe>;
+  setMenuState?(state: MenuState): Promise<void>;
+  resizePanel?(height: number): Promise<void>;
   snapshot(): Promise<AppBootstrap>;
   /** `op` names the action from end to end: the daemon, the hub, the notices. */
   send(command: AppCommand, op: string): Promise<CommandReceipt>;

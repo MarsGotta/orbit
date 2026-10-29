@@ -134,6 +134,17 @@ const READ_FAILURES: &[(&str, &str)] = &[
 ];
 
 const APPLICATION_MENU: &[(&str, &str)] = &[
+    ("settings", "Settings…"),
+    ("record", "Record Meeting…"),
+    ("finish", "End Recording"),
+    ("new_conversation", "New Conversation"),
+    ("find", "Find in Transcript…"),
+    ("stop", "Stop everything"),
+    ("hide_sidebar", "Hide Sidebar"),
+    ("show_sidebar", "Show Sidebar"),
+    ("bigger", "Bigger"),
+    ("smaller", "Smaller"),
+    ("actual_size", "Actual Size"),
     ("about", "About Orbit"),
     ("services", "Services"),
     ("hide", "Hide Orbit"),

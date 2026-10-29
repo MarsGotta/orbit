@@ -7,6 +7,50 @@
     "answer_title": "Answer ready",
     "application_menu": [
       [
+        "settings",
+        "Settings…"
+      ],
+      [
+        "record",
+        "Record Meeting…"
+      ],
+      [
+        "finish",
+        "End Recording"
+      ],
+      [
+        "new_conversation",
+        "New Conversation"
+      ],
+      [
+        "find",
+        "Find in Transcript…"
+      ],
+      [
+        "stop",
+        "Stop everything"
+      ],
+      [
+        "hide_sidebar",
+        "Hide Sidebar"
+      ],
+      [
+        "show_sidebar",
+        "Show Sidebar"
+      ],
+      [
+        "bigger",
+        "Bigger"
+      ],
+      [
+        "smaller",
+        "Smaller"
+      ],
+      [
+        "actual_size",
+        "Actual Size"
+      ],
+      [
         "about",
         "About Orbit"
       ],
@@ -228,6 +272,50 @@
     "answer_body": "Trabajó {duration}",
     "answer_title": "Respuesta lista",
     "application_menu": [
+      [
+        "settings",
+        "Ajustes…"
+      ],
+      [
+        "record",
+        "Grabar reunión…"
+      ],
+      [
+        "finish",
+        "Terminar grabación"
+      ],
+      [
+        "new_conversation",
+        "Nueva conversación"
+      ],
+      [
+        "find",
+        "Buscar en la transcripción…"
+      ],
+      [
+        "stop",
+        "Parar todo"
+      ],
+      [
+        "hide_sidebar",
+        "Ocultar barra lateral"
+      ],
+      [
+        "show_sidebar",
+        "Mostrar barra lateral"
+      ],
+      [
+        "bigger",
+        "Más grande"
+      ],
+      [
+        "smaller",
+        "Más pequeño"
+      ],
+      [
+        "actual_size",
+        "Tamaño real"
+      ],
       [
         "about",
         "Acerca de Orbit"

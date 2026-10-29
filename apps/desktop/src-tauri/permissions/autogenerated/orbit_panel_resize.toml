@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-orbit-panel-resize"
+description = "Enables the orbit_panel_resize command without any pre-configured scope."
+commands.allow = ["orbit_panel_resize"]
+
+[[permission]]
+identifier = "deny-orbit-panel-resize"
+description = "Denies the orbit_panel_resize command without any pre-configured scope."
+commands.deny = ["orbit_panel_resize"]

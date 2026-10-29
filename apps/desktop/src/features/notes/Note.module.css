@@ -89,7 +89,7 @@
 .shortSummary {
   margin: 6px 0 0;
   color: var(--o-ink2);
-  font: 400 15px/1.5 var(--o-font-sans);
+  font: 400 calc(15px * var(--o-reading-scale, 1))/1.5 var(--o-font-sans);
 }
 
 .dataLine {
@@ -456,6 +456,7 @@
 .whoSpoke h3 {
   margin: 0;
   font: var(--o-text-h3);
+  font-size: calc(15px * var(--o-reading-scale, 1));
 }
 
 .sectionEdit {
@@ -481,7 +482,7 @@
 .twoColumns ul {
   margin: 6px 0 0;
   padding-left: 20px;
-  font: 400 13px/1.6 var(--o-font-sans);
+  font: 400 calc(13px * var(--o-reading-scale, 1)) / 1.6 var(--o-font-sans);
 }
 
 .whoSpoke {
@@ -545,6 +546,7 @@
 
 .actionText {
   color: var(--o-ink);
+  font-size: calc(14px * var(--o-reading-scale, 1));
 }
 
 .actionRow[data-done="true"] .actionText {
@@ -652,7 +654,7 @@
 /* 1.75 between lines (annex, «Palabra»): a word lit under the pointer never touches the next line. */
 .turnBody > p {
   margin: 2px 0 0;
-  font: 400 14px/1.75 var(--o-font-sans);
+  font: 400 calc(14px * var(--o-reading-scale, 1))/1.75 var(--o-font-sans);
 }
 
 .turnBody mark {

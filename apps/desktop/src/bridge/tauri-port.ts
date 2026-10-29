@@ -7,6 +7,7 @@ import type { VaultCall } from "./generated/VaultCall";
 import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { DaemonPort, FrameListener, Report, Unsubscribe } from "./port";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
+import type { MenuAction, MenuState } from "./window-menu";
 
 const frameEvents: Record<FeatureId, string> = {
   status: "orbit://feature/status",
@@ -25,6 +26,13 @@ const frameEvents: Record<FeatureId, string> = {
 const FLUSH_BEFORE_QUIT_EVENT = "orbit://flush-before-quit";
 
 export class TauriPort implements DaemonPort {
+  onMenuAction(listener: (action: MenuAction) => void): Promise<Unsubscribe> {
+    return listen<MenuAction>("orbit://menu-action", (event) => listener(event.payload));
+  }
+
+  setMenuState(state: MenuState): Promise<void> {
+    return invoke("orbit_menu_state", { state });
+  }
   readSessionsPage(cursor: AssistantCursor | null): Promise<SessionPage> {
     return invoke<SessionPage>("orbit_read_sessions_page", { cursor });
   }

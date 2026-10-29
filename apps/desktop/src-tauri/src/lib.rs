@@ -44,6 +44,8 @@ pub fn run() -> anyhow::Result<()> {
             commands::orbit_vault,
             commands::orbit_send_desktop,
             commands::orbit_panel_send,
+            application_menu::orbit_menu_state,
+            panel::orbit_panel_resize,
             commands::orbit_report,
             commands::orbit_attachment_add,
             commands::orbit_attachment_content,
@@ -51,6 +53,8 @@ pub fn run() -> anyhow::Result<()> {
             interface_flush::orbit_interface_flushed
         ])
         .manage(interface_flush::InterfaceFlush::default())
+        .manage(application_menu::MenuContext::default())
+        .on_menu_event(application_menu::handle_menu)
         .setup(setup)
         .on_window_event(|window, event| {
             hide_on_close(window, event);

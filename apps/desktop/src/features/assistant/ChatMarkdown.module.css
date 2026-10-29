@@ -1,5 +1,5 @@
 .markdown {
-  font-size: 14px;
+  font-size: calc(14px * var(--o-reading-scale, 1));
   line-height: 1.55;
   text-wrap: pretty;
   overflow-wrap: anywhere;
@@ -36,14 +36,14 @@
 .markdown h3,
 .markdown h4 {
   margin: 14px 0 4px;
-  font-size: 16px;
+  font-size: calc(16px * var(--o-reading-scale, 1));
   font-weight: 600;
 }
 
 .markdown h5,
 .markdown h6 {
   margin: 14px 0 4px;
-  font-size: 14px;
+  font-size: calc(14px * var(--o-reading-scale, 1));
   font-weight: 600;
 }
 
@@ -115,7 +115,7 @@
   padding: 12px 14px;
   overflow-x: auto;
   font-family: var(--o-font-mono);
-  font-size: var(--o-font-12-5);
+  font-size: calc(var(--o-font-12-5) * var(--o-reading-scale, 1));
   line-height: 1.7;
 }
 
@@ -139,7 +139,7 @@
   padding: 10px 0;
   overflow-x: auto;
   font-family: var(--o-font-mono);
-  font-size: var(--o-font-12-5);
+  font-size: calc(var(--o-font-12-5) * var(--o-reading-scale, 1));
   line-height: 1.7;
 }
 
@@ -179,7 +179,7 @@
 .table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: calc(13px * var(--o-reading-scale, 1));
 }
 
 .table th,

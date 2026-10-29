@@ -1,12 +1,15 @@
 /* The floating panel (prototype Panel.dc.html): its window is one 340 px
    card that says one thing at a time. The window carries the shadow. */
+.viewport {
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
 .root {
   display: flex;
-  height: 100vh;
   box-sizing: border-box;
   flex-direction: column;
   gap: var(--o-space-8);
-  overflow: hidden;
   padding: var(--o-space-14);
   border: 1px solid var(--o-line2);
   background: var(--o-surface);
@@ -16,8 +19,7 @@
 
 .card {
   display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
+  flex: none;
   flex-direction: column;
 }
 
@@ -220,10 +222,7 @@
 }
 
 .body {
-  min-height: 0;
-  flex: 1 1 auto;
   margin-top: var(--o-space-6);
-  overflow-y: auto;
 }
 
 .answer {

@@ -8,6 +8,35 @@ import { useShellSlots } from "./shell-slots";
 import { settleHub, topBarNotices } from "./status-problem";
 import { TopBarNotices, NoticeActions } from "./TopBarNotices";
 import styles from "./TopBar.module.css";
+import { useWindowPreferences } from "../state/window-preferences";
+
+function SidebarToggle() {
+  const copy = useCopy();
+  const { sidebar, toggleSidebar } = useWindowPreferences();
+  const label = sidebar ? copy.shell.hideSidebar : copy.shell.showSidebar;
+  return (
+    <button
+      type="button"
+      className={styles.theme}
+      aria-label={label}
+      title={label}
+      aria-pressed={sidebar}
+      onClick={toggleSidebar}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
+        <rect x="2" y="3" width="16" height="14" rx="2" />
+        <path d="M7 3v14" />
+      </svg>
+    </button>
+  );
+}
 
 export interface TopBarProps extends NoticeActions {
   onOpenPalette: () => void;
@@ -48,6 +77,7 @@ export function TopBar({ onOpenPalette, snapshot, send, onPair }: TopBarProps) {
   const notices = topBarNotices(snapshot, useSettledHub(snapshot));
   return (
     <header className={styles.topBar}>
+      <SidebarToggle />
       <div
         className={styles.leading}
         data-claimed={slots?.leadingClaims ? true : undefined}

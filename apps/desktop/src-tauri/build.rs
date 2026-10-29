@@ -12,6 +12,8 @@ fn main() {
             "orbit_vault",
             "orbit_send",
             "orbit_panel_send",
+            "orbit_menu_state",
+            "orbit_panel_resize",
             "orbit_report",
             "orbit_attachment_add",
             "orbit_attachment_content",

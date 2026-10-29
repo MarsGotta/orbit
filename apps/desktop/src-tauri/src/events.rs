@@ -47,12 +47,11 @@ fn emit_feature_frames<R: tauri::Runtime>(
         // has something to say; it is shown or hidden after the frame went out.
         let panel = crate::panel::panel_visible(&frame);
         crate::panel_hover::follow(&frame);
-        let height = crate::panel::panel_height(&frame).unwrap_or(crate::panel::PANEL_HEIGHT);
         if let Err(error) = app.emit(&event, frame) {
             eprintln!("No se pudo publicar el marco {event}: {error}");
         }
         if let Some(visible) = panel {
-            crate::panel::apply(app, visible, height);
+            crate::panel::apply(app, visible);
         }
     }
 }

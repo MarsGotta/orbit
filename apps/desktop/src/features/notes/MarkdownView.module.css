@@ -1,5 +1,5 @@
 .markdown {
-  font-size: var(--o-font-14-5);
+  font-size: calc(var(--o-font-14-5) * var(--o-reading-scale, 1));
   line-height: 1.65;
   text-wrap: pretty;
 }
@@ -31,7 +31,7 @@
 .markdown h4,
 .markdown h5 {
   margin: 14px 0 6px;
-  font-size: var(--o-font-14-5);
+  font-size: calc(var(--o-font-14-5) * var(--o-reading-scale, 1));
   font-weight: 600;
 }
 
