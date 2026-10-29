@@ -941,6 +941,16 @@ def test_accessibility_failure_does_not_change_any_other_check(tmp_path):
     }
 
 
+def test_accessibility_waits_for_webkit_to_build_its_tree(tmp_path):
+    # Real run of 2026-10-29: the first macOS read held only the window's own
+    # buttons, and check 21 failed although the app named every control.
+    results, directory = dry_run.run("accessibility-lazy-tree", tmp_path)
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 22)}
+    data = json.loads((directory / "report.json").read_text())
+    assert data["accessibility"]["reads"] == {"idle": 3, "recording": 3}
+    assert "Grabar reunión" in (directory / "trees/accessibility-idle.txt").read_text()
+
+
 def test_interface_sends_a_guarded_bridge_press_and_saves_its_reading(tmp_path):
     class Bridge:
         def __init__(self):

@@ -120,6 +120,10 @@ def bounds() -> dict[str, tuple[float, str]]:
         ),
         "paired": (30, "provisional: the daemon connecting to the test hub, not measured"),
         "cua-driver": (30, "provisional: the start of CuaDriver's daemon, not measured"),
+        "accessibility-tree": (
+            10,
+            "provisional: WebKit builds its tree when macOS first asks, not measured",
+        ),
         "call": (
             120,
             "cua-driver call stops waiting for its daemon at 120 s (daemon.rs, send_request)",

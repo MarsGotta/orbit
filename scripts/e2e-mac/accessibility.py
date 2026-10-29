@@ -6,6 +6,7 @@ No CuaDriver input or bridge projection can establish this accessibility fact.
 
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager
 
 import ax_tree
@@ -15,6 +16,9 @@ from interface import StepFailed
 NAMES = {21: "macOS sees the recording buttons and sidebar links by name"}
 NOT_COVERED = ()
 LINKS = ("Hoy", "Calendario", "Reuniones", "Notas", "Asistente", "Ajustes")
+# Between macOS accessibility reads while WebKit builds its tree; each read is
+# a CuaDriver call over SSH, so a shorter pause only adds calls.
+AX_RETRY_S = 0.5
 
 
 def _named(nodes, role, label):
@@ -70,22 +74,35 @@ def session(test):
                 raise StepFailed(
                     f"the bridge did not show «{button}» within {bound} s; AX was not sampled"
                 )
-            done = test.mac.engine_call(
-                "get_window_state",
-                {
-                    "pid": main.pid,
-                    "window_id": main.window_id,
-                    "include_accessibility_tree": True,
-                    "include_screenshot": False,
-                },
-            )
-            result = done["result"]
-            if result.get("degraded") or not isinstance(result.get("tree_markdown"), str):
-                raise StepFailed(
-                    f"CuaDriver could not read macOS accessibility: {result.get('degraded_reason')}"
+            # WebKit builds its accessibility tree when a client first asks:
+            # on the real run of 2026-10-29 the first read held only the
+            # window's own buttons. Read again until macOS shows the button.
+            started, reads = time.monotonic(), 0
+            tree_bound = test.bounds["accessibility-tree"][0]
+            while True:
+                reads += 1
+                done = test.mac.engine_call(
+                    "get_window_state",
+                    {
+                        "pid": main.pid,
+                        "window_id": main.window_id,
+                        "include_accessibility_tree": True,
+                        "include_screenshot": False,
+                    },
                 )
-            tree = ax_tree.without_menu_bar(result["tree_markdown"])
+                result = done["result"]
+                if result.get("degraded") or not isinstance(result.get("tree_markdown"), str):
+                    raise StepFailed(
+                        "CuaDriver could not read macOS accessibility: "
+                        f"{result.get('degraded_reason')}"
+                    )
+                tree = ax_tree.without_menu_bar(result["tree_markdown"])
+                shown = ax_tree.find(ax_tree.parse(tree), button, ("AXButton",))
+                if shown or time.monotonic() - started > tree_bound:
+                    break
+                time.sleep(AX_RETRY_S)
             sample["trees"][phase] = tree
+            sample.setdefault("reads", {})[phase] = reads
             (test.directory / "trees" / f"accessibility-{phase}.txt").write_text(
                 tree, encoding="utf-8"
             )

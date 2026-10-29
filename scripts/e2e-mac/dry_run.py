@@ -250,13 +250,25 @@ class DryRunOrbit:
         raise TimeoutError
 
 
+# What macOS answered on a real run before WebKit had built its tree: only
+# the window's own buttons.
+WINDOW_CHROME_ONLY = """- [0] AXWindow "Orbit" [actions=[raise]]
+  - [1] AXButton [actions=[press]]
+  - [2] AXButton [actions=[press,zoomwindow,showmenu]]
+  - [3] AXButton [actions=[press]]
+"""
+
+
 class DryRunCua:
     """CuaDriver lifecycle and read-only AX snapshots. It cannot drive the UI;
-    cua.json can refuse an accessibility reading."""
+    cua.json can refuse an accessibility reading, or answer its first reads of
+    each state with the window's own buttons only (chrome_only_reads)."""
 
     def __init__(self, example, view):
         self.example, self.view = example, view
         self.refusals = example.overrides("cua.json").get("refusals", {})
+        self.chrome_only = example.overrides("cua.json").get("chrome_only_reads", 0)
+        self.reads = {}
         self.running = False
         self.mode = example.overrides("cua.json").get("mode", "bounded")
         self.serve = None
@@ -302,6 +314,9 @@ class DryRunCua:
         if tool != "get_window_state" or arguments.get("pid") != self.view.pid:
             raise StepFailed(f"CuaDriver only permits the read-only accessibility check: {tool}")
         phase = "idle" if self.view.screen in ("home", "briefing") else "recording"
+        self.reads[phase] = self.reads.get(phase, 0) + 1
+        if self.reads[phase] <= self.chrome_only:
+            return {"tree_markdown": WINDOW_CHROME_ONLY}
         tree = self.example.text(f"accessibility-{phase}.md")
         lines = tree.splitlines()
         if len(lines) > MAX_NODES:
@@ -378,5 +393,6 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
         test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
     # Nor does a replayed panel change with time: it is read at once.
     test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")
+    test.bounds["accessibility-tree"] = (2, "cua.json may hold back the first reads")
     test.hub_kept = DryRunHub(example, test.hub_kept)
     return test.run(), run_directory
