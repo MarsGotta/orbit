@@ -33,6 +33,8 @@ const commands: Record<AppCommand["command"], string> = {
   error_reports: "cambiar los informes de errores",
   handover: "seguir la conversación con otro asistente",
   interrupt: "detener la respuesta",
+  desktop_status: "consultar el estado de las integraciones de macOS",
+  notifications_request: "pedir permiso para notificaciones",
   login_item: "cambiar si Orbit se abre al iniciar sesión",
   meeting_ask: "mandar la pregunta",
   meeting_delete: "borrar la reunión",

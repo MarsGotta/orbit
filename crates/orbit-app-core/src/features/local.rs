@@ -8,6 +8,7 @@ use ts_rs::TS;
 pub struct LocalView {
     pub profile: Option<ProfileSettingsSnapshot>,
     pub login_item: LoginItemState,
+    pub notifications: crate::NotificationSnapshot,
     pub update: UpdateSnapshot,
     pub onboarding_done: bool,
 }
@@ -18,6 +19,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     LocalView {
         profile: (*input.local.profile).clone(),
         login_item: (*input.local.login_item).clone(),
+        notifications: (*input.local.notifications).clone(),
         update: UpdateSnapshot {
             install_blocked: crate::UpdateService::installation_blocker_reason(input.topics).map(
                 |reason| {
@@ -35,6 +37,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
 pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
     snapshot.settings.profile = view.profile.clone();
     snapshot.settings.login_item = view.login_item.clone();
+    snapshot.settings.notifications = view.notifications.clone();
     snapshot.settings.update = view.update.clone();
     snapshot.settings.onboarding_done = view.onboarding_done;
 }
@@ -44,6 +47,8 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
 pub enum LocalCommand {
     LoginItem { on: bool },
+    DesktopStatus,
+    NotificationsRequest,
     UpdateCheck,
     UpdateInstall,
     OnboardingDone,

@@ -73,6 +73,7 @@ export function applyFrame(snapshot: AppView, frame: FeatureFrame): AppView {
           ...snapshot.settings,
           profile: frame.view.profile ?? undefined,
           login_item: frame.view.login_item,
+          notifications: frame.view.notifications,
           update: frame.view.update,
           onboarding_done: frame.view.onboarding_done,
         },

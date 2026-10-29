@@ -291,12 +291,14 @@ describe("the permissions", () => {
     ).toBeTruthy();
   });
 
-  it("accessibility opens System Settings, since macOS does not ask for it", () => {
+  it("accessibility requests macOS access before offering System Settings", async () => {
     const { sent } = show();
     press("Empezar");
     press("Emparejar después");
     const row = screen.getByText("Accesibilidad").closest("li") as HTMLElement;
-    fireEvent.click(within(row).getByRole("button", { name: "Abrir Ajustes" }));
+    fireEvent.click(within(row).getByRole("button", { name: "Pedir" }));
+    expect(sent).toContainEqual({ command: "permissions", request: ["accessibility"] });
+    fireEvent.click(await within(row).findByRole("button", { name: "Abrir Ajustes del Sistema" }));
     expect(sent).toContainEqual({ command: "open_system_privacy", pane: "Accessibility" });
   });
 
@@ -335,15 +337,18 @@ describe("back from System Settings", () => {
     expect(within(row()).getByRole("button", { name: "Abrir Ajustes del Sistema" })).toBeTruthy();
   });
 
-  it("accessibility not switched on offers «Abrir Ajustes» again", async () => {
+  it("accessibility not switched on offers System Settings again", async () => {
     show();
     press("Empezar");
     press("Emparejar después");
     const row = () => screen.getByText("Accesibilidad").closest("li") as HTMLElement;
-    fireEvent.click(within(row()).getByRole("button", { name: "Abrir Ajustes" }));
+    fireEvent.click(within(row()).getByRole("button", { name: "Pedir" }));
+    fireEvent.click(
+      await within(row()).findByRole("button", { name: "Abrir Ajustes del Sistema" }),
+    );
     expect(within(row()).getByText("Esperando a Ajustes del Sistema…")).toBeTruthy();
     await returnToOrbit();
-    expect(within(row()).getByRole("button", { name: "Abrir Ajustes" })).toBeTruthy();
+    expect(within(row()).getByRole("button", { name: "Abrir Ajustes del Sistema" })).toBeTruthy();
   });
 
   it("nothing is read again while no row waits for System Settings", async () => {

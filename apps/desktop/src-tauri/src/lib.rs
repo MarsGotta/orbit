@@ -2,6 +2,7 @@ mod application_menu;
 mod commands;
 mod copy;
 pub mod daemon_thread;
+mod desktop_system;
 mod events;
 mod interface_flush;
 mod language;
@@ -15,27 +16,18 @@ mod tray;
 use anyhow::Context;
 use daemon_thread::{EmbeddedDaemon, Launch};
 use orbit_app_core::{
-    DEFAULT_UPDATE_BASE_URL, DaemonClient, LoginItemState, SettingsUpdateState, UpdateService,
-    UpdateSnapshot,
+    DEFAULT_UPDATE_BASE_URL, DaemonClient, SettingsUpdateState, UpdateService, UpdateSnapshot,
 };
 use orbit_ipc::Paths;
 use tauri::{Manager, RunEvent, WindowEvent};
-use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 pub fn run() -> anyhow::Result<()> {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         // The chat's «Copiar» writes text only; its capability allows nothing else.
         .plugin(tauri_plugin_clipboard_manager::init())
-        // Only Rust posts notifications (notify.rs); the interface has no
-        // permission for the plugin's commands.
-        .plugin(tauri_plugin_notification::init())
         // «Adjuntar» opens macOS's panel; it answers with paths only.
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            None,
-        ))
         .invoke_handler(tauri::generate_handler![
             commands::orbit_snapshot,
             commands::orbit_read_sessions_page,
@@ -54,6 +46,9 @@ pub fn run() -> anyhow::Result<()> {
         .setup(setup)
         .on_window_event(|window, event| {
             hide_on_close(window, event);
+            if matches!(event, WindowEvent::Focused(true)) {
+                desktop_system::refresh_app(window.app_handle());
+            }
             if let WindowEvent::ThemeChanged(theme) = event {
                 tray::refresh_appearance(window.app_handle(), *theme);
             }
@@ -133,7 +128,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     });
     relaunch_when_the_daemon_falls(app.handle().clone(), daemon.clone());
     app.manage(daemon);
-    client.set_login_item(login_item(app));
     show_last_installation(&client);
     app.manage(language::NativeLanguage::new(
         client
@@ -147,6 +141,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         app.handle(),
     )));
     app.manage(client.clone());
+    desktop_system::initialize(app.handle(), &client);
     let updater = update_service();
     app.manage(updater.clone());
     #[cfg(feature = "pruebas")]
@@ -192,19 +187,6 @@ fn relaunch_when_the_daemon_falls(exits: tauri::AppHandle, watched: EmbeddedDaem
             exits.exit(ended.exit_code());
         }
     });
-}
-
-/// Whether Orbit opens at login, as macOS's login items say.
-fn login_item(app: &tauri::App) -> LoginItemState {
-    app.autolaunch()
-        .is_enabled()
-        .map_or(LoginItemState::Unknown, |enabled| {
-            if enabled {
-                LoginItemState::On
-            } else {
-                LoginItemState::Off
-            }
-        })
 }
 
 /// Settings shows the last installation's result, or why it cannot be read.
@@ -294,6 +276,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         // No handler: the capability is checked before an order is looked up.
         // `test`: the app's own context already embeds the macOS Info.plist.
+        let directory = tempfile::tempdir()?;
         let app = tauri::test::mock_builder().build(tauri::generate_context!(test = true))?;
         for (label, ports) in [
             (
@@ -310,6 +293,7 @@ mod tests {
         ] {
             let window =
                 tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::default())
+                    .data_directory(directory.path().join(label))
                     .build()?;
             let orders: Vec<&str> = ports.into_iter().flat_map(sent_orders).collect();
             assert!(!orders.is_empty(), "{label} sends no order");
@@ -457,3 +441,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod identity_tests;

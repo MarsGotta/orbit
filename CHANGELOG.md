@@ -7,6 +7,15 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Fixed
+
+- Give the test app its own compiled identity for macOS integrations.
+- Read notification authorization and delivery failures from macOS, and show the
+  permission and System Settings remedy. Use the main app's modern login item
+  registration and report when system approval is required.
+- Request screen and Accessibility access before offering System Settings in
+  Settings and onboarding. Suspend panel hover checks while no question is shown.
+
 ### Changed
 
 - The real-test harness supports an English pass with `run --language en`,

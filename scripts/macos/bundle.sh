@@ -85,10 +85,12 @@ if [[ "$orbit_output" != /* ]]; then orbit_output="$PWD/$orbit_output"; fi
 orbit_name=Orbit
 orbit_identifier=app.orbit.companion
 orbit_features=()
+orbit_tauri_config=()
 if [[ "${ORBIT_PRUEBAS:-}" == 1 ]]; then
   orbit_name="Orbit Pruebas"
   orbit_identifier=app.orbit.companion.pruebas
   orbit_features=(--features orbit-core/pruebas,orbit-desktop/pruebas)
+  orbit_tauri_config=(--config src-tauri/tauri.pruebas.conf.json)
 fi
 orbit_bundle="$orbit_output/$orbit_name.app"
 CUA_ENGINE_RELATIVE_PATH="Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"
@@ -111,7 +113,7 @@ swift test --package-path native/macos
 pnpm --dir apps/desktop install --frozen-lockfile
 # The daemon runs inside the app, so this one build is the daemon's
 # too, with the same features; the separate daemon binary is no longer shipped.
-pnpm --dir apps/desktop tauri build --no-bundle ${orbit_features[@]+"${orbit_features[@]}"}
+pnpm --dir apps/desktop tauri build --no-bundle ${orbit_tauri_config[@]+"${orbit_tauri_config[@]}"} ${orbit_features[@]+"${orbit_features[@]}"}
 swift build --package-path native/macos --configuration release
 orbit_swift_bin="$(swift build --package-path native/macos --configuration release --show-bin-path)"
 mkdir -p -- \

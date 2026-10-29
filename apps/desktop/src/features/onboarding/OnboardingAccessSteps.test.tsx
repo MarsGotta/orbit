@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { macPermissions } from "../../i18n/es/permissions";
 import { es } from "../../i18n/es";
@@ -8,10 +8,9 @@ afterEach(cleanup);
 
 // A permission macOS has not reported yet is awaited, never read as a
 // refusal (nothing blank: it says it waits for macOS); one refused reads
-// «Sin conceder». Accessibility, which macOS never asks for, only opens
-// System Settings. The actions stay distinct: nothing is invented for an
+// «Sin conceder». Accessibility requests access before offering System Settings. The actions stay distinct: nothing is invented for an
 // unknown.
-it("unknown waits for macOS, a refusal reads «Sin conceder», without invented actions", () => {
+it("unknown waits for macOS, a refusal reads «Sin conceder», without invented actions", async () => {
   const send = vi.fn(async () => undefined);
   render(
     <PermissionsStep
@@ -37,7 +36,16 @@ it("unknown waits for macOS, a refusal reads «Sin conceder», without invented 
   expect(within(row(macPermissions.calendar.label)).getByText("✓ Concedido")).toBeTruthy();
   fireEvent.click(
     within(row(es.onboarding.accessibility)).getByRole("button", {
-      name: es.onboarding.openSettings,
+      name: es.onboarding.allow,
+    }),
+  );
+  expect(send).toHaveBeenCalledWith({ command: "permissions", request: ["accessibility"] });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  fireEvent.click(
+    within(row(es.onboarding.accessibility)).getByRole("button", {
+      name: es.onboarding.openSystemSettings,
     }),
   );
   expect(send).toHaveBeenCalledWith({ command: "open_system_privacy", pane: "Accessibility" });

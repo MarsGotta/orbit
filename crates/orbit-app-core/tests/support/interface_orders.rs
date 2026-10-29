@@ -269,6 +269,8 @@ pub fn cases() -> Vec<(Value, FeatureId)> {
             json!({"command":"session_open","id":"session-1"}),
             FeatureId::Assistant,
         ),
+        (json!({"command":"desktop_status"}), FeatureId::Local),
+        (json!({"command":"notifications_request"}), FeatureId::Local),
         (json!({"command":"login_item","on":true}), FeatureId::Local),
         (json!({"command":"update_check"}), FeatureId::Local),
         (json!({"command":"update_install"}), FeatureId::Local),

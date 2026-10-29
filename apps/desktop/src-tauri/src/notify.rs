@@ -4,7 +4,7 @@
 //! on top of it (AGENTS.md, «A second layer of consent»).
 //!
 //! The decision follows the assistant frames (`Watcher`); posting goes
-//! through `tauri-plugin-notification`. Neither text carries the conversation:
+//! through the app’s native notification center. Neither text carries the conversation:
 //! a notification stays in the Notification Center.
 
 use orbit_app_core::{AssistantActivity, ChatPending, ChatSnapshot};
@@ -172,22 +172,17 @@ pub fn follow_system_notices<R: tauri::Runtime>(
 }
 
 fn post<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notice: TurnNotice, sound: bool) {
-    // Absent under Tauri's mock runtime, where the plugin is not installed.
-    let Some(notifications) = app.try_state::<tauri_plugin_notification::Notification<R>>() else {
+    // Only production setup installs the OS adapter. Mock apps have no device effects.
+    if app.try_state::<crate::desktop_system::Native>().is_none() {
+        return;
+    }
+    let Some(client) = app.try_state::<orbit_app_core::DaemonClient>() else {
         return;
     };
-    let builder = notifications
-        .builder()
-        .title(notice.title)
-        .body(notice.body);
-    let builder = if sound {
-        builder.sound("NSUserNotificationDefaultSoundName")
-    } else {
-        builder
-    };
-    if let Err(error) = builder.show() {
-        eprintln!("No se pudo mostrar el aviso de macOS: {error}");
-    }
+    let client = client.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        crate::desktop_system::post(&client, &crate::desktop_system::Native, notice, sound).await;
+    });
 }
 
 impl Watcher {

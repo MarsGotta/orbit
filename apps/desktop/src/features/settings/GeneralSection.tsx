@@ -6,11 +6,10 @@ import { useFeedback } from "../../design/feedback";
 import { Field } from "../../design/Field";
 import { Segmented } from "../../design/Segmented";
 import { Skeleton } from "../../design/Skeleton";
-import { Switch } from "../../design/Switch";
 import { toggleTheme, useTheme, type Theme } from "../../design/theme";
 
-import { useHeldChoice } from "../../state/use-held-choice";
-import { Group, List, Row, SectionHeading } from "./layout";
+import { LoginItem } from "./NativeSettings";
+import { Group, List, SectionHeading } from "./layout";
 import { LanguageSetting } from "./LanguageSetting";
 import { ThisMac } from "./ThisMac";
 import { Updates } from "./Updates";
@@ -73,25 +72,6 @@ function Appearance() {
         { value: "light", label: base.settings.light },
       ]}
       value={theme}
-    />
-  );
-}
-
-/** «Abrir Orbit al iniciar sesión», shown as chosen until macOS confirms it. */
-function LoginItem({ send, settings }: { send: Send; settings: Settings }) {
-  const base = useCopy();
-  const loginItem = useHeldChoice(settings.login_item === "on", send);
-  return (
-    <Row
-      aside={
-        <Switch
-          checked={loginItem.shown}
-          label={base.settings.openAtLogin}
-          onCheckedChange={(on) => loginItem.choose(on, { command: "login_item", on })}
-        />
-      }
-      help={settings.login_item === "unknown" ? base.settings.loginUnknown : undefined}
-      title={base.settings.openAtLogin}
     />
   );
 }

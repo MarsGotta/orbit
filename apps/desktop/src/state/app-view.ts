@@ -13,6 +13,7 @@ export type AppView = {
   settings: ViewOf<"status">["settings"] & {
     permissions: ViewOf<"permissions">;
     login_item: ViewOf<"local">["login_item"];
+    notifications: ViewOf<"local">["notifications"];
     update: ViewOf<"local">["update"];
     onboarding_done: ViewOf<"local">["onboarding_done"];
     profile?: NonNullable<ViewOf<"local">["profile"]>;
@@ -52,6 +53,7 @@ export function composeView(frames: FeatureFrame[], revision: FrameRevision): Ap
       ...status.settings,
       permissions: view("permissions"),
       login_item: local.login_item,
+      notifications: local.notifications,
       update: local.update,
       onboarding_done: local.onboarding_done,
       profile: local.profile ?? undefined,

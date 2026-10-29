@@ -22,6 +22,19 @@ impl DaemonClient {
         self.update_local(|snapshot| snapshot.settings.login_item = state)
     }
 
+    pub fn set_notifications(
+        &self,
+        state: crate::PermissionState,
+        result: Option<Result<(), String>>,
+    ) -> AppSnapshot {
+        self.update_local(|snapshot| {
+            snapshot.settings.notifications.state = state;
+            if let Some(result) = result {
+                snapshot.settings.notifications.error = result.err();
+            }
+        })
+    }
+
     pub fn set_update(&self, mut update: UpdateSnapshot) -> AppSnapshot {
         self.update_local(|snapshot| {
             if update.last_installation.is_none() {
