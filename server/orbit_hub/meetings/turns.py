@@ -22,10 +22,10 @@ from .open_recordings import length_ms, open_capture
 
 # How the local microphone is named before the Mac has said who owns it
 # (`PUT /v1/device/profile`). It is the track, not a person.
-LOCAL_TRACK_NAME = "Micrófono local"
+LOCAL_TRACK_NAME = "Local microphone"
 # How the transcript names a voice nobody has named. The note never makes it
 # the owner of a task: a task without a known person has no owner.
-UNKNOWN_SPEAKER = "Otra persona"
+UNKNOWN_SPEAKER = "Another person"
 # Bound a continuous monologue's paragraph by the start of its words/groups:
 # a minute reads together, then a new paragraph keeps its time near its text.
 # This is not the silence threshold or a limit on recording duration. Draft
@@ -92,7 +92,7 @@ def speaker_name(key: str, track: str, renames: dict[str, str], owner: str | Non
     if track == "mic_local":
         return owner or LOCAL_TRACK_NAME
     if key.startswith("voice_") and key[6:].isdigit():
-        return f"Persona {int(key[6:])}"
+        return f"Person {int(key[6:])}"
     return UNKNOWN_SPEAKER
 
 
@@ -173,7 +173,7 @@ def render(lines: list[Line]) -> str:
 # Who says, in the transcript's lines, that a stretch of audio is missing:
 # not a voice of the meeting.
 MISSING_AUDIO_SPEAKER = "Orbit"
-TRACK_WORDS = {"mic_local": "del micrófono", "remote_app": "de la reunión"}
+TRACK_WORDS = {"mic_local": "from the microphone", "remote_app": "from the meeting"}
 
 
 @dataclass(frozen=True)
@@ -199,8 +199,8 @@ class MissingAudio:
             self.at_ms if self.at_ms is not None else fallback_ms,
             MISSING_AUDIO_SPEAKER,
             " ".join(
-                f"Falta el audio {TRACK_WORDS.get(self.track, '')} de este tramo{span}: "
-                "no llegó al hub.".split()
+                f"Missing audio {TRACK_WORDS.get(self.track, '')} in this segment{span}: "
+                "it did not reach the hub.".split()
             ),
         )
 

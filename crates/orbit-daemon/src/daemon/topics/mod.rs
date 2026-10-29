@@ -40,9 +40,38 @@ fn project(id: TopicId, source: &TopicSource<'_>) -> TopicData {
     }
 }
 
-fn reproject_interval_ms(id: TopicId) -> Option<u64> {
+fn reproject_interval_ms(id: TopicId, source: &TopicSource<'_>) -> Option<u64> {
     match id {
-        TopicId::Recording | TopicId::Notes => Some(id.min_interval_ms()),
+        TopicId::Recording => {
+            let active = source
+                .state
+                .durable
+                .capture
+                .recording
+                .as_ref()
+                .is_some_and(|recording| {
+                    matches!(
+                        recording.phase,
+                        orbit_core::CapturePhase::Starting
+                            | orbit_core::CapturePhase::Recording
+                            | orbit_core::CapturePhase::Paused
+                            | orbit_core::CapturePhase::Finalizing
+                    )
+                })
+                || source.state.durable.voice.call.is_some()
+                || source.runtime.is_some_and(|runtime| {
+                    runtime.audio.call.is_some()
+                        || runtime
+                            .question
+                            .current
+                            .as_ref()
+                            .is_some_and(|question| question.shown_until_ms().is_some())
+                        || runtime.call_topic().panel.is_some()
+                });
+            active.then_some(id.min_interval_ms())
+        }
+        // The notes head uses state and runtime inputs, never the clock.
+        TopicId::Notes => None,
         TopicId::Status
         | TopicId::Permissions
         | TopicId::Agenda
@@ -58,6 +87,7 @@ struct TopicCell {
     dirty: bool,
     last_published_ms: Option<u64>,
     last_projected_ms: Option<u64>,
+    periodic_ms: Option<u64>,
     // Unchanged dirty inputs do not advance publication time; this still
     // bounds projection work by each topic's existing redraw interval.
     last_dirty_projected_ms: Option<u64>,
@@ -90,6 +120,7 @@ impl TopicBoard {
                         dirty: true,
                         last_published_ms: None,
                         last_projected_ms: None,
+                        periodic_ms: None,
                         last_dirty_projected_ms: None,
                         sender,
                     },
@@ -141,7 +172,7 @@ impl TopicBoard {
                         .unwrap_or(0)
                         .max(earliest_publish),
                 );
-                let periodic = reproject_interval_ms(*id).and_then(|interval| {
+                let periodic = cell.periodic_ms.and_then(|interval| {
                     cell.last_projected_ms
                         .map(|last| last.saturating_add(interval).max(earliest_publish))
                 });
@@ -164,10 +195,13 @@ impl TopicBoard {
             if cell.sender.receiver_count() == 0 {
                 continue;
             }
-            let periodic = reproject_interval_ms(*id).is_some_and(|interval| {
+            let periodic = cell.periodic_ms.is_some_and(|interval| {
                 cell.last_projected_ms
                     .is_some_and(|last| source.now_ms.saturating_sub(last) >= interval)
             });
+            // A deadline already scheduled gets its final projection even if
+            // that projection no longer needs a clock (for example an expired offer).
+            cell.periodic_ms = reproject_interval_ms(*id, source);
             if !cell.dirty && !periodic {
                 continue;
             }

@@ -1,10 +1,11 @@
-//! Orbit's own speech, independent of meeting content and assistant replies.
+//! Orbit's own words, independent of meeting content and assistant replies.
 use orbit_core::{silence::PresenceVocabulary, wire::native::SpeechLocale};
 
 mod en;
 mod es;
 
 pub(super) struct SpokenCopy {
+    pub(super) meeting_title: &'static str,
     pub(super) call_question: &'static str,
     pub(super) answers: PresenceVocabulary,
 }

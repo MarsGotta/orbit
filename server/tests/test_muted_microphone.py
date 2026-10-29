@@ -73,7 +73,7 @@ def test_the_transcript_says_each_muted_stretch_in_one_calm_line(environment):
     transcript = read_transcript(store, owner, recording)
     lines = [line for line in transcript.lines() if line.speaker == "Orbit"]
     assert [(line.at_ms, line.text) for line in lines] == [
-        (1000, "Micrófono silenciado · 00:01 – 00:03")
+        (1000, "Microphone muted · 00:01 – 00:03")
     ]
 
 

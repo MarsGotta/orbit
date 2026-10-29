@@ -168,7 +168,7 @@ async def test_partial_transcript_returns_completed_track_and_failed_group_cause
     assert response.status_code == 200, response.text
     payload = response.json()
     # One line per turn with its speaker; no note, so the track names it.
-    assert payload["text"] == "[00:00:00] Micrófono local: Texto completado de micrófono."
+    assert payload["text"] == "[00:00:00] Local microphone: Texto completado de micrófono."
     assert payload["incomplete_groups"] == [
         {
             "track": "remote_app",
@@ -337,7 +337,7 @@ async def test_meetings_routes_answer_signed_requests_for_a_paired_device(meetin
             assert tail["after_index"] == cursor
             combined += tail["text"]
             cursor = tail["next_after_index"]
-        assert combined == "[00:00:00] Micrófono local: " + long_transcript
+        assert combined == "[00:00:00] Local microphone: " + long_transcript
 
 
 async def test_meetings_routes_log_no_transcript_text(meetings_hub_app):
@@ -526,13 +526,13 @@ async def test_every_transcript_page_is_bounded_and_continues_without_loss(
     # exactly like the MCP tool's after_index, not UTF-8 bytes.
     text = "á🎙" * 48_000 + " final"
     recording = recording_with_transcript(store, owner, text, title="Tres páginas")
-    expected = "[00:00:00] Micrófono local: " + text
+    expected = "[00:00:00] Local microphone: " + text
     if format_name == "segments":
         expected = json.dumps(
             {
                 "at_ms": 0,
                 "track": "mic_local",
-                "speaker": "Micrófono local",
+                "speaker": "Local microphone",
                 "first_index": 0,
                 "last_index": 0,
                 "text": text,

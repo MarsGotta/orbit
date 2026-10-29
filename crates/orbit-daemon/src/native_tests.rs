@@ -509,7 +509,7 @@ fn the_packaged_driver_is_resolved_through_the_bundle_contents() -> Result<()> {
     assert!(
         error
             .to_string()
-            .contains("no es la app de un bundle de Orbit")
+            .contains("is not the app of an Orbit bundle")
     );
     Ok(())
 }

@@ -108,7 +108,7 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
         identity(request)
         agent = agents.get(agent_id)
         text = body(
-            Personality, await bounded_body(request, PERSONALITY_BODY_BYTES), "Personalidad"
+            Personality, await bounded_body(request, PERSONALITY_BODY_BYTES), "Personality"
         ).text
         if (refusal := personality_refusal(text)) is not None:
             raise refusal
@@ -119,7 +119,7 @@ def mount(app, settings, agents: Agents, configs: AgentConfigStore, identity, bo
     async def write_access(agent_id: str, request: Request):
         identity(request)
         agent = agents.get(agent_id)
-        groups = body(Access, await bounded_body(request, SMALL_BODY_BYTES), "Acceso").groups
+        groups = body(Access, await bounded_body(request, SMALL_BODY_BYTES), "Access").groups
         # An older Mac does not know `notes`; preserve its stored choice.
         configs.set_access(
             agent.id, {**configs.access(agent.id), **groups.model_dump(exclude_unset=True)}

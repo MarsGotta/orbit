@@ -303,7 +303,7 @@ async def test_orbit_transcript_of_a_meeting_in_progress_is_partial_and_uses_the
     assert first.startswith("Partial transcript: the meeting is still in progress")
     assert "4 chunks" in first and "2 s of audio" in first
     assert "Alina: Hola, empezamos." in text
-    assert "Otra persona: Vale, adelante." in text
+    assert "Another person: Vale, adelante." in text
     assert "Speaker" not in text and "mic_local" not in text
 
 
@@ -336,13 +336,13 @@ async def test_a_finished_transcript_names_diarized_voices_as_the_device_does(
     assert "Alina: Abrimos el comité." in text_of(named)
     assert "Lucía: Yo envío el acta el viernes." in text_of(named)
     assert "Speaker 1" not in text_of(named)
-    # A voice the user has not named is «Otra persona», never the recognizer's label.
-    assert "Otra persona: Yo envío el acta el viernes." in text_of(labelled)
+    # A voice the user has not named is «Another person», never the recognizer's label.
+    assert "Another person: Yo envío el acta el viernes." in text_of(labelled)
     assert "Alina: Abrimos el comité." in text_of(labelled)
     assert "Speaker 1" not in text_of(labelled)
     # Before the Mac says who owns it, the local microphone is the track, and
     # the answer says why.
-    assert "Micrófono local: Abrimos el comité." in text_of(before)
+    assert "Local microphone: Abrimos el comité." in text_of(before)
     assert text_of(before).splitlines()[0].startswith("Unnamed speakers")
 
 
@@ -391,7 +391,7 @@ async def test_deimos_reconstructs_a_transcript_of_at_least_three_pages(environm
     )
     meetings.set_owner_name(store, owner, "Alina", NOW)
     # Fixture audio starts at 900000 ms; the recording starts at 1000 ms.
-    expected = f"[00:14:59] Alina: {local}\n[00:14:59] Otra persona: {remote}"
+    expected = f"[00:14:59] Alina: {local}\n[00:14:59] Another person: {remote}"
     pages, cursor = [], 0
     async with deimos(environment, tmp_path, owner) as server:
         for _ in range(10):

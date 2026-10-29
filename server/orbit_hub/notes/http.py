@@ -30,7 +30,7 @@ def _numbers(error: dict) -> dict:
 def refusal(failure: ValidationError) -> tuple[str, str, dict]:
     """The first broken field, a sentence about it and its numbers."""
     error = failure.errors(include_input=False)[0]
-    field = ".".join(str(part) for part in error["loc"]) or "cuerpo"
+    field = ".".join(str(part) for part in error["loc"]) or "body"
     cause = (error.get("ctx") or {}).get("error")
     reason = cause.reason if isinstance(cause, SeriesKeyError) else error["type"]
     return field, reason, {"field": field, **_numbers(error)}

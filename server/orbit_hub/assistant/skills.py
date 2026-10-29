@@ -109,7 +109,7 @@ def size_refusal(name: str, content: str) -> HubError | None:
         return None
     return HubError(
         "skill_too_large",
-        f"Skill «{name}» ocupa {size} bytes; maximum {MAX_SKILL_BYTES}",
+        f"Skill «{name}» is {size} bytes; maximum {MAX_SKILL_BYTES}",
         http_status=413,
         numbers={"name": name, "bytes": size, "max_bytes": MAX_SKILL_BYTES},
     )

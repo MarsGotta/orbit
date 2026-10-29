@@ -201,11 +201,11 @@ async fn an_absurd_catalogue_is_refused_by_its_own_name() -> Result<()> {
     };
     let message = error.to_string();
     assert!(
-        message.contains("catálogo"),
+        message.contains("catalogue"),
         "the refusal has to name it as a catalogue: {message}"
     );
     assert!(
-        !message.contains("Observación"),
+        !message.contains("Observation"),
         "a catalogue is not refused with a screen observation's message: {message}"
     );
     Ok(())

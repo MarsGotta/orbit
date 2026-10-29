@@ -32,7 +32,7 @@ impl UpdateService {
             })??;
             if !output.status.success() {
                 return Err(std::io::Error::other(format!(
-                    "ps: estado {}; se conservan las copias",
+                    "ps: status {}; previous copies are retained",
                     output.status
                 )));
             }
@@ -41,10 +41,7 @@ impl UpdateService {
         }
         .await;
         if let Err(error) = &result {
-            write_update_log(
-                log,
-                format!("Orbit: se conservan las copias anteriores: {error}"),
-            );
+            write_update_log(log, format!("Orbit: retaining previous copies: {error}"));
         }
         result
     }
@@ -98,7 +95,7 @@ fn retire_in(
                 write_update_log(
                     log,
                     format!(
-                        "Orbit: se conserva {}: no es una carpeta de app (puede ser un enlace)",
+                        "Orbit: retaining {}: it is not an app directory (it may be a link)",
                         entry.path().display()
                     ),
                 );
@@ -111,18 +108,17 @@ fn retire_in(
                 Ok(()) => write_update_log(
                     log,
                     format!(
-                        "Orbit: retirada {}: la nueva app abrió el almacén y la copia no está en marcha",
+                        "Orbit: retired {}: the new app opened the store and this copy is not running",
                         path.display()
                     ),
                 ),
-                Err(error) => write_update_log(
-                    log,
-                    format!("Orbit: se conserva {}: {error}", path.display()),
-                ),
+                Err(error) => {
+                    write_update_log(log, format!("Orbit: retaining {}: {error}", path.display()))
+                }
             },
             Retirement::Keep(reason) => write_update_log(
                 log,
-                format!("Orbit: se conserva {}: {reason}", path.display()),
+                format!("Orbit: retaining {}: {reason}", path.display()),
             ),
             Retirement::Unrelated => {}
         }
@@ -144,7 +140,7 @@ fn retire_legacy_record(home: &Path, user: &Path, log: &orbit_ipc::report::LogFi
         match std::fs::remove_file(&legacy) {
             Ok(()) => write_update_log(
                 log,
-                format!("Orbit: registro antiguo retirado: {}", legacy.display()),
+                format!("Orbit: retired legacy record: {}", legacy.display()),
             ),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => write_update_log(
@@ -193,7 +189,7 @@ mod tests {
         assert!(!receipt.exists(), "the user receipt was not removed");
         assert_eq!(std::fs::read_to_string(current.join("marker"))?, "nueva");
         let diagnostic = std::fs::read_to_string(log.path())?;
-        assert!(diagnostic.contains("retirada"));
+        assert!(diagnostic.contains("retired"));
         assert!(diagnostic.contains(previous.to_str().ok_or("fixture path")?));
         // A directory alias must never turn the current system app into the
         // apparently old user app. The link and target both belong to this fixture.

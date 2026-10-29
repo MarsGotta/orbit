@@ -30,7 +30,7 @@ const ENGINE_EXIT_GRACE: Duration = Duration::from_millis(500);
 impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
     pub async fn initialize(&mut self) -> Result<()> {
         if self.initialized {
-            bail!("La sesión CUA ya está inicializada");
+            bail!("The CUA session is already initialized");
         }
         let result = self
             .request(
@@ -43,17 +43,15 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
             .await?;
         let Some(actual_driver_version) = result["serverInfo"]["version"].as_str() else {
             self.poison();
-            bail!("Versión de cua-driver ausente; se esperaba {VERIFIED_DRIVER_VERSION}");
+            bail!("Missing cua-driver version; expected {VERIFIED_DRIVER_VERSION}");
         };
         if actual_driver_version != VERIFIED_DRIVER_VERSION {
             self.poison();
-            bail!(
-                "Versión de cua-driver {actual_driver_version}; se esperaba {VERIFIED_DRIVER_VERSION}"
-            );
+            bail!("cua-driver version {actual_driver_version}; expected {VERIFIED_DRIVER_VERSION}");
         }
         if result["protocolVersion"] != VERIFIED_MCP_VERSION {
             self.poison();
-            bail!("Versión MCP no verificada; se esperaba {VERIFIED_MCP_VERSION}");
+            bail!("Unverified MCP version; expected {VERIFIED_MCP_VERSION}");
         }
         self.notify("notifications/initialized").await?;
         let tools = self.request("tools/list", json!({})).await?;
@@ -62,12 +60,12 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
             .is_some_and(|value| !value.is_null())
         {
             self.poison();
-            bail!("Catálogo CUA paginado no compatible con este adaptador");
+            bail!("Paginated CUA catalogue is unsupported by this adapter");
         }
         let descriptions: Vec<ToolDescription> = serde_json::from_value(tools["tools"].clone())?;
         if descriptions.len() > orbit_core::computer_control::MAX_ENGINE_TOOLS {
             self.poison();
-            bail!("Catálogo CUA demasiado grande");
+            bail!("CUA catalogue too large");
         }
         // The catalogue's own bound, applied where the catalogue actually
         // arrives. An engine that answers with something absurd is refused
@@ -77,7 +75,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
         if catalogue_bytes > orbit_core::computer_control::MAX_ENGINE_CATALOGUE_BYTES {
             self.poison();
             bail!(
-                "El catálogo del motor ocupa {catalogue_bytes} bytes y supera su límite de {} bytes; un catálogo no se entrega recortado",
+                "The engine catalogue is {catalogue_bytes} bytes, exceeding its {} byte ceiling; catalogues are never truncated",
                 orbit_core::computer_control::MAX_ENGINE_CATALOGUE_BYTES
             );
         }
@@ -89,7 +87,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
             .all(|name| self.tools.iter().any(|tool| tool.name == *name))
         {
             self.poison();
-            bail!("El driver no ofrece las herramientas de lectura verificadas");
+            bail!("The driver does not offer the verified read tools");
         }
         self.initialized = true;
         Ok(())
@@ -97,7 +95,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
 
     pub(super) async fn request(&mut self, method: &str, params: Value) -> Result<Value> {
         if !self.alive {
-            bail!("La conexión CUA está cerrada; no se reenvían operaciones");
+            bail!("The CUA connection is closed; operations are not replayed");
         }
         self.next_id = self
             .next_id
@@ -114,16 +112,16 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
             for _ in 0..MAX_NOTIFICATION_COUNT {
                 let response = read_json(&mut self.reader).await?;
                 if response["jsonrpc"] != "2.0" {
-                    bail!("Respuesta MCP inválida");
+                    bail!("Invalid MCP response");
                 }
                 if response.get("method").is_some() {
                     if response.get("id").is_some() {
-                        bail!("CUA solicitó una operación de cliente no autorizada");
+                        bail!("CUA requested an unauthorized client operation");
                     }
                     match response["method"].as_str() {
                         Some("notifications/progress" | "notifications/message") => continue,
                         _ => {
-                            bail!("La sesión MCP cambió; es necesario volver a validar su catálogo")
+                            bail!("The MCP session changed; its catalogue must be validated again")
                         }
                     }
                 }
@@ -131,7 +129,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
                     bail!("Identidad de respuesta MCP incorrecta");
                 }
                 if response.get("error").is_some() {
-                    bail!("CUA rechazó la petición MCP");
+                    bail!("CUA refused the MCP request");
                 }
                 return response
                     .get("result")
@@ -170,7 +168,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
                 let status = self.check_processes();
                 self.poison();
                 status?;
-                bail!("Tiempo de espera CUA agotado; no se reenvía la petición")
+                bail!("CUA request timed out; the request is not replayed")
             }
         }
     }
@@ -233,12 +231,12 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
                     .name_the_death_behind_the_silence(error, Sent::Notification(method))
                     .await;
                 self.poison();
-                bail!("No se pudo inicializar la sesión CUA: {error:#}")
+                bail!("Could not initialize the CUA session: {error:#}")
             }
             Err(_) => {
                 self.poison();
                 bail!(
-                    "No se pudo inicializar la sesión CUA: tiempo de espera agotado tras {} ms al enviar la notificación {method}; no se reenvía",
+                    "Could not initialize the CUA session: timed out after {} ms sending notification {method}; it is not replayed",
                     self.timeout.as_millis()
                 )
             }
@@ -261,13 +259,13 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
 fn death_context(status: ExitStatus, sent: Sent<'_>, next_id: u64) -> String {
     match sent {
         Sent::Request if next_id > 1 => format!(
-            "El motor CUA terminó ({status}) sin responder a esta petición, tras haber respondido a las anteriores; no se reenvía la petición"
+            "The CUA engine exited ({status}) without answering this request, after answering previous requests; the request is not replayed"
         ),
         Sent::Request => format!(
-            "El motor CUA terminó nada más arrancar ({status}) sin responder al protocolo MCP; su binario puede estar roto"
+            "The CUA engine exited immediately after startup ({status}) without answering MCP; its binary may be broken"
         ),
         Sent::Notification(method) => format!(
-            "El motor CUA terminó ({status}) sin recibir la notificación {method}, tras haber respondido a las peticiones anteriores; no se reenvía la notificación"
+            "The CUA engine exited ({status}) without receiving notification {method}, after answering previous requests; the notification is not replayed"
         ),
     }
 }

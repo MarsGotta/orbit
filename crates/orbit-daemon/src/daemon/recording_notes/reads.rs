@@ -137,7 +137,7 @@ impl Runtime {
                 recording_id: recording_id.to_owned(),
                 title: manifest["title"]
                     .as_str()
-                    .map_or_else(|| "Grabación".to_owned(), str::to_owned),
+                    .map_or_else(|| "Recording".to_owned(), str::to_owned),
                 started_at_ms,
                 duration_ms: finalized_at_ms.saturating_sub(started_at_ms).max(0),
                 capture: Capture::Closed,

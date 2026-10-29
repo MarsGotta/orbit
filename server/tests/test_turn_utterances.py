@@ -284,7 +284,7 @@ async def test_legacy_flat_names_and_new_turn_naming_use_word_intervals(hub):
     transcript = snapshot(store, owner, recording)
     assert [(transcript.name(t.speaker_key), t.text) for t in transcript.turns] == [
         ("Pablo", sentence),
-        ("Micrófono local", "We will visit soon."),
+        ("Local microphone", "We will visit soon."),
         ("Elena", "Llevaré semillas nuevas."),
     ]
     assert rendered == turns.render(transcript.lines())

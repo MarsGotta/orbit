@@ -390,3 +390,42 @@ fn a_short_recording_does_not_publish_an_intermediate_notes_head_before_its_cade
     assert!(frame["knowledge"]["value"].get("recording").is_none());
     Ok(())
 }
+
+#[test]
+fn a_question_deadline_keeps_refreshing_until_the_panel_is_held() -> anyhow::Result<()> {
+    use orbit_core::meeting_question::{MeetingQuestion, QuestionCause, QuestionOrigin};
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = crate::daemon::audio::tests::fixture(directory.path())?;
+    runtime.question.current = Some(MeetingQuestion::refused(
+        "question-one".into(),
+        None,
+        "What was agreed?".into(),
+        2,
+        QuestionOrigin::Typed,
+        QuestionCause::NoMeeting,
+        0,
+    ));
+    let mut board = TopicBoard::new("question-deadline".into());
+    let receiver = board.channels()[&TopicId::Recording].subscribe();
+    board.publish(&TopicSource {
+        state: &runtime.state,
+        runtime: Some(&runtime),
+        now_ms: 0,
+    });
+    assert_eq!(board.next_due_ms(), Some(250));
+    runtime
+        .question
+        .current
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("question"))?
+        .held = true;
+    board.state_changed();
+    board.publish_command(&TopicSource {
+        state: &runtime.state,
+        runtime: Some(&runtime),
+        now_ms: 1,
+    });
+    assert_eq!(receiver.borrow().revision, 2);
+    assert_eq!(board.next_due_ms(), None);
+    Ok(())
+}

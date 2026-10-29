@@ -77,7 +77,7 @@ def test_a_chunk_missing_in_the_middle_is_declared_and_the_recording_closes(envi
     ]
     marker = [line for line in transcript.lines() if line.speaker == "Orbit"]
     assert len(marker) == 1 and marker[0].at_ms == 2000
-    assert "Falta el audio" in marker[0].text and "1 s" in marker[0].text
+    assert "Missing audio" in marker[0].text and "1 s" in marker[0].text
 
 
 def test_the_document_and_the_notes_prompt_say_a_part_is_missing(environment):

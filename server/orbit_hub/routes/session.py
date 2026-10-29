@@ -76,7 +76,7 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
             None,
             session_id,
             before,
-            bounded_limit(limit, SESSION_MESSAGES_PAGE_LIMIT, "mensajes"),
+            bounded_limit(limit, SESSION_MESSAGES_PAGE_LIMIT, "messages"),
         )
         handed = await in_store(store_executor, handover.origin, store, session_id)
         return {

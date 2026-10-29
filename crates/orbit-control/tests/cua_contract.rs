@@ -557,13 +557,13 @@ async fn a_listener_racing_the_new_child_is_refused() {
         Ok(_) => panic!("the racing listener must not be used"),
         Err(error) => error.to_string(),
     };
-    assert!(error.contains("escucha al PID"), "wrong refusal: {error}");
+    assert!(error.contains("is held by PID"), "wrong refusal: {error}");
     assert!(
-        error.contains("motor que lanzó Orbit"),
+        error.contains("engine Orbit started"),
         "wrong refusal: {error}"
     );
     assert!(
-        !error.contains("No se pudo verificar"),
+        !error.contains("Could not verify"),
         "a foreign listener must be refused at once, not after the startup deadline: {error}"
     );
 }
@@ -573,10 +573,10 @@ async fn missing_and_unstartable_drivers_explain_the_failure() {
     let directory = tempfile::tempdir().unwrap();
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
     for (name, expected) in [
-        ("missing-cua-driver", "No se encontró el driver CUA"),
+        ("missing-cua-driver", "CUA driver not found"),
         (
             "broken-cua-driver",
-            "No se pudo iniciar el motor CUA empaquetado",
+            "Could not start the bundled CUA engine",
         ),
     ] {
         if name == "broken-cua-driver" {
@@ -613,7 +613,7 @@ async fn an_engine_that_dies_at_birth_names_its_cause() {
     .await;
     let error = connect_failure(directory.path(), "suicidal-cua-driver").await;
     assert!(
-        error.contains("El motor CUA terminó"),
+        error.contains("The CUA engine exited"),
         "the failure does not say the engine ended: {error}"
     );
     assert!(
@@ -621,7 +621,7 @@ async fn an_engine_that_dies_at_birth_names_its_cause() {
         "the failure does not say which code it ended with: {error}"
     );
     assert!(
-        !error.contains("Conexión MCP cerrada"),
+        !error.contains("MCP connection closed"),
         "the failure stops at the connection having closed: {error}"
     );
 }
@@ -641,11 +641,11 @@ async fn a_connection_that_really_closes_keeps_its_message() {
     write_driver(&directory.path().join("mute-cua-driver"), &driver).await;
     let error = connect_failure(directory.path(), "mute-cua-driver").await;
     assert!(
-        error.contains("Conexión MCP cerrada antes de responder"),
+        error.contains("MCP connection closed before a response"),
         "the closed connection lost its message: {error}"
     );
     assert!(
-        !error.contains("terminó"),
+        !error.contains("exited"),
         "a death that did not happen is attributed to it: {error}"
     );
 }
@@ -712,7 +712,7 @@ async fn a_write_to_an_engine_already_dead_names_its_death() {
     let mut client = LocalCua::from_process(proxy, Duration::from_secs(1)).unwrap();
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
-        error.contains("El motor CUA terminó nada más arrancar"),
+        error.contains("The CUA engine exited immediately after startup"),
         "the failure does not say the engine ended at startup: {error}"
     );
     assert!(
@@ -736,7 +736,7 @@ fn initialize_answer() -> Value {
 /// What a death after the engine answered has to say: that this request went
 /// unanswered, and that earlier ones did not.
 const DEATH_AFTER_ANSWERING: &str =
-    "sin responder a esta petición, tras haber respondido a las anteriores";
+    "without answering this request, after answering previous requests";
 
 /// After the handshake. The engine answered, so saying it died at
 /// birth without answering, with a binary that may be broken, would be false.
@@ -776,7 +776,7 @@ async fn a_death_after_the_handshake_is_not_called_a_death_at_birth() {
             .unwrap_err()
             .to_string();
         assert!(
-            error.contains("El motor CUA terminó (exit status: 3)"),
+            error.contains("The CUA engine exited (exit status: 3)"),
             "the failure does not say the engine ended, with its code: {error}"
         );
         assert!(
@@ -784,11 +784,11 @@ async fn a_death_after_the_handshake_is_not_called_a_death_at_birth() {
             "the failure does not say this request went unanswered: {error}"
         );
         assert!(
-            !error.contains("nada más arrancar") && !error.contains("al protocolo MCP"),
+            !error.contains("immediately after startup") && !error.contains("answering MCP"),
             "a death at startup is attributed to an engine that answered: {error}"
         );
         assert!(
-            !error.contains("Broken pipe") && !error.contains("Conexión MCP cerrada"),
+            !error.contains("Broken pipe") && !error.contains("MCP connection closed"),
             "the failure stops at the transport: {error}"
         );
     }
@@ -811,11 +811,11 @@ async fn a_death_at_the_second_request_is_a_death_after_answering() {
     let mut client = LocalCua::from_process(proxy, Duration::from_secs(5)).unwrap();
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
-        !error.contains("nada más arrancar"),
+        !error.contains("immediately after startup"),
         "a death at startup is attributed to an engine that answered initialize: {error}"
     );
     assert!(
-        error.contains("El motor CUA terminó (exit status: 3)"),
+        error.contains("The CUA engine exited (exit status: 3)"),
         "the failure does not say the engine ended, with its code: {error}"
     );
     assert!(
@@ -839,15 +839,15 @@ async fn a_death_before_the_initialized_notification_is_named() {
     let mut client = LocalCua::from_process(proxy, Duration::from_secs(5)).unwrap();
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
-        error.contains("El motor CUA terminó (exit status: 3)"),
+        error.contains("The CUA engine exited (exit status: 3)"),
         "the failure does not say the engine ended, with its code: {error}"
     );
     assert!(
-        error.contains("sin recibir la notificación notifications/initialized"),
+        error.contains("without receiving notification notifications/initialized"),
         "the failure does not say it was the notification that did not arrive: {error}"
     );
     assert!(
-        !error.contains("nada más arrancar") && !error.contains("Broken pipe"),
+        !error.contains("immediately after startup") && !error.contains("Broken pipe"),
         "the failure does not name the death after answering initialize: {error}"
     );
     assert!(!client.is_connected());
@@ -879,7 +879,7 @@ async fn a_notification_that_cannot_be_written_in_time_says_it_timed_out() {
     });
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
-        error.contains("tiempo de espera agotado tras 500 ms"),
+        error.contains("timed out after 500 ms"),
         "the failure does not say the time ran out, with its limit: {error}"
     );
     assert!(
@@ -912,7 +912,7 @@ async fn a_live_engine_that_stops_reading_is_not_declared_dead() {
     let mut client = LocalCua::from_process(proxy, Duration::from_secs(1)).unwrap();
     let error = client.initialize().await.unwrap_err().to_string();
     assert!(
-        !error.contains("terminó"),
+        !error.contains("exited"),
         "a death that did not happen is attributed to it: {error}"
     );
     // Only because no other start overlaps this test's (`STARTING_PROCESSES`):
@@ -966,7 +966,7 @@ async fn connection_rejects_paths_before_any_process_can_start() {
             .err()
             .unwrap()
             .to_string()
-            .contains("No se encontró el driver CUA")
+            .contains("CUA driver not found")
     );
 }
 
@@ -1130,13 +1130,13 @@ async fn forked_listener_stops_with_the_connection() {
 
 #[test]
 fn parent_lookup_error_keeps_the_specific_cause() {
-    let inner = anyhow::anyhow!("PPID ilegible: PID 42 desapareció");
+    let inner = anyhow::anyhow!("unreadable PPID: PID 42 disappeared");
     let error = cua::engine::parent_lookup_context(42, 7, 2, inner).to_string();
-    assert!(error.contains("PID par 42"), "missing peer: {error}");
-    assert!(error.contains("motor PID 7"), "missing child: {error}");
-    assert!(error.contains("paso 2/4"), "missing hop: {error}");
+    assert!(error.contains("peer PID 42"), "missing peer: {error}");
+    assert!(error.contains("engine PID 7"), "missing child: {error}");
+    assert!(error.contains("step 2/4"), "missing hop: {error}");
     assert!(
-        error.contains("PPID ilegible: PID 42 desapareció"),
+        error.contains("unreadable PPID: PID 42 disappeared"),
         "missing underlying cause: {error}"
     );
 }
@@ -1146,16 +1146,16 @@ fn each_peer_probe_decision_preserves_identity_and_cause() {
     let socket = Path::new("/fixture/driver.sock");
     let cases = [
         (
-            PeerProbeFact::CredentialError(std::io::Error::other("socket cerrado")),
+            PeerProbeFact::CredentialError(std::io::Error::other("socket closed")),
             "peer_cred()",
         ),
         (PeerProbeFact::PidMissing, "pid()"),
         (
             PeerProbeFact::Ancestry {
                 peer: 42,
-                result: Err(anyhow::anyhow!("ps: PID 42 desapareció")),
+                result: Err(anyhow::anyhow!("ps: PID 42 disappeared")),
             },
-            "ps: PID 42 desapareció",
+            "ps: PID 42 disappeared",
         ),
     ];
     for (fact, cause) in cases {
@@ -1175,7 +1175,7 @@ fn each_peer_probe_decision_preserves_identity_and_cause() {
         PeerProbeDecision::Reject(message) => {
             assert!(message.contains("PID 42"), "{message}");
             assert!(message.contains("PID 7"), "{message}");
-            assert!(message.contains("4 pasos"), "{message}");
+            assert!(message.contains("4 ancestry steps"), "{message}");
         }
         other => panic!("foreign listener must be rejected immediately, got {other:?}"),
     }
@@ -1196,7 +1196,8 @@ fn each_peer_probe_decision_preserves_identity_and_cause() {
 fn ps_timeout_names_the_remaining_startup_budget() {
     let message = cua::engine::ps_timeout_message(42, Duration::from_millis(137));
     assert!(
-        message.contains("no respondió en los 137 ms que quedaban de los 10000 ms del arranque"),
+        message
+            .contains("did not respond within the 137 ms remaining of the 10000 ms startup budget"),
         "wrong deadline: {message}"
     );
     assert!(message.contains("PID 42"), "missing PID: {message}");

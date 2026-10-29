@@ -248,9 +248,9 @@ def render_transcript(payload: dict, after_index: int) -> str:
     if payload.get("speaker_names") == "tracks":
         lines.append(
             "Unnamed speakers: the Mac has not told the hub who its owner is yet. "
-            "“Micrófono local” is the Orbit user’s Mac microphone; “Persona 1”, "
-            "“Persona 2”… "
-            "are separate unnamed voices; “Otra persona” is audio without an identified voice yet."
+            "“Local microphone” is the Orbit user’s Mac microphone; “Person 1”, "
+            "“Person 2”… "
+            "are separate unnamed voices; “Another person” is audio without an identified voice yet."
         )
     final = payload.get("final_pass")
     if isinstance(final, dict) and final.get("error"):

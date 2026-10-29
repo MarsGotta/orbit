@@ -401,7 +401,7 @@ async def test_renaming_names_the_meeting_everywhere_and_leaves_the_written_note
         await http.post(f"/v1/recordings/{recording}/note", json={}, headers=bearer(paired))
         written = await ready_note(http, paired, recording)
         renamed = await http.put(
-            path, json={"title": "  Presupuesto 2027 "}, headers=bearer(paired)
+            path, json={"title": "  Budget  \u00a0 review 2027 "}, headers=bearer(paired)
         )
         listed = (await http.get("/v1/recordings", headers=bearer(paired))).json()["meetings"]
         document = await document_of(http, paired, recording)
@@ -413,16 +413,16 @@ async def test_renaming_names_the_meeting_everywhere_and_leaves_the_written_note
         back = await document_of(http, paired, recording)
 
     assert renamed.status_code == 200, renamed.text
-    assert renamed.json() == {"title": "Presupuesto 2027"}
-    assert [row["title"] for row in listed] == ["Presupuesto 2027"]
-    assert document["title"] == "Presupuesto 2027"
-    assert [row["title"] for row in for_deimos] == ["Presupuesto 2027"]
+    assert renamed.json() == {"title": "Budget review 2027"}
+    assert [row["title"] for row in listed] == ["Budget review 2027"]
+    assert document["title"] == "Budget review 2027"
+    assert [row["title"] for row in for_deimos] == ["Budget review 2027"]
     # The note already written stays as it was written.
     assert document["note"]["revision"] == written["revision"]
     assert document["note"]["note"] == written["note"]
     # The next note is asked with the user's name.
     assert len(model.calls) == 2
-    assert "Expected title: Presupuesto 2027" in model.calls[-1]["messages"][1]["content"]
+    assert "Expected title: Budget review 2027" in model.calls[-1]["messages"][1]["content"]
     # An empty title gives the meeting back its own.
     assert reset.json() == {"title": TITLE}
     assert back["title"] == TITLE

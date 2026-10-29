@@ -12,7 +12,7 @@ impl UpdateService {
     ) -> Option<UpdateState> {
         match self.check_configured().await {
             UpdateState::Refused { refusal } => {
-                write_update_log(log, format!("Comprobación automática de Orbit: {refusal}"));
+                write_update_log(log, format!("Automatic Orbit update check: {refusal}"));
                 None
             }
             state @ (UpdateState::Disabled
@@ -26,7 +26,7 @@ impl UpdateService {
 pub(super) fn write_update_log(log: &orbit_ipc::report::LogFile, message: String) {
     eprintln!("{message}");
     if let Err(error) = log.append(format!("{message}\n").as_bytes()) {
-        eprintln!("No se pudo escribir {}: {error}", log.path().display());
+        eprintln!("Could not write {}: {error}", log.path().display());
     }
 }
 

@@ -40,7 +40,7 @@ pub(super) fn parse_observation(result: &Value) -> Result<NativeObservation> {
             .chars()
             .take(400)
             .collect();
-        bail!("CUA rechazó la herramienta de lectura: {said}");
+        bail!("CUA refused the read tool: {said}");
     }
     let structured = result
         .get("structuredContent")
@@ -54,14 +54,14 @@ pub(super) fn parse_observation(result: &Value) -> Result<NativeObservation> {
     {
         if content["type"] == "image" {
             if !images.is_empty() {
-                bail!("CUA devolvió más de una imagen para una sola observación");
+                bail!("CUA returned more than one image for a single observation");
             }
             let data = content["data"].as_str().context("Imagen MCP sin datos")?;
             let mime_type = content["mimeType"]
                 .as_str()
                 .context("Imagen MCP sin tipo")?;
             if mime_type != "image/png" {
-                bail!("Imagen MCP de tipo {mime_type}; Orbit sólo admite image/png");
+                bail!("MCP image type {mime_type}; Orbit supports only image/png");
             }
             if data.len() > MAX_IMAGE_BASE64_BYTES {
                 return Err(ResponseTooLarge {
@@ -78,12 +78,12 @@ pub(super) fn parse_observation(result: &Value) -> Result<NativeObservation> {
             continue;
         }
         if content["type"] != "text" {
-            bail!("Contenido CUA no solicitado");
+            bail!("Unrequested CUA content");
         }
         text.push(
             content["text"]
                 .as_str()
-                .context("Texto MCP inválido")?
+                .context("Invalid MCP text")?
                 .to_owned(),
         );
     }

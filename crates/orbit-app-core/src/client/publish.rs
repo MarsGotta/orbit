@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     calendar::LocalClock,
-    features::{FeatureFrame, FeatureInput, FrameRevision, project_all, project_changed},
+    features::{FeatureFrame, FeatureInput, FeatureProjection, FrameRevision},
     topics::TopicCache,
 };
 
@@ -27,6 +27,7 @@ impl From<&LocalClock> for ClockKey {
 pub(super) struct FramePublisher {
     revision: FrameRevision,
     last: AppSnapshot,
+    projected: FeatureProjection,
     pub(super) last_topics: TopicCache,
     pending: Vec<FeatureFrame>,
     frame_changes: watch::Sender<()>,
@@ -40,14 +41,21 @@ impl FramePublisher {
         let (frame_changes, receiver) = watch::channel(());
         drop(receiver);
         let clock = LocalClock::from_snapshot(&initial);
+        let revision = FrameRevision {
+            epoch: NEXT_EPOCH.fetch_add(1, Ordering::Relaxed),
+            counter: 0,
+        };
+        let last_topics = TopicCache::default();
+        let projected = FeatureProjection::new(
+            &FeatureInput::with_clock(&initial, &last_topics, clock.clone()),
+            revision,
+        );
         Self {
-            revision: FrameRevision {
-                epoch: NEXT_EPOCH.fetch_add(1, Ordering::Relaxed),
-                counter: 0,
-            },
+            revision,
+            projected,
             last: initial,
             copy: crate::PresentationCopy::default(),
-            last_topics: TopicCache::default(),
+            last_topics,
             pending: Vec::new(),
             frame_changes,
             clock_key: None,
@@ -59,6 +67,10 @@ impl FramePublisher {
         let mut publisher = Self::new(initial);
         publisher.clock_key = Some(clock.into());
         publisher.clock = clock.clone();
+        publisher.projected = FeatureProjection::new(
+            &FeatureInput::with_clock(&publisher.last, &publisher.last_topics, clock.clone()),
+            publisher.revision,
+        );
         publisher
     }
 
@@ -86,9 +98,7 @@ impl FramePublisher {
             snapshot.clone_from(current);
         });
         let mut revision = self.revision;
-        let mut changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
-                .with_copy(self.copy),
+        let mut changed = self.projected.update(
             &FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone())
                 .with_copy(self.copy),
             || {
@@ -96,42 +106,38 @@ impl FramePublisher {
                 revision
             },
         );
-        let input = FeatureInput::with_clock(&snapshot, &self.last_topics, clock.clone())
-            .with_copy(self.copy);
         macro_rules! ensure_clock_frame {
-            ($id:ident, $module:ident) => {
+            ($id:ident) => {
                 if !changed
                     .iter()
                     .any(|frame| frame.feature() == crate::features::FeatureId::$id)
+                    && let Some(frame) = self
+                        .projected
+                        .frames()
+                        .iter()
+                        .find(|frame| frame.feature() == crate::features::FeatureId::$id)
                 {
                     revision.counter = revision.counter.saturating_add(1);
-                    changed.push(FeatureFrame::$id {
-                        revision,
-                        view: Box::new(crate::features::$module::project(&input)),
-                        availability: crate::features::feature_availability(
-                            crate::features::FeatureId::$id,
-                            &input,
-                        ),
-                    });
+                    let mut frame = frame.clone();
+                    frame.set_revision(revision);
+                    changed.push(frame);
                 }
             };
         }
-        ensure_clock_frame!(Status, status);
-        ensure_clock_frame!(Agenda, agenda);
-        ensure_clock_frame!(Notes, notes);
-        ensure_clock_frame!(Briefing, briefing);
+        ensure_clock_frame!(Status);
+        ensure_clock_frame!(Agenda);
+        ensure_clock_frame!(Notes);
+        ensure_clock_frame!(Briefing);
         self.queue(changed);
         self.revision = revision;
-        self.last = snapshot.clone();
+        self.last = snapshot;
         self.clock = clock.clone();
         self.clock_key = Some(key);
     }
 
     pub(super) fn observe(&mut self, snapshot: &AppSnapshot) {
         let mut revision = self.revision;
-        let changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
-                .with_copy(self.copy),
+        let changed = self.projected.update(
             &FeatureInput::with_clock(snapshot, &self.last_topics, self.clock.clone())
                 .with_copy(self.copy),
             || {
@@ -141,14 +147,14 @@ impl FramePublisher {
         );
         self.queue(changed);
         self.revision = revision;
-        self.last = snapshot.clone();
+        if self.last != *snapshot {
+            self.last.clone_from(snapshot);
+        }
     }
 
     pub(super) fn observe_topics(&mut self, snapshot: &AppSnapshot, topics: &TopicCache) {
         let mut revision = self.revision;
-        let changed = project_changed(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
-                .with_copy(self.copy),
+        let changed = self.projected.update(
             &FeatureInput::with_clock(snapshot, topics, self.clock.clone()).with_copy(self.copy),
             || {
                 revision.counter = revision.counter.saturating_add(1);
@@ -157,12 +163,11 @@ impl FramePublisher {
         );
         self.queue(changed);
         self.revision = revision;
-        self.last = snapshot.clone();
-        // This copy keeps a stable before/after topic input for future feature
-        // projectors. Ten topic heads, sixteen cached reads (2 MiB), and two
-        // 4 MiB note indices (current assembly plus the last complete list)
-        // bound each cache near 10 MiB. This protects app memory, not the
-        // number of durable notes.
+        if self.last != *snapshot {
+            self.last.clone_from(snapshot);
+        }
+        // Topic payloads and keyed reads are shared; retain just their heads
+        // for the next dependency comparison and command receipt.
         self.last_topics.clone_from(topics);
         self.frame_changes.send_replace(());
     }
@@ -173,8 +178,8 @@ impl FramePublisher {
         }
         for frame in changed {
             // The queue protects the Tauri reader when bootstrap polls without
-            // draining. It holds one latest frame per registered function (14
-            // today), not a history or a limit on state changes.
+            // draining. It holds one latest frame per registered feature, not
+            // a history or a limit on state changes.
             if let Some(previous) = self
                 .pending
                 .iter_mut()
@@ -191,6 +196,11 @@ impl FramePublisher {
     pub(super) fn set_copy(&mut self, copy: crate::PresentationCopy) {
         self.copy = copy;
         self.revision.counter = self.revision.counter.saturating_add(1);
+        self.projected = FeatureProjection::new(
+            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
+                .with_copy(copy),
+            self.revision,
+        );
         let frames = self.bootstrap_frames();
         self.queue(frames);
     }
@@ -200,11 +210,15 @@ impl FramePublisher {
     }
 
     pub(super) fn bootstrap_frames(&self) -> Vec<FeatureFrame> {
-        project_all(
-            &FeatureInput::with_clock(&self.last, &self.last_topics, self.clock.clone())
-                .with_copy(self.copy),
-            self.revision,
-        )
+        self.projected
+            .frames()
+            .iter()
+            .cloned()
+            .map(|mut frame| {
+                frame.set_revision(self.revision);
+                frame
+            })
+            .collect()
     }
 
     pub(super) fn revision(&self) -> FrameRevision {

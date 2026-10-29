@@ -39,14 +39,14 @@ where
         Ok(credential) => credential,
         Err(error) => {
             return ListenerInspection::skipped(format!(
-                "No se pudo identificar al proceso del socket CUA previo en {}: {error}; no se envió ninguna señal",
+                "Could not identify the previous CUA socket process at {}: {error}; no signal was sent",
                 socket.display()
             ));
         }
     };
     let Some(peer) = credential.pid() else {
         return ListenerInspection::skipped(format!(
-            "El socket CUA previo en {} no comunicó el PID de su proceso; no se envió ninguna señal",
+            "The previous CUA socket at {} did not report its process PID; no signal was sent",
             socket.display()
         ));
     };
@@ -102,7 +102,7 @@ where
                 socket.display()
             );
             ListenerInspection::skipped(format!(
-                "No se barrió el PID {peer_pid} del socket CUA previo: {reason}; no se envió ninguna señal"
+                "The previous CUA socket PID {peer_pid} was not swept: {reason}; no signal was sent"
             ))
         }
         EngineListenerDecision::Sweep(targets) => {
@@ -137,7 +137,7 @@ fn identify_listener(
             socket.display()
         );
         return Err(ListenerInspection::skipped(format!(
-            "El socket CUA previo informó el PID inválido {peer}; no se envió ninguna señal"
+            "The previous CUA socket reported invalid PID {peer}; no signal was sent"
         )));
     };
     if peer_uid != own_uid {
@@ -146,7 +146,7 @@ fn identify_listener(
             socket.display()
         );
         return Err(ListenerInspection::skipped(format!(
-            "El socket CUA previo escucha al PID {peer_pid} del usuario {peer_uid}, no al usuario {own_uid}; no se envió ninguna señal"
+            "The previous CUA socket is held by PID {peer_pid} of user {peer_uid}, not user {own_uid}; no signal was sent"
         )));
     }
     let Some(bundle) = orbit_bundle::bundle_of(binary, Member::Engine) else {
@@ -156,7 +156,7 @@ fn identify_listener(
             binary.display()
         );
         return Err(ListenerInspection::skipped(format!(
-            "El socket CUA previo escucha al PID {peer_pid}, pero {} no es un motor de un paquete Orbit; no se envió ninguna señal",
+            "The previous CUA socket is held by PID {peer_pid}, but {} is not an Orbit bundle engine; no signal was sent",
             binary.display()
         )));
     };
@@ -182,11 +182,11 @@ where
                 socket.display()
             );
             Err(ListenerInspection::skipped(format!(
-                "No se pudo censar el PID {peer_pid} del socket CUA previo: {error:#}; no se envió ninguna señal"
+                "Could not list the previous CUA socket PID {peer_pid}: {error:#}; no signal was sent"
             )))
         }
         Err(_) => Err(ListenerInspection::skipped(format!(
-            "El censo del PID {peer_pid} del socket CUA previo venció a los {} ms; no se envió ninguna señal",
+            "The previous CUA socket PID {peer_pid} census timed out after {} ms; no signal was sent",
             PS_LISTING_TIMEOUT.as_millis()
         ))),
     }
@@ -217,7 +217,7 @@ where
             cleanups.push(orphan_cleanup(
                 &target,
                 EngineCleanupOutcome::SignalFailed,
-                Some("el PID no cabe en el identificador de proceso del sistema".into()),
+                Some("the PID does not fit the system process identifier".into()),
             ));
             continue;
         };
@@ -294,7 +294,7 @@ where
                 Some(
                     observation_error
                         .clone()
-                        .unwrap_or_else(|| "no llegó ningún censo posterior a SIGKILL".into()),
+                        .unwrap_or_else(|| "no process census arrived after SIGKILL".into()),
                 ),
             ),
         };
@@ -400,5 +400,5 @@ pub(super) async fn engine_process_listing() -> Result<String> {
     use anyhow::Context;
     tokio::task::spawn_blocking(crate::app_control::engine_process_listing)
         .await
-        .context("No se pudo recoger la tarea del censo de motores CUA")?
+        .context("Could not join the CUA engine census task")?
 }
