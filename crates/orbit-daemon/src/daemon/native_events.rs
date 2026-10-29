@@ -74,9 +74,21 @@ mod result_fixture_tests {
     #[tokio::test]
     async fn meeting_shortcut_uses_the_local_time_or_an_unknown_zone_title() -> Result<()> {
         let mut titles = Vec::new();
-        for offset in [Some(7_200_000), None] {
+        for (language, offset) in [
+            (
+                orbit_core::language::LanguageChoice::English,
+                Some(7_200_000),
+            ),
+            (orbit_core::language::LanguageChoice::English, None),
+            (
+                orbit_core::language::LanguageChoice::Spanish,
+                Some(7_200_000),
+            ),
+            (orbit_core::language::LanguageChoice::Spanish, None),
+        ] {
             let directory = tempfile::tempdir()?;
             let (mut runtime, mut native) = super::super::audio::tests::fixture(directory.path())?;
+            runtime.command(Command::LanguageSet { language }).await?;
             runtime
                 .on_native_hotkey(
                     &json!({"action":"meeting_toggle","phase":"pressed"}),
@@ -97,7 +109,10 @@ mod result_fixture_tests {
             );
             assert_eq!(native.try_recv()?["command"], "audio_start");
         }
-        assert_eq!(titles, ["Reunión 02:30", "Reunión"]);
+        assert_eq!(
+            titles,
+            ["Meeting 02:30", "Meeting", "Reunión 02:30", "Reunión"]
+        );
         Ok(())
     }
 

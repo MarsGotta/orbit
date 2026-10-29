@@ -167,6 +167,45 @@ impl<'a> FeatureInput<'a> {
     }
 }
 
+/// The last typed value of each desktop feature.
+pub struct FeatureProjection {
+    latest: Vec<FeatureFrame>,
+}
+
+impl FeatureProjection {
+    pub fn new(input: &FeatureInput<'_>, revision: FrameRevision) -> Self {
+        Self {
+            latest: project_all(input, revision),
+        }
+    }
+
+    pub fn frames(&self) -> &[FeatureFrame] {
+        &self.latest
+    }
+
+    /// Every feature is projected once and compared with its last value.
+    /// A hand-kept list of each projector's inputs would skip more work, but
+    /// a missed input would leave a view stale with no test failing.
+    pub fn update(
+        &mut self,
+        after: &FeatureInput<'_>,
+        next_revision: impl FnMut() -> FrameRevision,
+    ) -> Vec<FeatureFrame> {
+        let mut next_revision = next_revision;
+        let mut changed = Vec::new();
+        for previous in &mut self.latest {
+            let mut candidate = previous.reproject(after);
+            if candidate == *previous {
+                continue;
+            }
+            candidate.set_revision(next_revision());
+            *previous = candidate.clone();
+            changed.push(candidate);
+        }
+        changed
+    }
+}
+
 macro_rules! features {
     ($($variant:ident => $module:ident),+ $(,)?) => {
         #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -191,6 +230,18 @@ macro_rules! features {
                 match self { $(Self::$variant { revision, .. } => *revision),+ }
             }
 
+            pub(crate) fn set_revision(&mut self, next: FrameRevision) {
+                match self { $(Self::$variant { revision, .. } => *revision = next),+ }
+            }
+
+            fn reproject(&self, input: &FeatureInput<'_>) -> Self {
+                match self { $(Self::$variant { revision, .. } => Self::$variant {
+                    revision: *revision,
+                    view: Box::new($module::project(input)),
+                    availability: feature_availability(FeatureId::$variant, input),
+                }),+ }
+            }
+
             pub fn apply(&self, snapshot: &mut AppSnapshot) {
                 match self { $(Self::$variant { view, .. } => $module::apply(view, snapshot)),+ }
             }
@@ -209,17 +260,8 @@ macro_rules! features {
             after: &FeatureInput<'_>,
             mut next_revision: impl FnMut() -> FrameRevision,
         ) -> Vec<FeatureFrame> {
-            let mut frames = Vec::new();
-            $(if $module::project(before) != $module::project(after)
-                || feature_availability(FeatureId::$variant, before)
-                    != feature_availability(FeatureId::$variant, after) {
-                frames.push(FeatureFrame::$variant {
-                    revision: next_revision(),
-                    view: Box::new($module::project(after)),
-                    availability: feature_availability(FeatureId::$variant, after),
-                });
-            })+
-            frames
+            FeatureProjection::new(before, FrameRevision { epoch: 0, counter: 0 })
+                .update(after, &mut next_revision)
         }
     };
 }

@@ -113,7 +113,7 @@ fn topics_have_independent_cells_and_epoch() {
 }
 
 #[test]
-fn periodic_recording_projection_does_not_publish_an_unchanged_value() {
+fn idle_recording_has_no_periodic_deadline_or_projection() {
     let state = State::default();
     let source = |now_ms| TopicSource {
         state: &state,
@@ -126,11 +126,9 @@ fn periodic_recording_projection_does_not_publish_an_unchanged_value() {
     assert!(!board.publish(&source(249)).contains(&TopicId::Recording));
     assert!(!board.publish(&source(250)).contains(&TopicId::Recording));
     assert_eq!(receiver.borrow().revision, 1);
+    assert_eq!(board.next_due_ms(), None);
     assert_eq!(board.cells[&TopicId::Recording].last_published_ms, Some(0));
-    assert_eq!(
-        board.cells[&TopicId::Recording].last_projected_ms,
-        Some(250)
-    );
+    assert_eq!(board.cells[&TopicId::Recording].last_projected_ms, Some(0));
 }
 
 #[test]
@@ -152,4 +150,69 @@ fn unchanged_periodic_projection_does_not_delay_a_dirty_audio_projection() {
         Some(251)
     );
     assert!(!board.cells[&TopicId::Recording].dirty);
+}
+
+#[test]
+fn idle_notes_have_no_deadline_but_changed_inputs_still_publish() {
+    let state = State::default();
+    let mut board = TopicBoard::new("idle-notes".into());
+    let receiver = board.channels()[&TopicId::Notes].subscribe();
+    board.publish(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 0,
+    });
+    assert_eq!(board.next_due_ms(), None);
+    board.state_changed();
+    assert_eq!(board.next_due_ms(), Some(1_000));
+    board.publish(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 1_000,
+    });
+    assert_eq!(receiver.borrow().revision, 1);
+    assert_eq!(board.next_due_ms(), None);
+}
+
+#[test]
+fn a_live_recording_keeps_its_deadline_until_the_finish_input() -> anyhow::Result<()> {
+    let mut state = State::default();
+    let mut board = TopicBoard::new("active-recording".into());
+    let receiver = board.channels()[&TopicId::Recording].subscribe();
+    board.publish(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 0,
+    });
+    assert_eq!(board.next_due_ms(), None);
+    state.durable.capture.recording = Some(serde_json::from_value(serde_json::json!({
+        "id": "recording-one", "title": "Budget review", "started_at_ms": 1,
+        "ended_at_ms": null, "expires_at_ms": 60_001, "application_pid": null,
+        "audio": "system", "phase": "recording", "sealed_chunks": 0,
+        "gaps": 0, "tracks": [], "finalizing_since_ms": null
+    }))?);
+    board.state_changed();
+    board.publish_command(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 1,
+    });
+    assert_eq!(receiver.borrow().revision, 2);
+    assert_eq!(board.next_due_ms(), Some(251));
+    board.publish(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 251,
+    });
+    assert_eq!(board.next_due_ms(), Some(501));
+    state.durable.capture.recording = None;
+    board.state_changed();
+    board.publish_command(&TopicSource {
+        state: &state,
+        runtime: None,
+        now_ms: 252,
+    });
+    assert_eq!(receiver.borrow().revision, 3);
+    assert_eq!(board.next_due_ms(), None);
+    Ok(())
 }

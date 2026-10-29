@@ -28,9 +28,9 @@ pub fn engine_process_listing() -> Result<String> {
 #[cfg(any(target_os = "macos", test))]
 fn process_listing_with(command: &mut std::process::Command, timeout: Duration) -> Result<String> {
     let (status, bytes) = ps_output_with_deadline(command, timeout)
-        .map_err(|error| anyhow::anyhow!("No se pudo enumerar los procesos: {error:#}"))?;
+        .map_err(|error| anyhow::anyhow!("Could not list processes: {error:#}"))?;
     if !status.success() {
-        anyhow::bail!("ps no pudo enumerar los procesos ({status})");
+        anyhow::bail!("ps could not list processes ({status})");
     }
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
@@ -41,24 +41,22 @@ fn ps_output_with_deadline(
     timeout: Duration,
 ) -> Result<(ExitStatus, Vec<u8>)> {
     // A file lets ps finish even when its listing exceeds a pipe's capacity.
-    let mut capture = tempfile::tempfile().context("No se pudo preparar la salida de ps")?;
-    let writer = capture
-        .try_clone()
-        .context("No se pudo copiar la salida de ps")?;
+    let mut capture = tempfile::tempfile().context("Could not prepare ps output")?;
+    let writer = capture.try_clone().context("Could not copy ps output")?;
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::from(writer))
         .stderr(Stdio::null())
         .spawn()
-        .context("No se pudo iniciar ps")?;
+        .context("Could not start ps")?;
     let status = wait_for_ps(&mut child, timeout)?;
     capture
         .seek(SeekFrom::Start(0))
-        .context("No se pudo leer la salida de ps")?;
+        .context("Could not read ps output")?;
     let mut bytes = Vec::new();
     capture
         .read_to_end(&mut bytes)
-        .context("No se pudo leer la salida de ps")?;
+        .context("Could not read ps output")?;
     Ok((status, bytes))
 }
 
@@ -72,7 +70,7 @@ fn wait_for_ps(child: &mut Child, timeout: Duration) -> Result<ExitStatus> {
             Err(error) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(error).context("No se pudo consultar si ps terminó");
+                return Err(error).context("Could not check whether ps exited");
             }
         }
         if Instant::now() >= deadline {
@@ -80,13 +78,13 @@ fn wait_for_ps(child: &mut Child, timeout: Duration) -> Result<ExitStatus> {
             let reaped = child.wait();
             if let Err(error) = stopped {
                 anyhow::bail!(
-                    "{}; no se pudo detener ps: {error}",
+                    "{}; could not stop ps: {error}",
                     orbit_core::process_listing::ps_timeout_message(timeout)
                 );
             }
             if let Err(error) = reaped {
                 anyhow::bail!(
-                    "{}; no se pudo recoger ps: {error}",
+                    "{}; could not reap ps: {error}",
                     orbit_core::process_listing::ps_timeout_message(timeout)
                 );
             }

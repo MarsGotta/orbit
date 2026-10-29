@@ -56,7 +56,7 @@ def check(fields, *, path="", has_frontmatter=None):
             issue(
                 "status",
                 "invalid_status",
-                "solo admite draft, stable o deprecated; si falta vale stable",
+                "must be draft, stable or deprecated; defaults to stable when absent",
             )
         )
     if "generated" in fields:

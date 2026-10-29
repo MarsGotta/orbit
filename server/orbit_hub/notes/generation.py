@@ -282,7 +282,7 @@ def build_note(
             owner = _clean(item.get("owner"))
             if owner is not None and (
                 owner.casefold() == UNKNOWN_SPEAKER.casefold()
-                or re.fullmatch(r"persona [1-9][0-9]*", owner.casefold())
+                or re.fullmatch(r"persona? [1-9][0-9]*", owner.casefold())
             ):
                 owner = None
             identity = action_id(owner, text)

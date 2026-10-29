@@ -234,8 +234,8 @@ async def test_c1_turns_are_relative_named_never_empty_and_the_meeting_says_its_
         assert before.status_code == 200, before.text
         # Before the Mac says who owns it, the local microphone is the track.
         assert {s["key"]: s["name"] for s in before.json()["speakers"]} == {
-            "mic_local": "Micrófono local",
-            "remote_app": "Otra persona",
+            "mic_local": "Local microphone",
+            "remote_app": "Another person",
         }
         profile = await http.put(
             "/v1/device/profile", json={"owner_name": "Alina"}, headers=bearer(paired)
@@ -250,7 +250,7 @@ async def test_c1_turns_are_relative_named_never_empty_and_the_meeting_says_its_
     assert document["language"] == "es"
     assert document["speakers"] == [
         {"key": "mic_local", "track": "mic_local", "name": "Alina"},
-        {"key": "remote_app", "track": "remote_app", "name": "Otra persona"},
+        {"key": "remote_app", "track": "remote_app", "name": "Another person"},
     ]
     assert document["transcript"] == {"state": "ready", "pending_chunks": 0, "failed_groups": []}
     assert document["private_notes"] == {"text": "", "revision": 0}
@@ -312,7 +312,7 @@ async def test_c2_deimos_and_the_device_read_the_same_transcript(hub):
         assert render(read(store, db, paired["device_id"], recording).lines()) == device_view
     assert deimos_view.splitlines() == [
         "[00:00:00] Alina: Abrimos el comité.",
-        "[00:00:00] Otra persona: Gracias, empezamos. Yo envío el acta.",
+        "[00:00:00] Another person: Gracias, empezamos. Yo envío el acta.",
     ]
 
 
@@ -365,7 +365,7 @@ async def test_c3_renaming_names_the_turns_and_deimos_and_leaves_the_note_as_wri
     assert unknown.status_code == 400
     assert unknown.json()["code"] == "unknown_speaker"
     assert unknown.json()["op"]
-    assert reset.json()["speakers"][1]["name"] == "Otra persona"
+    assert reset.json()["speakers"][1]["name"] == "Another person"
 
 
 async def ready_note(http, paired, recording, *, budget=200):

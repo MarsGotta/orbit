@@ -616,7 +616,7 @@ async fn language_and_title_reach_the_hubs_routes() -> Result<()> {
     runtime
         .command(Command::MeetingRename {
             recording_id: RECORDING.into(),
-            title: "  Presupuesto 2027 ".into(),
+            title: "  Budget  \u{a0} review 2027 ".into(),
         })
         .await?;
     answer(&mut runtime, &mut events, START).await?;
@@ -629,7 +629,7 @@ async fn language_and_title_reach_the_hubs_routes() -> Result<()> {
     answer(&mut runtime, &mut events, START).await?;
     assert_eq!(
         received(&hub, "PUT", "/title"),
-        [json!({"title": "Presupuesto 2027"}), json!({"title": ""})]
+        [json!({"title": "Budget review 2027"}), json!({"title": ""})]
     );
     assert_eq!(document(&runtime).await?.title, "Comité");
 
@@ -854,9 +854,10 @@ async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
 }
 
 /// The account's name labels the user's microphone on the hub: read from the
-/// program that prints it, «Yo» when it fails or is late.
+/// program that prints it, “Me” when it fails or is late.
 #[tokio::test]
-async fn the_account_name_is_read_with_a_deadline_and_says_yo_when_late() -> Result<()> {
+async fn the_account_name_is_read_with_a_deadline_and_uses_the_english_fallback_when_late()
+-> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     let directory = tempfile::tempdir()?;
     let script = |name: &str, body: &str| -> Result<std::path::PathBuf> {
@@ -877,10 +878,10 @@ async fn the_account_name_is_read_with_a_deadline_and_says_yo_when_late() -> Res
         super::read_account_name(&fast, unhurried).await,
         "Ada Lovelace"
     );
-    assert_eq!(super::read_account_name(&failing, unhurried).await, "Yo");
+    assert_eq!(super::read_account_name(&failing, unhurried).await, "Me");
     // Had it waited for the program, the name would be «Nunca».
     let deadline = std::time::Duration::from_millis(300);
-    assert_eq!(super::read_account_name(&slow, deadline).await, "Yo");
+    assert_eq!(super::read_account_name(&slow, deadline).await, "Me");
     Ok(())
 }
 

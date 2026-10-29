@@ -16,7 +16,7 @@ TRANSCRIPT_DESCRIPTION = (
     "Reads an Orbit recording transcript, one line per turn: [hh:mm:ss] Name: text, "
     "with time since the recording began. Names match those the Orbit user sees: "
     "the Mac microphone uses its owner's name, each voice its assigned name; "
-    "separate unnamed voices are ‘Persona 1’, ‘Persona 2’… and the draft says ‘Otra persona’. "
+    "separate unnamed voices are ‘Person 1’, ‘Person 2’… and the draft says ‘Another person’. "
     "For an ongoing meeting, returns the transcript so far, marked partial, with "
     "how much audio remains to transcribe. Long transcripts are paginated with up to "
     f"{MAX_ANSWER_CHARS} characters: the first line states the range and after_index "

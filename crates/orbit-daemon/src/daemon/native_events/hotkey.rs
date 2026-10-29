@@ -102,7 +102,12 @@ impl Runtime {
             // knowing about while it can still be fixed.
             self.say(orbit_core::meeting_audio::notice(&choice));
             self.command(Command::MeetingStart {
-                title: orbit_core::protocol::recording_title(String::new(), now_ms, utc_offset_ms),
+                title: orbit_core::protocol::recording_title(
+                    String::new(),
+                    now_ms,
+                    utc_offset_ms,
+                    super::super::spoken_copy::copy(self.resolved_speech_locale()).meeting_title,
+                ),
                 audio,
                 duration_minutes: None,
                 event: None,

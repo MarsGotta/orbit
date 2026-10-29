@@ -97,6 +97,10 @@ def test_a_skill_over_the_ceiling_is_refused_with_its_bytes():
     content = skill_md(body="é" * (MAX_SKILL_BYTES // 2))
     refused = refusal("resumen-semanal", content)
     assert refused.code == "skill_too_large"
+    assert refused.message == (
+        f"Skill «resumen-semanal» is {len(content.encode('utf-8'))} bytes; "
+        f"maximum {MAX_SKILL_BYTES}"
+    )
     assert refused.numbers == {
         "name": "resumen-semanal",
         "bytes": len(content.encode("utf-8")),

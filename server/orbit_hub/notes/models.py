@@ -84,7 +84,7 @@ class NoteInputs(BaseModel):
     title: str = Field(default="", max_length=512)
     event: EventContext | None = None
     # The local microphone is the user's; this is how the note names them.
-    owner_name: str = Field(default="Yo", min_length=1, max_length=MAX_PERSON_NAME_CHARS)
+    owner_name: str = Field(default="Me", min_length=1, max_length=MAX_PERSON_NAME_CHARS)
     private_notes: str = Field(default="", max_length=MAX_PRIVATE_NOTES_CHARS)
     language: str = Field(default="es", pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
 

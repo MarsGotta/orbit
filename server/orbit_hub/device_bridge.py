@@ -65,7 +65,7 @@ class Bridge:
         if len(self.pending) >= MAX_PENDING_REQUESTS:
             raise BridgeRefused(
                 "too_many_requests",
-                "Hay demasiadas peticiones en curso",
+                "Too many requests are in progress",
                 {"count": len(self.pending) + 1, "max": MAX_PENDING_REQUESTS},
             )
         entry = Pending(request_id, device, capability, asked_at)

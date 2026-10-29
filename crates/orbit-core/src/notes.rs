@@ -41,7 +41,7 @@ pub const MAX_INSTRUCTIONS_CHARS: usize = 2000;
 pub const MAX_CUSTOM_TEMPLATES: usize = 32;
 
 /// How the note names the user when the account has no full name.
-pub const DEFAULT_OWNER_NAME: &str = "Yo";
+pub const DEFAULT_OWNER_NAME: &str = "Me";
 
 /// Meetings per page of `GET /v1/recordings` (`views.MAX_LIST_PAGE`): the
 /// hub's largest page, so a list of fifty notes takes one request; a larger
@@ -185,7 +185,7 @@ pub fn speaker_name(name: Option<&str>) -> Result<Option<String>, NoteCommandErr
     Ok(Some(name.to_owned()))
 }
 
-/// A meeting's name as the user types it: trimmed, one line, within the
+/// A meeting's name: trimmed, whitespace runs reduced to one space, within the
 /// title a meeting already has ([`crate::MAX_MANIFEST_TITLE_CHARACTERS`],
 /// the hub's `MAX_RECORDING_TITLE_CHARACTERS`). Empty gives the meeting back
 /// its own title.
@@ -193,7 +193,7 @@ pub fn meeting_title(title: &str) -> Result<String, NoteCommandError> {
     if title.chars().any(char::is_control) {
         return Err(NoteCommandError::MeetingTitleControl);
     }
-    let title = title.trim();
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
     let characters = title.chars().count();
     if characters > crate::MAX_MANIFEST_TITLE_CHARACTERS {
         return Err(NoteCommandError::MeetingTitleTooLong {
@@ -201,7 +201,7 @@ pub fn meeting_title(title: &str) -> Result<String, NoteCommandError> {
             max_characters: crate::MAX_MANIFEST_TITLE_CHARACTERS,
         });
     }
-    Ok(title.to_owned())
+    Ok(title)
 }
 
 /// A language a meeting can be transcribed in: ISO 639-1, two lowercase
@@ -215,7 +215,7 @@ pub fn meeting_language(language: &str) -> Result<(), NoteCommandError> {
 }
 
 /// How the hub names the user's microphone: the full name of the macOS account
-/// (the first field of `pw_gecos`), or «Yo» when there is none or it does
+/// (the first field of `pw_gecos`), or “Me” when there is none or it does
 /// not fit the hub's [`MAX_PERSON_NAME_CHARS`].
 pub fn owner_name(gecos: Option<&str>) -> String {
     gecos
@@ -344,7 +344,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn owner_name_is_the_account_name_or_yo() {
+    fn owner_name_is_the_account_name_or_english_fallback() {
         assert_eq!(owner_name(Some("Alina Prieto,,,")), "Alina Prieto");
         assert_eq!(owner_name(Some("  ")), DEFAULT_OWNER_NAME);
         assert_eq!(owner_name(None), DEFAULT_OWNER_NAME);
@@ -401,8 +401,8 @@ mod tests {
     fn a_meeting_title_is_one_trimmed_line_within_a_meetings_title() {
         let max = crate::MAX_MANIFEST_TITLE_CHARACTERS;
         assert_eq!(
-            meeting_title("  Presupuesto 2027 "),
-            Ok("Presupuesto 2027".into())
+            meeting_title("  Budget  \u{a0} review 2027 "),
+            Ok("Budget review 2027".into())
         );
         // Empty gives the meeting back its own title.
         assert_eq!(meeting_title("   "), Ok(String::new()));

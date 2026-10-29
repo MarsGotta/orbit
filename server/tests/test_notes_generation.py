@@ -38,8 +38,8 @@ def test_the_local_microphone_is_its_owner_and_renamed_voices_use_their_names():
             segment(60_000, "remote_app", "Hola."),
         )
     ]
-    assert names == ["Alina", "Lucía", "Otra persona", "Otra persona"]
-    assert speaker_name("mic_local", "mic_local", {}, None) == "Micrófono local"
+    assert names == ["Alina", "Lucía", "Another person", "Another person"]
+    assert speaker_name("mic_local", "mic_local", {}, None) == "Local microphone"
     assert speaker_name("mic_local", "mic_local", {"mic_local": "Alina"}, "Alina") == "Alina"
 
 
@@ -150,7 +150,7 @@ def answer(**changes):
             {"owner": "Lucía", "text": "Enviar el acta", "due": "viernes"},
             {"owner": "lucía", "text": " Enviar  el acta", "due": ""},
             {"owner": "", "text": "Revisar cifras", "due": ""},
-            {"owner": "Otra persona", "text": "Mirar la latencia", "due": ""},
+            {"owner": "Another person", "text": "Mirar la latencia", "due": ""},
             {"owner": "Alina", "text": "  ", "due": ""},
         ],
         "decisions": ["Aprobar el presupuesto", " "],

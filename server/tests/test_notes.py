@@ -89,7 +89,7 @@ async def test_a_note_waits_for_the_transcript_then_is_written(notes):
     assert [call["purpose"] for call in model.calls] == ["note"]
     transcript = model.calls[0]["messages"][1]["content"]
     assert "Alina: Hablamos del presupuesto." in transcript
-    assert "Otra persona: Hablamos del presupuesto." in transcript
+    assert "Another person: Hablamos del presupuesto." in transcript
 
 
 async def test_a_long_meeting_is_written_by_parts_and_joined(notes):

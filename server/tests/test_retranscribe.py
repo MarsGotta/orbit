@@ -167,8 +167,8 @@ async def test_obsolete_voice_names_are_reported_without_reassignment(environmen
     assert document["transcript"]["unmatched_speaker_names"] == 1
     assert [(s["key"], s["name"]) for s in document["speakers"]] == [
         ("mic_local", "Alina"),
-        ("voice_1", "Persona 1"),
-        ("voice_2", "Persona 2"),
+        ("voice_1", "Person 1"),
+        ("voice_2", "Person 2"),
     ]
     # A name explicitly merged into another live voice is still assigned.
     keys = {"mic_local", "voice_1", "voice_2"}

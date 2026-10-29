@@ -21,7 +21,7 @@ pub(super) async fn write_json<W: AsyncWrite + Unpin>(writer: &mut W, value: &Va
     let mut bytes = serde_json::to_vec(value)?;
     if bytes.len() + 1 > MAX_FRAME_BYTES {
         bail!(
-            "El mensaje para el motor ocupa {} bytes y un mensaje del motor admite {MAX_FRAME_BYTES} bytes; no se envió",
+            "The engine request is {} bytes; the engine frame ceiling is {MAX_FRAME_BYTES} bytes; nothing was sent",
             bytes.len() + 1
         );
     }
@@ -39,7 +39,7 @@ struct ConnectionClosed;
 
 impl std::fmt::Display for ConnectionClosed {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("Conexión MCP cerrada antes de responder")
+        formatter.write_str("MCP connection closed before a response")
     }
 }
 
@@ -82,12 +82,12 @@ impl std::fmt::Display for ResponseTooLarge {
         match self.part {
             TooLargePart::Message => write!(
                 formatter,
-                "La respuesta del motor ocupa {} bytes y un mensaje del motor admite {} bytes; se leyó entera y se descartó, y la conexión sigue",
+                "The engine response is {} bytes; the engine frame ceiling is {} bytes; it was fully read and discarded; the connection remains open",
                 self.bytes, self.max_bytes
             ),
             TooLargePart::Image => write!(
                 formatter,
-                "La imagen del motor ocupa {} bytes en base64 y una captura admite {} bytes en base64 ({} bytes de PNG)",
+                "The engine image is {} base64 bytes; the screenshot ceiling is {} base64 bytes ({} PNG bytes)",
                 self.bytes,
                 self.max_bytes,
                 orbit_core::sources::MAX_SOURCE_BYTES

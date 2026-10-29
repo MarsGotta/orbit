@@ -29,15 +29,13 @@ const ENGINE_POLL_INTERVAL: Duration = Duration::from_millis(100);
 /// The driver executable, checked for the same trust the bundle guarantees.
 pub(super) fn verified_driver_binary(configured: &Path) -> Result<PathBuf> {
     let binary = std::fs::canonicalize(configured)
-        .with_context(|| format!("No se encontró el driver CUA en {}", configured.display()))?;
+        .with_context(|| format!("CUA driver not found at {}", configured.display()))?;
     let metadata = std::fs::metadata(&binary)?;
     if !metadata.is_file()
         || metadata.mode() & 0o022 != 0
         || (metadata.uid() != 0 && metadata.uid() != rustix::process::geteuid().as_raw())
     {
-        bail!(
-            "El ejecutable CUA debe ser un archivo de confianza, sin escritura para grupo u otros"
-        );
+        bail!("The CUA executable must be a trusted file without group or other write permission");
     }
     Ok(binary)
 }
@@ -98,22 +96,22 @@ pub(crate) fn decide_peer_probe(
 ) -> PeerProbeDecision {
     match fact {
         PeerProbeFact::CredentialError(error) => {
-            PeerProbeDecision::Retry(format!("peer_cred() falló: {error}"))
+            PeerProbeDecision::Retry(format!("peer_cred() failed: {error}"))
         }
         PeerProbeFact::PidMissing => {
-            PeerProbeDecision::Retry("peer_cred().pid() no devolvió un PID".to_owned())
+            PeerProbeDecision::Retry("peer_cred().pid() returned no PID".to_owned())
         }
         PeerProbeFact::InvalidPid(peer) => PeerProbeDecision::Reject(format!(
-            "El nuevo socket CUA informó un PID inválido: {peer}"
+            "The new CUA socket reported an invalid PID: {peer}"
         )),
         PeerProbeFact::Ancestry {
             result: Err(error), ..
-        } => PeerProbeDecision::Retry(format!("la consulta del parentesco falló: {error:#}")),
+        } => PeerProbeDecision::Retry(format!("the ancestry query failed: {error:#}")),
         PeerProbeFact::Ancestry {
             result: Ok(None),
             peer,
         } => PeerProbeDecision::Reject(format!(
-            "El nuevo socket CUA ({}) escucha al PID {peer}, pero no desciende del motor que lanzó Orbit (PID {child_pid}) en {MAX_ENGINE_PARENT_HOPS} pasos de parentesco; no se usa",
+            "The new CUA socket ({}) is held by PID {peer}, which does not descend from the engine Orbit started (PID {child_pid}) within {MAX_ENGINE_PARENT_HOPS} ancestry steps; it is not used",
             socket.display()
         )),
         PeerProbeFact::Ancestry {
@@ -170,7 +168,7 @@ pub(super) async fn start_engine(binary: &Path, socket: &Path) -> Result<EngineG
             .stderr(Stdio::null());
         command
             .spawn()
-            .context("No se pudo iniciar el motor CUA empaquetado")
+            .context("Could not start the bundled CUA engine")
     })
     .await
 }
@@ -193,7 +191,7 @@ where
         (Err(error), Some(cleanup)) => {
             let cause = error.to_string();
             Err(error.context(format!(
-                "El motor nuevo falló después del barrido CUA ({cause}); {cleanup}"
+                "The new engine failed after CUA cleanup ({cause}); {cleanup}"
             )))
         }
         (result, _) => result,
@@ -211,19 +209,19 @@ fn describe_cleanup(engine_cleanup: &[EngineCleanup]) -> Option<String> {
             .iter()
             .map(|cleanup| {
                 let outcome = match cleanup.outcome {
-                    EngineCleanupOutcome::Stopped => "se confirmó detenido".to_owned(),
-                    EngineCleanupOutcome::Survived => "sobrevivió a SIGKILL".to_owned(),
+                    EngineCleanupOutcome::Stopped => "confirmed stopped".to_owned(),
+                    EngineCleanupOutcome::Survived => "survived SIGKILL".to_owned(),
                     EngineCleanupOutcome::SignalFailed => format!(
-                        "falló SIGKILL: {}",
-                        cleanup.failure.as_deref().unwrap_or("causa no comunicada")
+                        "SIGKILL failed: {}",
+                        cleanup.failure.as_deref().unwrap_or("cause not reported")
                     ),
                     EngineCleanupOutcome::Unconfirmed => format!(
-                        "no se pudo confirmar la parada: {}",
-                        cleanup.failure.as_deref().unwrap_or("causa no comunicada")
+                        "could not confirm the stop: {}",
+                        cleanup.failure.as_deref().unwrap_or("cause not reported")
                     ),
                 };
                 format!(
-                    "PID {} en {}: huérfano de su daemon; {outcome}",
+                    "PID {} at {}: orphaned by its daemon; {outcome}",
                     cleanup.pid, cleanup.executable
                 )
             })
@@ -248,16 +246,16 @@ where
     if std::fs::symlink_metadata(socket)
         .is_ok_and(|value| value.file_type().is_socket() || value.file_type().is_symlink())
     {
-        std::fs::remove_file(socket).context("No se pudo retirar el socket CUA abandonado")?;
+        std::fs::remove_file(socket).context("Could not remove the abandoned CUA socket")?;
     }
     let child = spawn_engine()?;
     let child_pid = child
         .id()
-        .context("El motor CUA terminó antes de identificar su proceso")?;
+        .context("The CUA engine exited before its process was identified")?;
     let pgid = i32::try_from(child_pid)
         .ok()
         .and_then(rustix::process::Pid::from_raw)
-        .context("El motor CUA informó un PID inválido para su grupo")?;
+        .context("The CUA engine reported an invalid PID for its group")?;
     let mut engine = EngineGroup {
         child,
         pgid,
@@ -276,7 +274,7 @@ async fn await_own_listener(engine: &mut EngineGroup, socket: &Path, child_pid: 
     let mut last_probe_error = None;
     while Instant::now() < deadline {
         if let Ok(Some(status)) = engine.child.try_wait() {
-            bail!("El motor CUA terminó al arrancar ({status}); no se reintenta en este ciclo");
+            bail!("The CUA engine exited during startup ({status}); no retry in this cycle");
         }
         if let Ok(stream) = tokio::net::UnixStream::connect(socket).await {
             let fact = probe_peer(&stream, child_pid, deadline).await;
@@ -292,11 +290,11 @@ async fn await_own_listener(engine: &mut EngineGroup, socket: &Path, child_pid: 
     }
     if let Some(error) = last_probe_error {
         bail!(
-            "No se pudo verificar el nuevo socket CUA tras {} ms: {error}; el control no está disponible",
+            "Could not verify the new CUA socket after {} ms: {error}; control is unavailable",
             ENGINE_STARTUP_TIMEOUT.as_millis()
         );
     }
-    bail!("El motor CUA no abrió su socket a tiempo; el control no está disponible")
+    bail!("The CUA engine did not open its socket in time; control is unavailable")
 }
 
 /// What one connected probe says of the process at the other end.
@@ -358,7 +356,7 @@ pub(crate) fn parent_lookup_context(
     error: anyhow::Error,
 ) -> anyhow::Error {
     anyhow::anyhow!(
-        "No se pudo comprobar el parentesco del PID par {peer_pid} con el motor PID {child_pid} en el paso {hops}/{MAX_ENGINE_PARENT_HOPS}: {error:#}"
+        "Could not check ancestry of peer PID {peer_pid} against engine PID {child_pid} at step {hops}/{MAX_ENGINE_PARENT_HOPS}: {error:#}"
     )
 }
 
@@ -366,18 +364,18 @@ pub(crate) fn parent_lookup_context(
 async fn parent_pid(pid: u32, _deadline: Instant) -> Result<Option<u32>> {
     let stat = tokio::fs::read_to_string(format!("/proc/{pid}/stat"))
         .await
-        .with_context(|| format!("No se pudo leer /proc/{pid}/stat"))?;
+        .with_context(|| format!("Could not read /proc/{pid}/stat"))?;
     // The command name is parenthesized and may contain spaces; the fields
     // after its final closing parenthesis begin with state, then parent PID.
     let (_, fields) = stat
         .rsplit_once(") ")
-        .with_context(|| format!("/proc/{pid}/stat no contiene el cierre del nombre"))?;
+        .with_context(|| format!("/proc/{pid}/stat has no closing name delimiter"))?;
     let parent = fields
         .split_whitespace()
         .nth(1)
-        .with_context(|| format!("/proc/{pid}/stat no contiene PPID"))?
+        .with_context(|| format!("/proc/{pid}/stat has no PPID"))?
         .parse::<u32>()
-        .with_context(|| format!("/proc/{pid}/stat contiene un PPID inválido"))?;
+        .with_context(|| format!("/proc/{pid}/stat contiene un PInvalid PID"))?;
     Ok((parent != 0).then_some(parent))
 }
 
@@ -396,7 +394,7 @@ async fn parent_pid(pid: u32, deadline: Instant) -> Result<Option<u32>> {
     )
     .await
     .with_context(|| ps_timeout_message(pid, remaining))?
-    .with_context(|| format!("No se pudo consultar el padre del PID {pid} con ps"))?;
+    .with_context(|| format!("Could not query the parent of PID {pid} with ps"))?;
     if !output.status.success() {
         bail!(
             "ps no pudo consultar el padre del PID {pid} ({})",
@@ -404,18 +402,18 @@ async fn parent_pid(pid: u32, deadline: Instant) -> Result<Option<u32>> {
         );
     }
     let raw = std::str::from_utf8(&output.stdout)
-        .with_context(|| format!("ps devolvió un PPID no UTF-8 para el PID {pid}"))?;
+        .with_context(|| format!("ps returned a non-UTF-8 PPID for PID {pid}"))?;
     let parent = raw
         .trim()
         .parse::<u32>()
-        .with_context(|| format!("ps devolvió un PPID inválido para el PID {pid}: {raw:?}"))?;
+        .with_context(|| format!("ps returned an invalid PPID for PID {pid}: {raw:?}"))?;
     Ok((parent != 0).then_some(parent))
 }
 
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub(crate) fn ps_timeout_message(pid: u32, remaining: Duration) -> String {
     format!(
-        "ps no respondió en los {} ms que quedaban de los {} ms del arranque al consultar el padre del PID {pid}",
+        "ps did not respond within the {} ms remaining of the {} ms startup budget querying the parent of PID {pid}",
         remaining.as_millis(),
         ENGINE_STARTUP_TIMEOUT.as_millis()
     )

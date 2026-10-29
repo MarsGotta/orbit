@@ -83,17 +83,17 @@ impl std::fmt::Display for EngineExit {
         if let Some(code) = self.status.code() {
             write!(
                 formatter,
-                "El {process} terminó sin que Orbit lo pidiera (código {code})"
+                "{process} exited without an Orbit request (code {code})"
             )
         } else if let Some(signal) = self.status.signal() {
             write!(
                 formatter,
-                "El {process} terminó sin que Orbit lo pidiera (señal {signal})"
+                "{process} exited without an Orbit request (signal {signal})"
             )
         } else {
             write!(
                 formatter,
-                "El {process} terminó con estado de espera {}",
+                "{process} exited with wait status {}",
                 self.status.into_raw()
             )
         }
@@ -150,9 +150,9 @@ impl LocalCua {
             .stderr(Stdio::null());
         let mut child = command
             .spawn()
-            .context("No se pudo iniciar el proxy MCP de CUA")?;
-        let reader = BufReader::new(child.stdout.take().context("CUA no tiene stdout")?);
-        let writer = child.stdin.take().context("CUA no tiene stdin")?;
+            .context("Could not start the CUA MCP proxy")?;
+        let reader = BufReader::new(child.stdout.take().context("CUA has no stdout")?);
+        let writer = child.stdin.take().context("CUA has no stdin")?;
         let mut client = Self::from_transport(reader, writer, config.request_timeout)?;
         client.child = Some(child);
         client.startup_cleanup = std::mem::take(&mut engine.cleanup);
@@ -187,24 +187,24 @@ pub fn desktop_capture_path(root: &Path, request: &str) -> Result<PathBuf> {
 fn prepare_socket_directory(socket: &Path) -> Result<()> {
     let parent = socket
         .parent()
-        .context("La ruta del socket CUA no tiene directorio")?;
+        .context("The CUA socket path has no directory")?;
     std::fs::create_dir_all(parent).with_context(|| {
         format!(
-            "No se pudo crear el directorio privado del socket CUA en {}",
+            "Could not create the private CUA socket directory at {}",
             parent.display()
         )
     })?;
     std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700)).with_context(
         || {
             format!(
-                "No se pudieron cerrar los permisos del directorio del socket CUA en {}",
+                "Could not restrict CUA socket directory permissions at {}",
                 parent.display()
             )
         },
     )?;
     let metadata = std::fs::metadata(parent)?;
     if !metadata.is_dir() || metadata.uid() != rustix::process::geteuid().as_raw() {
-        bail!("El directorio del socket CUA debe pertenecer al usuario actual");
+        bail!("The CUA socket directory must belong to the current user");
     }
     Ok(())
 }
@@ -293,7 +293,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
             && let Some(status) = engine
                 .child
                 .try_wait()
-                .context("No se pudo consultar la salida del motor CUA")?
+                .context("Could not check the CUA engine exit status")?
         {
             return Err(EngineExit {
                 process: "engine",
@@ -304,7 +304,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
         if let Some(child) = self.child.as_mut()
             && let Some(status) = child
                 .try_wait()
-                .context("No se pudo consultar la salida del proxy MCP de CUA")?
+                .context("Could not check the CUA MCP proxy exit status")?
         {
             return Err(EngineExit {
                 process: "proxy",
@@ -333,7 +333,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
 
     pub async fn windows(&mut self, pid: Option<i64>) -> Result<NativeObservation> {
         if pid.is_some_and(|pid| pid <= 0) {
-            bail!("PID inválido");
+            bail!("Invalid PID");
         }
         let mut arguments = json!({"on_screen_only":false});
         if let Some(pid) = pid {
@@ -351,7 +351,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
     /// does not second-guess a vocabulary that is the engine's to define.
     pub async fn call_tool(&mut self, name: &str, arguments: Value) -> Result<NativeObservation> {
         if !self.declares_tool(name) {
-            bail!("El motor no declara «{name}» en esta instalación");
+            bail!("The engine does not declare «{name}» in this installation");
         }
         if !arguments.is_object() {
             bail!("Los argumentos de la herramienta deben ser un objeto");
@@ -364,7 +364,7 @@ impl<R: AsyncBufRead + Unpin, W: AsyncWrite + Unpin> CuaClient<R, W> {
 
     async fn read_tool(&mut self, name: &str, arguments: Value) -> Result<NativeObservation> {
         if !self.initialized || !ORBIT_READ_TOOLS.contains(&name) {
-            bail!("Herramienta CUA fuera del permiso de lectura");
+            bail!("CUA tool outside the read permission");
         }
         let result = self
             .request("tools/call", json!({"name":name,"arguments":arguments}))
@@ -382,17 +382,17 @@ pub fn resolve_driver_path(configured: &str, daemon_executable: &Path) -> Result
     }
     let bundle = orbit_bundle::bundle_of(daemon_executable, Member::App).with_context(|| {
         format!(
-            "{} no es la app de un bundle de Orbit",
+            "{} is not the app of an Orbit bundle",
             daemon_executable.display()
         )
     })?;
     orbit_bundle::member_path(&bundle, Member::Engine)
-        .context("El bundle de Orbit no tiene ruta para el motor")
+        .context("The Orbit bundle has no engine path")
 }
 
 fn validate_timeout(timeout: Duration) -> Result<()> {
     if timeout.is_zero() || timeout > Duration::from_secs(30) {
-        bail!("Timeout CUA fuera de límites");
+        bail!("CUA timeout outside bounds");
     }
     Ok(())
 }
@@ -411,7 +411,7 @@ fn validate_path(path: &Path) -> Result<()> {
 fn validate_private_socket(path: &Path) -> Result<()> {
     validate_path(path)?;
     let metadata = std::fs::symlink_metadata(path)
-        .context("El motor CUA no dejó su socket donde Orbit lo esperaba")?;
+        .context("The CUA engine did not create its socket where Orbit expected it")?;
     let uid = rustix::process::geteuid().as_raw();
     let parent = std::fs::metadata(path.parent().context("Socket sin directorio")?)?;
     if !metadata.file_type().is_socket()
@@ -421,7 +421,7 @@ fn validate_private_socket(path: &Path) -> Result<()> {
         || parent.uid() != uid
         || parent.mode() & 0o077 != 0
     {
-        bail!("El socket CUA y su directorio deben ser privados del usuario actual");
+        bail!("The CUA socket and its directory must be private to the current user");
     }
     Ok(())
 }
@@ -432,8 +432,8 @@ impl LocalCua {
     /// reported by how the process ended when it has ended. `connect` builds
     /// the same client right after starting the proxy.
     pub fn from_process(mut child: Child, timeout: Duration) -> Result<Self> {
-        let reader = BufReader::new(child.stdout.take().context("CUA no tiene stdout")?);
-        let writer = child.stdin.take().context("CUA no tiene stdin")?;
+        let reader = BufReader::new(child.stdout.take().context("CUA has no stdout")?);
+        let writer = child.stdin.take().context("CUA has no stdin")?;
         let mut client = Self::from_transport(reader, writer, timeout)?;
         client.child = Some(child);
         Ok(client)
@@ -562,7 +562,7 @@ mod process_cleanup_tests {
             error.contains("/Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"),
             "{error}"
         );
-        assert!(error.contains("se confirmó detenido"), "{error}");
+        assert!(error.contains("confirmed stopped"), "{error}");
     }
 
     #[tokio::test]
@@ -631,7 +631,7 @@ mod process_cleanup_tests {
 
         assert_eq!(inspection.cleanups.len(), 0);
         assert!(inspection.notice.as_deref().is_some_and(
-            |notice| notice.contains("timeout") && notice.contains("no se envió ninguna señal")
+            |notice| notice.contains("timeout") && notice.contains("no signal was sent")
         ));
         assert_eq!(killed.lock().unwrap().len(), 0);
     }
@@ -658,7 +658,7 @@ mod process_cleanup_tests {
         assert!(inspection.cleanups.is_empty());
         assert!(signals.lock().unwrap().is_empty());
         assert!(inspection.notice.as_deref().is_some_and(
-            |notice| notice.contains("2000 ms") && notice.contains("no se envió ninguna señal")
+            |notice| notice.contains("2000 ms") && notice.contains("no signal was sent")
         ));
     }
 
@@ -716,7 +716,7 @@ mod process_cleanup_tests {
                 if calls.fetch_add(1, Ordering::SeqCst) == 0 {
                     Ok("43906 1 501 /Applications/Orbit.app/Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver\n".into())
                 } else {
-                    Err(anyhow::Error::msg("ps no respondió en 2000 ms"))
+                    Err(anyhow::Error::msg("ps did not respond within 2000 ms"))
                 }
             },
             |pid, signal| {
@@ -734,7 +734,7 @@ mod process_cleanup_tests {
         );
         assert_eq!(
             inspection.cleanups[0].failure.as_deref(),
-            Some("ps no respondió en 2000 ms")
+            Some("ps did not respond within 2000 ms")
         );
     }
 
@@ -768,7 +768,7 @@ mod process_cleanup_tests {
                 && cleanup
                     .failure
                     .as_deref()
-                    .is_some_and(|failure| failure.contains("no cabe"))
+                    .is_some_and(|failure| failure.contains("does not fit"))
         }));
     }
 }

@@ -85,7 +85,7 @@ async def test_whisper_word_times_are_read_without_losing_the_existing_text():
 
 def test_an_unnamed_numbered_voice_is_never_a_task_owner():
     answer = note_answer()
-    answer["action_items"][0]["owner"] = "Persona 2"
+    answer["action_items"][0]["owner"] = "Person 2"
     note = build_note(
         answer,
         builtin("general"),
@@ -208,8 +208,8 @@ async def test_final_words_split_voices_and_all_readers_use_the_same_names(envir
         (21000, 22000, "voice_1", "Tres."),
     ]
     assert [(s.key, s.name) for s in transcript.speakers if s.key.startswith("voice_")] == [
-        ("voice_1", "Persona 1"),
-        ("voice_2", "Persona 2"),
+        ("voice_1", "Person 1"),
+        ("voice_2", "Person 2"),
     ]
     assert len(requests) == 2
     with client(environment) as http:
@@ -345,7 +345,9 @@ async def test_a_failed_pass_is_atomic_and_the_note_uses_the_draft_with_its_caus
     document = worker.repository.document(owner, identity)
     assert document["state"] == "ready"
     assert document["note"]["final_pass_error"] == stored
-    assert "Otra persona: Gracias, empezamos." in worker.client.calls[0]["messages"][-1]["content"]
+    assert (
+        "Another person: Gracias, empezamos." in worker.client.calls[0]["messages"][-1]["content"]
+    )
 
 
 def test_queue_recovery_and_old_recordings_are_not_backfilled(environment):
@@ -668,7 +670,7 @@ async def test_the_final_result_replaces_even_a_failed_or_pending_draft(environm
     }
     note_worker = await write_note(store, owner, identity)
     assert "Gracias, empezamos." not in note_worker.client.calls[0]["messages"][-1]["content"]
-    assert "Persona 1: Uno." in note_worker.client.calls[0]["messages"][-1]["content"]
+    assert "Person 1: Uno." in note_worker.client.calls[0]["messages"][-1]["content"]
 
 
 async def test_merging_whole_voices_preserves_immutable_intervals_and_overrides(
@@ -752,7 +754,7 @@ async def test_http_close_runs_the_durable_pass_before_the_note(environment, tmp
         }
         assert document["note"]["state"] == "ready"
         assert len(model.calls) == 1
-        assert "Persona 1: Uno." in model.calls[0]["messages"][-1]["content"]
+        assert "Person 1: Uno." in model.calls[0]["messages"][-1]["content"]
         assert sum(b'name="timestamp_granularities[]"' in r.content for r in requests) == 2
 
 

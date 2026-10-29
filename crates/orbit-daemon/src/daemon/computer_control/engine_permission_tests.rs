@@ -87,7 +87,7 @@ async fn with_both_permissions_the_engine_starts_by_itself_without_the_hub() -> 
         .clone()
         .context("computer state absent")?;
     assert!(
-        view.detail.contains("No se encontró el driver CUA"),
+        view.detail.contains("CUA driver not found"),
         "{}",
         view.detail
     );
@@ -128,7 +128,7 @@ async fn unbundled_daemon_maintenance_refuses_before_starting_a_worker() -> Resu
         anyhow::bail!("maintenance did not record the start refusal");
     };
     assert!(
-        cause.contains("no es la app de un bundle de Orbit"),
+        cause.contains("is not the app of an Orbit bundle"),
         "{cause}"
     );
     assert!(cause.contains(&std::env::current_exe()?.display().to_string()));

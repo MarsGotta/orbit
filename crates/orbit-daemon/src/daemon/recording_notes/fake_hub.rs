@@ -412,7 +412,12 @@ impl Hub {
                     .entry((*id).to_owned())
                     .or_insert_with(|| document["title"].clone())
                     .clone();
-                let title = body["title"].as_str().unwrap_or_default().trim().to_owned();
+                let title = body["title"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ");
                 document["title"] = if title.is_empty() { own } else { json!(title) };
                 (200, json!({"title": document["title"]}))
             }

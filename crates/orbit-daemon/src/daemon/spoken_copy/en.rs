@@ -1,6 +1,7 @@
 use super::{PresenceVocabulary, SpokenCopy};
 
 pub(super) const COPY: SpokenCopy = SpokenCopy {
+    meeting_title: "Meeting",
     call_question: "Are you still there? If you don't say anything, I'll hang up in 15 seconds",
     answers: PresenceVocabulary {
         keep: [

@@ -252,11 +252,12 @@ pub(super) async fn publish_topic_change(
     frames: &StdMutex<FramePublisher>,
 ) {
     let cache = topics.read().await;
-    let snapshot = snapshots.borrow().clone();
     let mut publisher = match frames.lock() {
         Ok(publisher) => publisher,
         Err(poisoned) => poisoned.into_inner(),
     };
+    // Clock publication and snapshot readers take the frame lock first.
+    let snapshot = snapshots.borrow();
     publisher.observe_topics(&snapshot, &cache);
 }
 

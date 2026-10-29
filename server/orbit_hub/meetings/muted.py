@@ -1,4 +1,4 @@
-"""«Silenciar»: where the Mac muted the microphone, as its closure declared it.
+"""Mute: where the Mac muted the microphone, as its closure declared it.
 
 The Mac sent silence for these stretches (same frames, same timing), so the
 microphone track holds no words there. The transcript says each one in a
@@ -27,7 +27,7 @@ class MutedSpan:
         return self.start_ms <= start_ms and end_ms <= self.end_ms
 
     def text(self) -> str:
-        return f"Micrófono silenciado · {_mmss(self.start_ms)} – {_mmss(self.end_ms)}"
+        return f"Microphone muted · {_mmss(self.start_ms)} – {_mmss(self.end_ms)}"
 
 
 def _mmss(ms: int) -> str:

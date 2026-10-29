@@ -116,6 +116,14 @@ async def test_invalid_metadata_is_soft_and_names_the_field(vault, metadata, fie
     assert note["conformance"]["conformant"] is False
     issues = [issue for issue in note["conformance"]["issues"] if issue["field"] == field]
     assert issues and field in issues[0]["message"]
+    if field == "status":
+        assert issues == [
+            {
+                "field": "status",
+                "code": "invalid_status",
+                "message": "status: must be draft, stable or deprecated; defaults to stable when absent.",
+            }
+        ]
     assert (await read(client, "catalog"))["notes"][0]["title"] == "garden"
 
 

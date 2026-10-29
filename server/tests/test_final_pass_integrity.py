@@ -330,7 +330,7 @@ async def test_a_remote_span_lost_in_the_middle_takes_the_draft_and_both_get_the
     ]
     assert spoken(transcript, "mic_local") == [("mic_local", text) for text in LOCAL.split()]
     names = {s.key: s.name for s in transcript.speakers}
-    assert names["voice_1"] == "Persona 1" and names["voice_2"] == "Persona 2"
+    assert names["voice_1"] == "Person 1" and names["voice_2"] == "Person 2"
 
 
 async def test_a_complete_final_pass_uses_nothing_of_the_draft(environment, monkeypatch):

@@ -88,7 +88,7 @@ async fn idle_exit_is_said_once_with_status_and_releases_the_session() -> Result
                 .computer
                 .engine_failure
                 .as_deref()
-                .is_some_and(|cause| cause.contains("no es la app de un bundle de Orbit"))
+                .is_some_and(|cause| cause.contains("is not the app of an Orbit bundle"))
         );
     }
     Ok(())

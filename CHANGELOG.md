@@ -9,6 +9,14 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- Desktop feature publications reuse unchanged typed views and shared topic
+  payloads. Idle daemon topics stop periodic recording and notes refreshes;
+  live recording, call and question state keeps its refresh cadence.
+- Meeting renames consistently trim edges and collapse repeated whitespace in
+  the app, daemon and hub. Hub conformance and device diagnostics use English
+  while retaining their error codes and measurements. Automatic recording titles
+  from the keyboard shortcut follow the selected interface language.
+
 - The real-test harness supports an English pass with `run --language en`,
   alongside its default Spanish pass. Both use checked exports of Orbit’s own
   catalogues, including native menus, and retain all 21 checks and screen

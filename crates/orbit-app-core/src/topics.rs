@@ -5,6 +5,7 @@ use orbit_core::{
 };
 use std::{
     collections::{BTreeMap, VecDeque},
+    sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -43,8 +44,8 @@ struct CachedRead {
 #[derive(Clone)]
 pub struct TopicCache {
     epoch: Option<String>,
-    topics: BTreeMap<TopicId, CachedTopic>,
-    reads: BTreeMap<String, CachedRead>,
+    topics: BTreeMap<TopicId, Arc<CachedTopic>>,
+    reads: BTreeMap<String, Arc<CachedRead>>,
     read_order: VecDeque<String>,
     connection: TopicConnection,
 }
@@ -77,7 +78,30 @@ impl TopicCache {
         self.epoch.as_deref()
     }
     pub fn topic(&self, id: TopicId) -> Option<&CachedTopic> {
-        self.topics.get(&id)
+        self.topics.get(&id).map(Arc::as_ref)
+    }
+
+    /// Shared heads and reads let projection inputs be compared without walking
+    /// note or transcript payloads. A receipt/freshness change is also an input.
+    pub(crate) fn changed(&self, other: &Self, id: TopicId) -> bool {
+        let same_head = match (self.topics.get(&id), other.topics.get(&id)) {
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            (None, None) => true,
+            _ => false,
+        };
+        let reads = |cache: &Self| cache.reads.values().filter(|read| read.topic == id).count();
+        !same_head
+            || reads(self) != reads(other)
+            || self
+                .reads
+                .iter()
+                .filter(|(_, read)| read.topic == id)
+                .any(|(key, read)| {
+                    other
+                        .reads
+                        .get(key)
+                        .is_none_or(|next| !Arc::ptr_eq(read, next))
+                })
     }
 
     pub fn observe(&mut self, frame: TopicFrame) {
@@ -103,14 +127,15 @@ impl TopicCache {
         {
             self.topics.insert(
                 id,
-                CachedTopic {
+                Arc::new(CachedTopic {
                     knowledge: frame.data,
                     revision: frame.revision,
                     freshness: TopicFreshness::Current,
                     received_at_ms,
-                },
+                }),
             );
         } else if let Some(cell) = self.topics.get_mut(&id) {
+            let cell = Arc::make_mut(cell);
             cell.freshness = TopicFreshness::Current;
             cell.received_at_ms = received_at_ms;
         }
@@ -135,7 +160,7 @@ impl TopicCache {
     fn mark_stale_at(&mut self, since_ms: Option<i64>) {
         for cell in self.topics.values_mut() {
             if matches!(cell.freshness, TopicFreshness::Current) {
-                cell.freshness = TopicFreshness::Stale { since_ms };
+                Arc::make_mut(cell).freshness = TopicFreshness::Stale { since_ms };
             }
         }
         self.reads.clear();
@@ -189,11 +214,11 @@ impl TopicCache {
         }
         self.reads.insert(
             key,
-            CachedRead {
+            Arc::new(CachedRead {
                 topic,
                 revision,
                 answer,
-            },
+            }),
         );
         true
     }

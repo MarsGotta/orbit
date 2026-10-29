@@ -429,16 +429,21 @@ impl Command {
 }
 
 /// Empty recording titles use the local offset observed at `now_ms`.
-/// An unknown zone cannot supply a local hour.
-pub fn recording_title(title: String, now_ms: i64, utc_offset_ms: Option<i64>) -> String {
+/// An unknown zone cannot supply a local hour. The caller supplies its catalogue label.
+pub fn recording_title(
+    title: String,
+    now_ms: i64,
+    utc_offset_ms: Option<i64>,
+    meeting_label: &str,
+) -> String {
     if !title.trim().is_empty() {
         return title;
     }
     let Some(offset) = utc_offset_ms else {
-        return "Reunión".into();
+        return meeting_label.into();
     };
     let minute = now_ms.saturating_add(offset).rem_euclid(86_400_000) / 60_000;
-    format!("Reunión {:02}:{:02}", minute / 60, minute % 60)
+    format!("{meeting_label} {:02}:{:02}", minute / 60, minute % 60)
 }
 
 fn default_call_minutes() -> u16 {
