@@ -9,12 +9,15 @@ The interface's presses and readings use the in-app bridge through Interface.
 from __future__ import annotations
 
 from checks import _fact, _tree
+from harness_copy import Messages
+from harness_copy import text as copy_text
 from meeting_control_checks import listed
 from meeting_controls import wait_hub
 
-NAMES = {19: "A silent recording asks, closes without an answer and is saved with its hub chunks"}
+NAMES = Messages(
+    {19: "A silent recording asks, closes without an answer and is saved with its hub chunks"}
+)
 NOT_COVERED = ()
-QUESTION = "¿Sigue la reunión? La termino y la guardo en 30 s"
 
 
 def bounds(rust_constant) -> dict[str, tuple[float, str]]:
@@ -50,9 +53,14 @@ def bounds(rust_constant) -> dict[str, tuple[float, str]]:
 def record_without_answer(test) -> None:
     with test.step("a silent recording ends and is saved without an answer", (19,), critical=False):
         ui, main = test.ui, test.main
-        ui.press(main, "Grabar reunión", ("AXButton",), first=True)
-        ui.press(main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
-        ui.press(main, "Empezar a grabar", ("AXButton",))
+        ui.press(main, copy_text("shell.record"), ("AXButton",), first=True)
+        ui.press(
+            main,
+            copy_text("meeting.sourceMicrophone"),
+            ("AXRadioButton",),
+            contains=True,
+        )
+        ui.press(main, copy_text("meeting.record"), ("AXButton",))
         recording = test.wait_mac("recording")
         evidence = test.ev["silence"] = {"recording": recording}
         evidence["question"] = test.wait_mac("silence-question", recording["id"])
@@ -61,8 +69,8 @@ def record_without_answer(test) -> None:
             ui.read_until(
                 main,
                 "silence-question",
-                QUESTION,
-                lambda text: QUESTION in text,
+                copy_text("notices.recording_silence_question.text"),
+                lambda text: copy_text("notices.recording_silence_question.text") in text,
                 test.bounds["screen"][0],
             ),
         )
@@ -78,7 +86,7 @@ def record_without_answer(test) -> None:
                 and kept["rows"].get("recording_manifests", 0) > 0
             ),
         )
-        ui.press(main, "Reuniones", ("AXLink",), first=True)
+        ui.press(main, copy_text("shell.notes"), ("AXLink",), first=True)
         title = evidence["saved"]["title"]
         test.measure(
             "screen",
@@ -107,7 +115,10 @@ def c19_saved(ev: dict) -> tuple[bool, str]:
         or question.get("recording_id") != ident
     ):
         return False, "the current recording's silence question was not observed"
-    if not any(QUESTION in node.text() for node in _tree(ev, "silence-question")):
+    if not any(
+        copy_text("notices.recording_silence_question.text") in node.text()
+        for node in _tree(ev, "silence-question")
+    ):
         return False, "the silence question did not appear in the interface"
     saved = evidence.get("saved", {})
     if saved.get("recording_id") != ident or saved.get("capture") != "closed":
@@ -121,8 +132,14 @@ def c19_saved(ev: dict) -> tuple[bool, str]:
     ):
         return False, "the closed silent recording has no chunks and closure on the hub"
     if saved.get("title") not in (listed(_tree(ev, "silence-meetings")) or []):
-        return False, "the saved silent recording is missing from Reuniones"
-    return True, f"question unanswered; recording closed, listed and saved with {chunks} hub chunks"
+        return (
+            False,
+            f"""the saved silent recording is missing from {copy_text("shell.notes")}""",
+        )
+    return (
+        True,
+        f"question unanswered; recording closed, listed and saved with {chunks} hub chunks",
+    )
 
 
 CHECKS = {19: c19_saved}

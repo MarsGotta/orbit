@@ -56,13 +56,15 @@ import uuid
 from pathlib import Path
 
 import audio_route
+from harness_copy import language
+from harness_copy import text as copy_text
 from mac_bridge import TestBridge
 from mac_controls import PARTS, MacFailure, script_parts
-from mac_drafts_panel import COMMANDS as DRAFTS_AND_PANEL
 from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
 from mac_engine import CuaDriver
 from mac_system import System
 from mac_waits import WAITS
+from meeting_language import script_path, voice_note_phrase
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
 # The last part of orbit_bundle::DATA_DIRECTORY with the feature `pruebas`
@@ -133,12 +135,7 @@ MAX_LINE_BYTES = 1024 * 1024
 # How the daemon names the user's microphone (orbit_core::notes::owner_name):
 # the account's full name, or «Yo» when it has none or it is longer than the
 # hub's MAX_PERSON_NAME_CHARS (contracts/constants.json guards the length).
-DEFAULT_OWNER_NAME = "Yo"
 MAX_PERSON_NAME = 128
-# What the voice note says. Not a line of meeting-script.txt: that is the
-# meeting, and check 1 counts every one of its words in the meeting's
-# transcript. Deimos is asked for one word so the answer is short.
-VOICE_NOTE = "Deimos, contesta sólo con la palabra recibido."
 # The beats around the phrase. Not waits on a fact: no topic says when the
 # microphone delivers its first frame after voice_start (voice_active turns
 # true when the order is taken, before the helper opens the stream) or when
@@ -162,24 +159,6 @@ COMMANDS = {
 # microphone as it opened and what it heard. Only numbers; daemon.log's
 # other lines may name paths on the Mac and stay there.
 CALL_EVENTS = ("call_audio_opened", "call_audio_heard")
-# The months as the app's list of conversations writes them (es-ES, short
-# month, as ICU does: «sept»; session-title.ts): in code, so the Mac's
-# locale cannot change them.
-MONTHS = (
-    "ene",
-    "feb",
-    "mar",
-    "abr",
-    "may",
-    "jun",
-    "jul",
-    "ago",
-    "sept",
-    "oct",
-    "nov",
-    "dic",
-)
-
 
 # ── Orbit Pruebas's socket ──────────────────────────────────────────────────
 
@@ -274,17 +253,16 @@ class OrbitIpc:
 
 def session_title(moment: time.struct_time, today: time.struct_time) -> str:
     """When a conversation began, as the app's list writes it from its start
-    (session-title.ts `sessionWhen`), on the Mac's clock: «Hoy, 09:53»,
-    «Ayer, 16:00», «18 oct, 18:02», «15 oct 2025, 03:46»."""
-    clock = f"{moment.tm_hour:02d}:{moment.tm_min:02d}"
+    (session-title.ts `sessionWhen`), using the pass catalogue and the Mac clock."""
+    clock = copy_text(f"sessionClock.{moment.tm_hour}", minute=f"{moment.tm_min:02d}")
     day = datetime.date(moment.tm_year, moment.tm_mon, moment.tm_mday)
     now = datetime.date(today.tm_year, today.tm_mon, today.tm_mday)
     if day == now:
-        return f"Hoy, {clock}"
+        return copy_text("shellInline.todayAt", time=clock)
     if day == now - datetime.timedelta(days=1):
-        return f"Ayer, {clock}"
-    year = "" if day.year == now.year else f" {day.year}"
-    return f"{day.day} {MONTHS[day.month - 1]}{year}, {clock}"
+        return copy_text("shellInline.yesterdayAt", time=clock)
+    key = f"sessionDate.{day.month}" if day.year == now.year else f"sessionDateYear.{day.month}"
+    return copy_text(key, day=day.day, year=day.year, time=clock)
 
 
 def owner_name(full: str | None) -> str:
@@ -296,21 +274,37 @@ def owner_name(full: str | None) -> str:
         or len(name) > MAX_PERSON_NAME
         or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in name)
     ):
-        return DEFAULT_OWNER_NAME
+        return copy_text("core.owner_name")
     return name
 
 
 # ── The meeting script ──────────────────────────────────────────────────────
 
 
-def spanish_voices(listing: str) -> list[str]:
-    """Spanish voices from `say -v '?'`, Spain first: «Mónica  es_ES  # Hola…»."""
+def voices(listing: str) -> list[str]:
+    """Voices in the pass language, Spain or the United States first: «Mónica
+    es_ES  # Hola…». Then those named by language and region, «Eddy (English
+    (US))»: macOS has them in both languages, so both passes speak with the
+    same voices, and it lists its novelty voices («Bad News») first."""
+    region = "es_ES" if language() == "es" else "en_US"
     found = []
     for line in listing.splitlines():
         match = re.match(r"^(?P<name>.+?)\s+(?P<language>[a-z]{2}_[A-Z]{2})\s+#", line)
-        if match and match["language"].startswith("es_"):
-            found.append((match["language"] != "es_ES", match["name"].strip()))
+        if match and match["language"].startswith(language() + "_"):
+            name = match["name"].strip()
+            found.append(((match["language"] != region, not name.endswith("))")), name))
     return [name for _, name in sorted(found, key=lambda pair: pair[0])]
+
+
+def required_voices(listing: str) -> list[str]:
+    selected = voices(listing)
+    minimum = 2 if language() == "en" else 1
+    if len(selected) < minimum:
+        raise MacFailure(
+            f"macOS has {len(selected)} {copy_text('pass.language')} voices for say; "
+            f"this pass needs {minimum}; install voices in System Settings"
+        )
+    return selected
 
 
 # ── The steps ───────────────────────────────────────────────────────────────
@@ -407,10 +401,8 @@ class Mac(DraftsAndPanel, CuaDriver):
             raise MacFailure(
                 f"there is no «{BLACKHOLE}» input (brew install blackhole-2ch): {inputs}"
             )
-        voices = spanish_voices(self.system.run_checked("say", "-v", "?"))
-        if not voices:
-            raise MacFailure("macOS has no Spanish voice for «say»")
-        script_parts(SCRIPT.read_text(encoding="utf-8"))
+        selected = required_voices(self.system.run_checked("say", "-v", "?"))
+        script_parts(script_path().read_text(encoding="utf-8"))
         # What a run that died left running: its CuaDriver, its Orbit Pruebas.
         self.engine_stop(max_s)
         before = self._close_ours(max_s)
@@ -424,20 +416,27 @@ class Mac(DraftsAndPanel, CuaDriver):
         # first run's completion and the theme besides.
         if paths.data.exists():
             shutil.rmtree(paths.data)
-        # The acceptance flow locates Spanish labels, regardless of macOS's
+        # The acceptance flow selects the pass language, regardless of macOS's
         # preferred languages. Only the isolated test identity's data is written.
         paths.data.mkdir(parents=True, mode=0o700, exist_ok=True)
-        language = paths.data / "presentation.toml"
-        language.write_text('language = "es"\n', encoding="utf-8")
-        language.chmod(0o600)
+        pass_language = language()
+        presentation = paths.data / "presentation.toml"
+        presentation.write_text(f'language = "{pass_language}"\n', encoding="utf-8")
+        presentation.chmod(0o600)
         drafts = self.clear_web_drafts()
+        # Both WebKit and the helper resolve regional preferences. Pin only
+        # this isolated app's domain; never change the Mac's global languages.
+        locale = "en-US" if pass_language == "en" else "es-ES"
+        self.system.run_checked("defaults", "write", BUNDLE_ID, "AppleLanguages", "-array", locale)
         self.launch(max_s)
         macos = self.system.run_checked("sw_vers", "-productVersion").strip()
         # The name the microphone's turns must carry, taken where the daemon
         # takes it, never from the hub, which only repeats what the Mac sent.
         code, full, _ = self.system.run("id", "-F")
         return {
-            "voices": voices[:2],
+            "voices": selected[:2],
+            "language": language(),
+            "locale": locale,
             "previous_input": current,
             "macos": macos,
             "closed_before": before,
@@ -472,7 +471,10 @@ class Mac(DraftsAndPanel, CuaDriver):
                     state["read"] = self._read(read(arg))
                 found = predicate(state, arg)
                 if found is not None:
-                    return {"value": found, "seconds": round(self.system.now() - start, 3)}
+                    return {
+                        "value": found,
+                        "seconds": round(self.system.now() - start, 3),
+                    }
         except TimeoutError:
             pass
         seen = f"; last seen: {state['seen']}" if state.get("seen") else ""
@@ -506,17 +508,19 @@ class Mac(DraftsAndPanel, CuaDriver):
                 start = row.get("created_at_ms")
                 if isinstance(start, int):
                     row["app_title"] = session_title(
-                        self.system.local_time(start / 1000), self.system.local_time(time.time())
+                        self.system.local_time(start / 1000),
+                        self.system.local_time(time.time()),
                     )
         return found
 
     def say(self, part: str) -> dict:
         number, lines_of = PARTS[part]
-        lines = script_parts(SCRIPT.read_text(encoding="utf-8"))[number][lines_of]
-        voices = spanish_voices(self.system.run_checked("say", "-v", "?"))
-        if not voices:
-            raise MacFailure("macOS has no Spanish voice for «say»")
-        assigned = {"A": voices[0], "B": voices[1] if len(voices) > 1 else voices[0]}
+        lines = script_parts(script_path().read_text(encoding="utf-8"))[number][lines_of]
+        selected = required_voices(self.system.run_checked("say", "-v", "?"))
+        assigned = {
+            "A": selected[0],
+            "B": selected[1] if len(selected) > 1 else selected[0],
+        }
         start = self.system.now()
         for voice, said in lines:
             self.system.run_checked("say", "-v", assigned[voice], "-a", BLACKHOLE, said)
@@ -538,20 +542,18 @@ class Mac(DraftsAndPanel, CuaDriver):
     def voice_note(self) -> dict:
         """A voice note, as a person records one: start it, say the phrase into
         BlackHole, end it. Ended even when the phrase could not be said."""
-        voices = spanish_voices(self.system.run_checked("say", "-v", "?"))
-        if not voices:
-            raise MacFailure("macOS has no Spanish voice for «say»")
+        selected = required_voices(self.system.run_checked("say", "-v", "?"))
         self.command("voice_start")
         start = self.system.now()
         try:
             self.system.pause(BEAT_BEFORE_SPEAKING_S)
-            self.system.run_checked("say", "-v", voices[0], "-a", BLACKHOLE, VOICE_NOTE)
+            self.system.run_checked("say", "-v", selected[0], "-a", BLACKHOLE, voice_note_phrase())
             self.system.pause(BEAT_AFTER_SPEAKING_S)
         finally:
             self.command("voice_end")
         return {
-            "phrase": VOICE_NOTE,
-            "voice": voices[0],
+            "phrase": voice_note_phrase(),
+            "voice": selected[0],
             "seconds": round(self.system.now() - start, 3),
         }
 
@@ -643,65 +645,10 @@ class Mac(DraftsAndPanel, CuaDriver):
         return {"logs": texts, "call_audio": "".join(call)}
 
 
-def _bound(arguments: list[str]) -> tuple[list[str], float]:
-    if "--max" not in arguments:
-        raise MacFailure("--max is missing")
-    position = arguments.index("--max")
-    return arguments[:position] + arguments[position + 2 :], float(arguments[position + 1])
-
-
 def main(argv: list[str], mac: Mac | None = None) -> int:
-    mac = mac or Mac(Paths(Path.home()))
-    try:
-        if not argv:
-            raise MacFailure("the subcommand is missing")
-        command, rest = argv[0], argv[1:]
-        if command == "prepare":
-            _, max_s = _bound(rest)
-            output = mac.prepare(max_s)
-        elif command == "pair" and len(rest) == 3:
-            output = mac.pair(*rest)
-        elif command == "wait":
-            rest, max_s = _bound(rest)
-            output = mac.wait(rest[0], rest[1] if len(rest) > 1 else None, max_s)
-        elif command == "read" and rest:
-            output = mac.read(rest[0], rest[1] if len(rest) > 1 else None)
-        elif command == "say" and len(rest) == 1 and rest[0] in PARTS:
-            output = mac.say(rest[0])
-        elif command == "voice-note" and not rest:
-            output = mac.voice_note()
-        elif command == "command" and len(rest) == 1 and rest[0] in ("call_start", "call_stop"):
-            output = mac.command(rest[0])
-        elif command == "restore":
-            _, max_s = _bound(rest)
-            output = mac.restore(max_s)
-        elif command == "logs":
-            output = mac.logs()
-        elif command == "switch-input" and len(rest) <= 1:
-            output = mac.switch_input(rest[0] if rest else None)
-        elif command == "activate":
-            output = mac.activate()
-        elif command in DRAFTS_AND_PANEL:
-            output = DRAFTS_AND_PANEL[command](mac, rest)
-        elif command == "bridge-call" and len(rest) == 1:
-            output = mac.bridge_call(json.loads(rest[0]))
-        elif command == "bridge-menus" and not rest:
-            output = mac.bridge_menus()
-        elif command == "engine-start":
-            _, max_s = _bound(rest)
-            output = mac.engine_start(max_s)
-        elif command == "engine-call" and len(rest) == 2:
-            output = mac.engine_call(rest[0], json.loads(rest[1]))
-        elif command == "engine-stop":
-            _, max_s = _bound(rest)
-            output = mac.engine_stop(max_s)
-        else:
-            raise MacFailure(f"unknown subcommand: {' '.join(argv)[:80]}")
-    except (MacFailure, OSError, ValueError, KeyError) as cause:
-        print(json.dumps({"error": str(cause) or type(cause).__name__}, ensure_ascii=False))
-        return 1
-    print(json.dumps(output, ensure_ascii=False))
-    return 0
+    from mac_cli import main as dispatch
+
+    return dispatch(argv, mac or Mac(Paths(Path.home())))
 
 
 if __name__ == "__main__":

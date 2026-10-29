@@ -18,7 +18,9 @@ import json
 import time
 import uuid
 
-from drafts_panel_checks import ANSWER_WHOLE, QUIT_NAMES, TEXTS
+import meeting_language
+from drafts_panel_checks import QUIT_NAMES, TEXTS
+from harness_copy import text as copy_text
 
 # Margins over the app's own times, with what they cover.
 # Over the answer's time (ANSWER_SHOWN_MS): the daemon lets a question go
@@ -39,8 +41,14 @@ def bounds(rust_constant) -> dict[str, tuple[float, str]]:
     return {
         # The app's own times, read from the source: not waits, the checks'
         # yardsticks.
-        "answer-shown": (shown_s, "ANSWER_SHOWN_MS: how long an answer stays by itself"),
-        "hold-grace": (grace_s, "HOLD_GRACE_MS: how long it stays once the pointer left"),
+        "answer-shown": (
+            shown_s,
+            "ANSWER_SHOWN_MS: how long an answer stays by itself",
+        ),
+        "hold-grace": (
+            grace_s,
+            "HOLD_GRACE_MS: how long it stays once the pointer left",
+        ),
         "pointer-held": (
             10,
             (
@@ -102,7 +110,7 @@ def panel_holds_answer(test, panel, answered_at: float) -> None:
                 panel,
                 "panel-released",
                 None,
-                lambda text: ANSWER_WHOLE not in text,
+                lambda text: copy_text("floatingPanel.alsoInConversation") not in text,
                 test.bounds["screen"][0],
             ),
         )
@@ -116,11 +124,13 @@ def drafts_survive_quitting(test) -> None:
         drafts = test.ev["drafts"] = []
         for how in QUIT_NAMES:
             # Invented text, unique to this quit: no earlier draft can be it.
-            text = f"Borrador de prueba {uuid.uuid4().hex[:8]}: lo escrito justo antes de salir"
+            text = meeting_language.draft_message(uuid.uuid4().hex[:8])
             row = {"quit": how, "text": text}
             drafts.append(row)
-            test.ui.press(test.main, "Asistente", ("AXLink",))
-            typing = test.ui.typing(test.main, "Mensaje para", text, contains=True)
+            test.ui.press(test.main, copy_text("shell.assistant"), ("AXLink",))
+            typing = test.ui.typing(
+                test.main, copy_text("assistant.composerPrefix"), text, contains=True
+            )
             typed = json.dumps(typing, ensure_ascii=False)
             screen_s, close_s = test.bounds["screen"][0], test.bounds["close"][0]
             row.update(test.mac.draft_and_quit(how, typed, screen_s, close_s))
@@ -135,7 +145,7 @@ def _reopen(test, how: str, row: dict) -> None:
     row["reconnected"] = test.ui.reconnect()
     row["app_pid"] = test.ui.app_pid
     test.wait_mac("paired")
-    test.ui.press(test.main, "Asistente", ("AXLink",))
+    test.ui.press(test.main, copy_text("shell.assistant"), ("AXLink",))
     text = row["text"]
 
     def back(nodes) -> bool:

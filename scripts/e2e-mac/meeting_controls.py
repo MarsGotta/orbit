@@ -17,6 +17,7 @@ import json
 import time
 
 import checks
+from harness_copy import text as copy_text
 from interface import StepFailed
 from meeting_control_checks import TEXTS, listed, note_still_open
 
@@ -25,11 +26,11 @@ from meeting_control_checks import TEXTS, listed, note_still_open
 BOUNDS = {
     "muted": (
         15,
-        "provisional: the helper applying «Silenciar» and the Mac saying so, not measured",
+        "provisional: the helper muting the microphone and the Mac confirming it, not measured",
     ),
     "unmuted": (
         15,
-        "provisional: the helper applying «Reactivar micrófono» and the Mac saying so, not measured",
+        "provisional: the helper unmuting the microphone and the Mac confirming it, not measured",
     ),
     "hub-chunks": (
         60,
@@ -45,7 +46,10 @@ BOUNDS = {
             "it, not measured"
         ),
     ),
-    "deleted": (30, "provisional: the list of Notes leaving a deleted meeting, not measured"),
+    "deleted": (
+        30,
+        "provisional: the list of Notes leaving a deleted meeting, not measured",
+    ),
     "hub-deleted": (
         60,
         (
@@ -57,11 +61,8 @@ BOUNDS = {
 # What each reading of these steps asks the bridge for (real_test.READS).
 # «Micrófono silenciado» and «Reactivar micrófono» both contain the first; the
 # list of meetings after a deletion is read whole: a few rows.
-READS = {
-    "recording-muted": "icrófono",
-    "discard-notice": "descartada",
-    "delete-question": "Borrar",
-}
+READS = {"recording-muted": None, "discard-notice": None, "delete-question": None}
+
 # Chunks of the second recording the test hub must hold before it is thrown
 # away, so that «nothing of it is kept» is about something it had.
 MIN_CHUNKS = 2
@@ -93,16 +94,20 @@ def _deleted(kept: dict) -> bool:
 
 def second_half(test) -> None:
     """The script's second half, its middle lines with «Silenciar» on."""
-    with test.step("second half of the script, up to «Silenciar»"):
+    with test.step(f"""second half of the script, up to «{copy_text("microphoneMute.mute")}»"""):
         test.mac.say("part2-before")
     _mute(test)
-    with test.step("second half of the script, after «Reactivar micrófono»"):
+    with test.step(f"""second half of the script, after «{copy_text("microphoneMute.unmute")}»"""):
         test.mac.say("part2-after")
 
 
 def _mute(test) -> None:
     ui, main = test.ui, test.main
-    with test.step("«Silenciar» over three lines of the script", (13,), critical=False):
+    with test.step(
+        f"""«{copy_text("microphoneMute.mute")}» over three lines of the script""",
+        (13,),
+        critical=False,
+    ):
         # In the sidebar's «Grabando» card (RecordingCard.tsx), which comes
         # first in the tree.
         ui.press(main, TEXTS["mute"], ("AXButton",), first=True)
@@ -122,21 +127,28 @@ def _mute(test) -> None:
         test.mac.say("part2-muted")
     if "mute" not in test.ev:
         return
-    with test.step("«Reactivar micrófono»", (13,), critical=False):
+    with test.step(f"""«{copy_text("microphoneMute.unmute")}»""", (13,), critical=False):
         ui.press(main, TEXTS["unmute"], ("AXButton",), first=True)
         test.ev["mute"]["unmuted"] = test.wait_mac("unmuted")
 
 
 def discard_second_recording(test) -> None:
     ui, main = test.ui, test.main
-    name = "a second recording, thrown away with «Terminar sin guardar»"
+    name = f"""a second recording, thrown away with «{copy_text("discard.action")}»"""
     with test.step(name, (14,), critical=False):
-        ui.press(main, "Grabar reunión", ("AXButton",), first=True)
-        ui.press(main, "Solo mi micrófono", ("AXRadioButton",), contains=True)
-        ui.press(main, "Empezar a grabar", ("AXButton",))
+        ui.press(main, copy_text("shell.record"), ("AXButton",), first=True)
+        ui.press(
+            main,
+            copy_text("meeting.sourceMicrophone"),
+            ("AXRadioButton",),
+            contains=True,
+        )
+        ui.press(main, copy_text("meeting.record"), ("AXButton",))
         second = test.wait_mac("recording")
         if second.get("id") == test.ev.get("recording", {}).get("id"):
-            raise StepFailed("«Empezar a grabar» did not start a second recording")
+            raise StepFailed(
+                f"""«{copy_text("meeting.record")}» did not start a second recording"""
+            )
         evidence = test.ev["discard"] = {"recording": dict(second)}
         evidence["hub_before"] = wait_hub(
             test,
@@ -160,27 +172,31 @@ def discard_second_recording(test) -> None:
         )
         evidence["gone"] = test.wait_mac("discarded", second["id"])
         evidence["hub_after"] = wait_hub(test, "hub-deleted", second["id"], _deleted)
-        ui.press(main, "Reuniones", ("AXLink",), first=True)
+        ui.press(main, copy_text("shell.notes"), ("AXLink",), first=True)
         _read_list(test, "discard-meetings", second.get("title") or "", left=False)
 
 
 def delete_first_meeting(test) -> None:
     ui, main = test.ui, test.main
-    with test.step("«Borrar reunión» from the first meeting's «Más»", (15,), critical=False):
+    with test.step(
+        f"""«{copy_text("noteScreen.deleteMeeting")}» from the first meeting's «{copy_text("noteScreen.meetingMenu")}»""",
+        (15,),
+        critical=False,
+    ):
         title = checks._title(test.ev)
         if not title:
             raise StepFailed("the first meeting has no title to find it by in the list")
         identifier = test.ev["recording"]["id"]
         evidence = test.ev["delete"] = {"recording_id": identifier, "title": title}
         evidence["hub_before"] = test.hub_kept(identifier)
-        ui.press(main, "Reuniones", ("AXLink",), first=True)
+        ui.press(main, copy_text("shell.notes"), ("AXLink",), first=True)
         ui.press(main, title, ("AXLink", "AXButton"), contains=True, first=True)
         test.measure(
             "screen",
             ui.read_until(
                 main,
                 "delete-note",
-                checks.TITLE_FIELD,
+                copy_text("noteScreen.titleLabel"),
                 lambda text: title in text,
                 test.bounds["screen"][0],
             ),

@@ -1477,11 +1477,6 @@
         "file": "apps/desktop/src/i18n/es/shell.ts",
         "name": "problem",
         "unit": "texts"
-      },
-      {
-        "file": "scripts/e2e-mac/checks.py",
-        "name": "PILL",
-        "unit": "texts"
       }
     ],
     "name": "STATUS_PILL_TEXTS",

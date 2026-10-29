@@ -33,7 +33,14 @@ import isolated_hub
 import mac as mac_side
 import mac_engine
 import real_test
-from dry_bridge import MAIN_WINDOW, PANEL_WINDOW, PID, DryRunBridge, DryRunView, query_filter
+from dry_bridge import (
+    MAIN_WINDOW,
+    PANEL_WINDOW,
+    PID,
+    DryRunBridge,
+    DryRunView,
+    query_filter,
+)
 from interface import StepFailed
 
 __all__ = ["PID", "query_filter"]
@@ -45,7 +52,11 @@ MAX_NODES = 2000
 
 
 class Example:
-    def __init__(self, name: str):
+    def __init__(self, name: str, language: str = "es"):
+        from dry_language import translate
+
+        self.language = language
+        self.translate = lambda value: translate(value, language)
         self.directories = (
             [EXAMPLES / name, EXAMPLES / "good"] if name != "good" else [EXAMPLES / "good"]
         )
@@ -60,21 +71,25 @@ class Example:
         raise FileNotFoundError(relative)
 
     def text(self, relative: str) -> str:
-        return self.path(relative).read_text(encoding="utf-8").replace("{message}", self.message)
+        return self.translate(self.path(relative).read_text(encoding="utf-8")).replace(
+            "{message}", self.message
+        )
 
     def json(self, relative: str):
         return json.loads(self.text(relative))
 
     def base(self, relative: str):
         """«good»'s own `relative`, which the other examples change in part."""
-        return json.loads((EXAMPLES / "good" / relative).read_text(encoding="utf-8"))
+        return json.loads(
+            self.translate((EXAMPLES / "good" / relative).read_text(encoding="utf-8"))
+        )
 
     def overrides(self, relative: str) -> dict:
         """The example's own overrides of `relative`, keyed like it."""
         own = self.directories[0] / relative
         if len(self.directories) == 1 or not own.exists():
             return {}
-        return json.loads(own.read_text(encoding="utf-8"))
+        return json.loads(self.translate(own.read_text(encoding="utf-8")))
 
 
 class DryRunSystem(mac_side.System):
@@ -100,6 +115,10 @@ class DryRunSystem(mac_side.System):
         self.commands.append(list(command))
         if command[0] == str(self.paths.cua):
             return self.cua.command(list(command[1:]))
+        if command[:5] == ("defaults", "write", mac_side.BUNDLE_ID, "AppleLanguages", "-array"):
+            expected = "en-US" if self.example.language == "en" else "es-ES"
+            assert command[5:] == (expected,)
+            return 0, "", ""
         if command[0] == "SwitchAudioSource":
             if "-a" in command:
                 return 0, f"Micrófono del MacBook Pro\n{mac_side.BLACKHOLE}\n", ""
@@ -215,7 +234,10 @@ class DryRunOrbit:
                 reads = self.example.base("ipc.json")["reads"]
                 reads.update(self.example.overrides("ipc.json").get("reads", {}))
                 value = reads[kind]
-            return {"ok": True, "answer": {"state": "present", "value": {"items": value}}}
+            return {
+                "ok": True,
+                "answer": {"state": "present", "value": {"items": value}},
+            }
         raise mac_side.MacFailure(f"command the dry run does not expect: {body['command']}")
 
     def subscribe(self, topics: list[str], bound_s: float, beat_s: float | None = None):
@@ -350,8 +372,10 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
-def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
-    example = Example(name)
+def run(
+    name: str, directory: Path | None = None, *, language: str = "es"
+) -> tuple[list[dict], Path]:
+    example = Example(name, language)
     root = Path(tempfile.mkdtemp(prefix="orbit-dry-run-")) if directory is None else directory
     # The Mac's home, with Orbit Pruebas «installed».
     home = root / "mac"
@@ -385,6 +409,7 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
         run_directory,
         hermes=False,
         providers=providers,
+        language=language,
     )
     # A replayed screen never changes: reading it again could not help. Nor
     # does a replayed hub.

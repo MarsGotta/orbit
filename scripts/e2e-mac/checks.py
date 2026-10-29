@@ -20,21 +20,27 @@ import re
 from datetime import UTC, datetime
 
 import ax_tree
+import meeting_language
+from harness_copy import Aliases, Messages
+from harness_copy import text as copy_text
+from legacy_ui import REMOVED, REMOVED_PATTERNS
 
-NAMES = {
-    1: "The transcript arrives in Spanish",
-    2: "The times are relative to the start and do not exceed the duration",
-    3: "The local microphone appears under its name",
-    4: "No repeated or empty entries",
-    5: "The note is written with a summary and actions, and «Transcribiendo…» goes away",
-    6: "«Abrir», from «Tu nota está lista», and the list of Notes open that note",
-    7: "«Oye Deimos» asks a question and the answer appears in the panel",
-    8: "The Assistant answers and reopens an earlier conversation with its messages",
-    9: "No problem notice in the top bar and none of the texts the interface removed",
-    10: "No unexpected failure in the logs",
-    11: "A voice note is transcribed and Deimos answers",
-    12: "The call opens and listens",
-}
+NAMES = Messages(
+    {
+        1: "The transcript arrives in {pass.language}",
+        2: "The times are relative to the start and do not exceed the duration",
+        3: "The local microphone appears under its name",
+        4: "No repeated or empty entries",
+        5: "The note is written with a summary and actions, and «{noteScreen.steps.transcript.active}» goes away",
+        6: "«{noteScreen.open}», from «{noteScreen.ready}», and the list of Notes open that note",
+        7: "«{recordingCard.wakePhrase}» asks a question and the answer appears in the panel",
+        8: "The Assistant answers and reopens an earlier conversation with its messages",
+        9: "No problem notice in the top bar and none of the texts the interface removed",
+        10: "No unexpected failure in the logs",
+        11: "A voice note is transcribed and Deimos answers",
+        12: "The call opens and listens",
+    }
+)
 # What the run cannot see, said in every report.
 NOT_COVERED = (
     (
@@ -51,88 +57,26 @@ NOT_COVERED = (
 WORD = re.compile(r"[a-zñ]{5,}")
 # Share of the script's words that must come back. The audio is synthetic
 # speech, read without noise straight into the recording; a recognizer working
-# in Spanish returns nearly all of it, and one that switched language (a
+# in the meeting language returns nearly all of it, and one that switched language (a
 # failure seen in an earlier run) returns almost none. The margin is for names
 # and numbers the recognizer writes differently («doce mil» as «12.000»).
 MINIMUM_RECALL = 0.8
 
-UNIDENTIFIED = "Hablante sin identificar"
-# Where the turns of the «Transcripción» tab start: the line under its
-# toolbar (TranscriptTab.tsx, `es.notes.transcriptHelp`).
-TRANSCRIPT_START = "Pulsa un nombre para cambiar quién habla"
-# The meeting's language is said once, on the note's header button
-# «Plantilla: … · Español», followed by «· 2 diccionarios» when the meeting
-# uses any (NoteSettingsMenu.tsx, `es.noteScreen.howLabel`).
-HOW_PREFIX = "Plantilla: "
-# The note's title is an editable field (NoteHeader.tsx,
-# `es.noteScreen.titleLabel`): its value is the title, its label this.
-TITLE_FIELD = "Título de la reunión"
-# What follows the view in the window's tree, when anything does: a corner
-# notice (Toast.tsx, `es.shell.notice`). The transcript is read up to it.
-NOTICE_LABEL = "Aviso de Orbit"
-# The texts earlier interface revisions removed from the screen. None may
-# appear anywhere, ever.
-REMOVED = (
-    "Listo · Emparejado",
-    "Emparejado con",
-    "Privacidad: normal",
-    "Privacidad: parada",
-    "Parada de privacidad",
-    "Autonomía total",
-    "Acceso revocado",
-    "Sin conexión con Orbit",
-    "Datos de hace",
-    "Datos no vigentes",
-    "Estado del daemon",
-    "todavía no se conoce el dato",
-    "aún no se ha observado",
-    "fragmentos pendientes",
-    "Deimos la lee",
-    "Deimos puede leer tu agenda",
-    "Deimos lee todos tus calendarios",
-    "Contexto: calendario",
-    "sin contexto adjunto",
-    "Reconectando con el hub",
-    "Conectando con el hub",
-    "El hub está fuera de línea",
-    "Reintentar conversaciones",
-    "Reunión guardada · transcribiendo",
-    "Hora no disponible",
-    "Cargando índice de notas",
-    "Guardado cifrado en este Mac",
-    "trozos por subir",
-    "tramos sin transcribir",
-    "Transcripción en cola",
-    "Esperando confirmación del Mac",
-    "Esperando que el Mac cierre el audio",
-    "Sin vincular",
-    "ID del dispositivo",
-    # Renamed by the design's glossary: the old names must not come back.
-    "Privacidad detenida",
-    "Rearmar",
-    "Briefing de hoy",
-    "Pregunta a Orbit",
-    "Algo ha fallado",
+
+PILL = Aliases(
+    {
+        key: "problem." + key
+        for key in (
+            "orbitLost",
+            "privacyStopped",
+            "unpaired",
+            "revoked",
+            "offline",
+            "missingPermissions",
+        )
+    }
 )
-REMOVED_PATTERNS = (
-    re.compile(r"\d+/\d+ permisos"),
-    re.compile(r"\d+ ?bytes"),
-    re.compile(r"HTTP \d{3}"),
-    re.compile(r"\d+ ms\b"),
-)
-# The top bar's notices (apps/desktop/src/i18n/es/shell.ts, `problem`), each
-# up to its first variable part: with everything in order none of them shows.
-# contracts/constants.json registers them (STATUS_PILL_TEXTS) and its guard
-# checks this list and that file against it; a new problem notice is added there.
-PILL = (
-    "Orbit no responde",
-    "Todo está parado",
-    "Este Mac no está emparejado",
-    "El hub retiró este Mac",
-    "Sin conexión con el hub",
-    "Falta el permiso de",
-    "Faltan permisos",
-)
+
 # Report-log classes that mean something went wrong: «fixable» and the
 # generic «failed». «working», «done» and «silent» are normal life.
 FAILURE_CLASSES = ("failed", "fixable")
@@ -175,22 +119,27 @@ def language_of(how: str | None) -> str | None:
 
 def _transcript(ev: dict) -> tuple[list[str], list[ax_tree.Segment]]:
     before, segments = ax_tree.transcript(
-        _tree(ev, "note-transcript"), TRANSCRIPT_START, NOTICE_LABEL
+        _tree(ev, "note-transcript"),
+        copy_text("notes.transcriptHelp"),
+        copy_text("shell.notice"),
     )
     return before, segments
 
 
-def c1_spanish(ev: dict) -> tuple[bool, str]:
+def c1_language(ev: dict) -> tuple[bool, str]:
     before, segments = _transcript(ev)
     if not segments:
-        return False, "the Transcripción tab shows no entry"
-    # The header's button ends with the meeting's language.
-    how = next((t for t in before if t.startswith(HOW_PREFIX)), None)
-    language = language_of(how)
-    if language != "Español":
         return (
             False,
-            f"the language the note shows is not Spanish: «{how or 'none'}»",
+            f"""the {copy_text("noteScreen.transcriptTab")} tab shows no entry""",
+        )
+    # The header's button ends with the meeting's language.
+    how = next((t for t in before if t.startswith(copy_text("noteScreen.howPrefix"))), None)
+    language = language_of(how)
+    if language != copy_text("notes.languages." + ev.get("language", "es")):
+        return (
+            False,
+            f"the note does not show {copy_text('pass.language')}: «{how or 'none'}»",
         )
     script = " ".join(_fact(ev, "script"))
     said = " ".join(s.text for s in segments)
@@ -205,7 +154,10 @@ def c1_spanish(ev: dict) -> tuple[bool, str]:
             f"({recall:.0%}; minimum {MINIMUM_RECALL:.0%}); the first entry starts at "
             f"{segments[0].time}; {len(missing)} missing, the first: {', '.join(missing[:10])}"
         )
-    return True, f"Spanish; {back} of {of} words come back ({recall:.0%})"
+    return (
+        True,
+        f"{copy_text('pass.language')}; {back} of {of} words come back ({recall:.0%})",
+    )
 
 
 def _words_back(script: str, said: str) -> tuple[int, int, float]:
@@ -220,7 +172,10 @@ def _words_back(script: str, said: str) -> tuple[int, int, float]:
 def c2_times(ev: dict) -> tuple[bool, str]:
     _, segments = _transcript(ev)
     if not segments:
-        return False, "the Transcripción tab shows no entry"
+        return (
+            False,
+            f"""the {copy_text("noteScreen.transcriptTab")} tab shows no entry""",
+        )
     duration_ms = int(_fact(ev, "recording")["duration_ms"])
     bad = []
     for number, segment in enumerate(segments, 1):
@@ -238,18 +193,19 @@ def c2_times(ev: dict) -> tuple[bool, str]:
 def c3_name(ev: dict) -> tuple[bool, str]:
     _, segments = _transcript(ev)
     if not segments:
-        return False, "the Transcripción tab shows no entry"
+        return (
+            False,
+            f"""the {copy_text("noteScreen.transcriptTab")} tab shows no entry""",
+        )
     # The account's name as the daemon takes it (`id -F`, mac.py prepare),
     # never the hub's, which only repeats what the Mac sent it.
     owner = _fact(ev, "mac").get("owner") or ""
     # The recording is microphone only: every turn is the local microphone.
     others = [s.speaker for s in segments if s.speaker != owner]
     if others:
-        unidentified = sum(1 for name in others if name == UNIDENTIFIED)
         return False, (
             f"{len(others)} of {len(segments)} entries of the local microphone do not carry "
-            f"the name «{owner}» ({unidentified} say «{UNIDENTIFIED}»; "
-            f"others: {sorted(set(others) - {UNIDENTIFIED})})"
+            f"the name «{owner}»; observed names: {sorted(set(others))}"
         )
     return True, f"all {len(segments)} entries say «{owner}»"
 
@@ -257,7 +213,10 @@ def c3_name(ev: dict) -> tuple[bool, str]:
 def c4_repeated(ev: dict) -> tuple[bool, str]:
     _, segments = _transcript(ev)
     if not segments:
-        return False, "the Transcripción tab shows no entry"
+        return (
+            False,
+            f"""the {copy_text("noteScreen.transcriptTab")} tab shows no entry""",
+        )
     empty = [n for n, s in enumerate(segments, 1) if not s.text.strip()]
     seen: dict[str, int] = {}
     repeated = []
@@ -309,28 +268,35 @@ def c5_note(ev: dict) -> tuple[bool, str]:
             f"the note has {len(sections)} sections with text and {len(actions)} actions",
         )
     summary = ax_tree.all_text(_tree(ev, "note-summary"))
-    if "El resumen aparecerá" in summary or any(
+    if copy_text("noteScreen.summaryLater") in summary or any(
         _missing_words(s["markdown"], summary) for s in sections
     ):
-        return False, f"the Resumen tab does not show the note's {len(sections)} sections"
+        return (
+            False,
+            f"the {copy_text('noteScreen.summaryTab')} tab does not show the note's {len(sections)} sections",
+        )
     tasks = ax_tree.all_text(_tree(ev, "note-actions"))
     shown = [a for a in actions if a["text"] in tasks]
     if not shown:
-        return False, f"the Acciones tab shows none of the {len(actions)} actions"
+        return (
+            False,
+            f"the {copy_text('noteScreen.actionsTab')} tab shows none of the {len(actions)} actions",
+        )
     after = ("note-ready", "note-summary", "note-actions", "note-transcript")
     still = [
         label
         for label in after
-        if "transcribiendo" in ax_tree.plain(ev.get("trees", {}).get(label, ""))
+        if ax_tree.plain(copy_text("noteScreen.steps.transcript.active")).rstrip(".…")
+        in ax_tree.plain(ev.get("trees", {}).get(label, ""))
     ]
     if still:
         return (
             False,
-            f"with the note ready, «Transcribiendo…» is still on screen ({', '.join(still)})",
+            f"with the note ready, «{copy_text('noteScreen.steps.transcript.active')}» is still on screen ({', '.join(still)})",
         )
     return True, (
         f"{len(sections)} sections and {len(actions)} actions ({len(shown)} shown); "
-        "«Transcribiendo…» is gone"
+        f"""«{copy_text("noteScreen.steps.transcript.active")}» is gone"""
     )
 
 
@@ -339,10 +305,15 @@ def c6_open_note(ev: dict) -> tuple[bool, str]:
     if not title:
         return False, "the note has no title to recognise it by"
     bad = []
-    for label, origin in (("note-from-notice", "the notice"), ("note-from-list", "the list")):
+    for label, origin in (
+        ("note-from-notice", "the notice"),
+        ("note-from-list", "the list"),
+    ):
         # The note's own title field, not the row that names it in the list.
         fields = [
-            n for n in _tree(ev, label) if n.role == "AXTextField" and TITLE_FIELD in n.texts()
+            n
+            for n in _tree(ev, label)
+            if n.role == "AXTextField" and copy_text("noteScreen.titleLabel") in n.texts()
         ]
         if not any(node.value == title for node in fields):
             bad.append(origin)
@@ -351,21 +322,33 @@ def c6_open_note(ev: dict) -> tuple[bool, str]:
     return True, f"from the notice and from the list «{title}» opens"
 
 
-def c7_oye_deimos(ev: dict) -> tuple[bool, str]:
+def c7_wake_phrase(ev: dict) -> tuple[bool, str]:
     question = _fact(ev, "question")
     if question.get("origin") != "voice":
-        return False, f"the question did not come from the voice: origin «{question.get('origin')}»"
+        return (
+            False,
+            f"the question did not come from the voice: origin «{question.get('origin')}»",
+        )
     if question.get("stage") != "answered":
         return False, (
             f"the question ended «{question.get('stage')}» "
             f"({json.dumps(question.get('cause'), ensure_ascii=False)})"
         )
-    if "de que estamos hablando" not in ax_tree.plain(question.get("question") or ""):
-        return False, f"the question heard is not the script's: «{question.get('question')}»"
+    if ax_tree.plain(meeting_language.question()) not in ax_tree.plain(
+        question.get("question") or ""
+    ):
+        return (
+            False,
+            f"the question heard is not the script's: «{question.get('question')}»",
+        )
     panel = ax_tree.all_text(_tree(ev, "panel"))
-    if "Queda también en tu conversación" not in panel:
+    if copy_text("floatingPanel.alsoInConversation") not in panel:
         return False, "the panel does not show the answer as whole"
-    for failure in ("Deimos no respondió", "La pregunta no llegó a Deimos", "Deimos está pensando"):
+    for failure in (
+        copy_text("meetingQuestion.failed"),
+        copy_text("meetingQuestion.notSent"),
+        copy_text("meetingQuestion.thinking").rstrip(".…"),
+    ):
         if failure in panel:
             return False, f"the panel says «{failure}»"
     missing = _missing_words(question.get("answer") or "", panel)
@@ -402,7 +385,10 @@ def c8_assistant(ev: dict) -> tuple[bool, str]:
         if missing is None:
             return False, "Deimos answered without text"
         if missing:
-            return False, f"{moment}, the Assistant does not show the answer: {missing} missing"
+            return (
+                False,
+                f"{moment}, the Assistant does not show the answer: {missing} missing",
+            )
     return True, "answer received; the earlier conversation opens with its messages"
 
 
@@ -413,9 +399,14 @@ def c9_no_noise(ev: dict) -> tuple[bool, str]:
     seen = []
     for label, text in trees.items():
         screen = ax_tree.all_text(ax_tree.parse(text))
-        for removed in REMOVED + PILL:
+        for removed in (*REMOVED, *PILL.values()):
             if removed in screen:
                 seen.append(f"«{removed}» in {label}")
+        permission = re.escape(copy_text("problem.missingPermission")).replace(
+            re.escape("{name}"), r"[^\n]+"
+        )
+        if re.search(permission, screen):
+            seen.append(f"permission notice in {label}")
         for pattern in REMOVED_PATTERNS:
             if (found := pattern.search(screen)) is not None:
                 seen.append(f"«{found.group(0)}» in {label}")
@@ -432,7 +423,10 @@ def c11_voice_note(ev: dict) -> tuple[bool, str]:
             f"{json.dumps(note['failure'], ensure_ascii=False)[:200]}"
         )
     if note.get("role") != "user":
-        return False, f"the voice note's turn is not the user's: role «{note.get('role')}»"
+        return (
+            False,
+            f"the voice note's turn is not the user's: role «{note.get('role')}»",
+        )
     back, of, recall = _words_back(note.get("phrase") or "", note.get("transcript") or "")
     if recall < MINIMUM_RECALL:
         return False, (
@@ -483,7 +477,10 @@ def c12_call(ev: dict) -> tuple[bool, str]:
     if not opened:
         return False, "daemon.log has no call_audio_opened: the microphone did not open"
     if not heard:
-        return False, "daemon.log has no call_audio_heard: the call did not say what it heard"
+        return (
+            False,
+            "daemon.log has no call_audio_heard: the call did not say what it heard",
+        )
     last_heard = heard[-1]
     frames = str(last_heard.get("frames"))
     if not frames.isdigit() or int(frames) == 0:
@@ -589,13 +586,13 @@ def step_at(ev: dict, instant: float | None) -> str | None:
 
 
 CHECKS = {
-    1: c1_spanish,
+    1: c1_language,
     2: c2_times,
     3: c3_name,
     4: c4_repeated,
     5: c5_note,
     6: c6_open_note,
-    7: c7_oye_deimos,
+    7: c7_wake_phrase,
     8: c8_assistant,
     9: c9_no_noise,
     10: c10_no_failures,

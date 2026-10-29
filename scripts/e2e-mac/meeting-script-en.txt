@@ -1,0 +1,26 @@
+# Invented meeting with two voices and three parts, matching the Spanish script.
+# Lines 4–6 of part 3 are muted. Their distinctive words occur nowhere else;
+# the final summary repeats the action so the note can still include it.
+A: Good morning. We are starting the progress meeting for the Meadowbridge public library project.
+B: Good morning. I have the latest budget and construction schedule.
+A: Excellent. First the budget: last week we agreed to review the cost of the new shelving.
+B: The supplier submitted an estimate of twelve thousand pounds, slightly above our expectations.
+A: We should negotiate. Clara, can you telephone the supplier before Friday to request a discount?
+B: Certainly. I will telephone the supplier on Thursday morning and report the outcome.
+A: Regarding the schedule, construction in the reading room begins on the third of November.
+B: The architect confirmed that date, but needs the signed drawings before the twenty eighth of October.
+A: What about planning permission? Previously the council took almost a month to respond.
+B: Permission was granted. The confirmation arrived on Tuesday and is stored in the project folder.
+---
+A: Hey Deimos, what are we discussing?
+---
+A: Thank you. We decided to keep the third of November as the construction start date.
+B: Agreed. I will send the signed drawings to the architect on Monday.
+A: One issue remains unresolved: moving the books during construction. We still need temporary storage.
+B: Perhaps the municipality could lend us the warehouse beside the swimming pavilion.
+A: Brilliant suggestion. Jasper, contact the municipality this week about borrowing that warehouse.
+B: Noted. Visitors should also receive an announcement displayed prominently near reception.
+A: We will prepare the notice next week.
+B: Our next meeting will be next Tuesday at ten.
+A: To summarise: Clara negotiates with the supplier, Jasper requests storage from the council, and the drawings leave on Monday.
+B: Thank you everyone. See you on Tuesday.

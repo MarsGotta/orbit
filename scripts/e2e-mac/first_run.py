@@ -18,13 +18,12 @@ from __future__ import annotations
 import time
 
 import ax_tree
+from harness_copy import text as copy_text
 from interface import StepFailed
 
 # The first run's way out, above every step but the last (onboarding.ts
 # `skipAll`, OnboardingFrame.tsx); the dry-run test checks it is the app's.
-SKIP = "Configurarlo más tarde"
 # The sidebar's button, in every view of the main window (shell.ts `record`).
-MAIN = "Grabar reunión"
 # What the report says, once, when a run skipped the welcome.
 REPORTED = "opened on its first run's welcome"
 # Between two reads of a window still drawing its first view. Only spaces the
@@ -43,20 +42,26 @@ def past_the_welcome(ui, main, label: str, first_view_s: float, screen_s: float)
     it skipped the welcome."""
     deadline = time.monotonic() + first_view_s
     while True:
-        if _shows(ui, main, f"{label} first run", SKIP):
-            ui.press(main, SKIP, ("AXButton",))
+        if _shows(ui, main, f"{label} first run", copy_text("onboarding.skipAll")):
+            ui.press(main, copy_text("onboarding.skipAll"), ("AXButton",))
             after = f"{label} after the welcome"
-            ui.read_until(main, after, MAIN, lambda text: MAIN in text, screen_s)
-            if MAIN not in ui.trees.get(after, ""):
+            ui.read_until(
+                main,
+                after,
+                copy_text("shell.record"),
+                lambda text: copy_text("shell.record") in text,
+                screen_s,
+            )
+            if copy_text("shell.record") not in ui.trees.get(after, ""):
                 raise StepFailed(
-                    f"«{SKIP}» did not lead to the main window («{MAIN}») within {screen_s:.0f} s"
+                    f"«{copy_text('onboarding.skipAll')}» did not lead to the main window («{copy_text('shell.record')}») within {screen_s:.0f} s"
                 )
             return True
-        if _shows(ui, main, label, MAIN):
+        if _shows(ui, main, label, copy_text("shell.record")):
             return False
         if time.monotonic() >= deadline:
             raise StepFailed(
-                f"the window showed neither the main view («{MAIN}») nor the first run "
-                f"(«{SKIP}») within {first_view_s:.0f} s"
+                f"the window showed neither the main view («{copy_text('shell.record')}») nor the first run "
+                f"(«{copy_text('onboarding.skipAll')}») within {first_view_s:.0f} s"
             )
         time.sleep(READ_INTERVAL_S)

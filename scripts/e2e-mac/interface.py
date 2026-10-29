@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import ax_tree
+from harness_copy import text as copy_text
 
 BUNDLE_ID = "app.orbit.companion.pruebas"
-PANEL_TITLE = "Orbit · llamada"
 
 
 class StepFailed(Exception):
@@ -68,7 +68,7 @@ class Interface:
                 found[label] = Window(
                     self.app_pid,
                     int(row["window_id"]),
-                    "Orbit" if label == "main" else PANEL_TITLE,
+                    copy_text("appName") if label == "main" else copy_text("native.panel_title"),
                     label,
                     row["visible"],
                 )
@@ -114,7 +114,12 @@ class Interface:
         return ax_tree.parse(markdown)
 
     def _one(
-        self, window: Window, text: str, roles: tuple[str, ...], contains: bool, first: bool = False
+        self,
+        window: Window,
+        text: str,
+        roles: tuple[str, ...],
+        contains: bool,
+        first: bool = False,
     ) -> ax_tree.Node:
         deadline = time.monotonic() + 10
         while True:
@@ -168,7 +173,11 @@ class Interface:
         self, window: Window, label: str, query: str | None, condition, bound_s: float
     ) -> float:
         return self.read_nodes_until(
-            window, label, query, lambda nodes: condition(ax_tree.all_text(nodes)), bound_s
+            window,
+            label,
+            query,
+            lambda nodes: condition(ax_tree.all_text(nodes)),
+            bound_s,
         )
 
     def read_nodes_until(
