@@ -17,9 +17,12 @@ pub(super) const QUIT: &str = "quit";
 pub(super) const UPDATE: &str = "update";
 
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "pruebas", derive(serde::Serialize))]
+#[cfg_attr(feature = "pruebas", serde(tag = "kind", rename_all = "snake_case"))]
 pub(super) enum Entry {
     Item {
         id: &'static str,
+        #[cfg_attr(feature = "pruebas", serde(rename = "name"))]
         label: String,
         enabled: bool,
     },

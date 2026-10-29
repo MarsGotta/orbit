@@ -170,7 +170,7 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 metadata = [
                     line for line in calls.read_text().splitlines() if line.startswith("cargo ")
                 ]
-                feature = " --features orbit-core/pruebas" if pruebas else ""
+                feature = " --features orbit-core/pruebas,orbit-desktop/pruebas" if pruebas else ""
                 self.assertEqual(
                     metadata,
                     [

@@ -88,7 +88,7 @@ orbit_features=()
 if [[ "${ORBIT_PRUEBAS:-}" == 1 ]]; then
   orbit_name="Orbit Pruebas"
   orbit_identifier=app.orbit.companion.pruebas
-  orbit_features=(--features orbit-core/pruebas)
+  orbit_features=(--features orbit-core/pruebas,orbit-desktop/pruebas)
 fi
 orbit_bundle="$orbit_output/$orbit_name.app"
 CUA_ENGINE_RELATIVE_PATH="Helpers/Orbit Engine.app/Contents/MacOS/cua-driver"

@@ -191,13 +191,20 @@ fn now_ms() -> i64 {
 }
 
 /// Puts `after` on the item where it differs from `before`.
-fn show<R: tauri::Runtime>(icon: &TrayIcon<R>, before: &Look, after: &Look) -> tauri::Result<()> {
+fn show<R: tauri::Runtime>(
+    _app: &tauri::AppHandle<R>,
+    icon: &TrayIcon<R>,
+    before: &Look,
+    after: &Look,
+) -> tauri::Result<()> {
     if before.image != after.image {
         icon.set_icon_with_as_template(Some(after.image.pixels()), after.image.is_template())?;
     }
     if before.title != after.title {
         // An empty title clears it: tray-icon 0.24 leaves the old one on `None`.
         icon.set_title(Some(after.title.as_str()))?;
+        #[cfg(feature = "pruebas")]
+        crate::test_bridge::tray_clock(_app, &after.title);
     }
     Ok(())
 }
@@ -237,8 +244,14 @@ fn refresh<R: tauri::Runtime>(
         |menu_entries, before, after| {
             if let Some(menu_entries) = menu_entries {
                 tray.icon.set_menu(Some(menu(app, menu_entries)?))?;
+                #[cfg(feature = "pruebas")]
+                crate::test_bridge::tray_built(
+                    app,
+                    None,
+                    Some(serde_json::to_value(menu_entries)?),
+                );
             }
-            show(&tray.icon, before, after)
+            show(app, &tray.icon, before, after)
         },
     )?;
     if shown.state.recording.is_some() && !shown.ticking {
@@ -266,6 +279,9 @@ fn tick<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
             let title = look(&shown.state, now_ms()).title;
             if let Err(error) = tray.icon.set_title(Some(title.as_str())) {
                 eprintln!("Orbit: no se pudo actualizar el tiempo de la barra de menús: {error}");
+            } else {
+                #[cfg(feature = "pruebas")]
+                crate::test_bridge::tray_clock(&app, &title);
             }
         }
     });
@@ -341,6 +357,8 @@ pub fn install(app: &tauri::AppHandle) -> tauri::Result<()> {
         .menu(&menu(app, &entries(&state))?)
         .on_menu_event(handle_menu)
         .build(app)?;
+    #[cfg(feature = "pruebas")]
+    crate::test_bridge::tray_built(app, Some(""), Some(serde_json::to_value(entries(&state))?));
     app.manage(Tray {
         icon,
         shown: Mutex::new(Shown {

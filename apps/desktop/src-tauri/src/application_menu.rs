@@ -69,7 +69,9 @@ pub fn install<R: tauri::Runtime>(
             )?,
         ],
     )?;
-    app.set_menu(menu)?;
+    app.set_menu(menu.clone())?;
+    #[cfg(feature = "pruebas")]
+    crate::test_bridge::application_built(app, &menu)?;
     Ok(())
 }
 

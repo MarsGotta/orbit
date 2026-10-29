@@ -101,3 +101,24 @@ CONTROL_WAITS = {
     "discarded": (("recording", "notes"), gone, notes_list),
     "deleted": (("notes",), gone, notes_list),
 }
+
+
+def script_parts(text: str) -> list[list[tuple[str, str]]]:
+    """The three parts, each a list of (voice, line); «---» separates them."""
+    parts: list[list[tuple[str, str]]] = [[]]
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line == "---":
+            parts.append([])
+            continue
+        voice, separator, said = line.partition(":")
+        if not separator or voice.strip() not in ("A", "B") or not said.strip():
+            raise MacFailure(f"script line without «A:» or «B:»: {line[:60]}")
+        parts[-1].append((voice.strip(), said.strip()))
+    if len(parts) != 3 or not all(parts):
+        raise MacFailure(
+            f"the script must have three parts separated by «---» and has {len(parts)}"
+        )
+    return parts

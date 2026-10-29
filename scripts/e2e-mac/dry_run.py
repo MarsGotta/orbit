@@ -9,7 +9,8 @@ started from this tree on loopback with a Whisper and a note model that do
 not exist and are never called, and stopped again.
 
 What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the system
-commands of the Mac (say, SwitchAudioSource, open, ps), Orbit Pruebas's socket
+commands of the Mac (say, SwitchAudioSource, open, ps), the test bridge's
+menu reply (bridge.json), Orbit Pruebas's socket
 (the frames each wait sees, the reads, the commands), its logs, and
 CuaDriver's command line (`status`, `call`, `stop`: the windows, the tree of
 each screen, which screen a click, a key, a quit or the pointer leads to, and
@@ -246,6 +247,18 @@ class DryRunOrbit:
         raise TimeoutError
 
 
+class DryRunBridge:
+    """The in-app bridge boundary; only check 16 calls it in this step."""
+
+    def __init__(self, example: Example):
+        self.example = example
+
+    def call(self, request: dict) -> dict:
+        if request != {"command": "menus"}:
+            raise mac_side.MacFailure(f"unexpected test bridge request: {request}")
+        return self.example.json("bridge.json")
+
+
 def query_filter(markdown: str, query: str) -> str:
     """cua-driver's `query`: matching lines and their ancestors."""
     lines = markdown.splitlines()
@@ -467,7 +480,9 @@ def run(name: str, directory: Path | None = None) -> tuple[list[dict], Path]:
         plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
     )
     mac = real_test.InProcessMac(
-        mac_side.Mac(mac_paths, DryRunSystem(example, mac_paths), DryRunOrbit(example))
+        mac_side.Mac(
+            mac_paths, DryRunSystem(example, mac_paths), DryRunOrbit(example), DryRunBridge(example)
+        )
     )
     paths = isolated_hub.Paths(root / "orbit-pruebas")
     isolated_hub.prepare_secrets(paths)

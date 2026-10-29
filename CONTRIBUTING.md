@@ -63,7 +63,7 @@ without running them. Pass one or more zones to run only those:
 
 | Zone | What it checks |
 |---|---|
-| `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` with the `pruebas` feature, and that the generated TypeScript is current |
+| `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` and the test bridge with `pruebas`, and that the generated TypeScript is current |
 | `guards` | The size limits and the domain boundaries (below), then the Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts. The `scripts/tests` step runs after the hub's environment step and is skipped, saying why, without it: the hub publish guards build a release with the real `uv` offline, from the cache that syncing `server/.venv` fills |
 | `hub` | Ruff and Ruff format over the hub and the harness, the hub's pytest suite, including end-to-end tests against the real daemon binary, and the real-test harness's dry run |
 | `ui` | Lint, typecheck, Vitest and the production build of `apps/desktop` |
@@ -147,7 +147,9 @@ SSH:
   survives. Nobody should be using the Mac while it runs. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
   `blackhole-2ch`, `switchaudio-osx` and a Spanish system voice; the run
-  switches the audio input and restores it afterwards. Orbit itself must be
+  switches the audio input and restores it afterwards. Check 16 reads the last
+  menus built inside Orbit Pruebas through its [test bridge](docs/testing/test-bridge.md);
+  every other interface press and read still uses CuaDriver. Orbit itself must be
   closed, because both builds register the same global shortcuts.
 - `dry-run` walks the same orchestrator and checks on Linux against the example
   states in `scripts/e2e-mac/dry-run-examples/`. It proves the logic of the

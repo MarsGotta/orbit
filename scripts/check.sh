@@ -280,8 +280,10 @@ run_rust_zone() {
   published_daemon_again rust-daemon rust rust-test
   check_run rust-test-app "rust · cargo test of the app" --needs "$DAEMON_STEP" --cwd "$ROOT" \
     --report cargo -- cargo test --locked --no-fail-fast "${app[@]}"
-  check_run rust-test-pruebas "rust · orbit-core with the Orbit Pruebas identity" --needs env-rust --cwd "$ROOT" \
-    --report cargo -- cargo test -p orbit-core --features pruebas --locked --no-fail-fast
+  check_run rust-clippy-pruebas "rust · strict clippy of the test bridge" --needs env-rust --cwd "$ROOT" -- \
+    cargo clippy -p orbit-desktop --features pruebas --all-targets --locked -- -D warnings
+  check_run rust-test-pruebas "rust · Orbit Pruebas identity and test bridge" --needs env-rust --cwd "$ROOT" \
+    --report cargo -- cargo test -p orbit-core -p orbit-desktop --features orbit-desktop/pruebas --locked --no-fail-fast
   # orbit-app-core's tests write the TypeScript of the bridge.
   check_run rust-generated "rust · generated TypeScript up to date" --after rust-test-app --cwd "$ROOT" -- \
     python3 -B "$CHECK_DIR/generated.py" compare "$GENERATED_TYPES" "$LOG_DIR/generated.json"

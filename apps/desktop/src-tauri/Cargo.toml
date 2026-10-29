@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 build = "build.rs"
 
+[features]
+pruebas = ["orbit-core/pruebas", "dep:objc2", "dep:objc2-app-kit"]
+
 [lib]
 name = "orbit_desktop"
 path = "src/lib.rs"
@@ -40,6 +43,8 @@ tauri-plugin-opener = "2"
 tokio = { version = "1.48", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6.4", optional = true }
+objc2-app-kit = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSApplication", "NSWindow", "NSResponder"] }
 # Safe Foundation binding; reads app-aware macOS preferences in a bundle.
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSLocale", "NSArray", "NSString", "NSEnumerator"] }
 

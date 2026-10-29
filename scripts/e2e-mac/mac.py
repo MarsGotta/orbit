@@ -1,7 +1,7 @@
 """The Mac side of the real test: what runs on the test Mac, over SSH.
 
 The orchestrator on the test server copies this file, the modules it imports
-(mac_controls.py, mac_drafts_panel.py, mac_engine.py, mac_system.py and
+(mac_bridge.py, mac_controls.py, mac_drafts_panel.py, mac_engine.py, mac_system.py and
 mac_waits.py), the Swift scripts and the meeting script to
 `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time;
 each prints one JSON object and exits 0, or prints `{"error": …}` and
@@ -21,16 +21,18 @@ exits 1.
     logs                      the report logs of Orbit Pruebas and the call's audio lines of daemon.log
     activate                  brings Orbit Pruebas to the front
     floating                  Orbit Pruebas's windows above the normal layer (the floating panel)
+    bridge-menus             the last menus built inside Orbit Pruebas (check 16 only)
     engine-start --max S      starts CuaDriver, bounded to Orbit Pruebas, under its own identity
     engine-call TOOL JSON     one CuaDriver tool call
     engine-stop --max S       stops the CuaDriver this test started, by its pid
 
-The clicks and the readings of the interface go through CuaDriver, the
+The clicks and web-view readings go through CuaDriver, the
 standalone computer-use driver (cua-driver 0.28.2, /Applications/CuaDriver.app)
 with its own macOS permissions, used since Orbit Pruebas's own engine refused
 the test's readings in run 5. The test starts CuaDriver bounded by a capability
 manifest that allows five tools on Orbit Pruebas alone, targets only Orbit
-Pruebas's exact pid, and stops it.
+Pruebas's exact pid, and stops it. Check 16 alone reads the last native menus
+through the in-app test bridge (bridge-menus); no other UI operation uses it.
 
 It never touches the user's Orbit, its data or its Keychain: Orbit Pruebas has
 its own bundle, data directory and Keychain service (orbit_bundle, feature
@@ -56,7 +58,8 @@ import uuid
 from pathlib import Path
 
 import audio_route
-from mac_controls import PARTS, MacFailure
+from mac_bridge import TestBridge
+from mac_controls import PARTS, MacFailure, script_parts
 from mac_drafts_panel import COMMANDS as DRAFTS_AND_PANEL
 from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
 from mac_engine import CuaDriver
@@ -85,6 +88,7 @@ class Paths:
         self.app = home / "Applications" / "Orbit Pruebas.app"
         self.data = home / "Library" / "Application Support" / DATA_DIRECTORY
         self.socket = self.data / "orbit.sock"
+        self.bridge = self.data / "orbit-test-bridge.sock"
         self.logs = self.data / "logs"
         self.own = home / ".orbit-pruebas"
         # File name kept from the earlier, Spanish harness: a run of it that
@@ -301,27 +305,6 @@ def owner_name(full: str | None) -> str:
 # ── The meeting script ──────────────────────────────────────────────────────
 
 
-def script_parts(text: str) -> list[list[tuple[str, str]]]:
-    """The three parts, each a list of (voice, line); «---» separates them."""
-    parts: list[list[tuple[str, str]]] = [[]]
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line == "---":
-            parts.append([])
-            continue
-        voice, separator, said = line.partition(":")
-        if not separator or voice.strip() not in ("A", "B") or not said.strip():
-            raise MacFailure(f"script line without «A:» or «B:»: {line[:60]}")
-        parts[-1].append((voice.strip(), said.strip()))
-    if len(parts) != 3 or not all(parts):
-        raise MacFailure(
-            f"the script must have three parts separated by «---» and has {len(parts)}"
-        )
-    return parts
-
-
 def spanish_voices(listing: str) -> list[str]:
     """Spanish voices from `say -v '?'`, Spain first: «Mónica  es_ES  # Hola…»."""
     found = []
@@ -336,10 +319,20 @@ def spanish_voices(listing: str) -> list[str]:
 
 
 class Mac(DraftsAndPanel, CuaDriver):
-    def __init__(self, paths: Paths, system: System | None = None, orbit: OrbitIpc | None = None):
+    def __init__(
+        self,
+        paths: Paths,
+        system: System | None = None,
+        orbit: OrbitIpc | None = None,
+        bridge: TestBridge | None = None,
+    ):
         self.paths = paths
         self.system = system or System()
         self.orbit = orbit or OrbitIpc(paths.socket)
+        self.bridge = bridge or TestBridge(paths.bridge, MAX_LINE_BYTES)
+
+    def bridge_menus(self) -> dict:
+        return self.bridge.call({"command": "menus"})
 
     def _ours(self) -> list[int]:
         paths = {str(self.paths.app / member) for member in MEMBERS}
@@ -687,6 +680,8 @@ def main(argv: list[str], mac: Mac | None = None) -> int:
             output = mac.activate()
         elif command in DRAFTS_AND_PANEL:
             output = DRAFTS_AND_PANEL[command](mac, rest)
+        elif command == "bridge-menus" and not rest:
+            output = mac.bridge_menus()
         elif command == "engine-start":
             _, max_s = _bound(rest)
             output = mac.engine_start(max_s)

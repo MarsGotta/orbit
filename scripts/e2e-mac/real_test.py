@@ -258,6 +258,7 @@ class RemoteMac:
                 *self.options,
                 str(DIRECTORY / "mac.py"),
                 str(DIRECTORY / "mac_controls.py"),
+                str(DIRECTORY / "mac_bridge.py"),
                 str(DIRECTORY / "mac_drafts_panel.py"),
                 str(DIRECTORY / "mac_engine.py"),
                 str(DIRECTORY / "mac_system.py"),
@@ -353,6 +354,9 @@ class RemoteMac:
         return self._call(
             60 + max_s, "panel-pointer", str(window_id), where, question, "--max", str(max_s)
         )
+
+    def bridge_menus(self):
+        return self._call(12, "bridge-menus")
 
     def engine_start(self, max_s):
         return self._call(max_s, "engine-start", "--max", str(max_s))
@@ -566,6 +570,11 @@ class RealTest:
                     f"the recording started with audio «{recording.get('audio')}», not "
                     "«microphone_only»: «Qué audio grabar» did not change to «Solo mi micrófono»"
                 )
+
+        with self.step(
+            "read the recording's menu bar through the test bridge", (16,), critical=False
+        ):
+            self.ev["menus"] = self.mac.bridge_menus()
 
         with self.step("first half of the script"):
             self.mac.say("part1")

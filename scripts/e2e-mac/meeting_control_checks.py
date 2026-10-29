@@ -2,7 +2,7 @@
 
 13 «Silenciar» in the recording, 14 «Terminar sin guardar» on a second
 recording, 15 «Borrar reunión» on the first meeting at the end of the run,
-and 16 the menu bar, which the harness cannot read (see MENU_BAR_UNREADABLE).
+and 16 the menu bar, read through the in-app test bridge.
 Pure functions over the evidence, as in checks.py, whose helpers they use.
 """
 
@@ -77,16 +77,6 @@ LIST_UNREAD = (TEXTS["list_loading"], TEXTS["list_failed"], TEXTS["list_needs_hu
 MUTED_SPAN = re.compile(r"^Micrófono silenciado · (\S+) – (\S+)$")
 # The code the daemon logs when «Terminar sin guardar» took (NoticeCode).
 DISCARDED_CODE = "recording_discarded"
-MENU_BAR_UNREADABLE = (
-    "the harness cannot read Orbit Pruebas's menu bar item: CuaDriver lists layer-0 "
-    "windows only and the status item lives in the menu bar's own window, with no "
-    "accessibility window to read by id; macOS's menu bar is cut from every read before "
-    "it is parsed or saved, because under the Apple menu it names the user's own "
-    "documents (real run 36); and an open native menu is not in the window's tree, where "
-    "only real key events reach it (real run 13). The menu's rows and the time in its "
-    "title are covered by the app's tray tests (apps/desktop/src-tauri/src/tray/tests.rs), "
-    "not on a Mac."
-)
 
 
 def _words(lines: list[str]) -> set[str]:
@@ -299,8 +289,23 @@ def c15_delete(ev: dict) -> tuple[bool, str]:
     )
 
 
-def c16_menu_bar(_ev: dict) -> tuple[bool, str]:
-    raise Skipped(MENU_BAR_UNREADABLE)
+def c16_menu_bar(ev: dict) -> tuple[bool, str]:
+    menus = _fact(ev, "menus")
+    if not menus.get("ok"):
+        return False, "the test bridge refused menus: " + json.dumps(menus)
+    tray = menus.get("tray") or {}
+    rows = tray.get("rows") or []
+    for name in (TEXTS["mute"], TEXTS["discard"] + "…"):
+        matches = [row for row in rows if row.get("name") == name]
+        if len(matches) != 1 or matches[0].get("enabled") is not True:
+            return (
+                False,
+                f"the menu bar has {len(matches)} enabled/disabled rows named «{name}»: {matches}",
+            )
+    title = tray.get("title") or ""
+    if ax_tree.seconds(title) is None:
+        return False, f"the menu bar title has no recording time: «{title}»"
+    return True, f"enabled «Silenciar» and «Terminar sin guardar…»; recording time «{title}»"
 
 
 CHECKS = {13: c13_mute, 14: c14_discard, 15: c15_delete, 16: c16_menu_bar}

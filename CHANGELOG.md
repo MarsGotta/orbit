@@ -7,6 +7,13 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Added
+
+- Orbit Pruebas has an owner-only local test bridge for DOM presses, typing,
+  visible elements, native menu snapshots and window numbers. The real-test
+  harness uses it for the menu-bar check; its other interface actions still
+  use CuaDriver. The published app excludes the bridge at compile time.
+
 ## [0.13.0] - 2026-10-29
 
 ### Added

@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "bridge": "orbit-test-bridge-v1",
+  "tray": {
+    "title": "00:12",
+    "rows": [
+      {
+        "kind": "item",
+        "id": "microphone_mute",
+        "name": "Silenciar",
+        "enabled": true
+      },
+      {
+        "kind": "item",
+        "id": "discard_recording",
+        "name": "Terminar sin guardar…",
+        "enabled": true
+      }
+    ]
+  },
+  "application": []
+}

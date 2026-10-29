@@ -5,7 +5,7 @@ script's second half. «Terminar sin guardar» throws away a second, short
 recording, and «Borrar reunión» deletes the first meeting; both run after the
 final screen, when every check that needs the first meeting has its
 evidence, so the first twelve checks keep their order and timing. The menu
-bar is not read (meeting_control_checks.MENU_BAR_UNREADABLE).
+bar is read separately through the in-app test bridge for check 16.
 
 Each step works on the RealTest of real_test.py: its interface, its Mac, its
 waits and its evidence.

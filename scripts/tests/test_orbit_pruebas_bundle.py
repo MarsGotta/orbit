@@ -5,7 +5,7 @@ scripts/macos/bundle.sh runs here for real up to the copy of the first compiled 
 write down how they were called and succeed. What the script asked them to
 build, and the bundle directory it created, are then what a Mac build would
 get. Without ORBIT_PRUEBAS=1 the commands are the ones the published build
-always ran; with it, the Cargo feature `orbit-core/pruebas` reaches both
+always ran; with it, the Cargo feature `orbit-core/pruebas,orbit-desktop/pruebas` reaches both
 compilations and the bundle has its own name. The identity inside the
 binaries (bundle name, data directory, Keychain service) is fixed by
 `orbit_bundle`'s own tests in crates/orbit-core.
@@ -26,7 +26,7 @@ SCRIPT = ROOT / "scripts" / "macos" / "bundle.sh"
 INFO_PLIST = ROOT / "native" / "macos" / "Info.plist"
 
 OFFICIAL_TAURI = ["--dir", "apps/desktop", "tauri", "build", "--no-bundle"]
-FEATURE = ["--features", "orbit-core/pruebas"]
+FEATURE = ["--features", "orbit-core/pruebas,orbit-desktop/pruebas"]
 
 
 class VariantBuildTests(unittest.TestCase):

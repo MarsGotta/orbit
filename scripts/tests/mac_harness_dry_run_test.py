@@ -5,8 +5,8 @@ against the example states in scripts/e2e-mac/dry-run-examples/, with the real
 test hub started on loopback (fake Whisper and note model that are never
 called, no Hermes) and the Mac and its interface replaced by replays. It
 proves the logic of the checks and that each one can fail: every check fails
-against one example spoiled on purpose and passes against the good one, but
-the menu bar's, which the harness cannot read and always says so. It is not
+against one example spoiled on purpose and passes against the good one, including
+the menu bar through the in-app test bridge. It is not
 the real test and says nothing about Orbit on a Mac.
 
 A pytest module that needs the hub's own environment (server/.venv): the gate
@@ -40,16 +40,16 @@ import meeting_control_checks
 from support_network_fence import install
 
 FENCE = install()
-# Every check that can pass or fail; 16, the menu bar's, is always skipped.
-ALL = [*range(1, 16), 17, 18, 19, 20]
-SKIPPED = {16: "skipped"}
+# Every check can pass or fail, including the menu bar through the bridge.
+ALL = list(range(1, 21))
+SKIPPED = {}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
 FOLLOWS = {
     7: {18: "unchecked"},
     # An interrupted capture ends the script before its audio/UI evidence.
     # «Oye Deimos» (7) and its panel (18) come before the input change.
-    20: {n: "unchecked" for n in ALL if n not in (7, 10, 18, 20)},
+    20: {n: "unchecked" for n in ALL if n not in (7, 10, 16, 18, 20)},
 }
 
 
@@ -72,7 +72,7 @@ def statuses(results):
     return {r["number"]: r["status"] for r in results}
 
 
-def test_the_good_example_passes_every_check_but_the_skipped_one(good):
+def test_the_good_example_passes_every_check(good):
     results, directory = good
     assert statuses(results) == {**{n: "pass" for n in ALL}, **SKIPPED}, json.dumps(
         results, ensure_ascii=False, indent=1
@@ -80,9 +80,9 @@ def test_the_good_example_passes_every_check_but_the_skipped_one(good):
     report = (directory / "report.txt").read_text(encoding="utf-8")
     for number in ALL:
         assert f"{number:>2}. [pass]" in report
-    # The menu bar is said unread, with why, never passed.
-    assert "16. [skipped]" in report
-    assert "cannot read Orbit Pruebas's menu bar item" in report
+    # The menu bar is read through the test bridge.
+    assert "16. [pass]" in report
+    assert "00:12" in report
     # Every wait of the run is in the report with what it took.
     data = json.loads((directory / "report.json").read_text(encoding="utf-8"))
     names = {w["wait"] for w in data["waits"]}
@@ -857,3 +857,66 @@ def test_input_route_changes_are_exercised_during_the_same_recording(good):
     assert route["back"]["recording_id"] == ident
     assert route["back"]["gaps"] > route["away"]["gaps"] > 0
     assert all(route[side]["code"] == "audio_route_recovered" for side in ("away", "back"))
+
+
+def test_menu_check_requires_enabled_rows_and_a_time_in_the_title():
+    import copy
+
+    menus = json.loads((SCREENS / "good" / "bridge.json").read_text())
+    assert meeting_control_checks.c16_menu_bar({"menus": menus})[0]
+    for mutate in (
+        lambda tray: tray.update(title=""),
+        lambda tray: tray["rows"].pop(),
+        lambda tray: tray["rows"].append(dict(tray["rows"][0])),
+        lambda tray: tray["rows"][0].update(enabled=False),
+    ):
+        spoiled = copy.deepcopy(menus)
+        mutate(spoiled["tray"])
+        assert not meeting_control_checks.c16_menu_bar({"menus": spoiled})[0]
+
+
+def test_mac_bridge_menus_command_uses_one_bounded_socket_request(tmp_path, capsys):
+    import socket
+    import tempfile
+    import threading
+
+    paths = mac_side.Paths(tmp_path)
+    paths.data.mkdir(parents=True)
+    menu = json.loads((SCREENS / "good" / "bridge.json").read_text())
+    requests = []
+    # AF_UNIX also limits path length. Keep this transport fixture short;
+    # pytest's descriptive directory exceeds the kernel's sun_path ceiling.
+    with (
+        tempfile.TemporaryDirectory(prefix="orbit-bridge-", dir="/tmp") as root,
+        socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener,
+    ):
+        paths.bridge = Path(root) / "bridge.sock"
+        listener.bind(str(paths.bridge))
+        listener.listen(1)
+
+        def reply():
+            with listener.accept()[0] as connection:
+                requests.append(json.loads(connection.makefile("rb").readline()))
+                connection.sendall((json.dumps(menu) + "\n").encode())
+
+        worker = threading.Thread(target=reply, daemon=True)
+        worker.start()
+        assert mac_side.main(["bridge-menus"], mac_side.Mac(paths)) == 0
+        worker.join(timeout=2)
+        assert not worker.is_alive()
+    assert requests == [{"command": "menus"}]
+    assert json.loads(capsys.readouterr().out) == menu
+
+
+def test_bridge_connection_failure_names_the_transport_and_command(capsys):
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="orbit-bridge-", dir="/tmp") as root:
+        paths = mac_side.Paths(Path(root))
+        # A short, absent path inside this fixture's own directory.
+        paths.bridge = Path(root) / "missing.sock"
+        assert mac_side.main(["bridge-menus"], mac_side.Mac(paths)) == 1
+    error = json.loads(capsys.readouterr().out)["error"]
+    assert "test bridge transport failed for menus" in error
+    assert "errno 2" in error
+    assert "no retry" in error

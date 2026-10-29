@@ -8,6 +8,8 @@ mod language;
 mod notify;
 mod panel;
 mod panel_hover;
+#[cfg(feature = "pruebas")]
+pub mod test_bridge;
 mod tray;
 
 use anyhow::Context;
@@ -99,6 +101,10 @@ fn quit_on_exit<R: tauri::Runtime>(handle: &tauri::AppHandle<R>, event: RunEvent
     if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit)
         && let Some(daemon) = handle.try_state::<EmbeddedDaemon>()
     {
+        #[cfg(feature = "pruebas")]
+        if let Some(bridge) = handle.try_state::<test_bridge::Bridge>() {
+            bridge.stop();
+        }
         let daemon = daemon.inner().clone();
         tauri::async_runtime::block_on(daemon.shutdown());
     }
@@ -143,8 +149,12 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(client.clone());
     let updater = update_service();
     app.manage(updater.clone());
+    #[cfg(feature = "pruebas")]
+    app.manage(test_bridge::Menus::default());
     tray::install(app.handle())?;
     language::follow(app.handle(), client.composed_snapshot().settings.language)?;
+    #[cfg(feature = "pruebas")]
+    test_bridge::install(app.handle(), &paths.root)?;
     events::forward_frames(app.handle().clone(), client.clone());
     panel_hover::watch(app.handle().clone(), client.clone());
     tauri::async_runtime::spawn(follow_updates(paths, executable, client, updater));
