@@ -92,6 +92,8 @@ impl DaemonClient {
                 self.set_profile_name(name)?;
             }
             LocalCommand::LoginItem { .. }
+            | LocalCommand::DesktopStatus
+            | LocalCommand::NotificationsRequest
             | LocalCommand::UpdateCheck
             | LocalCommand::UpdateInstall => return Err(AppError::desktop_only()),
         }

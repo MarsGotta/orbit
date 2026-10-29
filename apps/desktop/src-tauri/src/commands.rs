@@ -1,7 +1,7 @@
 use crate::daemon_thread::EmbeddedDaemon;
 use orbit_app_core::{
     AppBootstrap, AppCommand, AppError, AppSnapshot, CommandError, CommandReceipt, DaemonClient,
-    LoginItemState, SettingsUpdateState, UpdateService, UpdateSnapshot,
+    SettingsUpdateState, UpdateService, UpdateSnapshot,
 };
 use orbit_app_core::{ChatMessage, ChatSessionSummary};
 use orbit_core::{
@@ -9,7 +9,6 @@ use orbit_core::{
     topics::{Cursor, Knowledge, Page},
 };
 use tauri::{AppHandle, State};
-use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
@@ -269,7 +268,17 @@ pub async fn orbit_send_desktop(
             open_url(&app, &client, &url).map(|_| client.local_receipt())
         }
         AppCommand::Local(orbit_app_core::features::local::LocalCommand::LoginItem { on }) => {
-            set_login_item(&app, &client, on).map(|_| client.local_receipt())
+            crate::desktop_system::set_login(&client, &crate::desktop_system::Native, on)
+                .map(|_| client.local_receipt())
+        }
+        AppCommand::Local(orbit_app_core::features::local::LocalCommand::DesktopStatus) => {
+            crate::desktop_system::refresh(&client, &crate::desktop_system::Native).await;
+            Ok(client.local_receipt())
+        }
+        AppCommand::Local(orbit_app_core::features::local::LocalCommand::NotificationsRequest) => {
+            crate::desktop_system::request_notifications(&client, &crate::desktop_system::Native)
+                .await
+                .map(|_| client.local_receipt())
         }
         AppCommand::Local(orbit_app_core::features::local::LocalCommand::UpdateCheck) => {
             check_update(&client, &updater)
@@ -367,34 +376,20 @@ fn open_system_privacy(
     _client: &DaemonClient,
     pane: &str,
 ) -> Result<(), AppError> {
-    let pane = match pane {
-        "Microphone" | "ScreenCapture" | "Accessibility" | "Calendars" => pane,
+    let url = match pane {
+        "Microphone" | "ScreenCapture" | "Accessibility" | "Calendars" => {
+            format!("x-apple.systempreferences:com.apple.preference.security?Privacy_{pane}")
+        }
+        "Notifications" => {
+            "x-apple.systempreferences:com.apple.Notifications-Settings.extension".into()
+        }
+        "LoginItems" => "x-apple.systempreferences:com.apple.LoginItems-Settings.extension".into(),
         _ => return Err(AppError::desktop_only()),
     };
-    let url = format!("x-apple.systempreferences:com.apple.preference.security?Privacy_{pane}");
     app.opener()
         .open_url(url, None::<&str>)
         .map_err(|error| AppError::daemon(error.to_string()))?;
     Ok(())
-}
-
-fn set_login_item(
-    app: &AppHandle,
-    client: &DaemonClient,
-    on: bool,
-) -> Result<AppSnapshot, AppError> {
-    let manager = app.autolaunch();
-    let result = if on {
-        manager.enable()
-    } else {
-        manager.disable()
-    };
-    result.map_err(|error| AppError::daemon(error.to_string()))?;
-    Ok(client.set_login_item(if on {
-        LoginItemState::On
-    } else {
-        LoginItemState::Off
-    }))
 }
 
 async fn check_update(

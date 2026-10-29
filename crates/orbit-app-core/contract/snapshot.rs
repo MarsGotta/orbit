@@ -189,6 +189,7 @@ fn initial_settings(permissions: PermissionSnapshot) -> SettingsSnapshot {
         helper_connected: false,
         calendars: CalendarSettingsSnapshot { total: None },
         login_item: LoginItemState::Unknown,
+        notifications: NotificationSnapshot::default(),
         versions: VersionSettingsSnapshot {
             app: env!("CARGO_PKG_VERSION").into(),
         },

@@ -148,7 +148,7 @@ describe("General", () => {
     const { send } = renderSettings();
     const name = screen.getByRole("textbox", { name: "Tu nombre" });
     fireEvent.blur(name);
-    expect(send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalledWith(expect.objectContaining({ command: "profile_set" }));
     fireEvent.change(name, { target: { value: "Noa Prado " } });
     fireEvent.blur(name);
     expect(send).toHaveBeenCalledWith({ command: "profile_set", name: "Noa Prado" });
@@ -274,7 +274,7 @@ describe("Privacidad y permisos", () => {
     expect(rearm.getAttribute("aria-busy")).toBeNull();
   });
 
-  it("shows each permission: «Permitido», or what is missing with the button that fixes it", () => {
+  it("shows each permission: «Permitido», or what is missing with the button that fixes it", async () => {
     const { send } = renderSettings({
       section: "privacidad",
       overrides: { permissions: { screen: "denied", calendars: "not_determined" } },
@@ -284,6 +284,12 @@ describe("Privacidad y permisos", () => {
     expect(within(permissions).getAllByText("Sin permiso")).toHaveLength(2);
     fireEvent.click(
       screen.getByRole("button", {
+        name: "Pedir permiso: Pantalla y audio del sistema",
+      }),
+    );
+    expect(send).toHaveBeenLastCalledWith({ command: "permissions", request: ["screen"] });
+    fireEvent.click(
+      await screen.findByRole("button", {
         name: "Abrir Ajustes del Sistema: Pantalla y audio del sistema",
       }),
     );
@@ -319,7 +325,7 @@ describe("Privacidad y permisos", () => {
       window.dispatchEvent(new Event("focus"));
       await Promise.resolve();
     });
-    expect(send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalledWith({ command: "permissions", request: [] });
   });
 
   it("without the Mac's helper, «Reiniciar Orbit» restarts Orbit, which starts it again", () => {
@@ -341,7 +347,7 @@ describe("Privacidad y permisos", () => {
       overrides: { permissions: { availability: { state: "unknown" } } },
     });
     const permissions = screen.getByRole("region", { name: "Permisos de macOS" });
-    expect(within(permissions).getAllByText("Comprobando…")).toHaveLength(4);
+    expect(within(permissions).getAllByText("Comprobando…")).toHaveLength(5);
     expect(within(permissions).queryByText("Sin permiso")).toBeNull();
     expect(within(permissions).queryByText("Permitido")).toBeNull();
   });

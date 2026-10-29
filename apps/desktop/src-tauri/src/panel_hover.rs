@@ -11,7 +11,7 @@
 //! pointer (`NSEvent.mouseLocation`, through Tauri's `cursor_position`) needs
 //! no focus, and gives the same answer in both cases.
 use orbit_app_core::{AppCommand, DaemonClient, features::FeatureFrame};
-use std::{sync::Mutex, time::Duration};
+use std::{sync::LazyLock, time::Duration};
 use tauri::Manager;
 
 /// How often the pointer is read while the panel shows a question: the hold
@@ -21,7 +21,8 @@ use tauri::Manager;
 const POLL: Duration = Duration::from_millis(250);
 
 /// The question the panel shows, by id, from the last recording frame.
-static SHOWN: Mutex<Option<String>> = Mutex::new(None);
+static SHOWN: LazyLock<tokio::sync::watch::Sender<Option<String>>> =
+    LazyLock::new(|| tokio::sync::watch::channel(None).0);
 
 /// Keeps the id of the question the recording frame shows (none outside one).
 pub fn follow(frame: &FeatureFrame) {
@@ -31,9 +32,48 @@ pub fn follow(frame: &FeatureFrame) {
             .question
             .as_ref()
             .map(|question| question.id.clone());
-        *SHOWN
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = shown;
+        SHOWN.send_if_modified(|current| {
+            if *current == shown {
+                return false;
+            }
+            *current = shown;
+            true
+        });
+    }
+}
+
+/// Sleeps without a deadline while empty; the next question wakes the watcher.
+pub struct QuestionSchedule {
+    shown: tokio::sync::watch::Receiver<Option<String>>,
+    next_tick: Option<tokio::time::Instant>,
+}
+impl QuestionSchedule {
+    pub fn new(shown: tokio::sync::watch::Receiver<Option<String>>) -> Self {
+        Self {
+            shown,
+            next_tick: None,
+        }
+    }
+    pub async fn next_check(&mut self) -> Option<String> {
+        loop {
+            let shown = self.shown.borrow_and_update().clone();
+            if shown.is_some() {
+                if let Some(deadline) = self.next_tick {
+                    tokio::select! {
+                        changed = self.shown.changed() => { changed.ok()?; continue; }
+                        _ = tokio::time::sleep_until(deadline) => {}
+                    }
+                }
+                let latest = self.shown.borrow_and_update().clone();
+                if latest.is_none() {
+                    continue;
+                }
+                self.next_tick = Some(tokio::time::Instant::now() + POLL);
+                return latest;
+            }
+            self.next_tick = None;
+            self.shown.changed().await.ok()?;
+        }
     }
 }
 
@@ -84,16 +124,10 @@ impl HoverWatch {
 pub fn watch<R: tauri::Runtime>(app: tauri::AppHandle<R>, client: DaemonClient) {
     tauri::async_runtime::spawn(async move {
         let mut hover = HoverWatch::default();
-        let mut ticks = tokio::time::interval(POLL);
-        ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        loop {
-            ticks.tick().await;
-            let shown = SHOWN
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone();
-            let inside = shown.is_some() && pointer_over_panel(&app);
-            let Some((id, held)) = hover.order(shown.as_deref(), inside) else {
+        let mut schedule = QuestionSchedule::new(SHOWN.subscribe());
+        while let Some(shown) = schedule.next_check().await {
+            let inside = pointer_over_panel(&app);
+            let Some((id, held)) = hover.order(Some(&shown), inside) else {
                 continue;
             };
             let command = AppCommand::Daemon(Box::new(
@@ -188,3 +222,7 @@ mod tests {
         assert_eq!(hover.order(Some("q-2"), false), None);
     }
 }
+
+#[cfg(test)]
+#[path = "panel_hover_schedule_tests.rs"]
+mod schedule_tests;

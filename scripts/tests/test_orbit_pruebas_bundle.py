@@ -6,8 +6,8 @@ write down how they were called and succeed. What the script asked them to
 build, and the bundle directory it created, are then what a Mac build would
 get. Without ORBIT_PRUEBAS=1 the commands are the ones the published build
 always ran; with it, the Cargo feature `orbit-core/pruebas,orbit-desktop/pruebas` reaches both
-compilations and the bundle has its own name. The identity inside the
-binaries (bundle name, data directory, Keychain service) is fixed by
+compilations, the Tauri identity overlay reaches compilation, and the bundle
+has its own name. The identity inside the binaries (bundle name, data directory, Keychain service) is fixed by
 `orbit_bundle`'s own tests in crates/orbit-core.
 """
 
@@ -27,6 +27,7 @@ INFO_PLIST = ROOT / "native" / "macos" / "Info.plist"
 
 OFFICIAL_TAURI = ["--dir", "apps/desktop", "tauri", "build", "--no-bundle"]
 FEATURE = ["--features", "orbit-core/pruebas,orbit-desktop/pruebas"]
+VARIANT_CONFIG = ["--config", "src-tauri/tauri.pruebas.conf.json"]
 
 
 class VariantBuildTests(unittest.TestCase):
@@ -108,7 +109,10 @@ class VariantBuildTests(unittest.TestCase):
         # The feature reaches the daemon through the app's own build: one
         # compilation, so the daemon inside cannot be the official one.
         calls, bundles = self.build("pruebas", ORBIT_PRUEBAS="1")
-        self.assertEqual(self.compilation(calls, "pnpm", OFFICIAL_TAURI[:3]), OFFICIAL_TAURI + FEATURE)
+        self.assertEqual(
+            self.compilation(calls, "pnpm", OFFICIAL_TAURI[:3]),
+            OFFICIAL_TAURI + VARIANT_CONFIG + FEATURE,
+        )
         self.assertEqual([call for call in calls if call[0] == "cargo"], [])
         self.assertEqual(bundles, ["Orbit Pruebas.app"])
 

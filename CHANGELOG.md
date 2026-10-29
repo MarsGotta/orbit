@@ -15,6 +15,12 @@ English and Spanish; labels quoted below may use either language.
 - Ignore retired wake-phrase listener reports, decode speech clips off the
   main thread with stop cancellation, and reduce idle watchdog work and
   capture allocation/timer overhead.
+- Give the test app its own compiled identity for macOS integrations.
+- Read notification authorization and delivery failures from macOS, and show the
+  permission and System Settings remedy. Use the main app's modern login item
+  registration and report when system approval is required.
+- Request screen and Accessibility access before offering System Settings in
+  Settings and onboarding. Suspend panel hover checks while no question is shown.
 
 ### Changed
 

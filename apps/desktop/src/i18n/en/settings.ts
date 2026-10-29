@@ -52,7 +52,14 @@ const base = {
     startup: "When your Mac starts",
     openAtLogin: "Open Orbit at login",
     // The launcher could not be read when the app started.
-    loginUnknown: "macOS hasn’t reported whether Orbit opens at login. Choose here.",
+    loginUnknown: "macOS hasn’t reported the login item status.",
+    loginApproval: "Requires approval in System Settings.",
+    loginEnabled: "Enabled.",
+    loginNotRegistered: "Not registered.",
+    notifications: "Notifications",
+    notificationsHelp:
+      "Assistant questions, completed answers and recording warnings. macOS decides whether notifications are allowed.",
+    notificationFailed: "macOS notification error:",
     updates: "Updates",
     version: (version: string) => `Version ${version}`,
     // The app checks at start and every six hours

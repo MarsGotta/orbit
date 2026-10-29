@@ -95,6 +95,7 @@ export const permissions: Views["permissions"] = {
 export const local: Views["local"] = {
   profile: { name: OWNER_FIRST },
   login_item: "on",
+  notifications: { state: "granted", error: null },
   update: { state: "up_to_date", version: "0.10.0", installed_version: "0.10.0", message: null },
   onboarding_done: true,
 };

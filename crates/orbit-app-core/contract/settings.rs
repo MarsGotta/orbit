@@ -15,7 +15,24 @@ app_type! {
     pub enum LoginItemState {
         On,
         Off,
+        RequiresApproval,
         Unknown,
+    }
+}
+
+app_type! {
+    pub struct NotificationSnapshot {
+        pub state: PermissionState,
+        pub error: Option<String>,
+    }
+}
+
+impl Default for NotificationSnapshot {
+    fn default() -> Self {
+        Self {
+            state: PermissionState::Unknown,
+            error: None,
+        }
     }
 }
 
@@ -100,6 +117,8 @@ app_type! {
         pub helper_connected: bool,
         pub calendars: CalendarSettingsSnapshot,
         pub login_item: LoginItemState,
+        #[serde(default)]
+        pub notifications: NotificationSnapshot,
         pub versions: VersionSettingsSnapshot,
         pub update: UpdateSnapshot,
         pub privacy_stopped: bool,

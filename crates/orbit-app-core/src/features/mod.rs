@@ -121,6 +121,7 @@ pub struct LocalAppState<'a> {
     pub notes: &'a Option<crate::NotesSnapshot>,
     pub profile: &'a Option<ProfileSettingsSnapshot>,
     pub login_item: &'a LoginItemState,
+    pub notifications: &'a crate::NotificationSnapshot,
     pub update: &'a UpdateSnapshot,
     pub onboarding_done: bool,
     /// The voice note the user last asked to hear, kept by the app.
@@ -158,6 +159,7 @@ impl<'a> FeatureInput<'a> {
                 notes: &snapshot.notes,
                 profile: &snapshot.settings.profile,
                 login_item: &snapshot.settings.login_item,
+                notifications: &snapshot.settings.notifications,
                 update: &snapshot.settings.update,
                 onboarding_done: snapshot.settings.onboarding_done,
                 voice_audio: &snapshot.chat.voice_audio,

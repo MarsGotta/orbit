@@ -18,9 +18,29 @@ interface Props {
   send: (command: AppCommand) => Promise<unknown>;
 }
 
+type Asked = {
+  keys: Partial<Record<Key, "macos" | "settings" | "requested">>;
+  before: string | null;
+};
+
+function returnedFromSettings(now: Asked): Asked {
+  return {
+    ...now,
+    keys: Object.fromEntries(
+      Object.entries(now.keys).flatMap(([key, how]) =>
+        how !== "settings"
+          ? [[key, how]]
+          : key === "screen" || key === "accessibility"
+            ? [[key, "requested"]]
+            : [],
+      ),
+    ) as Asked["keys"],
+  };
+}
+
 interface ActionProps {
   /** macOS was asked, or System Settings opened, for this one. */
-  asked: "macos" | "settings" | null;
+  asked: "macos" | "settings" | "requested" | null;
   onAsk: () => void;
   onOpenSettings: () => void;
   permission: PermissionSnapshot[Key];
@@ -30,8 +50,8 @@ interface ActionProps {
 /**
  * Asking stays «Esperando a macOS…» until macOS answers, and a permission
  * macOS has not reported yet waits the same way: neither is a refusal.
- * Accessibility, which macOS never asks for, and anything refused are
- * changed in System Settings; once opened, the row waits for it there until
+ * Screen and Accessibility first use the native request. If still missing,
+ * they offer System Settings; once opened, the row waits for it there until
  * Orbit's window has the focus again.
  */
 function PermissionAction({
@@ -44,21 +64,27 @@ function PermissionAction({
   const es = useCopy();
   const copy = es.onboarding;
   if (permission === "granted") return <span className={styles.granted}>{copy.allowed}</span>;
-  if (permission === "unknown" || (permission === "not_determined" && asked === "macos"))
+  if (
+    permission === "unknown" ||
+    (asked === "macos" &&
+      (permission === "not_determined" ||
+        permissionKey === "screen" ||
+        permissionKey === "accessibility"))
+  )
     return <Loading size={12}>{es.controls.waitingForMacos}</Loading>;
   if (asked === "settings") return <Loading size={12}>{copy.waitingForSettings}</Loading>;
-  if (permission === "not_determined" && permissionKey !== "accessibility")
+  if (
+    permissionKey === "screen" || permissionKey === "accessibility"
+      ? asked === null
+      : permission === "not_determined"
+  )
     return (
-      <Button onClick={onAsk} size={32} variant="outline">
-        {copy.allow}
-      </Button>
-    );
-  // Accessibility not granted yet is what macOS says before it was ever switched on.
-  if (permissionKey === "accessibility" && permission !== "denied")
-    return (
-      <Button onClick={onOpenSettings} size={32} variant="outline">
-        {copy.openSettings}
-      </Button>
+      <span className={styles.rowActions}>
+        {permission === "denied" && <span className={styles.missing}>{copy.notGranted}</span>}
+        <Button onClick={onAsk} size={32} variant="outline">
+          {copy.allow}
+        </Button>
+      </span>
     );
   return (
     <span className={styles.rowActions}>
@@ -74,30 +100,21 @@ function PermissionAction({
 }
 
 export function PermissionsStep({ error = null, permissions, send }: Props) {
-  const permissionRows = useCopy().extras.permissionRows;
-  const copy = useCopy().onboarding;
+  const { extras, onboarding: copy } = useCopy();
   // What was asked, and the failure on screen when it was: a new one is this step's.
-  const [asked, setAsked] = useState<{
-    keys: Partial<Record<Key, "macos" | "settings">>;
-    before: string | null;
-  }>({ keys: {}, before: error });
+  const [asked, setAsked] = useState<Asked>({ keys: {}, before: error });
   const failed = Object.keys(asked.keys).length > 0 && error !== null && error !== asked.before;
-  const ask = (key: Key, how: "macos" | "settings") =>
+  const ask = (key: Key, how: "macos" | "settings" | "requested") =>
     setAsked({ keys: { ...asked.keys, [key]: how }, before: error });
   // Back from System Settings, macOS is asked again; one still not granted
   // offers its button again instead of waiting for ever.
   useRereadOnReturn(send, Object.values(asked.keys).includes("settings"), () =>
-    setAsked((now) => ({
-      ...now,
-      keys: Object.fromEntries(
-        Object.entries(now.keys).filter(([, how]) => how !== "settings"),
-      ) as typeof now.keys,
-    })),
+    setAsked(returnedFromSettings),
   );
   return (
     <Step lead={copy.permissionsBody} title={copy.permissions}>
       <ul className={styles.rows}>
-        {permissionRows.map(([key, { label, pane }]) => (
+        {extras.permissionRows.map(([key, { label, pane }]) => (
           <li className={styles.permissionRow} key={key}>
             <span className={styles.rowText}>
               <strong>{label}</strong>
@@ -107,7 +124,10 @@ export function PermissionsStep({ error = null, permissions, send }: Props) {
               asked={failed ? null : (asked.keys[key] ?? null)}
               onAsk={() => {
                 ask(key, "macos");
-                void send({ command: "permissions", request: [key] });
+                void send({ command: "permissions", request: [key] }).then((taken) => {
+                  if (taken !== false && (key === "screen" || key === "accessibility"))
+                    setAsked((now) => ({ ...now, keys: { ...now.keys, [key]: "requested" } }));
+                });
               }}
               onOpenSettings={() => {
                 ask(key, "settings");

@@ -6,7 +6,7 @@ license.workspace = true
 build = "build.rs"
 
 [features]
-pruebas = ["orbit-core/pruebas", "dep:objc2", "dep:objc2-app-kit"]
+pruebas = ["orbit-core/pruebas", "dep:objc2-app-kit"]
 
 [lib]
 name = "orbit_desktop"
@@ -17,6 +17,7 @@ name = "orbit-desktop"
 path = "src/main.rs"
 
 [build-dependencies]
+serde_json.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
@@ -29,13 +30,9 @@ orbit-ipc = { path = "../../../crates/orbit-ipc" }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["tray-icon"] }
-tauri-plugin-autostart = "2"
 # Copy from the chat without WebKit's clipboard prompt (Tauri issue #12007).
 # 2.4.0 and later require Tauri 2.12; the lock holds 2.11.5.
 tauri-plugin-clipboard-manager = "=2.3.3"
-# macOS notifications when a long turn ends or the agent asks, in the background
-# (src/notify.rs). 2.5.0 and later require Tauri 2.12; the lock holds 2.11.5.
-tauri-plugin-notification = "=2.4.0"
 # «Adjuntar»: macOS's open panel, which answers with paths (the daemon
 # reads the file). 2.8.x requires Tauri 2.12; the lock holds 2.11.5.
 tauri-plugin-dialog = "=2.7.1"
@@ -43,15 +40,25 @@ tauri-plugin-opener = "2"
 tokio = { version = "1.48", features = ["macros", "rt", "rt-multi-thread", "sync", "time"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = { version = "0.6.4", optional = true }
+objc2 = "0.6.4"
+block2 = "0.6.2"
+objc2-service-management = { version = "0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotification", "UNNotificationSettings", "UNNotificationContent", "UNNotificationRequest", "UNNotificationSound", "UNNotificationTrigger"] }
 objc2-app-kit = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSApplication", "NSWindow", "NSResponder"] }
 # Safe Foundation binding; reads app-aware macOS preferences in a bundle.
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSLocale", "NSArray", "NSString", "NSEnumerator"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSLocale", "NSArray", "NSString", "NSEnumerator", "NSError", "NSUUID"] }
 
 [dev-dependencies]
+tokio = { version = "1.48", features = ["test-util"] }
 rustix = { version = "1.1", features = ["process"] }
 tempfile.workspace = true
 tauri = { version = "2", features = ["test", "tray-icon"] }
 
-[lints]
-workspace = true
+# Objective-C SDK calls and callback pointers are confined to desktop_system/macos.
+# Keep unsafe denied everywhere else in this crate.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+unwrap_used = "warn"
+expect_used = "warn"

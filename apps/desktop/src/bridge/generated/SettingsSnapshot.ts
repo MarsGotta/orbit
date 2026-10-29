@@ -2,13 +2,14 @@
 import type { CalendarSettingsSnapshot } from "./CalendarSettingsSnapshot";
 import type { LanguageChoice } from "./LanguageChoice";
 import type { LoginItemState } from "./LoginItemState";
+import type { NotificationSnapshot } from "./NotificationSnapshot";
 import type { PermissionSnapshot } from "./PermissionSnapshot";
 import type { ProfileSettingsSnapshot } from "./ProfileSettingsSnapshot";
 import type { SettingsHubSnapshot } from "./SettingsHubSnapshot";
 import type { UpdateSnapshot } from "./UpdateSnapshot";
 import type { VersionSettingsSnapshot } from "./VersionSettingsSnapshot";
 
-export type SettingsSnapshot = { assistant_name?: string, hub: SettingsHubSnapshot, permissions: PermissionSnapshot, helper_connected: boolean, calendars: CalendarSettingsSnapshot, login_item: LoginItemState, versions: VersionSettingsSnapshot, update: UpdateSnapshot, privacy_stopped: boolean, onboarding_done: boolean, profile?: ProfileSettingsSnapshot, 
+export type SettingsSnapshot = { assistant_name?: string, hub: SettingsHubSnapshot, permissions: PermissionSnapshot, helper_connected: boolean, calendars: CalendarSettingsSnapshot, login_item: LoginItemState, notifications: NotificationSnapshot, versions: VersionSettingsSnapshot, update: UpdateSnapshot, privacy_stopped: boolean, onboarding_done: boolean, profile?: ProfileSettingsSnapshot, 
 /**
  * «Enviar informes de errores anónimos»: the user's choice, absent
  * when this build cannot send (no switch is offered) or the daemon
