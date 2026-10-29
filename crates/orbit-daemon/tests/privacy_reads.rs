@@ -11,6 +11,79 @@ use std::{fs::OpenOptions, io::Write, os::unix::fs::PermissionsExt, time::Durati
 
 const STORAGE_KEY: [u8; 32] = [0x42; 32];
 
+fn hotkey_helper(
+    directory: &std::path::Path,
+    trigger: &std::path::Path,
+) -> Result<std::path::PathBuf> {
+    let helper = directory.join("fake-helper.sh");
+    // A background cat reads /dev/null without job control and exits. Keep
+    // both protocol pipes open in the helper itself until daemon EOF, with
+    // no grandchild to orphan and no inherited gate stderr.
+    std::fs::write(
+        &helper,
+        format!(
+            "#!/bin/sh\nexec 2>/dev/null\nIFS= read -r line < '{}'\nprintf '%s\\n' '{{\"v\":1,\"event\":\"hotkey\",\"action\":\"privacy_stop\",\"phase\":\"pressed\"}}'\nwhile IFS= read -r line; do :; done\n",
+            trigger.display()
+        ),
+    )?;
+    std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700))?;
+    Ok(helper)
+}
+
+#[tokio::test]
+async fn hotkey_helper_reads_commands_until_its_input_closes() -> Result<()> {
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+    let directory = tempfile::tempdir()?;
+    let trigger = directory.path().join("hotkey.fifo");
+    assert!(
+        std::process::Command::new("mkfifo")
+            .arg(&trigger)
+            .status()?
+            .success()
+    );
+    let helper = hotkey_helper(directory.path(), &trigger)?;
+    let mut child = tokio::process::Command::new(helper)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+    let mut input = child.stdin.take().context("helper stdin")?;
+    let mut output = BufReader::new(child.stdout.take().context("helper stdout")?);
+    let mut errors = child.stderr.take().context("helper stderr")?;
+    tokio::time::timeout(Duration::from_secs(120), async {
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            OpenOptions::new()
+                .write(true)
+                .open(trigger)?
+                .write_all(b"pressed\n")?;
+            Ok(())
+        })
+        .await??;
+        let mut event = String::new();
+        output.read_line(&mut event).await?;
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&event)?["action"],
+            "privacy_stop"
+        );
+        // More than a pipe holds: the fixture must read the daemon's orders,
+        // including hello and heartbeats, rather than exit after its hotkey.
+        let commands = vec![b' '; 1024 * 1024];
+        input
+            .write_all(&commands)
+            .await
+            .context("helper stopped reading commands after the hotkey")?;
+        // Even while alive, the helper must release the test runner's stderr.
+        assert_eq!(errors.read_to_end(&mut Vec::new()).await?, 0);
+        drop(input);
+        assert!(child.wait().await?.success());
+        Ok::<_, anyhow::Error>(())
+    })
+    .await
+    .context("helper command reader jammed")??;
+    Ok(())
+}
+
 async fn ready(paths: &Paths, daemon: &mut tokio::task::JoinHandle<Result<()>>) -> Result<()> {
     // The existing vault fixture measured a 36.4 s disk-bound startup and
     // uses 120 s as a jam guard. The socket and Ready event decide success.
@@ -93,12 +166,7 @@ async fn hotkey_latches_before_the_writer_unblocks() -> Result<()> {
         let status = std::process::Command::new("mkfifo")
             .arg("-m").arg("600").arg(&trigger).status()?;
         if !status.success() { bail!("fixture hotkey fifo failed: {status}"); }
-        let helper = directory.path().join("fake-helper.sh");
-        std::fs::write(&helper, format!(
-            "#!/bin/sh\ncat >/dev/null &\nIFS= read -r line < '{}'\nprintf '%s\\n' '{{\"v\":1,\"event\":\"hotkey\",\"action\":\"privacy_stop\",\"phase\":\"pressed\"}}'\nwait\n",
-            trigger.display()
-        ))?;
-        std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700))?;
+        let helper = hotkey_helper(directory.path(), &trigger)?;
         let daemon_paths = paths.clone();
         let mut daemon_task = tokio::task::spawn_local(async move {
             daemon::run_with_helper(daemon_paths, true, Some(helper)).await

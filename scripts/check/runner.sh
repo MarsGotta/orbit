@@ -5,9 +5,9 @@
 #   check_run ID LABEL [--needs ID]... [--after ID]... [--cwd DIR] [--report KIND:PATH]... -- COMMAND...
 #   check_finish            prints the table; returns 0 only if every step passed
 #
-# A step's output goes to the terminal and to LOG_DIR/ID.log through `tee`.
-# The result is the exit code of the tool itself, read from PIPESTATUS, never
-# the code of `tee`. `--report` names what the step ran (cargo, junit:X,
+# A step writes LOG_DIR/ID.log; output.py streams it until the command exits,
+# even if an orphaned helper retains its output. The result is the tool's own
+# exit code, never the streamer's. `--report` names what the step ran (cargo, junit:X,
 # unittest:X) so that skips.py can fail it for a skip outside the allowed list
 # and name its failed tests, reading the text with its colours removed. With
 # CHECK_PLAN set, check_run only prints `id<TAB>label<TAB>dir<TAB>command`.
@@ -19,6 +19,7 @@ check_init() {
   CHECK_LOG_DIR="$1"
   CHECK_IDS=()
   CHECK_CURRENT=""
+  CHECK_OUTPUT_PID=""
   declare -gA CHECK_RESULT_OF=()
   declare -gA CHECK_LABEL_OF=()
   CHECK_STARTED_US="$(check_now_us)"
@@ -108,14 +109,28 @@ check_run() {
   CHECK_CURRENT_STARTED_US="$(check_now_us)"
   started="$CHECK_CURRENT_STARTED_US"
   set +e
-  (cd "$cwd" && "$@") </dev/null 2>&1 | tee "$log"
-  statuses=("${PIPESTATUS[@]}")
+  local completed="$CHECK_LOG_DIR/$id.completed" tool keeper bytes
+  rm -f "$completed"
+  : >"$log"
+  python3 -B "$CHECK_RUNNER_DIR/output.py" "$log" "$completed" &
+  CHECK_OUTPUT_PID=$!
+  # Keep the tool in the foreground so it still receives terminal interrupts.
+  (cd "$cwd" && "$@") </dev/null >"$log" 2>&1
+  tool=$?
+  # Only this shell creates the marker, after the tool exits. Record its
+  # output boundary so descendants writing forever cannot keep us here.
+  bytes="$(wc -c <"$log")"
+  printf '%s\n' "$bytes" >"$completed.tmp"
+  mv "$completed.tmp" "$completed"
+  wait "$CHECK_OUTPUT_PID"
+  keeper=$?
+  CHECK_OUTPUT_PID=""
   ((errexit)) && set -e
   CHECK_CURRENT=""
 
-  local causes=() tool="${statuses[0]}" keeper="${statuses[1]}"
+  local causes=()
   ((tool == 0)) || causes+=("code $tool")
-  ((keeper == 0)) || causes+=("its output could not be saved to $log (tee exited with $keeper)")
+  ((keeper == 0)) || causes+=("its output could not be streamed from $log (output.py exited with $keeper)")
   local report kind path cause_file="$CHECK_LOG_DIR/$id.cause" skip_arguments=()
   for report in "${reports[@]}"; do
     kind="${report%%:*}"
@@ -158,6 +173,11 @@ check_run() {
 
 check_interrupted() {
   local signal="$1"
+  if [[ -n "${CHECK_OUTPUT_PID:-}" ]]; then
+    kill -TERM "$CHECK_OUTPUT_PID" 2>/dev/null || true
+    wait "$CHECK_OUTPUT_PID" 2>/dev/null || true
+    CHECK_OUTPUT_PID=""
+  fi
   if [[ -n "${CHECK_CURRENT:-}" ]]; then
     check_record "$CHECK_CURRENT" "$CHECK_CURRENT_LABEL" interrupted \
       "$(check_seconds_since "$CHECK_CURRENT_STARTED_US")" "signal $signal"

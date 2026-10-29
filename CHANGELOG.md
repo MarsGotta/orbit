@@ -31,6 +31,10 @@ English and Spanish; labels quoted below may use either language.
   up to 126 seconds for discovery instead of refusing after thirty seconds.
   Snapshots contain paths and timestamps only and are replaced atomically with
   owner-only permissions.
+- The privacy hotkey test's helper keeps reading daemon commands until its
+  input closes and isolates its error output. A failed gate step also finishes
+  when a surviving helper still holds its output, preserving the step's exit
+  code and log.
 
 ### Changed
 
