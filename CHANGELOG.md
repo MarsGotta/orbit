@@ -7,6 +7,12 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+- Extend the isolated Mac acceptance harness with real privacy, live recording
+  close/quit and native editing checks, hub audio readback, English hub listening,
+  and early exit for abandoned wake phrases. Document disposable-calendar writes
+  and the independent silent remote-audio prerequisite.
+
+
 ### Changed
 
 - The real-test harness supports an English pass with `run --language en`,

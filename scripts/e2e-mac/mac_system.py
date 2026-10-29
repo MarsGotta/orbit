@@ -8,11 +8,13 @@ Mac's python3, so it stays within Python 3.9.
 
 from __future__ import annotations
 
+import json
 import os
 import select
 import shutil
 import subprocess
 import time
+from contextlib import contextmanager
 
 from mac_controls import MacFailure
 
@@ -77,9 +79,65 @@ class System:
     def now(self) -> float:
         return time.monotonic()
 
+    def wall_ms(self) -> int:
+        return int(time.time() * 1000)
+
     def pause(self, seconds: float) -> None:
         time.sleep(seconds)
 
     def local_time(self, seconds: float) -> time.struct_time:
         """The Mac's local time, the clock the app names a conversation by."""
         return time.localtime(seconds)
+
+    def audio_state(self, logs, pid):
+        latest = None
+        for name in ("daemon.log.1", "daemon.log"):
+            path = logs / name
+            if not path.exists():
+                continue
+            for line in path.read_text(encoding="utf-8").splitlines():
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if row.get("event") != "acceptance_audio_state" or row.get("pid") != pid:
+                    continue
+                fields = row.get("fields", {})
+                keys = ("privacy_stopped", "microphone", "system_audio", "playing")
+                if all(fields.get(k) in ("true", "false") for k in keys):
+                    latest = {k: fields[k] == "true" for k in keys}
+        return latest
+
+    @contextmanager
+    def speaking(self, paths, text):
+        # A finite passage lasts beyond these short native checks, with no
+        # speaker output. The child is owned by this call and always reaped.
+        passage = " ".join(f"{text} Passage {n}." for n in range(100))
+        process = subprocess.Popen(
+            ["say", "-a", "BlackHole 2ch", passage],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            yield process
+            if process.poll() is not None:
+                raise MacFailure("fixture speech ended before the native check completed")
+        finally:
+            if process.poll() is None:
+                process.terminate()
+            process.wait(timeout=10)
+
+    @contextmanager
+    def silent_output(self):
+        previous = self.run_checked("SwitchAudioSource", "-c", "-t", "output").strip()
+        try:
+            self.run_checked("SwitchAudioSource", "-t", "output", "-s", "BlackHole 2ch")
+            observed = self.run_checked("SwitchAudioSource", "-c", "-t", "output").strip()
+            if observed != "BlackHole 2ch":
+                raise MacFailure("playback is not routed to BlackHole; no playback started")
+            yield
+        finally:
+            self.run_checked("SwitchAudioSource", "-t", "output", "-s", previous)
+
+    def clear_clipboard(self):
+        subprocess.run(["pbcopy"], input=b"", check=True, timeout=10)

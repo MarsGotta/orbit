@@ -1,0 +1,21 @@
+{
+ "waits": {
+  "question-open": [
+   {
+    "topic": "recording",
+    "knowledge": {
+     "state": "present",
+     "value": {
+      "voice_trigger": {
+       "state": "abandoned",
+       "cause": "phrase_revised"
+      }
+     }
+    }
+   }
+  ],
+  "answer": null,
+  "pointer-held": null,
+  "answer-released": null
+ }
+}

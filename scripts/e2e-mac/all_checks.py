@@ -12,6 +12,7 @@ import audio_route
 import checks
 import drafts_panel_checks
 import meeting_control_checks
+import native_checks
 import silence_recording
 from checks import Unchecked, failure_lines, result
 from harness_copy import language_scope
@@ -23,6 +24,7 @@ MODULES = (
     silence_recording,
     audio_route,
     accessibility,
+    native_checks,
 )
 CHECKS = {number: check for module in MODULES for number, check in module.CHECKS.items()}
 # What the run cannot see, said in every report.

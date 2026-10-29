@@ -45,5 +45,22 @@
    },
    "deleted": false
   }
+ ],
+ "9f1c2d3e-0000-4000-8000-000000000022": [
+  {
+   "rows": {
+    "chunks": 6
+   },
+   "deleted": false
+  }
+ ],
+ "9f1c2d3e-0000-4000-8000-000000000023": [
+  {
+   "rows": {
+    "chunks": 6,
+    "recording_manifests": 1
+   },
+   "deleted": false
+  }
  ]
 }

@@ -54,12 +54,14 @@ import audio_route
 import checks
 import drafts_panel
 import first_run
+import hub_audio
 import hub_traces
 import isolated_hub
 import mac as mac_side
 import mac_controls
 import meeting_controls
 import meeting_language
+import native_checks
 import silence_recording
 from interface import InAppBridge, Interface, StepFailed
 
@@ -101,6 +103,7 @@ def bounds() -> dict[str, tuple[float, str]]:
     exit_s = _rust_constant("apps/desktop/src-tauri/src/daemon_thread.rs", "DAEMON_EXIT_WAIT")
     voice_s = _rust_constant("crates/orbit-daemon/src/hub.rs", "VOICE_HUB_HTTP_TIMEOUT")
     turn_s = 180  # Orbit does not bound a Hermes turn: the test's patience
+    live_wait_s = _rust_constant("crates/orbit-core/src/silence.rs", "RECORDING_SILENCE_MS") / 2000
     # The script lasts about two minutes, and the panel is held over a minute
     # in the middle of it (check 18); a third more for pauses.
     duration_s = 240
@@ -143,12 +146,16 @@ def bounds() -> dict[str, tuple[float, str]]:
             "provisional: the start of the microphone capture, not measured",
         ),
         "listening": (
-            300,
-            "provisional: the first time, macOS downloads the selected on-device speech model",
+            live_wait_s,
+            "half RECORDING_SILENCE_MS; install speech models before acceptance",
+        ),
+        "question-open": (
+            10,
+            "provisional: question delivery after the spoken phrase; below the silence question",
         ),
         "answer": (
-            180,
-            "provisional: Orbit does not bound a Hermes turn; this is the test's patience",
+            live_wait_s,
+            "live-meeting patience, half RECORDING_SILENCE_MS",
         ),
         "saved": (
             120,
@@ -210,6 +217,7 @@ def bounds() -> dict[str, tuple[float, str]]:
         ),
         **meeting_controls.BOUNDS,
         **audio_route.BOUNDS,
+        **native_checks.BOUNDS,
         **drafts_panel.bounds(_rust_constant),
         **silence_recording.bounds(_rust_constant),
     }
@@ -277,6 +285,8 @@ class RemoteMac:
                 "-q",
                 *self.options,
                 str(DIRECTORY / "mac.py"),
+                str(DIRECTORY / "mac_native.py"),
+                str(DIRECTORY / "keys.swift"),
                 str(DIRECTORY / "mac_cli.py"),
                 str(DIRECTORY / "harness_copy.py"),
                 str(DIRECTORY / "meeting_language.py"),
@@ -406,6 +416,12 @@ class RemoteMac:
     def engine_stop(self, max_s):
         return self._call(max_s, "engine-stop", "--max", str(max_s))
 
+    def native(self, action, argument=None):
+        return self._call(180, "native", action, *([argument] if argument is not None else []))
+
+    def listening_choice(self):
+        return self._call(30, "listening-choice")
+
     def voice_note(self):
         # One short phrase at say's default rate and two beats: seconds.
         return self._call(60, "voice-note")
@@ -484,6 +500,7 @@ class RealTest:
         database = hub_traces.database(paths.hub)
         # What the test hub keeps of a recording (the dry run replays it).
         self.hub_kept = lambda recording: hub_traces.kept(database, recording)
+        self.hub_audio = lambda recording: hub_audio.read(paths.config, recording)
         self.processes: list[isolated_hub.Process] = []
         # The codes that are failures though they are silent on screen,
         # read from the one place that decides it (NoticeCode::is_failure).
@@ -650,6 +667,7 @@ class RealTest:
             finally:
                 # Said even if nobody listens: the meeting is the same meeting.
                 self.mac.say("question")
+            self.wait_mac("question-open")
             self.ev["question"] = self.wait_mac("answer")
             answered_at = time.monotonic()
             if self.ev["question"].get("stage") == "answered":
@@ -669,11 +687,10 @@ class RealTest:
         if panel is not None:
             drafts_panel.panel_holds_answer(self, panel, answered_at)
 
-        # After «Oye Deimos»: the input change restarts its listening, and a
-        # phrase said right after was revised and abandoned (run 20261028T131543Z).
-        audio_route.exercise(self)
-
         meeting_controls.second_half(self)
+        # Route waits follow fresh speech; even a failed wake question cannot
+        # leave the meeting silent through a long answer wait and two routes.
+        audio_route.exercise(self)
 
         with self.step("end the recording from the interface", (1, 2, 3, 4, 5, 6)):
             # «Terminar» is always in sight on the sidebar's recording card
@@ -841,6 +858,8 @@ class RealTest:
         # The voice note and the call, after the meeting has ended: nothing
         # records while they run.
         with self.step("a voice note to Deimos", (11,), critical=False):
+            if self.language == "en":
+                self.ev["listening_choice"] = self.mac.listening_choice()
             spoken = self.mac.voice_note()
             self.ev["voice_note"] = {
                 "phrase": meeting_language.voice_note_phrase(),
@@ -863,6 +882,7 @@ class RealTest:
         meeting_controls.discard_second_recording(self)
         meeting_controls.delete_first_meeting(self)
         silence_recording.record_without_answer(self)
+        native_checks.exercise(self)
         # Last: it quits Orbit Pruebas and opens it again.
         drafts_panel.drafts_survive_quitting(self)
 
@@ -980,6 +1000,10 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "panel_hold": ev.get("panel_hold"),
         "silence": ev.get("silence"),
         "audio_route": ev.get("audio_route"),
+        "privacy": ev.get("privacy"),
+        "lifecycle": ev.get("lifecycle"),
+        "native_edit": ev.get("native_edit"),
+        "listening_choice": ev.get("listening_choice"),
         "drafts": ev.get("drafts"),
         "welcome_skipped": ev.get("welcome_skipped"),
     }

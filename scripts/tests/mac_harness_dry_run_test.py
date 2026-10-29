@@ -36,17 +36,19 @@ import interface
 import mac as mac_side
 import mac_controls
 import mac_drafts_panel
+import mac_waits
 import meeting_control_checks
 from support_network_fence import install
 
 FENCE = install()
 # Every check can pass or fail, including the menu bar through the bridge.
-ALL = list(range(1, 22))
+ALL = list(range(1, 25))
 SKIPPED = {}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
 FOLLOWS = {
     7: {18: "unchecked"},
+    22: {17: "unchecked", 23: "unchecked"},
     # An interrupted capture ends the script before its audio/UI evidence.
     # «Oye Deimos» (7) and its panel (18) come before the input change.
     20: {n: "unchecked" for n in ALL if n not in (7, 10, 16, 18, 20, 21)},
@@ -173,7 +175,9 @@ def test_each_check_fails_against_its_spoiled_example(number, tmp_path):
     assert detail, "a failure without a cause"
     for follower in FOLLOWS.get(number, {}):
         why = next(r["detail"] for r in results if r["number"] == follower)
-        cause = "change the default input" if number == 20 else f"(check {number})"
+        cause = {20: "change the default input", 22: "real privacy brake"}.get(
+            number, f"(check {number})"
+        )
         assert cause in why, why
 
 
@@ -604,11 +608,10 @@ def test_the_texts_of_the_draft_check_are_the_app_s():
     assert drafts_panel_checks.TEXTS["recovered"] == harness_copy.text("assistant.draftRecovered")
     assert drafts_panel_checks.TEXTS["composer"] == harness_copy.text("assistant.composerPrefix")
     drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")
-    composer = (source / "features" / "assistant" / "use-composer.ts").read_text(encoding="utf-8")
     assert f'DRAFT_PREFIX = "{mac_drafts_panel.DRAFT_PREFIX}";' in drafts
     prefix, name = mac_drafts_panel.DRAFT_KEY.rsplit(".", 1)
     assert f"{prefix}." == mac_drafts_panel.DRAFT_PREFIX
-    assert f'useLocalDraft("{name}", "", asText)' in composer
+    assert name == "chat"
 
 
 def _draft_ev(rows, screens):
@@ -929,7 +932,7 @@ def test_bridge_connection_failure_names_the_transport_and_command(capsys):
 
 def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
     results, directory = dry_run.run("good", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 22)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 25)}
     data = json.loads((directory / "report.json").read_text())
     assert set(data["accessibility"]["trees"]) == {"idle", "recording"}
     assert (directory / "trees/accessibility-idle.txt").is_file()
@@ -943,7 +946,7 @@ def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
 def test_accessibility_failure_does_not_change_any_other_check(tmp_path):
     results, _ = dry_run.run("bad-21", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+        n: "fail" if n == 21 else "pass" for n in range(1, 25)
     }
 
 
@@ -951,7 +954,7 @@ def test_accessibility_waits_for_webkit_to_build_its_tree(tmp_path):
     # Real run of 2026-10-29: the first macOS read held only the window's own
     # buttons, and check 21 failed although the app named every control.
     results, directory = dry_run.run("accessibility-lazy-tree", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 22)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 25)}
     data = json.loads((directory / "report.json").read_text())
     assert data["accessibility"]["reads"] == {"idle": 3, "recording": 3}
     assert "Grabar reunión" in (directory / "trees/accessibility-idle.txt").read_text()
@@ -1147,7 +1150,7 @@ def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibil
     assert "press_key" not in manifest and "type_text" not in manifest and "click" not in manifest
     results, _ = dry_run.run("own-process", tmp_path / "run")
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+        n: "fail" if n == 21 else "pass" for n in range(1, 25)
     }
 
 
@@ -1156,7 +1159,7 @@ def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(
 ):
     results, _ = dry_run.run("accessibility-start-refused", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 22)
+        n: "fail" if n == 21 else "pass" for n in range(1, 25)
     }
 
 
@@ -1254,7 +1257,12 @@ def test_mac_cli_refuses_missing_english_on_device_speech(tmp_path, capsys, caus
                 "recording",
                 {
                     "state": "present",
-                    "value": {"voice_trigger": {"state": "not_listening", "why": {"cause": cause}}},
+                    "value": {
+                        "voice_trigger": {
+                            "state": "not_listening",
+                            "why": {"cause": cause},
+                        }
+                    },
                 },
             )
 
@@ -1302,7 +1310,15 @@ def test_english_transcript_requires_english_metadata_and_script_words():
 def test_mac_side_modules_remain_python_39_syntax():
     import ast
 
-    for name in ("mac", "mac_cli", "harness_copy", "meeting_language", "mac_waits"):
+    for name in (
+        "mac",
+        "mac_cli",
+        "mac_native",
+        "mac_system",
+        "harness_copy",
+        "meeting_language",
+        "mac_waits",
+    ):
         source = (ROOT / "scripts/e2e-mac" / f"{name}.py").read_text()
         ast.parse(source, feature_version=(3, 9))
 
@@ -1375,3 +1391,188 @@ def test_english_prepare_refuses_before_switching_input_or_launching(
     assert not any(
         command[0] == "SwitchAudioSource" and "-s" in command for command in system.commands
     )
+
+
+def known(value):
+    return {"state": "present", "value": value}
+
+
+@pytest.mark.parametrize(
+    "trigger",
+    [
+        {"state": "abandoned", "cause": "phrase_revised"},
+        {"state": "not_listening", "why": {"cause": "failed"}},
+    ],
+)
+def test_answer_wait_ends_when_the_daemon_says_no_question_opened(trigger):
+    state = {"recording": known({"voice_trigger": trigger})}
+    with pytest.raises(mac_side.MacFailure):
+        mac_waits.answer(state, None)
+
+
+def test_no_voice_question_has_a_short_opening_bound():
+    import real_test
+
+    budgets = real_test.bounds()
+    assert budgets["question-open"][0] < budgets["listening"][0]
+
+
+def test_english_selects_hub_listening_through_the_settings_command(tmp_path):
+    from orbit_hub.ai.registry import Registry
+    from orbit_hub.ai.types import Choice
+    from orbit_hub.config import Settings
+    from orbit_hub.storage import Store, initialize
+
+    root, key = tmp_path / "data", tmp_path / "key"
+    initialize(root, key)
+    store = Store(root, key)
+    settings = Settings(
+        data_dir=root,
+        key_file=key,
+        hermes_url="http://127.0.0.1:9",
+        hermes_credential_file=tmp_path / "unused",
+        profile="fixture-assistant",
+        allow_insecure_localhost=True,
+        meeting_transcription={
+            "endpoint": "http://127.0.0.1:9",
+            "model": "fixture",
+            "language": "en",
+        },
+    )
+    registry = Registry(store, settings)
+
+    class Ipc:
+        def call(self, body, bound_s=30):
+            assert body == {
+                "command": "agent",
+                "call": {
+                    "call": "ai_function_save",
+                    "function": "listening",
+                    "choice": {"provider_id": "hub", "model": "whisper"},
+                },
+            }
+            registry.choose("listening", Choice.model_validate(body["call"]["choice"]))
+            # The real write route returns the public settings, not Done.
+            return {"outcome": {"outcome": "ai_settings", "settings": registry.public()}}
+
+    try:
+        mac = mac_side.Mac(mac_side.Paths(tmp_path), orbit=Ipc())
+        with harness_copy.language_scope("en"):
+            assert mac.listening_choice() == {"provider_id": "hub", "model": "whisper"}
+    finally:
+        store.close()
+
+
+def test_abandoned_wake_phrase_does_not_consume_the_answer_bound_or_ruin_later_checks(
+    tmp_path,
+):
+    results, directory = dry_run.run("abandoned-phrase", tmp_path)
+    assert statuses(results) == {**{n: "pass" for n in ALL}, 7: "fail", 18: "unchecked"}
+    data = json.loads((directory / "report.json").read_text())
+    assert not any(w["wait"] == "answer" for w in data["waits"])
+    assert "phrase_revised" in next(r["detail"] for r in results if r["number"] == 7)
+
+
+@pytest.mark.parametrize("width", (1, 2))
+def test_hub_audio_readback_checks_pcm_and_complete_frames(tmp_path, width):
+    import hashlib
+    import io
+    import wave
+
+    import hub_audio
+
+    from orbit_hub.storage import Store, initialize
+
+    root, key = tmp_path / "data", tmp_path / "key"
+    initialize(root, key)
+    store = Store(root, key)
+    try:
+        stream = io.BytesIO()
+        with wave.open(stream, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(width)  # Valid WAV is insufficient: Orbit records S16.
+            wav.setframerate(16000)
+            wav.writeframes(b"\x80" * 160 * width)
+        body = stream.getvalue()
+        device = store.devices.pair(store.devices.create_code(0), "Cedar fixture", 1)["device_id"]
+        store.recordings.put_chunk(
+            device,
+            "chunk",
+            "meeting",
+            "mic_local",
+            0,
+            hashlib.sha256(body).hexdigest(),
+            body,
+            {"frames": 160, "started_at_ms": 1000},
+        )
+        store.recordings.finalize(
+            device,
+            "meeting",
+            {
+                "started_at_ms": 1000,
+                "finalized_at_ms": 1010,
+                "gaps": 0,
+                "tracks": [
+                    {
+                        "track": "mic_local",
+                        "chunk_count": 1,
+                        "last_sequence": 0,
+                        "total_frames": 160,
+                    }
+                ],
+            },
+        )
+        if width == 1:
+            with pytest.raises(ValueError, match="PCM"):
+                hub_audio.inspect_recording(store, "meeting")
+        else:
+            result = hub_audio.inspect_recording(store, "meeting")
+            assert result["complete"] and result["frames"] == 160 and result["chunks"] == 1
+    finally:
+        store.close()
+
+
+def test_failed_privacy_key_stops_fixture_playback_before_restoring_physical_output(
+    tmp_path,
+):
+    paths = mac_side.Paths(tmp_path)
+
+    class Device(mac_side.System):
+        output = "Fixture speakers"
+        playing = False
+
+        def run(self, *command):
+            if command[0] == "open":
+                return 0, "", ""
+            if command[0] == "SwitchAudioSource":
+                if "-c" in command:
+                    return 0, self.output, ""
+                self.output = command[-1]
+                return 0, "", ""
+            if command[0] == "swift":
+                return 1, "", "shortcut delivery failed"
+            raise AssertionError(command)
+
+        def processes(self):
+            return [(42, str(paths.app / mac_side.MEMBERS[0]))]
+
+        def audio_state(self, logs, pid):
+            return {
+                "privacy_stopped": False,
+                "microphone": False,
+                "system_audio": False,
+                "playing": self.playing,
+            }
+
+    system = Device()
+
+    class Ipc:
+        def call(self, body, bound_s=30):
+            system.playing = body["command"] == "speak"
+            return {"ok": True}
+
+    mac = mac_side.Mac(paths, system, Ipc())
+    with pytest.raises(mac_side.MacFailure, match="shortcut delivery failed"):
+        mac.native("privacy-playback")
+    assert not system.playing
+    assert system.output == "Fixture speakers"

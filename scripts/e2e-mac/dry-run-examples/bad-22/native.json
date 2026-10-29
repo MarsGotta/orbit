@@ -1,0 +1,45 @@
+{
+  "audio": {
+    "capture": {
+      "privacy_stopped": false,
+      "microphone": true,
+      "system_audio": false,
+      "playing": false
+    },
+    "playing": {
+      "privacy_stopped": false,
+      "microphone": false,
+      "system_audio": false,
+      "playing": true
+    },
+    "stopped": {
+      "privacy_stopped": true,
+      "microphone": false,
+      "system_audio": false,
+      "playing": true
+    },
+    "rearmed": {
+      "privacy_stopped": false,
+      "microphone": false,
+      "system_audio": false,
+      "playing": false
+    }
+  },
+  "closed_visible": false,
+  "dock_visible": true,
+  "edit": {
+    "typed": "Maple budget",
+    "undo": "",
+    "redo": "Maple budget",
+    "paste": "Maple budgetMaple budget"
+  },
+  "hub_audio": {
+    "closed": true,
+    "complete": true,
+    "frames": 96000,
+    "chunks": 6,
+    "started_at_ms": 1760609800000,
+    "finalized_at_ms": 1760609806000
+  },
+  "quit_at_ms": 1760609805000
+}

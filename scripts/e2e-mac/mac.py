@@ -62,6 +62,7 @@ from mac_bridge import TestBridge
 from mac_controls import PARTS, MacFailure, script_parts
 from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
 from mac_engine import CuaDriver
+from mac_native import NativeChecks
 from mac_system import System
 from mac_waits import WAITS
 from meeting_language import script_path, voice_note_phrase
@@ -310,7 +311,7 @@ def required_voices(listing: str) -> list[str]:
 # ── The steps ───────────────────────────────────────────────────────────────
 
 
-class Mac(DraftsAndPanel, CuaDriver):
+class Mac(DraftsAndPanel, CuaDriver, NativeChecks):
     def __init__(
         self,
         paths: Paths,
@@ -538,6 +539,31 @@ class Mac(DraftsAndPanel, CuaDriver):
                 f"the daemon refused «{name}»: {json.dumps(cause, ensure_ascii=False)[:300]}"
             )
         return {"command": name}
+
+    def listening_choice(self) -> dict:
+        """The same public settings order as Settings > AI, on this test hub."""
+        choice = {"provider_id": "hub", "model": "whisper"}
+        reply = self.orbit.call(
+            {
+                "command": "agent",
+                "call": {
+                    "call": "ai_function_save",
+                    "function": "listening",
+                    "choice": choice,
+                },
+            }
+        )
+        outcome = reply.get("outcome") or {}
+        functions = (outcome.get("settings") or {}).get("functions", [])
+        selected = next((row for row in functions if row.get("id") == "listening"), {})
+        selected = {key: selected.get(key) for key in choice}
+        if outcome.get("outcome") != "ai_settings" or selected != choice:
+            raise MacFailure(
+                f"hub listening choice not confirmed: expected {choice}, "
+                f"selected {selected}, outcome {outcome.get('outcome')}, "
+                f"refusal {outcome.get('refusal')}"
+            )
+        return choice
 
     def voice_note(self) -> dict:
         """A voice note, as a person records one: start it, say the phrase into

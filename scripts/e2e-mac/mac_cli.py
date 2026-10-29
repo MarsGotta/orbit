@@ -47,6 +47,8 @@ def _main(argv: list[str], mac) -> int:
             output = mac.read(rest[0], rest[1] if len(rest) > 1 else None)
         elif command == "say" and len(rest) == 1 and rest[0] in PARTS:
             output = mac.say(rest[0])
+        elif command == "listening-choice" and not rest:
+            output = mac.listening_choice()
         elif command == "voice-note" and not rest:
             output = mac.voice_note()
         elif command == "command" and len(rest) == 1 and rest[0] in ("call_start", "call_stop"):
@@ -54,6 +56,8 @@ def _main(argv: list[str], mac) -> int:
         elif command == "restore":
             _, max_s = _bound(rest)
             output = mac.restore(max_s)
+        elif command == "native" and 1 <= len(rest) <= 2:
+            output = mac.native(rest[0], rest[1] if len(rest) > 1 else None)
         elif command == "logs":
             output = mac.logs()
         elif command == "switch-input" and len(rest) <= 1:

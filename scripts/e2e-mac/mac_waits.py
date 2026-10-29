@@ -16,6 +16,7 @@ from harness_copy import language
 from harness_copy import text as copy_text
 from mac_controls import CONTROL_WAITS, MacFailure, notes_list
 from mac_drafts_panel import PANEL_WAITS
+from mac_native import progress
 from mac_silence import silence_question
 
 
@@ -77,6 +78,18 @@ def _turn(state: dict) -> dict:
     return (_value(state.get("assistant")) or {}).get("turn") or {}
 
 
+def question_open(state: dict, _arg):
+    value = _value(state.get("recording")) or {}
+    question = value.get("question") or {}
+    if question.get("origin") == "voice":
+        return {"id": question.get("id")}
+    trigger = value.get("voice_trigger") or {}
+    if trigger.get("state") in ("abandoned", "not_listening"):
+        raise MacFailure(f"no voice question opened: {json.dumps(trigger)}")
+    state["seen"] = "no voice question opened"
+    return None
+
+
 def answer(state: dict, _arg):
     """The voice question once Deimos answered it or it failed. Until then it
     says what it saw: no question was heard, the question's stage, or an
@@ -88,6 +101,7 @@ def answer(state: dict, _arg):
             if not question
             else f"a question of origin «{question.get('origin')}», not voice"
         )
+        question_open(state, None)
         return None
     if question.get("stage") not in ("answered", "failed"):
         state["seen"] = f"the voice question is at «{question.get('stage')}»"
@@ -246,10 +260,12 @@ def call_listening(state: dict, _arg):
 # says, the read it repeats (on a change of the `notes` head and at least
 # every READ_INTERVAL_S).
 WAITS = {
+    "recording-progress": (("recording",), progress, None),
     "audio-route": (("recording", "notices"), recovered, None),
     "paired": (("status",), paired, None),
     "recording": (("recording",), recording, None),
     "listening": (("recording",), listening, None),
+    "question-open": (("recording",), question_open, None),
     "answer": (("recording", "assistant"), answer, None),
     "saved": (("recording", "notes"), saved, notes_list),
     "note": (("notes",), note, notes_list),

@@ -41,6 +41,7 @@ from dry_bridge import (
     DryRunView,
     query_filter,
 )
+from dry_native import DryNative
 from interface import StepFailed
 
 __all__ = ["PID", "query_filter"]
@@ -92,7 +93,7 @@ class Example:
         return json.loads(self.translate(own.read_text(encoding="utf-8")))
 
 
-class DryRunSystem(mac_side.System):
+class DryRunSystem(DryNative, mac_side.System):
     """say, SwitchAudioSource, open, ps and cua-driver, answered like a Mac
     would. Never signals a process: the pids here are invented."""
 
@@ -100,6 +101,7 @@ class DryRunSystem(mac_side.System):
         self.example = example
         self.paths = paths
         self.input = "Micrófono del MacBook Pro"
+        self.output = "Fixture speakers"
         self.commands: list[list[str]] = []
         self.app_open = False
         self.signals: list[tuple[int, int]] = []
@@ -115,7 +117,13 @@ class DryRunSystem(mac_side.System):
         self.commands.append(list(command))
         if command[0] == str(self.paths.cua):
             return self.cua.command(list(command[1:]))
-        if command[:5] == ("defaults", "write", mac_side.BUNDLE_ID, "AppleLanguages", "-array"):
+        if command[:5] == (
+            "defaults",
+            "write",
+            mac_side.BUNDLE_ID,
+            "AppleLanguages",
+            "-array",
+        ):
             expected = "en-US" if self.example.language == "en" else "es-ES"
             assert command[5:] == (expected,)
             return 0, "", ""
@@ -123,8 +131,15 @@ class DryRunSystem(mac_side.System):
             if "-a" in command:
                 return 0, f"Micrófono del MacBook Pro\n{mac_side.BLACKHOLE}\n", ""
             if "-c" in command:
-                return 0, self.input + "\n", ""
-            self.input = command[-1]
+                return (
+                    0,
+                    (self.output if "output" in command else self.input) + "\n",
+                    "",
+                )
+            if "output" in command:
+                self.output = command[-1]
+            else:
+                self.input = command[-1]
             return 0, "", ""
         if command[:3] == ("say", "-v", "?"):
             return 0, self.example.text("voices.txt"), ""
@@ -148,6 +163,8 @@ class DryRunSystem(mac_side.System):
             self._quit()
             self.view.follow("apple-event:quit")
             return 0, "", ""
+        if command[0] == "swift" and command[1].endswith("keys.swift"):
+            return self.native_key(command[3], command[4] if len(command) > 4 else None)
         if command[0] == "swift" and command[1].endswith("pointer.swift"):
             return self.view.pointer(int(command[2]), command[3])
         if command[0] == "sw_vers":
@@ -186,6 +203,7 @@ class DryRunSystem(mac_side.System):
         rows = []
         if self.app_open:
             rows.append((self.view.pid, str(self.paths.app / mac_side.MEMBERS[0])))
+            rows.append((self.view.pid + 1000, str(self.paths.app / mac_side.MEMBERS[1])))
         if self.cua.running:
             rows.append((CUA_PID, mac_engine.CUA_APP + "Contents/MacOS/CuaDriver"))
         return rows
@@ -224,6 +242,22 @@ class DryRunOrbit:
         return {**wait, **(changed or {})}
 
     def call(self, body: dict, bound_s: float = 30) -> dict:
+        if body["command"] == "agent":
+            return {
+                "outcome": {
+                    "outcome": "ai_settings",
+                    "settings": {
+                        "functions": [
+                            {"id": "listening", **body["call"]["choice"]},
+                        ]
+                    },
+                }
+            }
+        if body["command"] == "speak_stop":
+            return {"ok": True}
+        if body["command"] == "speak":
+            self.example.native_phase = "playing"
+            return {"ok": True}
         if body["command"] == "pair" or body in mac_side.COMMANDS.values():
             return {"ok": True}
         if body["command"] == "read":
@@ -420,4 +454,5 @@ def run(
     test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")
     test.bounds["accessibility-tree"] = (2, "cua.json may hold back the first reads")
     test.hub_kept = DryRunHub(example, test.hub_kept)
+    test.hub_audio = lambda ident: example.json("native.json")["hub_audio"]
     return test.run(), run_directory

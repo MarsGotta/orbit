@@ -97,6 +97,10 @@ def panel_holds_answer(test, panel, answered_at: float) -> None:
         held = test.bounds["pointer-held"][0]
         hold["over"] = test.mac.panel_pointer(panel.window_id, "over", question, held)
         _record(test, "pointer-held", hold["over"])
+        # Fresh, non-duplicated script speech while the pointer holds the
+        # answer prevents this intentional long watch becoming user silence.
+        test.mac.say("part2-before")
+        test.ev["second_half_started"] = True
         time.sleep(max(0.0, answered_at + held_s - time.monotonic()))
         hold["held_for_s"] = round(time.monotonic() - answered_at, 3)
         ui.read(panel, "panel-held", None)

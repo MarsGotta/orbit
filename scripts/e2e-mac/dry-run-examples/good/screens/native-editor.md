@@ -1,0 +1,24 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Asistente"
+    - AXStaticText = "Deimos"
+    - AXGroup
+      - AXStaticText = "Pregúntale a Deimos"
+    - [6] AXTextArea = "Escribe a Deimos…" (Mensaje para Deimos) [actions=[confirm]]
+    - [7] AXButton (Grabar nota de voz) [actions=[press]]
+    - [8] AXButton (Enviar) [actions=[press]]
+    - AXGroup (Asistentes y conversaciones)
+      - AXStaticText = "Asistente"
+      - [31] AXButton (Nueva conversación) [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Conversaciones"
+      - [32] AXLink "4 mensajes · 16 oct 2025, 10:01" [actions=[press]]
+      - [33] AXLink "2 mensajes · 15 oct 2025, 03:46" [actions=[press]]
