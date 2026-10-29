@@ -7,6 +7,13 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Fixed
+
+- The privacy hotkey test's helper keeps reading daemon commands until its
+  input closes and isolates its error output. A failed gate step also finishes
+  when a surviving helper still holds its output, preserving the step's exit
+  code and log.
+
 ### Changed
 
 - The real-test harness supports an English pass with `run --language en`,
