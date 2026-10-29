@@ -113,4 +113,14 @@ class CuaDriver:
             if self.system.wait_exit([pid], max_s):
                 self.system.signal(pid, signal.SIGTERM)
         self.paths.cua_pid.unlink()
+        # Said only once no CuaDriver answers: two runs on 2026-10-28 reported
+        # «stopped» and left theirs running, which refused the next run.
+        start = self.system.now()
+        while self._cua_status() is not None:
+            if self.system.now() - start > max_s:
+                raise MacFailure(
+                    f"CuaDriver still answers {max_s:.0f} s after stopping pid {pid}: "
+                    "stop it with «cua-driver stop»"
+                )
+            time.sleep(SOCKET_RETRY_S)
         return {"stopped": True, "pid": pid}
