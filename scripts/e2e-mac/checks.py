@@ -427,7 +427,14 @@ def c11_voice_note(ev: dict) -> tuple[bool, str]:
             False,
             f"the voice note's turn is not the user's: role «{note.get('role')}»",
         )
-    back, of, recall = _words_back(note.get("phrase") or "", note.get("transcript") or "")
+    # The phrase opens with the assistant's name, which is not what this
+    # check measures: in English Whisper writes «Deimos» as «Demos» (real
+    # run 20261029T215955Z). Only the words after it are counted.
+    phrase = note.get("phrase") or ""
+    addressed = re.match(r"\s*Deimos\s*,\s*", phrase)
+    back, of, recall = _words_back(
+        phrase[addressed.end() :] if addressed else phrase, note.get("transcript") or ""
+    )
     if recall < MINIMUM_RECALL:
         return False, (
             f"the voice note's transcript brings only {back} of {of} words of the phrase "

@@ -1221,6 +1221,38 @@ Samantha            en_US    # Hello! My name is Samantha.
 
 
 @pytest.mark.parametrize(
+    "language,phrase,transcript",
+    [
+        (
+            "en",
+            "Deimos, respond with only the word received.",
+            "Demos, respond with only the word received.",
+        ),
+        (
+            "es",
+            "Deimos, contesta sólo con la palabra recibido.",
+            "Deimos, contesta solo con la palabra recibido.",
+        ),
+    ],
+)
+def test_the_voice_note_counts_the_words_after_the_assistants_name(language, phrase, transcript):
+    # Real run of 2026-10-29: in English Whisper wrote «Deimos» as «Demos».
+    import checks
+    import harness_copy
+
+    note = {
+        "role": "user",
+        "phrase": phrase,
+        "transcript": transcript,
+        "complete": True,
+        "answer": "Received.",
+    }
+    with harness_copy.language_scope(language):
+        ok, detail = checks.c11_voice_note({"voice_note": note})
+    assert ok, detail
+
+
+@pytest.mark.parametrize(
     "language,expected",
     [
         ("es", ["Eddy (Spanish (Spain))", "Flo (Spanish (Spain))"]),
