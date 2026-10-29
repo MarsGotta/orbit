@@ -908,6 +908,7 @@ mod tests {
                         account: None,
                         privacy_stopped: false,
                         helper_connected: true,
+                        shortcut_failures: None,
                         error_reports: None,
                         language: None,
                     },

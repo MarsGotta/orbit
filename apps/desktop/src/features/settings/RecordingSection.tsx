@@ -50,7 +50,7 @@ export function CallPreferenceList({
 /** Settings › Recording and calls: what a call does, how long things last, the shortcuts. */
 export function RecordingSection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
   const base = useCopy();
-  const es = useCopy();
+  const failures = snapshot.settings.shortcut_failures ?? [];
   return (
     <>
       <SectionHeading
@@ -62,10 +62,19 @@ export function RecordingSection({ send, snapshot }: { send: Send; snapshot: App
       </Group>
       <Group label={base.settings.shortcuts}>
         <List>
-          {es.settings.shortcutList.map(([keys, action]) => (
+          {base.settings.shortcutList.map(([keys, action]) => (
             <div className={styles.shortcut} key={keys}>
               <kbd>{keys}</kbd>
-              <span>{action}</span>
+              <span>
+                {action}
+                {failures
+                  .filter((failure) => failure.combination === keys)
+                  .map((failure) => (
+                    <small key={failure.combination}>
+                      {base.settings.shortcutFailed(failure.os_status)}
+                    </small>
+                  ))}
+              </span>
             </div>
           ))}
         </List>

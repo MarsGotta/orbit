@@ -64,6 +64,9 @@ pub struct StatusSettingsView {
     pub attachments: Option<orbit_core::attachments::AttachmentLimits>,
     pub hub: SettingsHubSnapshot,
     pub helper_connected: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub shortcut_failures: Option<Vec<orbit_core::topics::status::ShortcutFailure>>,
     pub calendars: CalendarSettingsSnapshot,
     pub versions: VersionSettingsSnapshot,
     pub privacy_stopped: bool,
@@ -154,6 +157,7 @@ fn unread_settings(calendar_total: Option<u32>) -> StatusSettingsView {
             connection: None,
         },
         helper_connected: false,
+        shortcut_failures: None,
         calendars: CalendarSettingsSnapshot {
             total: calendar_total,
         },
@@ -191,6 +195,7 @@ fn show_status(
     view.privacy_stopped = value.privacy_stopped;
     view.settings.privacy_stopped = view.privacy_stopped;
     view.settings.helper_connected = value.helper_connected;
+    view.settings.shortcut_failures = value.shortcut_failures.clone();
     view.settings.hub = settings_hub(value);
     view.settings.assistant_name = value.assistant_name.clone();
     view.settings.agents = value.agents.clone();
@@ -337,6 +342,33 @@ mod status_tests {
     fn status_json(input: &FeatureInput<'_>) -> serde_json::Value {
         serde_json::to_value(project(input))
             .unwrap_or_else(|error| panic!("synthetic status view: {error}"))
+    }
+
+    #[test]
+    fn settings_keep_the_native_shortcut_failure_and_its_os_status() -> serde_json::Result<()> {
+        let snapshot = crate::AppSnapshot::default();
+        let mut topics = TopicCache::default();
+        let value = serde_json::from_value(serde_json::json!({
+            "hub":"offline", "account":null, "privacy_stopped":false,
+            "helper_connected":true, "shortcut_failures":[{"combination":"⌃⌥D", "os_status":-9878}]
+        }))?;
+        topics.observe_at(
+            orbit_core::topics::TopicFrame {
+                epoch: "fixture".into(),
+                revision: 1,
+                data: TopicData::Status(Knowledge::Present {
+                    value,
+                    as_of_ms: None,
+                }),
+            },
+            Some(0),
+        );
+        let view = status_json(&FeatureInput::new(&snapshot, &topics));
+        assert_eq!(
+            view["settings"]["shortcut_failures"],
+            serde_json::json!([{"combination":"⌃⌥D", "os_status":-9878}])
+        );
+        Ok(())
     }
 
     #[test]

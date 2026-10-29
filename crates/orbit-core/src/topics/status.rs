@@ -38,6 +38,8 @@ pub struct Value {
     pub account: Option<AccountSummary>,
     pub privacy_stopped: bool,
     pub helper_connected: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shortcut_failures: Option<Vec<ShortcutFailure>>,
     /// «Enviar informes de errores anónimos»: the user's choice. `None` when
     /// this build carries no Sentry address, so the switch is not offered;
     /// a daemon from before the switch says nothing, which reads the same.
@@ -46,4 +48,16 @@ pub struct Value {
     /// The per-Mac language choice; absent before the daemon reports it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub language: Option<crate::language::LanguageChoice>,
+}
+
+/// The fixed global combination macOS rejected and its original OSStatus.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+)]
+pub struct ShortcutFailure {
+    pub combination: String,
+    pub os_status: i32,
 }

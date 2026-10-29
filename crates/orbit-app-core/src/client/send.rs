@@ -321,6 +321,7 @@ mod tests {
                         account: None,
                         privacy_stopped: true,
                         helper_connected: false,
+                        shortcut_failures: None,
                         error_reports: None,
                         language: None,
                     },

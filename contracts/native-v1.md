@@ -671,6 +671,12 @@ daemon rearm. The daemon also persists its stop before admitting new actions.
 Control+Option+Space PTT, +D call, +M meeting, +Escape privacy stop.
 Carbon registers specific combinations rather than monitoring all keys.
 PTT press immediately cuts playback; the daemon decides turns/safe closure.
+Each combination registers independently. `state` and status/heartbeat replies
+include `shortcut_failures:[{combination,os_status}]`: the failed fixed
+combination and Carbon's original OSStatus, including handler installation
+failure. An empty list means all registrations succeeded; absence means the
+helper has not reported registration state. Settings displays each failure
+beside its combination. A conflict never unregisters successful shortcuts.
 
 `microphone_activity` lists `applications:[{application_pid,bundle_id,name}]`,
 sorted by PID, at most 16, empty when none. The helper sends it after `ready`
@@ -681,7 +687,11 @@ it hears. Helpers/browser GPU/audio processes map to their responsible app;
 processes without a visible app are omitted, as is Orbit itself.
 Privacy latch stops observation/events; rearm sends a full list.
 Core decides call classification/prompts/stops. Before the first observation,
-absence means unknown, never “nobody uses the microphone”.
+absence means unknown, never “nobody uses the microphone”. A failed CoreAudio
+query instead sends `os_status` and omits `applications`; a successful empty
+list remains `applications:[]`. Failure enters the existing signal-lost path,
+cancelling a call-ending countdown until a successful observation arrives.
+The next successful list is sent even if it matches the list before failure.
 
 `assistant_question` carries the meeting microphone question:
 `stream_id`, `text`, `started_ms`/`ended_ms` (Unix milliseconds at phrase start/

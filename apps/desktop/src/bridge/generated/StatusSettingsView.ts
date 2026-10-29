@@ -4,6 +4,7 @@ import type { AttachmentLimits } from "./AttachmentLimits";
 import type { CalendarSettingsSnapshot } from "./CalendarSettingsSnapshot";
 import type { LanguageChoice } from "./LanguageChoice";
 import type { SettingsHubSnapshot } from "./SettingsHubSnapshot";
+import type { ShortcutFailure } from "./ShortcutFailure";
 import type { VersionSettingsSnapshot } from "./VersionSettingsSnapshot";
 
 export type StatusSettingsView = { assistant_name?: string, 
@@ -21,7 +22,7 @@ addable_agents?: Array<string>,
  * The connected hub's attachment ceilings; absent before its `ready`
  * and for a hub without attachments (0.9.0), when the composer offers none.
  */
-attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: boolean, calendars: CalendarSettingsSnapshot, versions: VersionSettingsSnapshot, privacy_stopped: boolean, 
+attachments?: AttachmentLimits, hub: SettingsHubSnapshot, helper_connected: boolean, shortcut_failures?: Array<ShortcutFailure>, calendars: CalendarSettingsSnapshot, versions: VersionSettingsSnapshot, privacy_stopped: boolean, 
 /**
  * The error-report switch, when this build offers it.
  */

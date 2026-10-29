@@ -66,7 +66,8 @@ public struct NativeHotkeyEventFields: Encodable {
 /// The applications holding the microphone now, sorted by process id; empty
 /// when none does. Sent only when the set changes.
 public struct NativeMicrophoneActivityFields: Encodable {
-    public let applications: [NativeWireMeetingApplication]
+    public let applications: [NativeWireMeetingApplication]?
+    public let os_status: Int32?
 }
 /// The question the user asked after «Oye Deimos» on the meeting's
 /// microphone, as text. `started_ms`/`ended_ms` are Unix milliseconds of the
@@ -200,6 +201,14 @@ public struct NativePlaybackProgressFields: Encodable {
     }
 }
 
+public struct NativeShortcutFailure: Encodable, Equatable {
+    public let combination: String
+    public let os_status: Int32
+    public init(combination: String, osStatus: Int32) {
+        self.combination = combination; self.os_status = osStatus
+    }
+}
+
 public struct NativeStateEventFields: Encodable {
     public let preferred_languages: [String]?
     public let privacy_stopped: Bool
@@ -210,6 +219,7 @@ public struct NativeStateEventFields: Encodable {
     public let microphone: Bool
     public let system_audio: Bool
     public let playing: Bool
+    public let shortcut_failures: [NativeShortcutFailure]
     public let supported_audio_processing: [String]
     public let voice_processing_available: Bool
     public let playback_reference_available: Bool

@@ -12,6 +12,8 @@ pub struct NativeStateResult {
     pub microphone: bool,
     pub system_audio: bool,
     pub playing: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shortcut_failures: Option<Vec<crate::topics::status::ShortcutFailure>>,
     pub supported_audio_processing: Vec<String>,
     pub voice_processing_available: bool,
     pub playback_reference_available: bool,

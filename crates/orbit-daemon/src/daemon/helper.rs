@@ -86,6 +86,13 @@ impl HelperHandle {
         self.host.calendar_backend_available()
     }
 
+    /// The current helper's shortcut registration failures; absent before readback.
+    pub(super) fn shortcut_failures(
+        &self,
+    ) -> Option<Vec<orbit_core::topics::status::ShortcutFailure>> {
+        self.host.shortcut_failures.clone()
+    }
+
     /// Whether the order sent under `id` still waits for its reply.
     pub(super) fn awaits_reply(&self, id: &str) -> bool {
         self.pending.contains_key(id)

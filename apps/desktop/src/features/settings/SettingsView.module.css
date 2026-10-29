@@ -350,6 +350,11 @@
   font: 600 13px/1.5 var(--o-font-sans);
 }
 
+.shortcut small {
+  display: block;
+  color: var(--o-warn);
+}
+
 /* Assistant › the folders and the history. */
 .folder {
   display: flex;

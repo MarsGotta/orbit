@@ -15,6 +15,7 @@ extension OrbitApplication {
     func receive(_ command: NativeWireCommand) {
         // Its kind only: what the main thread was doing if it is held next.
         mainThreadWatch.commandStarted(command.command)
+        defer { updateMainThreadWatch() }
         guard launchOptions.permits(command: command.command) else {
             channel.reject(command, code: "isolated_fixture_scope", message: "Operation is not allowed in the isolated fixture.")
             return
@@ -163,6 +164,7 @@ extension OrbitApplication {
     }
 
     private func execute(_ command: NativeWireCommand, ownsGeneralLane: Bool) {
+        nativeOperations += 1
         if command.command != "permissions" && latch.stopped {
             channel.reject(command, code: "privacy_stopped", message: "Orbit is stopped on this Mac.")
             finish(command, ownsGeneralLane: ownsGeneralLane)
@@ -220,6 +222,7 @@ extension OrbitApplication {
     }
 
     private func finish(_ command: NativeWireCommand, ownsGeneralLane: Bool) {
+        nativeOperations -= 1
         let next = ownsGeneralLane ? commandRouter.complete(commandID: command.id) : nil
         publishState()
         if let next { receive(next) }
@@ -244,7 +247,7 @@ extension OrbitApplication {
             return try playback.enqueue(wire.fields)
         case .playbackClip(let wire):
             guard !audioRouteRecoveryInFlight else { throw NativeFailure("audio_route_recovery_in_progress") }
-            return try playback.enqueueClip(wire.fields)
+            return try await playback.enqueueClip(wire.fields)
         case .applicationSources(let wire):
             let bundleIDs = wire.fields.bundle_ids
             return try await applicationIdentities.inventory(bundleIDs: bundleIDs, privacyGeneration: privacyEpoch) { [weak self] in

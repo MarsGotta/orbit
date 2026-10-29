@@ -138,7 +138,10 @@ pub enum NativeEvent {
     #[serde(rename = "microphone_activity")]
     MicrophoneActivity {
         v: u8,
-        applications: Vec<MeetingApplication>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        applications: Option<Vec<MeetingApplication>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        os_status: Option<i32>,
     },
     /// The user said «Oye Deimos, …» on their own microphone while a
     /// recording was on: the question that followed the phrase, until a

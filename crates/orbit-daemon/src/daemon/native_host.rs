@@ -17,6 +17,8 @@ struct HostStateFields<'a> {
     native_instance_id: &'a str,
     privacy_generation: u64,
     privacy_stopped: bool,
+    #[serde(default)]
+    shortcut_failures: Option<Vec<orbit_core::topics::status::ShortcutFailure>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +57,7 @@ pub(super) struct NativeHost {
     identity: Option<HostIdentity>,
     cut_from: Option<HostIdentity>,
     calendar_backend_available: bool,
+    pub(super) shortcut_failures: Option<Vec<orbit_core::topics::status::ShortcutFailure>>,
 }
 
 impl NativeHost {
@@ -74,6 +77,7 @@ impl NativeHost {
             Some("ready") => {
                 // Even a repeated ready invalidates the previous observations.
                 // Wait for a separate state/readback before exposing identity.
+                self.shortcut_failures = None;
                 self.identity = None;
                 self.cut_from = None;
                 // The daemon launches the helper bundled with this version.
@@ -96,6 +100,7 @@ impl NativeHost {
                 };
                 if name == "helper_disconnected" {
                     self.calendar_backend_available = false;
+                    self.shortcut_failures = None;
                 }
                 if let Some(identity) = &mut self.identity {
                     identity.stopped = true;
@@ -136,6 +141,7 @@ impl NativeHost {
         if uuid.hyphenated().to_string() != id.to_lowercase() {
             return HostUpdate::default();
         }
+        self.shortcut_failures = fields.shortcut_failures;
         let authority_changed = self
             .identity
             .as_ref()

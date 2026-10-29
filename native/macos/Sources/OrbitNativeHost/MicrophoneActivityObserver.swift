@@ -12,7 +12,7 @@ import OrbitNativeState
 /// microphone, never what it hears.
 public final class MicrophoneActivityObserver: @unchecked Sendable {
     /// Called on the main queue with the new list, only when it changed.
-    public var changed: (([MeetingApplication]) -> Void)?
+    public var changed: ((Result<[MeetingApplication], MicrophoneObservationFailure>) -> Void)?
 
     private let queue = DispatchQueue(label: "app.orbit.microphone-activity")
     private let ownPID = getpid()
@@ -67,7 +67,9 @@ public final class MicrophoneActivityObserver: @unchecked Sendable {
 
     private func refreshProcesses() {
         guard listening else { return }
-        let objects = Set(Self.processObjects())
+        let objects: Set<AudioObjectID>
+        do { objects = Set(try Self.processObjects()) }
+        catch { observationFailed(error); return }
         for gone in Set(processListeners.keys).subtracting(objects) {
             if let listener = processListeners.removeValue(forKey: gone) {
                 var address = Self.address(kAudioProcessPropertyIsRunningInput)
@@ -86,17 +88,35 @@ public final class MicrophoneActivityObserver: @unchecked Sendable {
 
     private func evaluate() {
         guard listening else { return }
-        let processes = Self.processObjects().compactMap { object -> MicrophoneProcess? in
-            guard let pid: pid_t = Self.read(object, kAudioProcessPropertyPID) else { return nil }
-            let input: UInt32 = Self.read(object, kAudioProcessPropertyIsRunningInput) ?? 0
-            return MicrophoneProcess(pid: pid, runningInput: input != 0)
-        }
+        let processes: [MicrophoneProcess]
+        do {
+            processes = try Self.processObjects().compactMap { object in
+                do {
+                    let pid: pid_t = try Self.read(object, kAudioProcessPropertyPID)
+                    let input: UInt32 = try Self.read(object, kAudioProcessPropertyIsRunningInput)
+                    return MicrophoneProcess(pid: pid, runningInput: input != 0)
+                } catch let failure as MicrophoneObservationFailure
+                    where failure.osStatus == kAudioHardwareBadObjectError {
+                    // The process ended between the list and this read, as a
+                    // call's audio process does when the call ends.
+                    return nil
+                }
+            }
+        } catch { observationFailed(error); return }
         let applications = MicrophoneUsers.reportable(
             processes, ownPID: ownPID, ownBundlePrefix: ownBundlePrefix,
             resolve: Self.responsibleApplication)
         guard applications != last else { return }
         last = applications
-        DispatchQueue.main.async { [weak self] in self?.changed?(applications) }
+        DispatchQueue.main.async { [weak self] in self?.changed?(.success(applications)) }
+    }
+
+    private func observationFailed(_ error: Error) {
+        // Force the next successful observation to be sent, even if unchanged.
+        last = nil
+        let failure = error as? MicrophoneObservationFailure
+            ?? MicrophoneObservationFailure(osStatus: kAudioHardwareUnspecifiedError)
+        DispatchQueue.main.async { [weak self] in self?.changed?(.failure(failure)) }
     }
 
     // MARK: - CoreAudio
@@ -107,29 +127,27 @@ public final class MicrophoneActivityObserver: @unchecked Sendable {
             mElement: kAudioObjectPropertyElementMain)
     }
 
-    private static func processObjects() -> [AudioObjectID] {
+    private static func processObjects() throws -> [AudioObjectID] {
         var address = address(kAudioHardwarePropertyProcessObjectList)
         let system = AudioObjectID(kAudioObjectSystemObject)
         var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size) == noErr, size > 0 else {
-            return []
-        }
+        let sizeStatus = AudioObjectGetPropertyDataSize(system, &address, 0, nil, &size)
+        guard sizeStatus == noErr else { throw MicrophoneObservationFailure(osStatus: sizeStatus) }
+        guard size > 0 else { return [] }
         var objects = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
-        guard AudioObjectGetPropertyData(system, &address, 0, nil, &size, &objects) == noErr else {
-            return []
-        }
+        let dataStatus = AudioObjectGetPropertyData(system, &address, 0, nil, &size, &objects)
+        guard dataStatus == noErr else { throw MicrophoneObservationFailure(osStatus: dataStatus) }
         return Array(objects.prefix(Int(size) / MemoryLayout<AudioObjectID>.size))
     }
 
     private static func read<T: FixedWidthInteger>(
         _ object: AudioObjectID, _ selector: AudioObjectPropertySelector
-    ) -> T? {
+    ) throws -> T {
         var address = address(selector)
         var value: T = 0
         var size = UInt32(MemoryLayout<T>.size)
-        guard AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value) == noErr else {
-            return nil
-        }
+        let status = AudioObjectGetPropertyData(object, &address, 0, nil, &size, &value)
+        guard status == noErr else { throw MicrophoneObservationFailure(osStatus: status) }
         return value
     }
 
@@ -179,4 +197,9 @@ public final class MicrophoneActivityObserver: @unchecked Sendable {
         }
         return nil
     }
+}
+
+/// A failed observation is unknown, never an empty list of microphone users.
+public struct MicrophoneObservationFailure: Error {
+    public let osStatus: OSStatus
 }

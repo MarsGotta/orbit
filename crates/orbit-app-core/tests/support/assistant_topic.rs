@@ -89,6 +89,7 @@ pub fn snapshot_with_privacy(
                     account: None,
                     privacy_stopped,
                     helper_connected: true,
+                    shortcut_failures: None,
                     error_reports: None,
                     language: None,
                 },

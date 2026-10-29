@@ -504,6 +504,30 @@ final class NativeChannelTests: XCTestCase {
         XCTAssertEqual(observedOnMain.withLock { $0 }, false)
     }
 
+    func testPendingCommandsAreReportedBeforeDeliveryAndReleasedAfterIt() async throws {
+        let input = Pipe()
+        defer { try? input.fileHandleForWriting.close() }
+        let channel = channel(OutputProbe(), input: input)
+        let admitted = DispatchSemaphore(value: 0)
+        let released = expectation(description: "command released")
+        let phases = Mutex<[String]>([])
+        channel.commandPending = { id, queued in
+            phases.withLock { $0.append("\(id):\(queued)") }
+            if queued { admitted.signal() } else { released.fulfill() }
+        }
+        channel.receive = { _ in
+            XCTAssertEqual(phases.withLock { $0 }, ["fixture:true"])
+        }
+        channel.start()
+        try await MainActor.run {
+            try input.fileHandleForWriting.write(contentsOf: command("fixture"))
+            XCTAssertEqual(admitted.wait(timeout: .now() + 2), .success)
+            XCTAssertEqual(phases.withLock { $0 }, ["fixture:true"])
+        }
+        await fulfillment(of: [released], timeout: 2)
+        XCTAssertEqual(phases.withLock { $0 }, ["fixture:true", "fixture:false"])
+    }
+
     func testFailureBeforeReaderAdmissionPreventsReceivingFurtherCommands() async throws {
         let input = Pipe()
         let channel = channel(OutputProbe(), input: input)

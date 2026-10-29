@@ -44,7 +44,8 @@ public struct MainThreadStallWatch: Equatable, Sendable {
     /// a ping was answered is measured from the next ping, so it can read up
     /// to this much shorter than it was; 100 ms keeps that error under half
     /// of `threshold`. It wakes a utility queue ten times a second and posts
-    /// one empty block to the main queue each time; nothing else.
+    /// one empty block to the main queue each time while startup, native work,
+    /// capture or playback is active. Idle time has no diagnostic timer.
     public static let pingInterval: TimeInterval = 0.1
 
     /// How long a hold may last before it is said while it still lasts. It
@@ -60,6 +61,18 @@ public struct MainThreadStallWatch: Equatable, Sendable {
     /// When the outstanding ping was posted; nil when none is outstanding.
     private var pingPostedAt: TimeInterval?
     private var ongoingSaid = false
+    private var active = true
+    // IDs are bounded by NativeChannel's admitted-command slots. Keep them
+    // until delivery completes, including commands queued behind a held main.
+    private var pendingCommands = Set<String>()
+    private var hasWork: Bool { active || !pendingCommands.isEmpty }
+    public var needsTimer: Bool { hasWork || pingPostedAt != nil }
+
+    public mutating func commandPending(id: String, queued: Bool) {
+        if queued { pendingCommands.insert(id) } else { pendingCommands.remove(id) }
+    }
+
+    public mutating func activityChanged(_ active: Bool) { self.active = active }
     public private(set) var recording = false
     public private(set) var lastCommand = "none"
 
@@ -69,6 +82,7 @@ public struct MainThreadStallWatch: Equatable, Sendable {
     /// (none is outstanding) and the ongoing hold to say, at most once each.
     public mutating func timerFired(at now: TimeInterval) -> (postPing: Bool, ongoing: MainThreadStall?) {
         guard let posted = pingPostedAt else {
+            guard hasWork else { return (false, nil) }
             pingPostedAt = now
             return (true, nil)
         }
@@ -130,6 +144,7 @@ public final class MainThreadHangDetector: @unchecked Sendable {
     /// Only touched on `queue`.
     private var watch = MainThreadStallWatch()
     private var timer: DispatchSourceTimer?
+    private var running = false
 
     /// `target` is the queue watched: the main queue, or a stand-in in tests.
     /// `report` runs on the watcher's queue.
@@ -145,18 +160,29 @@ public final class MainThreadHangDetector: @unchecked Sendable {
 
     public func start() {
         queue.async { [self] in
-            guard timer == nil else { return }
-            let source = DispatchSource.makeTimerSource(queue: queue)
-            let interval = DispatchTimeInterval.milliseconds(Int(MainThreadStallWatch.pingInterval * 1000))
-            source.schedule(deadline: .now() + interval, repeating: interval, leeway: .milliseconds(25))
-            source.setEventHandler { [weak self] in self?.fire() }
-            timer = source
-            source.resume()
+            running = true
+            updateTimer()
         }
+    }
+
+    private func updateTimer() {
+        guard running, watch.needsTimer else {
+            timer?.cancel()
+            timer = nil
+            return
+        }
+        guard timer == nil else { return }
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        let interval = DispatchTimeInterval.milliseconds(Int(MainThreadStallWatch.pingInterval * 1000))
+        source.schedule(deadline: .now() + interval, repeating: interval, leeway: .milliseconds(25))
+        source.setEventHandler { [weak self] in self?.fire() }
+        timer = source
+        source.resume()
     }
 
     public func stop() {
         queue.async { [self] in
+            running = false
             timer?.cancel()
             timer = nil
         }
@@ -164,11 +190,26 @@ public final class MainThreadHangDetector: @unchecked Sendable {
 
     /// Called on the main thread as a command starts: one async hop, nothing more.
     public func commandStarted(_ kind: String) {
-        queue.async { [self] in watch.commandStarted(kind) }
+        queue.async { [self] in
+            watch.commandStarted(kind)
+            watch.activityChanged(true)
+            updateTimer()
+        }
     }
 
-    public func captureChanged(_ capturing: Bool) {
-        queue.async { [self] in watch.captureChanged(capturing) }
+    public func commandPending(id: String, queued: Bool) {
+        queue.async { [self] in
+            watch.commandPending(id: id, queued: queued)
+            updateTimer()
+        }
+    }
+
+    public func activityChanged(pending: Bool, capturing: Bool, playing: Bool) {
+        queue.async { [self] in
+            watch.captureChanged(capturing)
+            watch.activityChanged(pending || capturing || playing)
+            updateTimer()
+        }
     }
 
     private func fire() {
@@ -184,5 +225,6 @@ public final class MainThreadHangDetector: @unchecked Sendable {
 
     private func answered(at now: TimeInterval) {
         if let stall = watch.pingAnswered(at: now) { report(stall) }
+        updateTimer()
     }
 }

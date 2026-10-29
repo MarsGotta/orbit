@@ -9,6 +9,7 @@
   "microphone": false,
   "system_audio": false,
   "playing": false,
+  "shortcut_failures": [],
   "supported_audio_processing": [
     "unprocessed",
     "voice_processing"
