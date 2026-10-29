@@ -33,6 +33,22 @@ final class MicrophonePCMConverterTests: XCTestCase {
         }
     }
 
+    /// Measured on a Mac (2026-10-29): with a one-second output buffer,
+    /// 20 blocks at 44.1 kHz gave 86,016 frames at 48 kHz instead of 89,164.
+    func testAStreamOfBlocksKeepsItsDurationAcrossANonIntegerRatio() throws {
+        let routes: [(UInt32, UInt32)] = [(44_100, 48_000), (48_000, 44_100), (16_000, 48_000)]
+        for (inputRate, outputRate) in routes {
+            let converter = MicrophonePCMConverter(outputRate: outputRate)
+            var frames = 0
+            for _ in 0..<200 {
+                frames += try converter.convert(Data(repeating: 0, count: 4_096 * 2), sampleRate: inputRate).count / 2
+            }
+            let expected = 200 * 4_096 * Int(outputRate) / Int(inputRate)
+            XCTAssertLessThanOrEqual(expected - frames, 1, "\(inputRate) to \(outputRate)")
+            XCTAssertGreaterThanOrEqual(expected - frames, 0, "\(inputRate) to \(outputRate)")
+        }
+    }
+
     func testRelayPublishesTheMeasuredGapBeforeResumedPCMAtTheOriginalRate() async throws {
         let input = Pipe()
         let output = Pipe()

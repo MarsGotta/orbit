@@ -6,6 +6,10 @@ final class MicrophonePCMConverter {
     let outputRate: UInt32
     private var converter: AVAudioConverter?
     private var inputRate: UInt32?
+    /// Frames given to and taken from the current converter. Each block asks
+    /// for exactly its share of the output, carrying the fraction forward.
+    private var framesIn: UInt64 = 0
+    private var framesOut: UInt64 = 0
 
     init(outputRate: UInt32) { self.outputRate = outputRate }
 
@@ -22,15 +26,20 @@ final class MicrophonePCMConverter {
             converter.primeMethod = .none
             self.converter = converter
             inputRate = sampleRate
+            framesIn = 0
+            framesOut = 0
         }
-        // Size each short ring block by its rate ratio. Sixteen frames cover
-        // converter rounding/filter headroom, not a second of unused PCM.
-        let frames = pcm.count / 2
-        let capacity = ceil(Double(frames) * Double(outputRate) / Double(sampleRate)) + 16
-        guard capacity.isFinite, capacity > 0, capacity <= Double(UInt32.max),
+        // The output must be exactly this block's share. Measured on a Mac
+        // (2026-10-29): with a larger buffer, AVAudioConverter keeps part of
+        // every block when upsampling 44.1 to 48 kHz (86,016 frames out of
+        // 89,164 over 20 blocks); with the exact share it keeps under one.
+        let frames = UInt64(pcm.count / 2)
+        let due = (framesIn + frames) * UInt64(outputRate) / UInt64(sampleRate)
+        let capacity = max(due - min(due, framesOut), 1)
+        guard capacity <= UInt64(UInt32.max),
               let converter,
               let input = AVAudioPCMBuffer(pcmFormat: converter.inputFormat,
-                  frameCapacity: AVAudioFrameCount(pcm.count / 2)),
+                  frameCapacity: AVAudioFrameCount(frames)),
               let samples = input.int16ChannelData?[0],
               let output = AVAudioPCMBuffer(pcmFormat: converter.outputFormat,
                   frameCapacity: AVAudioFrameCount(capacity)) else {
@@ -49,6 +58,8 @@ final class MicrophonePCMConverter {
         guard status != .error, let converted = output.int16ChannelData?[0] else {
             throw NativeFailure("microphone_conversion_failed", underlying: error)
         }
+        framesIn += frames
+        framesOut += UInt64(output.frameLength)
         return Data(bytes: converted, count: Int(output.frameLength) * 2)
     }
 }
