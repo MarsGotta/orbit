@@ -7,58 +7,49 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-29
+
+### Added
+
+- The interface speaks English and Spanish. Settings › General chooses the
+  language; by default it follows the first of macOS's preferred languages that
+  is English or Spanish, else English. Dates, times, numbers and plurals follow
+  its locale, and the choice applies at once. The menu bar, the application
+  menus, the macOS notifications, the floating panel, the permission texts and
+  what Orbit says aloud follow it too: the wake phrase is «Oye {name}» in
+  Spanish and «Hey {name}» in English, with its recognizer in that language.
+- A vault's `SCHEMA.md` frontmatter defines its own types, each with a role
+  (person, project, meeting, topic, source, journal, note) and an optional
+  folder, and renames the project fields Orbit reads (`stage`, `start`).
+  Without it, English defaults apply. The app decides by role, not by name.
+- macOS notifications say when a recording is cut, comes back or is closed on
+  its own.
+
 ### Changed
 
-- Render hub and daemon refusals from codes and facts in English or Spanish; keep English compatibility messages for older Macs.
-- Use the resolved app language for the call's spoken silence question and
-  local reply vocabulary. Re-arm a pending question when the language changes
-  without extending its deadline; keep Spanish wording and meeting content.
-  Use English for remaining internal daemon and calendar diagnostics.
-- Render briefing causes from codes and numeric facts in the selected interface
-  language. Use locale plural rules for counted text, keep catalogue keys in
-  English, and reject inline copy inside nested Markdown render callbacks.
-- Use English for assistant tool help, results and model instructions. Keep meeting
-  notes in the meeting language, and render AI privacy help and assistant progress
-  from English and Spanish catalogue codes with English fallbacks for older Macs.
-
-- The Mac menu bar, application menus, notifications and the Rust side's
-  copy follow the interface language and update when it changes.
-- Move remaining desktop interface labels, accessible names and helper copy into
-  the English and Spanish catalogues. Enforce the migration with an AST check
-  in the UI test gate, including the app shell, design components and state.
-- Follow the app language for the meeting wake phrase and its question:
-  “Oye {name}” in Spanish or “Hey {name}” in English, including British
-  English recognition when preferred by macOS. Re-arm listening after a
-  language change. Bundle English and Spanish permission descriptions and
-  folder picker copy, and use English for helper diagnostics.
-
-- Add English and Spanish catalogue copy with a live language choice in
-  Settings › General. Follow the first supported system language by default,
-  persist the choice on this Mac, and format dates and numbers with its locale.
-  The test harness pins its isolated app to Spanish. Inline feature copy and
-  native menus, notifications and speech follow in later work.
-
-- Vault files use English defaults and Obsidian Tasks syntax. Each vault can
-  define type roles, folders and field aliases in `SCHEMA.md` frontmatter;
-  malformed schemas and unsupported query lines show Spanish reading notices.
-  Person, project and source views follow roles, including custom type names.
-  OKF lifecycle (`status`) stays separate from project progress (`stage`);
-  only `stage` and `start` can be renamed. Concept types, provenance actors
-  and timestamps receive advisory conformance diagnostics without refusing
-  reads. Reserved indexes use OKF Markdown lists, and logs preserve prose.
-  Unknown frontmatter keys remain intact for future writes. Upgrade the hub
-  before the Mac, and update both for the new reading contract.
+- The vault format is English. Tasks and dependencies use the Obsidian Tasks
+  syntax, with a subset of its query blocks. The reader follows OKF 0.2:
+  `status` is the lifecycle, the last change is `generated.at`, review is
+  `verified`, unknown keys are kept, `index.md` and `log.md` keep their reserved
+  shapes, and a note without a `type` is read but marked not conformant. Update
+  the hub before the Macs.
+- Refusals and failures from the hub and the daemon travel as codes with their
+  numbers, and the interface writes them in the chosen language. Their English
+  text remains for logs and for an older Mac.
+- The assistants' tool descriptions, results and refusals, the instructions to
+  models, logs, internal errors and comments are in English. Meeting notes stay
+  in the meeting's language.
 
 ### Fixed
 
-- A freshly started capture task counts as running from its start, so the
-  loop waits for the frames queued for it instead of passing them by under
-  load.
-- Audio gaps, damaged frames and device format changes keep meeting recordings
-  running. Real capture cuts keep retrying with backoff, and macOS notifications
-  report prolonged cuts, recovery and automatic closure after two minutes away.
-- Voice notes and assistant calls are refused before entering meeting deletion;
-  permanent local deletion refusals are logged once and retired.
+- A hole in the audio, a damaged frame or a frame in another format never cuts
+  a recording: the gap is counted and the capture goes on. A real cut resumes
+  with no limit on tries, waiting 1, 2, 5, 10 and then 30 s; only a capture gone
+  for two minutes closes it.
+- A freshly started capture task counts as running from its start, so the loop
+  waits for the frames queued for it under load.
+- The meeting list no longer shows voice notes, whose deletion as a meeting the
+  store refused forever; a permanent refusal is not retried.
 
 ## [0.12.9] - 2026-10-28
 
