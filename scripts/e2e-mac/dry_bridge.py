@@ -37,6 +37,8 @@ class DryRunView:
         self.transitions.update(example.overrides("transitions.json"))
         self.screen, self.panel = "home", "panel"
         self.generation = 0
+        self.visible = True
+        self.native_value = None
 
     @property
     def pid(self):
@@ -151,7 +153,7 @@ class DryRunBridge:
                     {
                         "label": label,
                         "window_id": self.view.window_id(label),
-                        "visible": True,
+                        "visible": self.view.visible if label == "main" else True,
                         "frame": {"x": 0, "y": 0, "width": 800, "height": 600},
                     }
                     for label in ("main", "panel")
@@ -159,6 +161,10 @@ class DryRunBridge:
             }
         label = request["window"]
         markdown, elements = projected(self.view.tree(label), self.view.generation)
+        if self.view.native_value is not None:
+            for row in elements:
+                if row["role"] == "textbox":
+                    row["text"] = self.view.native_value
         if command == "read":
             if request.get("query"):
                 markdown = query_filter(markdown, request["query"])
@@ -176,5 +182,12 @@ class DryRunBridge:
             raise MacFailure(f"test bridge match_count: {len(matches)} for {request['name']}")
         if command == "type":
             self.example.message = request["text"]
+            self.view.native_value = None
+            if self.view.screen == "native-editor":
+                self.view.native_value = request["text"]
         self.view.follow(f"{command}:{matches[0]['fixture_text']}")
+        if command == "press" and self.view.screen == "native-recording":
+            self.example.native_phase = "capture"
+        if command == "press" and self.view.screen == "native-rearmed":
+            self.example.native_phase = "rearmed"
         return {"ok": True, "count": 1}

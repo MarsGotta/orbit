@@ -21,6 +21,11 @@ English and Spanish; labels quoted below may use either language.
   registration and report when system approval is required.
 - Request screen and Accessibility access before offering System Settings in
   Settings and onboarding. Suspend panel hover checks while no question is shown.
+- Extend the isolated Mac acceptance harness with real privacy, live recording
+  close/quit and native editing checks, hub audio readback, English hub listening,
+  and early exit for abandoned wake phrases. Document disposable-calendar writes
+  and the independent silent remote-audio prerequisite.
+
 
 ### Changed
 

@@ -107,6 +107,30 @@
   "press:Asistente": "assistant"
  },
  "silence-meetings": {
+  "press:Asistente": "native-editor"
+ },
+ "native-editor": {
+  "press:Grabar reunión": "native-dialog"
+ },
+ "native-home": {
+  "press:Ajustes": "native-settings",
+  "press:Grabar reunión": "native-dialog",
   "press:Asistente": "assistant"
+ },
+ "native-settings": {
+  "press:Privacidad y permisos": "native-stopped"
+ },
+ "native-stopped": {
+  "press:Ajustes": "native-settings",
+  "press:Reactivar Orbit": "native-rearmed"
+ },
+ "native-rearmed": {
+  "press:Grabar reunión": "native-dialog"
+ },
+ "native-dialog": {
+  "press:Solo mi micrófono Para una reunión en persona.": "native-dialog-microphone"
+ },
+ "native-dialog-microphone": {
+  "press:Empezar a grabar": "native-recording"
  }
 }

@@ -73,7 +73,8 @@ same byte ceiling. These are engineering budgets, not Mac latency measurements.
 
 ## Harness scope and reviewer acceptance
 
-All web-view presses, typing and reads use the bridge through `interface.py`.
+Ordinary web-view presses, typing and reads use the bridge through `interface.py`;
+check 24 alone uses real keys to test native editing.
 Each reading is saved under the run's `trees/` folder with its original query
 and byte count. The semantic tree retains headings, text leaves, editable
 values and descriptions, list hierarchy and transcript order. Queries retain
@@ -98,8 +99,8 @@ the Apple Event in a single remote call. It never starts/restarts CuaDriver.
 
 Check 18 retains `pointer.swift` and the daemon's held/released facts. Its
 panel readings now use the bridge. The Dock's quit, BlackHole, `say` and
-`SwitchAudioSource` retain their original native paths. No new global shortcut
-is pressed: the harness did not press those shortcuts before this migration.
+`SwitchAudioSource` retain their original native paths. Checks 22–24 below add
+real keyboard delivery and a scoped Dock-tile press; CuaDriver remains read-only.
 
 Check 21 independently reads macOS accessibility through CuaDriver, with no
 input tool granted in its manifest. The sidebar replaces «Grabar reunión» with
@@ -116,7 +117,7 @@ cleanup retries an interrupted stop only for the driver's recorded pid.
 `dry_bridge.py` replays the app-view boundary from `screens/` and
 `transitions.json`; the fake CuaDriver can read only the independent
 `accessibility-*.md` fixtures and refuses every input tool. The good example
-passes all 21 checks; `bad-21` removes an AX button name without changing DOM
+passes all 24 checks; `bad-21` removes an AX button name without changing DOM
 behavior or any of the original checks. The original spoiled examples still
 fail their own checks. Cross-language tests run the actual injected DOM code
 and pass its trees to the existing list, transcript and recovered-draft checks.
@@ -133,7 +134,7 @@ It cannot prove WebKit delivery, AppKit behavior or real AX visibility. On a
 consented, idle Mac with the isolated Orbit Pruebas fixtures, the reviewer must:
 
 1. Rebuild Orbit Pruebas with the current bridge and run the full Spanish
-   harness. All 21 checks must pass, including 16, 17, 18 and the new 21.
+   harness. All 24 checks must pass, including the native cases below.
 2. Inspect saved bridge trees for the transcript's times/speakers/text, meeting
    titles and day groups, editable title values, muted spans and draft recovery.
    Confirm every web-view press/type is a DOM action. Repeated controls must
@@ -200,8 +201,8 @@ to `en-US` or `es-ES` so WebKit and the helper agree on region. It does not
 change the Mac's global languages or Orbit's released identity.
 
 For English wake recognition, macOS 26 on-device speech must support en-US and
-have its model installed (or finish downloading within the existing 300-second
-listening bound). Unsupported/unavailable/failed recognition fails check 7 with
+have its model installed before the run (a download still in progress at the
+60-second live-meeting listening bound fails with its observed progress). Unsupported/unavailable/failed recognition fails check 7 with
 the helper's cause and expected locale. A download that never becomes listening
 fails within the bound and reports the last trigger state/progress. No typed
 question substitutes for the voice question. The English script says “Hey
@@ -210,7 +211,7 @@ transcribes in English, and its existing note pipeline follows that meeting
 language.
 
 On the Mac, run the default Spanish pass and a separate English pass with the
-same isolated fixtures. Both must pass 21/21. For the English run inspect:
+same isolated fixtures. Both must pass 24/24. For the English run inspect:
 
 1. `report.json`/`report.txt` say `en`; `mac.locale` says `en-US` and two voices
    were selected. Confirm the helper uses en_US and hears “Hey Deimos”. Verify
@@ -232,3 +233,76 @@ same isolated fixtures. Both must pass 21/21. For the English run inspect:
    cause (or bounded download progress), rather than passing or substituting a
    typed question. Confirm global language preferences and the released app
    remain untouched.
+
+## Native acceptance after check 21
+
+The run now has 24 numbered checks in either language. Checks 22–24 add real
+CGEvent key delivery, with Orbit Pruebas's exact pid and frontmost identity
+checked before posting; ordinary navigation, field focus and observations stay
+on the bridge. CuaDriver still has only check 21's two read-only AX samples.
+The system Accessibility permission must allow the harness process to post keys.
+A lost input receipt is never retried.
+
+- **22:** First read an invented passage through the native playback path with
+  the default output temporarily routed to BlackHole. Press the real ⌃⌥Esc;
+  require native playback to stop. Restore the output, locally rearm using
+  Settings › Privacy & Permissions, then start a separate microphone recording.
+  Keep synthetic speech on BlackHole and press the same shortcut. Observe the
+  helper's actual microphone, system-audio, playback and latch flags. Watch five
+  seconds with fresh fixture speech, quit/relaunch and watch five more; the hub
+  chunk count must stay unchanged across both watches. Local rearm must leave
+  audio idle. Active playback is a separate phase because Orbit refuses to start
+  read-aloud during a meeting. Expected added cost: roughly 25–45 seconds plus
+  voice synthesis, cold Swift compilation and relaunch time; provisional.
+- **23:** In another recording, keep unique synthetic speech running, send real
+  ⌘W, require a hidden main window and increasing sealed chunks for the same
+  recording. Press only Orbit Pruebas's Dock tile using its exact bundle URL;
+  require a visible main window. Send real ⌘Q while speech remains live. Both
+  the app and its exact helper must exit without forced signals or a relaunch.
+  The isolated hub must hold the closure and all declared sequences/frames;
+  read/decrypt every WAV, verify its checksum, PCM byte length and manifest
+  totals. No audio is exported or played. Expected added cost: 15–25 seconds
+  plus Swift compilation, upload drain and relaunch; provisional.
+- **24:** Focus an empty Assistant composer through the bridge. Real Unicode
+  typing, ⌘Z, ⇧⌘Z, ⌘A/⌘C, end-of-line and ⌘V must yield respectively
+  `Maple budget`, empty, `Maple budget`, and `Maple budgetMaple budget`.
+  Read each value through the bridge; never send the fixture. The test replaces
+  the clipboard with its invented text and clears it afterward; it never reads
+  or saves the owner's clipboard. Expected added cost: 5–15 seconds plus cold
+  Swift compilation; provisional. This tests responder shortcuts, not every
+  focus-dependent Edit-menu enabled state.
+
+Only Orbit Pruebas logs `acceptance_audio_state`, four booleans from actual
+native state events. The harness filters these by the current app pid; a missing
+or old-process observation is unknown, not stopped. This is the sole daemon
+change needed by these checks. No helper command or product UI was added.
+Good and independently spoiled examples for 22, 23 and 24 use the same public
+orchestrator on Linux. They verify harness decisions, never real macOS input.
+
+Check 7 first waits at most ten seconds for a voice question to open after the
+phrase. `abandoned`/`not_listening` immediately names the daemon's cause. Only
+an opened question gets the answer wait. Live listening and answer waits are
+at most 60 seconds, below the two-minute silence question; install on-device
+speech models before the acceptance run. A model still downloading fails with
+its observed state/progress, not a substitute typed question. While the panel
+is deliberately held, the run speaks the next unique script lines, once. The
+route check follows the rest of the spoken script. An abandoned wake phrase
+fails check 7, leaves 18 unchecked and permits the remaining independent checks.
+The harness never waits out a speech-model download in a silent meeting.
+
+On the reviewer Mac, rebuild Orbit Pruebas and run separate Spanish and English
+passes. Require 24/24 for each, inspect the four native-state flags and unchanged
+chunk counts in `report.json`, verify the Dock tile operation and both process
+exits, compare the read-back frame totals, and inspect each native editor value.
+Confirm no fixture sound reaches hardware, all routing restores after a failure,
+and the privacy latch survives relaunch until the bridge presses the local UI
+rearm. Exercise an abandoned wake phrase and confirm check 20 and later checks
+still run. The English report must record listening `{provider_id: hub,
+model: whisper}` before check 11; Spanish keeps its existing listening default.
+Measure added/whole-run time; the estimates above are not Mac measurements.
+
+Independent remote audio remains blocked on the prerequisite in
+[remote audio](remote-audio.md). Calendar writes have a separate
+[manual disposable-calendar procedure](calendar-writes.md): do not automate or
+run it without the owner's explicit yes. Neither is represented as passed by
+the 24-check harness.

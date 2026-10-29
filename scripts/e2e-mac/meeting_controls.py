@@ -95,7 +95,8 @@ def _deleted(kept: dict) -> bool:
 def second_half(test) -> None:
     """The script's second half, its middle lines with «Silenciar» on."""
     with test.step(f"""second half of the script, up to «{copy_text("recordingMute.mute")}»"""):
-        test.mac.say("part2-before")
+        if not test.ev.get("second_half_started"):
+            test.mac.say("part2-before")
     _mute(test)
     with test.step(f"""second half of the script, after «{copy_text("recordingMute.unmute")}»"""):
         test.mac.say("part2-after")

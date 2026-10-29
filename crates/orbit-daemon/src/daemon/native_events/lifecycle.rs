@@ -81,6 +81,22 @@ impl Runtime {
         // durable latch: set means the user's stop is held there, and
         // both sides must say the same.
         let state = NativeStateStop::deserialize(event)?;
+        // Acceptance observes the real helper, never inferred UI state. Only
+        // four booleans leave this test identity; no audio or content is logged.
+        let keys = ["privacy_stopped", "microphone", "system_audio", "playing"];
+        if orbit_core::orbit_bundle::IDENTIFIER == "app.orbit.companion.pruebas"
+            && let Some(values) = keys
+                .iter()
+                .map(|key| event.get(key).and_then(Value::as_bool))
+                .collect::<Option<Vec<_>>>()
+        {
+            let fields: Vec<_> = keys
+                .iter()
+                .zip(values.iter())
+                .map(|(key, value)| (*key, if *value { "true" } else { "false" }))
+                .collect();
+            self.log("acceptance_audio_state", &fields);
+        }
         if state.privacy_stopped && !self.state.privacy_stopped() {
             self.privacy_stop(orbit_core::privacy_stop::UserStop::HelperLatch { code: None })
                 .await;
