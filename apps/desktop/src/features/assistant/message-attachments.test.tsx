@@ -63,10 +63,30 @@ function message(id: string, attachments: Attachment[]): ChatMessage {
   };
 }
 
+let nearViewport = true;
+const visibility = new Map<Element, (visible: boolean) => void>();
 const blobs: Blob[] = [];
 const revoked: string[] = [];
 
 beforeEach(() => {
+  nearViewport = true;
+  visibility.clear();
+  vi.stubGlobal(
+    "IntersectionObserver",
+    class {
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        const update = (isIntersecting: boolean) =>
+          this.callback(
+            [{ target, isIntersecting } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver,
+          );
+        visibility.set(target, update);
+        if (nearViewport) update(true);
+      }
+      disconnect() {}
+    },
+  );
   blobs.length = 0;
   revoked.length = 0;
   URL.createObjectURL = vi.fn((blob: Blob) => {
@@ -84,6 +104,7 @@ beforeEach(() => {
 afterEach(() => {
   // Unmounting frees the blob URLs, so it comes before the stubs go.
   cleanup();
+  vi.unstubAllGlobals();
   Reflect.deleteProperty(URL, "createObjectURL");
   Reflect.deleteProperty(URL, "revokeObjectURL");
 });
@@ -133,7 +154,7 @@ describe("images", () => {
     expect(await within(second).findByText("✓ Copiada")).toBeTruthy();
     fireEvent.keyDown(second, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(bridge.attachmentBytes).toHaveBeenCalledTimes(2);
+    expect(bridge.attachmentBytes).toHaveBeenCalledTimes(6);
   });
 
   it("says «Abriendo…» while macOS opens the file, and closes with «Cerrar»", async () => {
@@ -166,6 +187,7 @@ describe("images", () => {
     show([message("1", [plano])]);
     expect(await screen.findByText(/Ese adjunto ya no está en el hub/)).toBeTruthy();
     expect(screen.queryByRole("img", { name: "plano.png" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Ver plano.png" })).toBeNull();
   });
 
   it("a thumbnail the stopped hub cannot give names the hub, not an internal failure", async () => {
@@ -212,4 +234,50 @@ describe("PDFs and other files", () => {
       ["a-notas", true],
     ]);
   });
+});
+
+it("loads only near the viewport, releases on leaving, and reloads the original for the viewer", async () => {
+  nearViewport = false;
+  show([message("1", [plano, fachada])]);
+  const thumbnail = screen.getByRole("button", { name: "Ver plano.png" });
+  const slot = [...visibility.keys()].find((element) => element.contains(thumbnail))!;
+  expect(bridge.attachmentBytes).not.toHaveBeenCalled();
+  await act(async () => visibility.get(slot)?.(true));
+  expect(await screen.findByRole("img", { name: "plano.png" })).toBeTruthy();
+  expect(bridge.attachmentBytes.mock.calls).toEqual([[plano.id]]);
+  const originalUrl = screen.getByRole("img").getAttribute("src");
+  await act(async () => visibility.get(slot)?.(false));
+  expect(screen.queryByRole("img")).toBeNull();
+  expect(revoked).toContain(originalUrl);
+  await act(async () => visibility.get(slot)?.(true));
+  await screen.findByRole("img", { name: "plano.png" });
+  expect(bridge.attachmentBytes.mock.calls).toEqual([[plano.id], [plano.id]]);
+  await userEvent.click(screen.getByRole("button", { name: "Ver plano.png" }));
+  const viewer = await screen.findByRole("dialog", { name: "plano.png" });
+  await within(viewer).findByRole("img", { name: "plano.png" });
+  expect(bridge.attachmentBytes.mock.calls).toEqual([[plano.id], [plano.id], [plano.id]]);
+  await act(async () => visibility.get(slot)?.(false));
+  expect(within(viewer).getByRole("img")).toBeTruthy();
+  await userEvent.click(within(viewer).getByRole("button", { name: "Cerrar" }));
+  expect(screen.queryByRole("img")).toBeNull();
+  expect(revoked).toHaveLength(3);
+});
+
+it("ignores thumbnail bytes that arrive after it leaves the viewport", async () => {
+  nearViewport = false;
+  let arrive: (bytes: ArrayBuffer) => void = () => undefined;
+  bridge.attachmentBytes.mockImplementation(
+    () =>
+      new Promise<ArrayBuffer>((resolve) => {
+        arrive = resolve;
+      }),
+  );
+  show([message("1", [plano])]);
+  const thumbnail = screen.getByRole("button", { name: "Ver plano.png" });
+  const slot = [...visibility.keys()].find((element) => element.contains(thumbnail))!;
+  await act(async () => visibility.get(slot)?.(true));
+  await act(async () => visibility.get(slot)?.(false));
+  await act(async () => arrive(new ArrayBuffer(2048)));
+  expect(screen.queryByRole("img")).toBeNull();
+  expect(URL.createObjectURL).not.toHaveBeenCalled();
 });

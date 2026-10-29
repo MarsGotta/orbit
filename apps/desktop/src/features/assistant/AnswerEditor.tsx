@@ -44,18 +44,19 @@ function EditorHeader({ onClose, titleId }: { onClose: () => void; titleId: stri
 function EditorFooter({
   onClose,
   onSent,
+  onDiscard,
   send,
   text,
 }: {
   onClose: () => void;
   /** The message was taken: what was written goes with it. */
   onSent: () => void;
+  onDiscard: () => void;
   send: AnswerEditorProps["send"];
   text: string;
 }) {
   const es = useCopy();
   const { copy, state } = useClipboardCopy();
-  const [sending, setSending] = useState(false);
   const failure = copyStatus(state);
   return (
     <footer className={styles.footer}>
@@ -65,6 +66,9 @@ function EditorFooter({
           {failure}
         </span>
       )}
+      <Button onClick={onDiscard} size={36} variant="ghost">
+        {es.controls.discardChanges}
+      </Button>
       <Button onClick={onClose} size={36} variant="ghost">
         {es.chatActions.close}
       </Button>
@@ -77,25 +81,42 @@ function EditorFooter({
           {state.kind === "copied" ? es.chatActions.copied : es.chatActions.copy}
         </span>
       </Button>
-      <Button
-        disabled={text.trim() === "" || sending}
-        onClick={() => {
-          const message = text.trim();
-          if (message === "") return;
-          setSending(true);
-          void Promise.resolve(send({ command: "chat", text: message }))
-            .then((accepted) => {
-              if (accepted !== false) onSent();
-            })
-            .catch(() => undefined)
-            .finally(() => setSending(false));
-        }}
-        size={36}
-        variant="accent"
-      >
-        {es.chatActions.sendBack}
-      </Button>
+      <SendBack onSent={onSent} send={send} text={text} />
     </footer>
+  );
+}
+
+/** The send keeps its own pending state until the daemon accepts or refuses it. */
+function SendBack({
+  onSent,
+  send,
+  text,
+}: {
+  onSent: () => void;
+  send: AnswerEditorProps["send"];
+  text: string;
+}) {
+  const es = useCopy();
+  const [sending, setSending] = useState(false);
+  return (
+    <Button
+      disabled={text.trim() === "" || sending}
+      onClick={() => {
+        const message = text.trim();
+        if (message === "") return;
+        setSending(true);
+        void Promise.resolve(send({ command: "chat", text: message }))
+          .then((accepted) => {
+            if (accepted !== false) onSent();
+          })
+          .catch(() => undefined)
+          .finally(() => setSending(false));
+      }}
+      size={36}
+      variant="accent"
+    >
+      {es.chatActions.sendBack}
+    </Button>
   );
 }
 
@@ -106,8 +127,7 @@ function EditorFooter({
  */
 /**
  * The answer as changed, kept on this Mac over the answer it was changed
- * from, so a quit or a fall with the window open loses nothing; closing the
- * window, or sending, lets it go.
+ * from. Dismissal keeps it; sending or explicitly discarding lets it go.
  */
 function useKeptAnswer(messageId: string, markdown: string) {
   const kept = useLocalDraft(`answer.${messageId}`, null, asTextOver);
@@ -127,7 +147,8 @@ export default function AnswerEditor({ markdown, messageId, onClose, send }: Ans
   const titleId = useId();
   const kept = useKeptAnswer(messageId, markdown);
   const [text, setText] = useState(kept.opened);
-  const close = () => {
+  const close = onClose;
+  const clearAndClose = () => {
     kept.drop();
     onClose();
   };
@@ -164,7 +185,13 @@ export default function AnswerEditor({ markdown, messageId, onClose, send }: Ans
             value={kept.opened}
           />
         </div>
-        <EditorFooter onClose={close} onSent={close} send={send} text={text} />
+        <EditorFooter
+          onClose={close}
+          onDiscard={clearAndClose}
+          onSent={clearAndClose}
+          send={send}
+          text={text}
+        />
       </section>
     </div>
   );

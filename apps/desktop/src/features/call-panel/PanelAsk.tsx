@@ -2,9 +2,26 @@ import { useId, useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import { questionBytes } from "../../app/meeting-question/copy";
+import { moveWithArrows } from "../../design/roving";
 import { Button } from "../../design/Button";
 import { useCopy } from "../../i18n/CopyProvider";
 import styles from "./CallPanel.module.css";
+
+/** A pending question keeps the form; refusal is displayed by PanelApp. */
+function useQuestionSend(send: (command: AppCommand) => unknown, onDone: () => void) {
+  const [sending, setSending] = useState(false);
+  const askNow = (question: string, minutes: number) => {
+    setSending(true);
+    void Promise.resolve()
+      .then(() => send({ command: "meeting_ask", question, minutes }))
+      .then((accepted) => {
+        if (accepted !== false) onDone();
+      })
+      .catch(() => undefined)
+      .finally(() => setSending(false));
+  };
+  return { sending, askNow };
+}
 
 /**
  * «Preguntar sin hablar»: the question, typed, and how many minutes of the
@@ -20,12 +37,13 @@ export function PanelAsk({
   aboutCall: boolean;
   ask: MeetingAskSnapshot;
   onDone: () => void;
-  send: (command: AppCommand) => void;
+  send: (command: AppCommand) => unknown;
 }) {
   const es = useCopy();
   const fieldId = useId();
   const [question, setQuestion] = useState("");
   const [minutes, setMinutes] = useState(ask.default_minutes);
+  const { sending, askNow } = useQuestionSend(send, onDone);
   const tooLong = questionBytes(question) > ask.max_question_bytes;
   const empty = question.trim() === "";
   return (
@@ -37,9 +55,8 @@ export function PanelAsk({
       }}
       onSubmit={(event) => {
         event.preventDefault();
-        if (empty || tooLong) return;
-        send({ command: "meeting_ask", question: question.trim(), minutes });
-        onDone();
+        if (empty || tooLong || sending) return;
+        askNow(question.trim(), minutes);
       }}
     >
       <label className={styles.meta} htmlFor={fieldId}>
@@ -57,18 +74,29 @@ export function PanelAsk({
       <WindowChoice minutes={minutes} onChoose={setMinutes} windows={ask.windows} />
       {tooLong && (
         <p className={styles.refusal} role="alert">
-          {es.meetingQuestion.tooLong}
+          {es.meetingQuestion.causes.questionTooLong(
+            questionBytes(question),
+            ask.max_question_bytes,
+          )}
         </p>
       )}
-      <div className={`${styles.actions} ${styles.end}`}>
-        <Button onClick={onDone} size={32} variant="ghost">
-          {es.meetingQuestion.cancel}
-        </Button>
-        <Button disabled={empty || tooLong} size={32} type="submit" variant="accent">
-          {es.meetingQuestion.send}
-        </Button>
-      </div>
+      <AskActions disabled={empty || tooLong || sending} onDone={onDone} />
     </form>
+  );
+}
+
+/** Sending disables repeat submission while Cancel remains an explicit dismissal. */
+function AskActions({ disabled, onDone }: { disabled: boolean; onDone: () => void }) {
+  const es = useCopy();
+  return (
+    <div className={`${styles.actions} ${styles.end}`}>
+      <Button onClick={onDone} size={32} variant="ghost">
+        {es.meetingQuestion.cancel}
+      </Button>
+      <Button disabled={disabled} size={32} type="submit" variant="accent">
+        {es.meetingQuestion.send}
+      </Button>
+    </div>
   );
 }
 
@@ -84,20 +112,31 @@ function WindowChoice({
 }) {
   const es = useCopy();
   return (
-    <div aria-label={es.floatingPanel.listenLast} className={styles.windows} role="radiogroup">
+    <div className={styles.windows}>
       <span aria-hidden="true">{es.floatingPanel.listenLast}</span>
-      {windows.map((window) => (
-        <button
-          aria-checked={window.minutes === minutes}
-          className={styles.window}
-          key={window.minutes}
-          onClick={() => onChoose(window.minutes)}
-          role="radio"
-          type="button"
-        >
-          {es.floatingPanel.minutes(window.minutes)}
-        </button>
-      ))}
+      <div aria-label={es.floatingPanel.listenLast} className={styles.choices} role="radiogroup">
+        {windows.map((window) => (
+          <button
+            aria-checked={window.minutes === minutes}
+            className={styles.window}
+            key={window.minutes}
+            onClick={() => onChoose(window.minutes)}
+            onKeyDown={(event) =>
+              moveWithArrows(
+                event,
+                windows.map((item) => item.minutes),
+                minutes,
+                onChoose,
+              )
+            }
+            tabIndex={window.minutes === minutes ? 0 : -1}
+            role="radio"
+            type="button"
+          >
+            {es.floatingPanel.minutes(window.minutes)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

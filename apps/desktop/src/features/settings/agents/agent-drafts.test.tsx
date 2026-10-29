@@ -127,10 +127,12 @@ describe("an agent's drafts", () => {
     expect((await openSkill()).value).toBe(`${SKILL_TEXT}\nUno más.`);
   });
 
-  it("«Cancelar» lets the skill's draft go", async () => {
+  it("dismissal recovers the skill draft; explicit discard lets it go", async () => {
     await openSettings();
     fireEvent.change(await openSkill(), { target: { value: `${SKILL_TEXT}\nUno más.` } });
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect((await openSkill()).value).toBe(`${SKILL_TEXT}\nUno más.`);
+    fireEvent.click(screen.getByRole("button", { name: "Descartar cambios" }));
     expect((await openSkill()).value).toBe(SKILL_TEXT);
   });
 });

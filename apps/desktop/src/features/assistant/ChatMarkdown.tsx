@@ -1,5 +1,5 @@
 import { useCopy } from "../../i18n/CopyProvider";
-import { createContext, useContext, type ComponentProps } from "react";
+import { createContext, memo, useContext, type ComponentProps } from "react";
 import Markdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { TextLink } from "../../design/TextLink";
@@ -171,7 +171,7 @@ const COMPONENTS: Components = {
  * quotes, rules and inline code. Text is text: no HTML from the model, only
  * web links and Orbit's own views are links, and no image is loaded.
  */
-export function ChatMarkdown({
+export const ChatMarkdown = memo(function ChatMarkdown({
   source,
   streaming = false,
 }: {
@@ -187,4 +187,4 @@ export function ChatMarkdown({
       </Answer>
     </div>
   );
-}
+});

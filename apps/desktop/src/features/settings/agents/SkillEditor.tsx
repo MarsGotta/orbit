@@ -16,6 +16,7 @@ export type OpenSkill =
 function EditorActions(props: {
   disabled: boolean;
   onClose: () => void;
+  onDiscard: () => void;
   onSave: () => void;
   pending: boolean;
   readOnly: boolean;
@@ -31,7 +32,10 @@ function EditorActions(props: {
   return (
     <>
       <Button onClick={props.onClose} size={36} variant="ghost">
-        {es.controls.cancel}
+        {es.controls.close}
+      </Button>
+      <Button onClick={props.onDiscard} size={36} variant="ghost">
+        {es.controls.discardChanges}
       </Button>
       <Button
         disabled={props.disabled}
@@ -88,7 +92,7 @@ function EditorLines({ recovered, refusal }: { recovered: boolean; refusal: stri
 
 /**
  * What is written in the window, kept on this Mac over the text it opened
- * with until the hub takes it; closing the window on purpose lets it go.
+ * with until the hub takes it or the person explicitly discards it.
  */
 function useSkillDraft(
   draftKey: string | null,
@@ -100,7 +104,8 @@ function useSkillDraft(
   const draft = kept.value?.from === skill.content ? kept.value.text : null;
   const content = draft ?? skill.content;
   return {
-    close: () => {
+    close: onClose,
+    discard: () => {
       kept.set(null);
       onClose();
     },
@@ -119,10 +124,8 @@ function useSkillDraft(
  * The whole `SKILL.md`, frontmatter included, as plain text in a window:
  * what is saved is exactly what is written. A new skill is named by its
  * frontmatter; one of a kind Orbit cannot change only opens to read.
- * Esc, a press outside or «Cancelar» close it and let its draft go; the
- * hub's refusal is said inside, and the window stays open with what was
- * written. Left by another way (another view, a quit, a fall), what was
- * written stays on this Mac and comes back when the same skill opens again.
+ * Dismissal keeps unsaved changes for reopening. Explicit discard clears
+ * them; a refused save keeps the window open with the hub's explanation.
  */
 export function SkillEditor({
   skill,
@@ -155,6 +158,7 @@ export function SkillEditor({
     <EditorActions
       disabled={busy || name === null || bytes > maxBytes || unchanged}
       onClose={close}
+      onDiscard={draft.discard}
       onSave={() => name !== null && draft.save(name)}
       pending={busy}
       readOnly={readOnly}

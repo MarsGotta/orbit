@@ -9,6 +9,13 @@ English and Spanish; labels quoted below may use either language.
 
 ### Changed
 
+- Assistant answer and skill editors keep dismissed drafts until saved or
+  explicitly discarded. Meeting questions wait for acceptance, preserve refused
+  text, explain available causes and limits, and support arrow-key context
+  selection. Speech failures and composer hover help use the selected language.
+- Unchanged Assistant Markdown avoids repeated parsing during recording updates;
+  chat images load near the viewport and release their bytes when scrolled away.
+
 - The real-test harness supports an English pass with `run --language en`,
   alongside its default Spanish pass. Both use checked exports of Orbit’s own
   catalogues, including native menus, and retain all 21 checks and screen

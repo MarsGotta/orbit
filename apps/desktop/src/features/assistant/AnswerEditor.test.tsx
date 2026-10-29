@@ -127,7 +127,7 @@ describe("the answer in the editor", () => {
 describe("an answer being changed when Orbit quits or falls", () => {
   const KEY = "orbit.draft.answer.a1";
 
-  it("is kept on this Mac as it is changed, and let go of when the window is closed", async () => {
+  it("keeps changes on dismissal and offers them again on reopening", async () => {
     const { dialog, editor } = await openEditor("Hola");
     focusAt(editor);
     typeText(editor, " Bruno");
@@ -136,6 +136,10 @@ describe("an answer being changed when Orbit quits or falls", () => {
       text: "Hola Bruno",
     });
     await userEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Editar y copiar" }));
+    await screen.findByRole("dialog");
+    expect(editorNamed("Texto de la respuesta").state.doc.toString()).toBe("Hola Bruno");
+    await userEvent.click(screen.getByRole("button", { name: "Descartar cambios" }));
     expect(window.localStorage.getItem(KEY)).toBeNull();
   });
 

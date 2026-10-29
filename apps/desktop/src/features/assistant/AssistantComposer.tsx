@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
 import { Button } from "../../design/Button";
+import { Tooltip } from "../../design/Tooltip";
 import { Icon } from "../../design/Icon";
 import { useCopy } from "../../i18n/CopyProvider";
 import { mmss } from "../../time-format";
@@ -17,29 +18,31 @@ function MicrophoneButton({ controls }: { controls: Controls }) {
   const es = useCopy();
   const { voice } = controls;
   return (
-    <Button
-      aria-label={
-        voice.recording
-          ? es.assistant.voiceNoteRecording(mmss(voice.elapsedMs, false))
-          : es.assistant.voiceNoteButton
-      }
-      aria-pressed={voice.recording}
-      className={voice.recording ? styles.micRecording : styles.mic}
-      // A note in progress can always end, whatever happened meanwhile.
-      disabled={!voice.recording && (controls.unavailable || controls.busy)}
-      onClick={voice.keyboardClick}
-      onPointerCancel={voice.pointerCancel}
-      onPointerDown={voice.pointerDown}
-      onPointerUp={voice.pointerUp}
-      size={32}
-      variant="icon"
-    >
-      {voice.recording ? (
-        <span aria-hidden="true" className={styles.recordingDot} />
-      ) : (
-        <Icon name="mic" size={16} />
-      )}
-    </Button>
+    <Tooltip text={voice.recording ? es.assistant.sendVoiceNote : es.assistant.voiceNoteHelp}>
+      <Button
+        aria-label={
+          voice.recording
+            ? es.assistant.voiceNoteRecording(mmss(voice.elapsedMs, false))
+            : es.assistant.voiceNoteButton
+        }
+        aria-pressed={voice.recording}
+        className={voice.recording ? styles.micRecording : styles.mic}
+        // A note in progress can always end, whatever happened meanwhile.
+        disabled={!voice.recording && (controls.unavailable || controls.busy)}
+        onClick={voice.keyboardClick}
+        onPointerCancel={voice.pointerCancel}
+        onPointerDown={voice.pointerDown}
+        onPointerUp={voice.pointerUp}
+        size={32}
+        variant="icon"
+      >
+        {voice.recording ? (
+          <span aria-hidden="true" className={styles.recordingDot} />
+        ) : (
+          <Icon name="mic" size={16} />
+        )}
+      </Button>
+    </Tooltip>
   );
 }
 

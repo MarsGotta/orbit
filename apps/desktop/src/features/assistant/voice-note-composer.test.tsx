@@ -259,3 +259,13 @@ describe("the microphone does not wait for read-aloud", () => {
     expect((microphone as HTMLButtonElement).disabled).toBe(false);
   });
 });
+
+it("explains click-to-record, click-to-send and hold-to-talk on hover", () => {
+  const { microphone } = renderComposer();
+  fireEvent.mouseEnter(microphone());
+  expect(
+    screen.getByText(
+      "Pulsa para grabar y otra vez para enviar; mantén pulsado para hablar y suelta para enviar.",
+    ),
+  ).toBeTruthy();
+});

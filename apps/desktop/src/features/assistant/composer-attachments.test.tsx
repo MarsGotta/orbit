@@ -345,3 +345,9 @@ describe("refusals", () => {
     expect(bridge.addAttachment).toHaveBeenCalledTimes(2);
   });
 });
+
+it("explains the attachment icon on hover", async () => {
+  renderComposer();
+  await userEvent.hover(screen.getByRole("button", { name: "Adjuntar" }));
+  expect(screen.getByText("Adjuntar archivos")).toBeTruthy();
+});

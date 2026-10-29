@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppBootstrap, AppCommand } from "../../bridge/generated";
@@ -247,7 +247,9 @@ it("cancelling or Esc goes back to the recording, and a long question is refused
   expect(screen.queryByRole("textbox")).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Preguntar a Deimos" }));
   await userEvent.type(screen.getByRole("textbox"), "x".repeat(65));
-  expect(screen.getByRole("alert").textContent).toBe("La pregunta es demasiado larga: acórtala.");
+  expect(screen.getByRole("alert").textContent).toBe(
+    "La pregunta ocupa 65 bytes y el límite es 64 bytes. Acórtala.",
+  );
   expect(screen.getByRole("button", { name: "Preguntar" }).hasAttribute("disabled")).toBe(true);
   await userEvent.keyboard("{Escape}");
   expect(screen.queryByRole("textbox")).toBeNull();
@@ -340,4 +342,50 @@ it("«Silenciar» mutes only her microphone, and says it once the Mac confirmed 
   expect(await screen.findByText("Micrófono silenciado")).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Reactivar micrófono" }));
   expect(muted.sent).toEqual([{ command: "microphone_mute", muted: false }]);
+});
+
+it("keeps the question form until accepted, preserving refused text", async () => {
+  const { port } = portWith(byCall);
+  let accept: () => void = () => undefined;
+  port.send = vi
+    .fn()
+    .mockRejectedValueOnce({
+      refusal: { code: "hub_unreachable", since_ms: null, retry: { kind: "after_fix" } },
+    })
+    .mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+  render(<PanelApp port={port} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Preguntar a Deimos" }));
+  await userEvent.type(screen.getByRole("textbox"), "What changed?");
+  await userEvent.click(screen.getByRole("button", { name: "Preguntar" }));
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "What changed?");
+  expect(await screen.findByText(/No se pudo mandar la pregunta/)).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Preguntar" }));
+  expect(screen.getByRole("textbox")).toHaveProperty("value", "What changed?");
+  expect(screen.getByRole("button", { name: "Preguntar" })).toHaveProperty("disabled", true);
+  await act(async () => accept());
+  expect(screen.queryByRole("textbox")).toBeNull();
+});
+
+it("selects and focuses context radios with arrows and wraps", async () => {
+  const { port, sent } = portWith(byCall);
+  render(<PanelApp port={port} />);
+  await userEvent.click(await screen.findByRole("button", { name: "Preguntar a Deimos" }));
+  const five = screen.getByRole("radio", { name: "5 min" });
+  expect(five.tabIndex).toBe(0);
+  five.focus();
+  await userEvent.keyboard("{ArrowRight}");
+  expect(screen.getByRole("radio", { name: "10 min" })).toBe(document.activeElement);
+  await userEvent.keyboard("{ArrowDown}");
+  const two = screen.getByRole("radio", { name: "2 min" });
+  expect(two).toBe(document.activeElement);
+  expect(two.getAttribute("aria-checked")).toBe("true");
+  expect(five.tabIndex).toBe(-1);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "What changed?" } });
+  await userEvent.click(screen.getByRole("button", { name: "Preguntar" }));
+  expect(sent).toEqual([{ command: "meeting_ask", question: "What changed?", minutes: 2 }]);
 });

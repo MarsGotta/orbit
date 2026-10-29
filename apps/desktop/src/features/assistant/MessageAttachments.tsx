@@ -1,6 +1,6 @@
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { openAttachment } from "../../bridge/attachments";
 import { useTrack } from "../../state/use-in-flight";
 import type { Attachment } from "../../bridge/generated/Attachment";
@@ -11,10 +11,24 @@ import { attachmentFailure } from "./attachment-drafts";
 import { useAttachmentUrl, useGallery } from "./AttachmentGallery";
 import styles from "./Attachments.module.css";
 
-/** An image the message carried, small; a click opens it in the viewer. */
-function Thumbnail({ attachment }: { attachment: Attachment }) {
+/** A preview can open the original even before its nearby bytes have arrived. */
+function ThumbnailButton({ attachment, url }: { attachment: Attachment; url?: string }) {
   const es = useCopy();
   const { view } = useGallery();
+  return (
+    <button
+      aria-label={es.attachments.viewImage(attachment.name)}
+      className={styles.thumbnail}
+      onClick={() => view(attachment)}
+      type="button"
+    >
+      {url !== undefined && <img alt={attachment.name} src={url} />}
+    </button>
+  );
+}
+
+/** Byte and blob ownership ends when the thumbnail leaves the viewport margin. */
+function ThumbnailContent({ attachment }: { attachment: Attachment }) {
   const loaded = useAttachmentUrl(attachment);
   if (loaded.state === "failed")
     return (
@@ -23,14 +37,36 @@ function Thumbnail({ attachment }: { attachment: Attachment }) {
       </p>
     );
   return (
-    <button
-      aria-label={es.attachments.viewImage(attachment.name)}
-      className={styles.thumbnail}
-      onClick={() => view(attachment)}
-      type="button"
-    >
-      {loaded.state === "ready" && <img alt={attachment.name} src={loaded.url} />}
-    </button>
+    <ThumbnailButton
+      attachment={attachment}
+      url={loaded.state === "ready" ? loaded.url : undefined}
+    />
+  );
+}
+
+/** The observed slot stays mounted so a failed preview can show its full explanation. */
+function Thumbnail({ attachment }: { attachment: Attachment }) {
+  const element = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    // 100 px of prefetch headroom covers nearby thumbnails without loading the whole history.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setNear(entry?.isIntersecting ?? false);
+      },
+      { rootMargin: "100px" },
+    );
+    if (element.current) observer.observe(element.current);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <div ref={element}>
+      {near ? (
+        <ThumbnailContent attachment={attachment} />
+      ) : (
+        <ThumbnailButton attachment={attachment} />
+      )}
+    </div>
   );
 }
 

@@ -29,6 +29,7 @@ const base = {
   },
   assistant: {
     ...assistantBase,
+    voiceNoteHelp: "Click to record and click again to send; hold to talk and release to send.",
     transcribingVoice: "Transcribing your voice…",
 
     transcribing: "Transcribing…",
