@@ -2878,7 +2878,7 @@ checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
 name = "orbit-app-core"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "chrono",
  "iana-time-zone",
@@ -2897,7 +2897,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-control"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "orbit-core",
@@ -2911,7 +2911,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-core"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "base64 0.22.1",
  "crc32fast",
@@ -2929,7 +2929,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-daemon"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -2962,7 +2962,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-desktop"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "block2",
@@ -2989,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-ipc"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3006,7 +3006,7 @@ dependencies = [
 
 [[package]]
 name = "orbit-store"
-version = "0.13.0"
+version = "0.14.0"
 dependencies = [
  "base64 0.22.1",
  "chacha20poly1305",

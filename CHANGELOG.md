@@ -7,82 +7,67 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
-### Fixed
-
-- Preserve call recordings when macOS cannot observe microphone users. Keep
-  available global shortcuts after a conflict and show failed combinations
-  with their macOS status in Settings.
-- Ignore retired wake-phrase listener reports, decode speech clips off the
-  main thread with stop cancellation, and reduce idle watchdog work and
-  capture allocation/timer overhead.
-- Give the test app its own compiled identity for macOS integrations.
-- Read notification authorization and delivery failures from macOS, and show the
-  permission and System Settings remedy. Use the main app's modern login item
-  registration and report when system approval is required.
-- Request screen and Accessibility access before offering System Settings in
-  Settings and onboarding. Suspend panel hover checks while no question is shown.
-- Extend the isolated Mac acceptance harness with real privacy, live recording
-  close/quit and native editing checks, hub audio readback, English hub listening,
-  and early exit for abandoned wake phrases. Document disposable-calendar writes
-  and the independent silent remote-audio prerequisite.
-
-- The hub restores secret-scan paths saved less than ten minutes ago while
-  refreshing them in the background. Without a fresh snapshot, assistants wait
-  up to 126 seconds for discovery instead of refusing after thirty seconds.
-  Snapshots contain paths and timestamps only and are replaced atomically with
-  owner-only permissions.
-- The privacy hotkey test's helper keeps reading daemon commands until its
-  input closes and isolates its error output. A failed gate step also finishes
-  when a surviving helper still holds its output, preserving the step's exit
-  code and log.
-
-### Changed
-
-- Assistant answer and skill editors keep dismissed drafts until saved or
-  explicitly discarded. Meeting questions wait for acceptance, preserve refused
-  text, explain available causes and limits, and support arrow-key context
-  selection. Speech failures and composer hover help use the selected language.
-- Unchanged Assistant Markdown avoids repeated parsing during recording updates;
-  chat images load near the viewport and release their bytes when scrolled away.
-- Desktop feature publications reuse unchanged typed views and shared topic
-  payloads. Idle daemon topics stop periodic recording and notes refreshes;
-  live recording, call and question state keeps its refresh cadence.
-- Meeting renames consistently trim edges and collapse repeated whitespace in
-  the app, daemon and hub. Hub conformance and device diagnostics use English
-  while retaining their error codes and measurements. Automatic recording titles
-  from the keyboard shortcut follow the selected interface language.
-- Appearance can follow the system again from Settings, meeting tabs keep each
-  recording's selection while the app runs, and scrolling uses platform styles.
-  Filled buttons preserve label contrast on hover. Recording mute copy and the
-  welcome distinguish Orbit's recording, macOS access and hub approval in both
-  languages. The recording discard question focuses Keep Recording and restores
-  focus on cancellation. Transcript search groups matches once
-  per query instead of scanning them again for every turn.
-- The Mac bundle includes a layered Icon Composer app icon using the existing
-  orbital motif, with the legacy ICNS retained for macOS 15. Packaging requires
-  Xcode 26 or later and verifies that the icon compiler produced Assets.car.
-- Application menus expose Settings, recording, conversation, transcript search
-  and privacy stop actions. The sidebar can be hidden, reading text can grow to
-  200%, and both choices are remembered on this Mac. Template deletion remains
-  undoable after its toast closes. The recording panel fits its rendered content
-  and scrolls when it reaches the screen's visible area.
-
-- The real-test harness supports an English pass with `run --language en`,
-  alongside its default Spanish pass. Both use checked exports of Orbit’s own
-  catalogues, including native menus, and retain all 21 checks and screen
-  evidence. English speech uses two installed system voices and en-US
-  on-device recognition.
-
-- The real-test harness drives Orbit Pruebas's windows through the in-app
-  bridge, preserving semantic screen evidence and reconnecting after the
-  Dock's quit. CuaDriver is scoped to a new read-only accessibility check;
-  real pointer motion, audio and the Dock's quit keep their native paths.
+## [0.14.0] - 2026-10-30
 
 ### Added
 
-- Orbit Pruebas has an owner-only local test bridge for DOM presses, typing,
-  visible elements, native menu snapshots and window numbers. The real-test
-  harness uses it for interface actions and native menu snapshots. The published app excludes the bridge at compile time.
+- Orbit › Settings… opens Settings with ⌘,. The application menus offer
+  recording, a new conversation, transcript search and «Stop everything»,
+  disabled when they cannot run.
+- View › Hide Sidebar (⌃⌘S, or the button in the top area) and View › Bigger,
+  Smaller and Actual Size for reading text, up to 200 %, both remembered on
+  this Mac. The recording stays reachable from the panel and the menu bar.
+- Appearance offers System again, beside Light and Dark.
+- Settings › Permissions shows the notification permission with its System
+  Settings pane. «Open at login» shows whether macOS has it enabled, needs
+  approval or has it unregistered.
+- A layered Icon Composer app icon for macOS 26, from the two-moons symbol;
+  the existing ICNS stays for macOS 15. Packaging needs Xcode 26 or later.
+- Orbit Pruebas has an owner-only local test bridge for presses, typing,
+  visible elements, native menus and window numbers. The released app does not
+  contain it.
+
+### Changed
+
+- «Mute» on a recording says it leaves the person's voice out of Orbit's
+  recording and that the video call is unchanged. The welcome says how
+  assistants act on the Mac and on the hub, and that stopping everything cuts
+  them off.
+- Notifications go through macOS's own notification center and report
+  failures; «Open at login» uses SMAppService. Orbit's old login file is
+  retired. Orbit Pruebas has its own identity for both.
+- Screen recording and Accessibility are requested from macOS first, then the
+  System Settings pane is offered.
+- Less work while idle: the helper's stall watch, the recording topic's
+  refresh and the floating panel's pointer watch sleep when nothing needs
+  them. Each desktop feature is projected once per publication.
+- After a hub restart, the first assistant uses the last secret scan when it
+  is less than ten minutes old, and otherwise waits up to 126 s for a new one
+  instead of refusing after 30 s.
+- The real test drives Orbit Pruebas through its bridge, runs in English with
+  `run --language en`, and checks the real privacy shortcut, quitting during a
+  recording and native editing shortcuts.
+
+### Fixed
+
+- An unreadable CoreAudio query no longer reads as a call ending, so it can no
+  longer finish a call's recording.
+- Resampling after a microphone route change keeps every frame: upsampling
+  44.1 to 48 kHz lost about 3.5 % of the audio.
+- One global shortcut taken by another app no longer disables the others,
+  privacy stop included; Settings names the one that failed.
+- «Hey {name}» in English opens its question again: the recognizer's final
+  result starts later than its volatile ones, and the phrase now follows it.
+- Closing the answer or skill editor keeps the draft; the floating panel keeps
+  a question that was not accepted; meeting-question refusals say their cause
+  and limits.
+- The floating recording panel takes the height its content needs.
+- Hovered filled buttons keep their label contrast; meeting tabs are kept per
+  recording; «End without saving» manages focus; the platform scrollbars are
+  back; meeting titles collapse repeated spaces everywhere; the hub's remaining
+  Spanish diagnostics are in English.
+- A stray child process can no longer hang a gate step, and the privacy-stop
+  test no longer jams.
 
 ## [0.13.0] - 2026-10-29
 
