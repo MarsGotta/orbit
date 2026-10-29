@@ -101,15 +101,21 @@ enum Request {
         window: Window,
         role: String,
         name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target: Option<Vec<usize>>,
     },
     Type {
         window: Window,
         role: String,
         name: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target: Option<Vec<usize>>,
         text: String,
     },
     Read {
         window: Window,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        query: Option<String>,
     },
     Menus,
     Windows,

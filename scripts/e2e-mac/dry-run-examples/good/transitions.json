@@ -1,112 +1,112 @@
 {
  "home": {
-  "click:Grabar reunión": "dialog"
+  "press:Grabar reunión": "dialog"
  },
  "briefing": {
-  "click:Grabar reunión": "dialog"
+  "press:Grabar reunión": "dialog"
  },
  "dialog": {
-  "click:Solo mi micrófono Para una reunión en persona.": "dialog-microphone"
+  "press:Solo mi micrófono Para una reunión en persona.": "dialog-microphone"
  },
  "dialog-microphone": {
-  "click:Empezar a grabar": "recording"
+  "press:Empezar a grabar": "recording"
  },
  "recording": {
-  "click:Terminar": "saved",
-  "click:Silenciar": "recording-muted",
-  "click:Terminar sin guardar": "discard-question"
+  "press:Terminar": "saved",
+  "press:Silenciar": "recording-muted",
+  "press:Terminar sin guardar": "discard-question"
  },
  "saved": {
-  "click:Abrir": "note-summary"
+  "press:Abrir": "note-summary"
  },
  "note-summary": {
-  "click:Resumen": "note-summary",
-  "click:Acciones": "note-actions",
-  "click:Transcripción": "note-transcript",
-  "click:Reuniones": "notes-list",
-  "click:Asistente": "assistant"
+  "press:Resumen": "note-summary",
+  "press:Acciones": "note-actions",
+  "press:Transcripción": "note-transcript",
+  "press:Reuniones": "notes-list",
+  "press:Asistente": "assistant"
  },
  "note-actions": {
-  "click:Resumen": "note-summary",
-  "click:Acciones": "note-actions",
-  "click:Transcripción": "note-transcript",
-  "click:Reuniones": "notes-list",
-  "click:Asistente": "assistant"
+  "press:Resumen": "note-summary",
+  "press:Acciones": "note-actions",
+  "press:Transcripción": "note-transcript",
+  "press:Reuniones": "notes-list",
+  "press:Asistente": "assistant"
  },
  "note-transcript": {
-  "click:Resumen": "note-summary",
-  "click:Acciones": "note-actions",
-  "click:Transcripción": "note-transcript",
-  "click:Reuniones": "notes-list",
-  "click:Asistente": "assistant"
+  "press:Resumen": "note-summary",
+  "press:Acciones": "note-actions",
+  "press:Transcripción": "note-transcript",
+  "press:Reuniones": "notes-list",
+  "press:Asistente": "assistant"
  },
  "notes-list": {
-  "click:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-summary",
-  "click:Asistente": "assistant"
+  "press:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-summary",
+  "press:Asistente": "assistant"
  },
  "assistant": {
-  "type_text:Escribe a Deimos… Mensaje para Deimos": "assistant-typed"
+  "type:Escribe a Deimos… Mensaje para Deimos": "assistant-typed"
  },
  "assistant-typed": {
-  "click:Enviar": "assistant-answered",
+  "press:Enviar": "assistant-answered",
   "apple-event:quit": "reopened"
  },
  "assistant-answered": {
-  "click:Nueva conversación": "assistant-new"
+  "press:Nueva conversación": "assistant-new"
  },
  "assistant-new": {
-  "click:4 mensajes · 16 oct 2025, 10:01": "assistant-reopened"
+  "press:4 mensajes · 16 oct 2025, 10:01": "assistant-reopened"
  },
  "recording-muted": {
-  "click:Reactivar micrófono": "recording"
+  "press:Reactivar micrófono": "recording"
  },
  "assistant-reopened": {
-  "click:Grabar reunión": "dialog"
+  "press:Grabar reunión": "dialog"
  },
  "discard-question": {
-  "click:Borrar y terminar": "discarded"
+  "press:Borrar y terminar": "discarded"
  },
  "discarded": {
-  "click:Reuniones": "meetings-after-discard"
+  "press:Reuniones": "meetings-after-discard"
  },
  "meetings-after-discard": {
-  "click:Reuniones": "meetings-after-discard",
-  "click:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-to-delete"
+  "press:Reuniones": "meetings-after-discard",
+  "press:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "note-to-delete"
  },
  "note-to-delete": {
-  "click:Más": "note-menu"
+  "press:Más": "note-menu"
  },
  "note-menu": {
-  "click:Borrar reunión": "note-delete-question"
+  "press:Borrar reunión": "note-delete-question"
  },
  "note-delete-question": {
-  "click:Borrar reunión": "meetings-empty"
+  "press:Borrar reunión": "meetings-empty"
  },
  "meetings-empty": {
-  "click:Asistente": "assistant",
-  "click:Grabar reunión": "silence-dialog"
+  "press:Asistente": "assistant",
+  "press:Grabar reunión": "silence-dialog"
  },
  "reopened": {
-  "click:Asistente": "assistant-recovered"
+  "press:Asistente": "assistant-recovered"
  },
  "panel": {
   "pointer:away": "panel-recording"
  },
  "silence-dialog": {
-  "click:Solo mi micrófono Para una reunión en persona.": "silence-dialog-microphone"
+  "press:Solo mi micrófono Para una reunión en persona.": "silence-dialog-microphone"
  },
  "silence-dialog-microphone": {
-  "click:Empezar a grabar": "silence-recording"
+  "press:Empezar a grabar": "silence-recording"
  },
  "silence-recording": {
   "read": "silence-saved",
-  "click:Asistente": "assistant"
+  "press:Asistente": "assistant"
  },
  "silence-saved": {
-  "click:Reuniones": "silence-meetings",
-  "click:Asistente": "assistant"
+  "press:Reuniones": "silence-meetings",
+  "press:Asistente": "assistant"
  },
  "silence-meetings": {
-  "click:Asistente": "assistant"
+  "press:Asistente": "assistant"
  }
 }

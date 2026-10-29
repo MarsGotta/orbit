@@ -9,7 +9,7 @@ removes only the drafts); a Mac that never finished a first run, or that lost
 the flag, opens on the welcome once.
 
 Run 20261025T141530Z: the window was read once, before the webview drew the
-welcome, so the welcome was taken for the main window. The window is read until
+welcome, so the welcome was taken for the main window. The bridge is read until
 it shows one or the other.
 """
 

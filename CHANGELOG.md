@@ -7,6 +7,13 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Changed
+
+- The real-test harness drives Orbit Pruebas's windows through the in-app
+  bridge, preserving semantic screen evidence and reconnecting after the
+  Dock's quit. CuaDriver is scoped to a new read-only accessibility check;
+  real pointer motion, audio and the Dock's quit keep their native paths.
+
 ### Added
 
 - Orbit Pruebas has an owner-only local test bridge for DOM presses, typing,

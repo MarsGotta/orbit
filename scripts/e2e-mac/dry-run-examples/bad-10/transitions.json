@@ -1,6 +1,6 @@
 {
  "recording": {
-  "click:Terminar": {
+  "press:Terminar": {
    "to": "saved",
    "log": {
     "report-daemon.log": {
@@ -15,7 +15,7 @@
     }
    }
   },
-  "click:Silenciar": "recording-muted",
-  "click:Terminar sin guardar": "discard-question"
+  "press:Silenciar": "recording-muted",
+  "press:Terminar sin guardar": "discard-question"
  }
 }

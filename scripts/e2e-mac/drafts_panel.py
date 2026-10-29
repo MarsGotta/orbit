@@ -5,7 +5,8 @@ floating panel (check 7): the system's pointer goes over the panel, stays
 there past the answer's own time, and leaves. 17 runs last, once every
 other check has its evidence: it quits Orbit Pruebas with the Dock's quit
 right after typing a draft in the Assistant's composer, and opens it again
-on purpose.
+on purpose. Panel/composer reads use the in-app bridge; actual pointer
+motion remains pointer.swift, and the quit remains the Apple Event.
 
 Each step works on the RealTest of real_test.py: its interface, its Mac, its
 waits and its evidence.
@@ -129,11 +130,10 @@ def drafts_survive_quitting(test) -> None:
 def _reopen(test, how: str, row: dict) -> None:
     """Opens Orbit Pruebas again, on purpose, and reads the composer."""
     row["reopened"] = test.mac.launch(test.bounds["daemon"][0])
-    # CuaDriver was bounded to the pid that quit: started again for the new one.
-    test.mac.engine_stop(test.bounds["close"][0])
-    cua = test.mac.engine_start(test.bounds["cua-driver"][0])
-    row["app_pid"] = test.ui.app_pid = cua["app_pid"]
+    row["previous_window_id"] = test.main.window_id
     test.main = test.open_main(f"home-after-{how}")
+    row["reconnected"] = test.ui.reconnect()
+    row["app_pid"] = test.ui.app_pid
     test.wait_mac("paired")
     test.ui.press(test.main, "Asistente", ("AXLink",))
     text = row["text"]

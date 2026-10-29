@@ -2,6 +2,8 @@
 
 The Mac plays nothing. Every wait observes a fact, with its budget derived
 from the production quiet/answer, sample delivery, drain and HTTP constants.
+The interface's presses and readings use the in-app bridge through Interface.
+
 """
 
 from __future__ import annotations

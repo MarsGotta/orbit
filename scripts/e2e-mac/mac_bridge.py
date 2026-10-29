@@ -21,6 +21,7 @@ class TestBridge:
     def __init__(self, path: Path, max_bytes: int):
         self.path = path
         self.max_bytes = max_bytes
+        self.last_reply_bytes = None
 
     def call(self, request: dict) -> dict:
         line = (json.dumps(request, ensure_ascii=False) + "\n").encode()
@@ -40,6 +41,7 @@ class TestBridge:
                 f"test bridge transport failed for {request.get('command')}: "
                 f"errno {cause.errno}, {cause.strerror}; no retry"
             ) from None
+        self.last_reply_bytes = len(reply)
         if len(reply) > self.max_bytes:
             raise MacFailure(
                 f"test bridge reply: {len(reply)} bytes exceeds {self.max_bytes} bytes"

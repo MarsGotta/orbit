@@ -1,0 +1,9 @@
+- AXWindow "Orbit"
+  - AXGroup (Principal)
+    - [1] AXButton "Unnamed control"
+    - AXLink "Hoy"
+    - AXLink "Calendario"
+    - AXLink "Reuniones"
+    - AXLink "Notas"
+    - AXLink "Asistente"
+    - AXLink "Ajustes"

@@ -5,8 +5,7 @@ pointer moved over the floating panel and away from it, with the daemon's
 word on the answer it holds.
 
 `DraftsAndPanel` is mixed into mac.py's `Mac`: its methods use the Mac's
-paths, system, socket and waits (`wait`), its CuaDriver calls
-(`engine_call`) and its processes (`_ours`, `_app_pid`). Copied to the Mac
+paths, system, bridge, socket and waits (`wait`), and its processes (`_ours`, `_app_pid`). Copied to the Mac
 with mac.py; runs with the Mac's python3, so it stays within Python 3.9.
 """
 
@@ -87,19 +86,17 @@ class DraftsAndPanel:
     def _draft_in_box(self, typing: dict, screen_s: float) -> None:
         """Waits until the window shows the draft just typed: only a draft on
         screen went through the composer's change, which keeps it."""
-        read = {
-            "pid": typing["pid"],
-            "window_id": typing["window_id"],
-            "include_accessibility_tree": True,
-            "include_screenshot": False,
-            # The draft is this run's own: only the composer's row matches.
-            "query": typing["text"],
-        }
+        read = {"command": "read", "window": typing["window"], "query": typing["text"]}
         start = self.system.now()
         while True:
-            result = self.engine_call("get_window_state", read)["result"]
-            tree = result.get("tree_markdown") if isinstance(result, dict) else None
-            if typing["text"] in (tree or ""):
+            result = self.bridge.call(read)
+            fields = result.get("elements", []) if isinstance(result, dict) else []
+            if any(
+                row.get("role") == "textbox"
+                and row.get("name") == typing["name"]
+                and typing["text"] in row.get("text", "")
+                for row in fields
+            ):
                 return
             if self.system.now() - start >= screen_s:
                 raise MacFailure(
@@ -120,7 +117,7 @@ class DraftsAndPanel:
         )
 
     def draft_and_quit(self, how: str, typing: str, screen_s: float, close_s: float) -> dict:
-        """Types a draft in the composer (cua-driver `type_text` arguments),
+        """Types a draft in the composer (a guarded bridge `type` request),
         reads it back on screen and quits Orbit Pruebas `how` at once, in this
         one call, so nothing but that read stands between the draft and the
         quit. Then waits for every process of the bundle to end, watches for a
@@ -129,7 +126,7 @@ class DraftsAndPanel:
         if how not in QUITS:
             raise MacFailure(f"unknown quit «{how}»")
         arguments = json.loads(typing)
-        self.engine_call("type_text", arguments)
+        self.bridge.call(arguments)
         typed = self.system.now()
         self._draft_in_box(arguments, screen_s)
         pids = self._ours()

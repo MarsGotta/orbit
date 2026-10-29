@@ -77,7 +77,9 @@ describe("test bridge DOM requests", () => {
   it("reads visible roles, names and text, and refuses an expired action", () => {
     render(<Fixture />);
     expect(request("read").elements).toEqual(
-      expect.arrayContaining([{ role: "button", name: "Record", text: "Record" }]),
+      expect.arrayContaining([
+        expect.objectContaining({ role: "button", name: "Record", text: "Record" }),
+      ]),
     );
     expect(
       evaluate({ command: "press", role: "button", name: "Record", deadline: 0 }),
@@ -105,5 +107,69 @@ describe("test bridge DOM requests", () => {
       cause: "field_read_only",
     });
     expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("fixed");
+  });
+  it("preserves a semantic tree and can address one repeated button without relaxing name guards", () => {
+    const clicked: string[] = [];
+    render(
+      <>
+        <h2>Meetings</h2>
+        <button aria-label="Refresh" />
+        <section>
+          <h3>Today</h3>
+          <a href="#meeting">
+            <span>Invented meeting</span>
+            <time>10:00</time>
+          </a>
+        </section>
+        <button onClick={() => clicked.push("first")}>Repeated</button>
+        <button onClick={() => clicked.push("second")}>Repeated</button>
+      </>,
+    );
+    const read = request("read");
+    expect(read.tree_markdown).toContain('AXStaticText = "Meetings"');
+    const rows = read.elements as { role: string; name: string; target: number[] }[];
+    const repeats = rows.filter((row) => row.role === "button" && row.name === "Repeated");
+    expect(repeats).toHaveLength(2);
+    act(() => {
+      expect(
+        evaluate({
+          command: "press",
+          window: "main",
+          role: "button",
+          name: "Repeated",
+          target: repeats[1]!.target,
+          deadline: Date.now() + 2000,
+        }),
+      ).toMatchObject({ ok: true });
+    });
+    expect(clicked).toEqual(["second"]);
+    expect(request("press", "Repeated")).toMatchObject({ ok: false, count: 2 });
+    expect(
+      evaluate({
+        command: "press",
+        role: "button",
+        name: "Changed",
+        target: repeats[1]!.target,
+        deadline: Date.now() + 2000,
+      }),
+    ).toMatchObject({ ok: false, count: 0 });
+  });
+  it("refuses a target after the DOM node was replaced, even with the same name", () => {
+    const { rerender } = render(<button key="before">Save</button>);
+    const row = (
+      request("read").elements as { role: string; name: string; target: number[] }[]
+    ).find((row) => row.role === "button")!;
+    const button = screen.getByRole("button", { name: "Save" });
+    rerender(<button key="after">Save</button>);
+    expect(button.isConnected).toBe(false);
+    expect(
+      evaluate({
+        command: "press",
+        role: "button",
+        name: "Save",
+        target: row.target,
+        deadline: Date.now() + 2000,
+      }),
+    ).toMatchObject({ ok: false, cause: "match_count", count: 0 });
   });
 });

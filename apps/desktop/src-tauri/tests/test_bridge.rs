@@ -258,3 +258,30 @@ async fn invalid_view_results_are_refusals_rather_than_panics() -> anyhow::Resul
     );
     Ok(())
 }
+
+struct EchoView;
+impl View for EchoView {
+    fn request(&self, request: Value) -> ViewFuture {
+        Box::pin(async move { json!({"ok":true,"received":request}) })
+    }
+}
+#[tokio::test]
+async fn guarded_targets_and_read_queries_cross_the_socket() -> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let bridge = Bridge::bind(directory.path(), Arc::new(EchoView), Duration::from_secs(2)).await?;
+    for request in [
+        json!({"command":"press","window":"main","role":"button","name":"Record","target":[0,2]}),
+        json!({"command":"type","window":"panel","role":"textbox","name":"Message","text":"Invented text","target":[1]}),
+        json!({"command":"read","window":"main","query":"Record"}),
+    ] {
+        let line = format!("{request}\n");
+        let reply = call(bridge.path(), line.as_bytes()).await?;
+        assert_eq!(reply["received"], request);
+    }
+    let request = b"{\"command\":\"press\",\"window\":\"main\",\"role\":\"button\",\"name\":\"Record\",\"target\":[-1]}\n";
+    assert_eq!(
+        call(bridge.path(), request).await?["cause"],
+        "invalid_request"
+    );
+    Ok(())
+}
