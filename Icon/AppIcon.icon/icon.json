@@ -1,0 +1,17 @@
+{
+  "fill": {
+    "automatic-gradient": "srgb:0.14000,0.13000,0.17000,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        { "glass": true, "image-name": "moons.svg", "name": "Moons" },
+        { "glass": true, "image-name": "centre.svg", "name": "Centre" },
+        { "glass": true, "image-name": "orbits.svg", "name": "Orbits", "opacity": 0.55 }
+      ],
+      "shadow": { "kind": "neutral", "opacity": 0.5 },
+      "translucency": { "enabled": true, "value": 0.5 }
+    }
+  ],
+  "supported-platforms": { "squares": [ "macOS" ] }
+}

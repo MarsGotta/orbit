@@ -127,6 +127,7 @@ REQUIRED_FILES = EXECUTABLES | {
     DRIVER_LICENSE,
     NOTICES,
     RESOURCES + "/icon.icns",
+    RESOURCES + "/Assets.car",
 }
 # Where `stapler staple` leaves the notarization ticket for a bundle. Distinct
 # from _CodeSignature/CodeResources, which is codesign's resource seal: same
