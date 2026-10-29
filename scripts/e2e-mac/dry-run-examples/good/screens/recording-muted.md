@@ -6,7 +6,7 @@
         - AXStaticText = "01:20"
         - AXStaticText = "Reunión 16/10/26, 10:00"
         - AXStaticText = "Solo tu micrófono · hasta las 11:02"
-        - AXStaticText = "Micrófono silenciado"
+        - AXStaticText = "Tu voz queda fuera de la grabación de Orbit. Tu videollamada sigue igual."
         - AXStaticText = "«Oye Deimos» te escucha"
         - [20] AXButton "Pausar" [actions=[press]]
         - [22] AXButton "Reactivar micrófono" [actions=[press]]

@@ -19,7 +19,7 @@ from harness_copy import text as copy_text
 
 NAMES = Messages(
     {
-        13: "«{microphoneMute.mute}» leaves its stretch out of the recording and the note marks it",
+        13: "«{recordingMute.mute}» leaves its stretch out of the recording and the note marks it",
         14: "«{discard.action}» leaves no note and nothing of the recording, here or on the hub",
         15: "«{noteScreen.deleteMeeting}» asks first and leaves nothing of the meeting, here or on the hub",
         16: "The menu bar offers «{native.mute}» and «{native.discard}» and shows the time",
@@ -28,7 +28,7 @@ NAMES = Messages(
 
 # What these checks cannot see, said in every report after checks.NOT_COVERED.
 NOT_COVERED = (
-    "«{microphoneMute.mute}» and «{discard.action}» outside the sidebar recording card, and whether «{recordingCard.wakePhrase}» is heard while muted: the run presses only the card's controls.",
+    "«{recordingMute.mute}» and «{discard.action}» outside the sidebar recording card, and whether «{recordingCard.wakePhrase}» is heard while muted: the run presses only the card's controls.",
 )
 
 
@@ -38,7 +38,7 @@ class Skipped(Exception):
 
 
 # The app's own texts (apps/desktop/src/i18n/es): recording.ts
-# `microphoneMute` and `discard`, notes.ts `mutedMicrophone`, the list's
+# `recordingMute` and `discard`, notes.ts `mutedMicrophone`, the list's
 # `section`, `refresh`, `loadMore`, its day groups and what it says before
 # it is read (`loadingIndex`, `indexFailed`, `needsHub`),
 # notices/capture.ts `recording_discarded`, noteScreen.ts `meetingMenu`,
@@ -46,9 +46,9 @@ class Skipped(Exception):
 # against those files.
 TEXTS = Aliases(
     {
-        "mute": "microphoneMute.mute",
-        "unmute": "microphoneMute.unmute",
-        "muted": "microphoneMute.muted",
+        "mute": "recordingMute.mute",
+        "unmute": "recordingMute.unmute",
+        "muted": "recordingMute.muted",
         "muted_line": "notes.mutedPrefix",
         "discard": "discard.action",
         "discard_confirm": "discard.confirm",
@@ -104,12 +104,12 @@ def c13_mute(ev: dict) -> tuple[bool, str]:
     if TEXTS["muted"] not in [text for node in card for text in node.texts()]:
         return (
             False,
-            f"""with the microphone muted, the «{copy_text("meeting.recording")}» card does not say «{copy_text("microphoneMute.muted")}»""",
+            f"""with the microphone muted, the «{copy_text("meeting.recording")}» card does not say «{copy_text("recordingMute.muted")}»""",
         )
     if not any(n.role == "AXButton" and TEXTS["unmute"] in n.texts() for n in card):
         return (
             False,
-            f"""with the microphone muted, the card offers no «{copy_text("microphoneMute.unmute")}»""",
+            f"""with the microphone muted, the card offers no «{copy_text("recordingMute.unmute")}»""",
         )
     before, segments = _transcript(ev)
     texts = before + [s.text for s in segments]
@@ -136,7 +136,7 @@ def c13_mute(ev: dict) -> tuple[bool, str]:
             )
     muted = _own_words(span["muted"], script)
     return True, (
-        f"the card said «{copy_text('microphoneMute.muted')}»; «{lines[0]}»; none of the {len(muted)} words "
+        f"the card said «{copy_text('recordingMute.muted')}»; «{lines[0]}»; none of the {len(muted)} words "
         "said only while muted came back, and the words around it did"
     )
 

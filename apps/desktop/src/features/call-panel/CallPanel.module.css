@@ -21,6 +21,10 @@
   flex-direction: column;
 }
 
+.recording {
+  overflow-y: auto;
+}
+
 .title {
   margin: 0;
   font-size: 14px;

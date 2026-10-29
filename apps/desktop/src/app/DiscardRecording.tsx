@@ -1,5 +1,5 @@
 import { useCopy } from "../i18n/CopyProvider";
-import { useState } from "react";
+import { useId, useLayoutEffect, useRef, useState, type Ref } from "react";
 import type { AppCommand } from "../bridge/generated";
 import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
 import { Button } from "../design/Button";
@@ -19,19 +19,32 @@ export function useDiscardQuestion(meeting: MeetingSnapshot) {
   const recordingId = meeting.recording_id;
   const offered =
     recordingId !== null && (meeting.phase === "recording" || meeting.phase === "paused");
+  const asking = offered && askedFor === recordingId;
+  const trigger = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (!asking && restoreFocus.current) {
+      restoreFocus.current = false;
+      trigger.current?.focus();
+    }
+  }, [asking]);
   return {
     offered,
-    asking: offered && askedFor === recordingId,
+    asking,
+    trigger,
     ask: () => setAskedFor(recordingId),
-    keep: () => setAskedFor(null),
+    keep: () => {
+      restoreFocus.current = true;
+      setAskedFor(null);
+    },
   };
 }
 
 /** The quiet button under the card's own controls. */
-export function DiscardButton({ onAsk }: { onAsk: () => void }) {
+export function DiscardButton({ onAsk, ref }: { onAsk: () => void; ref?: Ref<HTMLButtonElement> }) {
   const es = useCopy();
   return (
-    <Button className={styles.ask} onClick={onAsk} size={28} variant="ghost">
+    <Button className={styles.ask} onClick={onAsk} ref={ref} size={28} variant="ghost">
       {es.discard.action}
     </Button>
   );
@@ -52,10 +65,25 @@ export function DiscardQuestion({
 }) {
   const es = useCopy();
   const confirm = useFeedback();
+  const detailId = useId();
+  const keep = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => keep.current?.focus(), []);
   return (
-    <div aria-label={es.discard.question} className={styles.question} role="group">
+    <div
+      aria-label={es.discard.question}
+      aria-describedby={detailId}
+      className={styles.question}
+      role="group"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          onKeep();
+        }
+      }}
+    >
       <p className={styles.text}>
-        <strong>{es.discard.question}</strong> {es.discard.detail}
+        <strong>{es.discard.question}</strong> <span id={detailId}>{es.discard.detail}</span>
       </p>
       <div className={styles.answers}>
         <Button
@@ -72,7 +100,7 @@ export function DiscardQuestion({
         >
           {es.discard.confirm}
         </Button>
-        <Button onClick={onKeep} size={32}>
+        <Button onClick={onKeep} ref={keep} size={32}>
           {es.discard.keep}
         </Button>
       </div>

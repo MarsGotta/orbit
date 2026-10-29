@@ -24,7 +24,7 @@ const base = {
     },
     {
       title: "Asistentes que te echan una mano",
-      body: "Pregúntales, llámales o pídeles que hagan cosas en tu Mac. Antes de actuar, te piden permiso.",
+      body: "En tu Mac, los asistentes actúan con el acceso de macOS que le das a Orbit. En el hub, te piden una tarjeta antes de cada orden o edición. Pararlo todo les corta el acceso al momento.",
     },
   ],
   planLabel: "Los pasos que vienen",

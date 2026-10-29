@@ -91,8 +91,12 @@ function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: PanelSe
   const copy = useCopy();
   const muted = meeting.microphone_muted === true;
   return (
-    <Button onClick={() => void send({ command: "microphone_mute", muted: !muted })} size={32}>
-      {muted ? copy.microphoneMute.unmute : copy.microphoneMute.mute}
+    <Button
+      onClick={() => void send({ command: "microphone_mute", muted: !muted })}
+      size={32}
+      title={muted ? undefined : copy.recordingMute.help}
+    >
+      {muted ? copy.recordingMute.unmute : copy.recordingMute.mute}
     </Button>
   );
 }
@@ -128,7 +132,7 @@ export function RecordingCard({
         ? call.event_title
         : es.callDetection.offer(call.application);
   return (
-    <div className={styles.card}>
+    <div className={`${styles.card} ${styles.recording}`}>
       <p className={styles.status} data-paused={paused || undefined}>
         <span aria-hidden="true" className={styles.dot} />
         <span role="timer">
@@ -136,7 +140,7 @@ export function RecordingCard({
         </span>
       </p>
       {what != null && what !== "" && <p className={styles.sub}>{what}</p>}
-      {meeting.microphone_muted === true && <p className={styles.sub}>{es.microphoneMute.muted}</p>}
+      {meeting.microphone_muted === true && <p className={styles.hint}>{es.recordingMute.muted}</p>}
       {discard.asking && meeting.recording_id !== null ? (
         <DiscardQuestion onKeep={discard.keep} recordingId={meeting.recording_id} send={send} />
       ) : (
@@ -186,7 +190,7 @@ function PanelControls({
           {es.callDetection.stop}
         </Button>
       </div>
-      {discard.offered && <DiscardButton onAsk={discard.ask} />}
+      {discard.offered && <DiscardButton onAsk={discard.ask} ref={discard.trigger} />}
     </>
   );
 }

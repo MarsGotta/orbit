@@ -94,17 +94,17 @@ def _deleted(kept: dict) -> bool:
 
 def second_half(test) -> None:
     """The script's second half, its middle lines with «Silenciar» on."""
-    with test.step(f"""second half of the script, up to «{copy_text("microphoneMute.mute")}»"""):
+    with test.step(f"""second half of the script, up to «{copy_text("recordingMute.mute")}»"""):
         test.mac.say("part2-before")
     _mute(test)
-    with test.step(f"""second half of the script, after «{copy_text("microphoneMute.unmute")}»"""):
+    with test.step(f"""second half of the script, after «{copy_text("recordingMute.unmute")}»"""):
         test.mac.say("part2-after")
 
 
 def _mute(test) -> None:
     ui, main = test.ui, test.main
     with test.step(
-        f"""«{copy_text("microphoneMute.mute")}» over three lines of the script""",
+        f"""«{copy_text("recordingMute.mute")}» over three lines of the script""",
         (13,),
         critical=False,
     ):
@@ -127,7 +127,7 @@ def _mute(test) -> None:
         test.mac.say("part2-muted")
     if "mute" not in test.ev:
         return
-    with test.step(f"""«{copy_text("microphoneMute.unmute")}»""", (13,), critical=False):
+    with test.step(f"""«{copy_text("recordingMute.unmute")}»""", (13,), critical=False):
         ui.press(main, TEXTS["unmute"], ("AXButton",), first=True)
         test.ev["mute"]["unmuted"] = test.wait_mac("unmuted")
 

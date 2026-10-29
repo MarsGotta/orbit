@@ -3,6 +3,7 @@ import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
 import { QUERY_BUDGET_MS } from "./test-budgets";
 import { TEST_NOW_MS } from "./test-clock";
+import { useUiStore } from "./state/ui";
 
 // A query waits for what it asks about for as long as a loaded machine
 // takes to render it, which is more than Testing Library's default second.
@@ -64,6 +65,7 @@ pinDate();
 Object.defineProperty(navigator, "languages", { configurable: true, get: () => ["es-ES"] });
 beforeEach(() => {
   pinDate();
+  useUiStore.setState({ noteTabs: {} });
   configureCopy("system", ["es-ES"], "Deimos");
 });
 

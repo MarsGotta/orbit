@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, expect, it } from "vitest";
-import { followTheme, toggleTheme, useTheme } from "./theme";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { chooseTheme, followTheme, toggleTheme, useTheme } from "./theme";
 
 const KEY = "orbit.ui.theme.local";
 let stop: () => void = () => undefined;
@@ -47,4 +47,28 @@ it("the floating panel follows a change made in the main window", () => {
   });
   expect(document.documentElement.dataset.theme).toBe("light");
   expect(result.current).toBe("light");
+});
+
+it("the floating panel follows the system again when the fixed preference is removed", () => {
+  window.localStorage.setItem(KEY, "light");
+  stop = followTheme();
+  const { result } = renderHook(() => useTheme());
+  window.localStorage.removeItem(KEY);
+  act(() => window.dispatchEvent(new StorageEvent("storage", { key: KEY, newValue: null })));
+  expect(document.documentElement.dataset.theme).toBeUndefined();
+  expect(result.current).toBe("dark");
+});
+
+it("System takes effect in this window even when storage refuses to remove the fixed theme", () => {
+  window.localStorage.setItem(KEY, "light");
+  stop = followTheme();
+  const { result } = renderHook(() => useTheme());
+  const remove = vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+    throw new Error("storage unavailable");
+  });
+  act(() => chooseTheme("system"));
+  expect(result.current).toBe("dark");
+  expect(document.documentElement.dataset.theme).toBeUndefined();
+  remove.mockRestore();
+  act(() => chooseTheme("system"));
 });

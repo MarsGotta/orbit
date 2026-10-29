@@ -188,7 +188,6 @@
 /* Until each screen is redrawn with the scale above. Every redrawn screen
    stops using these; whoever removes the last use removes the line. */
 :root {
-  --o-scrollbar: rgba(128, 128, 128, 0.32);
   --o-orb-start: #845abe;
   --o-orb-end: #5f3993;
   --o-font-9: 9px;

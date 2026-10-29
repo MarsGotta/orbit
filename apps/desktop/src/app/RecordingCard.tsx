@@ -78,7 +78,6 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
             {es.recordingCard.pause}
           </Button>
         )}
-        {meeting.phase === "recording" && <MuteButton meeting={meeting} send={send} />}
         {meeting.phase === "paused" && (
           <Button onClick={() => send({ command: "meeting_resume" })} size={32}>
             {es.recordingCard.resume}
@@ -87,8 +86,9 @@ function Controls({ meeting, send }: { meeting: MeetingSnapshot; send: Send }) {
         <Button onClick={() => send({ command: "meeting_finish" })} size={32} variant="dangerSoft">
           {es.recordingCard.finish}
         </Button>
+        {meeting.phase === "recording" && <MuteButton meeting={meeting} send={send} />}
       </div>
-      {discard.offered && <DiscardButton onAsk={discard.ask} />}
+      {discard.offered && <DiscardButton onAsk={discard.ask} ref={discard.trigger} />}
     </>
   );
 }
@@ -98,8 +98,13 @@ function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: Send })
   const es = useCopy();
   const muted = meeting.microphone_muted === true;
   return (
-    <Button onClick={() => send({ command: "microphone_mute", muted: !muted })} size={32}>
-      {muted ? es.microphoneMute.unmute : es.microphoneMute.mute}
+    <Button
+      className={styles.mute}
+      onClick={() => send({ command: "microphone_mute", muted: !muted })}
+      size={32}
+      title={muted ? undefined : es.recordingMute.help}
+    >
+      {muted ? es.recordingMute.unmute : es.recordingMute.mute}
     </Button>
   );
 }
@@ -108,7 +113,7 @@ function MuteButton({ meeting, send }: { meeting: MeetingSnapshot; send: Send })
 function MutedLine({ meeting }: { meeting: MeetingSnapshot }) {
   const es = useCopy();
   if (meeting.microphone_muted !== true) return null;
-  return <div className={styles.meta}>{es.microphoneMute.muted}</div>;
+  return <div className={styles.meta}>{es.recordingMute.muted}</div>;
 }
 
 /**
