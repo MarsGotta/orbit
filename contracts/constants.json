@@ -2112,10 +2112,24 @@
       }
     ],
     "name": "INITIAL_SCAN_WAIT_SECONDS",
-    "resource": "first assistant admission wait; more than four times the worst observed 6.9 second secret scan, never admission without an initial snapshot",
+    "resource": "first assistant admission wait; twice the reported 63-second cold secret scan, without cancelling discovery or admitting without a snapshot",
     "source": "registry",
     "unit": "seconds",
-    "value": 30
+    "value": 126
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/assistant/jail_secret_cache.py",
+        "name": "MAX_SECRET_SNAPSHOT_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "MAX_SECRET_SNAPSHOT_BYTES",
+    "resource": "startup secret-scan snapshot parsing memory; 16 MiB allows hundreds of times the measured 200-path snapshot, larger snapshots require discovery without reducing masking",
+    "source": "registry",
+    "unit": "bytes",
+    "value": 16777216
   },
   {
     "copies": [
