@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppView } from "../../state/app-view";
+import { CopyProvider } from "../../i18n/CopyProvider";
 import { TEST_NOW_MS } from "../../test-clock";
 import SettingsView, { type SettingsViewProps } from "./SettingsView";
 import type { SettingsSection } from "../../state/ui";
@@ -416,6 +417,32 @@ describe("Grabación y llamadas", () => {
     expect(
       screen.getByRole<HTMLInputElement>("radio", { name: /Avisarme \(recomendado\)/ }).checked,
     ).toBe(true);
+  });
+
+  it.each([
+    ["es", -9878, "No disponible: otra app está usando este atajo (OSStatus -9878)."],
+    ["en", -9878, "Unavailable: another app is using this shortcut (OSStatus -9878)."],
+    ["es", -50, "No disponible: macOS rechazó el atajo (OSStatus -50)."],
+    ["en", -50, "Unavailable: macOS rejected the shortcut (OSStatus -50)."],
+  ] as const)("names the failed shortcut and OSStatus in %s (%s)", (language, status, message) => {
+    render(
+      <CopyProvider choice={language}>
+        <SettingsView
+          error={null}
+          onReopenOnboarding={vi.fn()}
+          send={vi.fn()}
+          section="grabacion"
+          snapshot={snapshot({
+            settings: {
+              shortcut_failures: [{ combination: "⌃⌥D", os_status: status }],
+            },
+          })}
+        />
+      </CopyProvider>,
+    );
+    const row = screen.getByText("⌃⌥D").parentElement!;
+    expect(within(row).getByText(message)).not.toBeNull();
+    expect(screen.queryAllByText(/OSStatus/)).toHaveLength(1);
   });
 
   it("shows shortcuts without a retired duration ceiling", () => {

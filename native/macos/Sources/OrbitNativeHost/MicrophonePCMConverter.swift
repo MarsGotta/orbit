@@ -23,14 +23,17 @@ final class MicrophonePCMConverter {
             self.converter = converter
             inputRate = sampleRate
         }
-        guard let converter,
+        // Size each short ring block by its rate ratio. Sixteen frames cover
+        // converter rounding/filter headroom, not a second of unused PCM.
+        let frames = pcm.count / 2
+        let capacity = ceil(Double(frames) * Double(outputRate) / Double(sampleRate)) + 16
+        guard capacity.isFinite, capacity > 0, capacity <= Double(UInt32.max),
+              let converter,
               let input = AVAudioPCMBuffer(pcmFormat: converter.inputFormat,
                   frameCapacity: AVAudioFrameCount(pcm.count / 2)),
               let samples = input.int16ChannelData?[0],
-              // Native-v1 admits at most one second per frame. The ring's
-              // 4096-frame blocks at >= 8 kHz fit within that existing bound.
               let output = AVAudioPCMBuffer(pcmFormat: converter.outputFormat,
-                  frameCapacity: outputRate) else {
+                  frameCapacity: AVAudioFrameCount(capacity)) else {
             throw NativeFailure("audio_memory_unavailable")
         }
         input.frameLength = input.frameCapacity

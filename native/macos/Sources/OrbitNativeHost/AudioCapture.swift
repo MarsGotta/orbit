@@ -79,7 +79,10 @@ final class AudioFrameRelay {
 
     func start() {
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now(), repeating: .milliseconds(10))
+        // Two milliseconds lets capture drains coalesce. The 32-block ring
+        // holds 320 ms even at 10 ms per block; this is not audio loss
+        // tolerance and the final stop still drains immediately.
+        timer.schedule(deadline: .now(), repeating: .milliseconds(10), leeway: .milliseconds(2))
         timer.setEventHandler { [weak self] in self?.drain() }
         self.timer = timer
         timer.resume()

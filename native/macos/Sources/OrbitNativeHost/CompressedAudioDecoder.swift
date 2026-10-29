@@ -287,6 +287,7 @@ package enum CompressedAudioDecoder {
         }
         var reachedEnd = false
         while !reachedEnd {
+            try Task.checkCancellation()
             let remainingOutputFrames = output.frameCapacity - output.frameLength
             guard remainingOutputFrames > 0 else { throw NativeFailure("clip_too_long") }
             let chunkCapacity = min(conversionChunkFrames, remainingOutputFrames)

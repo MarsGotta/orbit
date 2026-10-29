@@ -144,7 +144,12 @@ public enum NativeEvent: Encodable {
         .microphoneActivity(.init(event: "microphone_activity", fields: .init(
             applications: applications.map {
                 .init(application_pid: $0.pid, bundle_id: $0.bundleID, name: $0.name)
-            })))
+            }, os_status: nil)))
+    }
+
+    public static func makeMicrophoneActivityFailure(osStatus: Int32) -> NativeEvent {
+        .microphoneActivity(.init(event: "microphone_activity", fields: .init(
+            applications: nil, os_status: osStatus)))
     }
 
     public static func makeAssistantQuestion(streamID: String, text: String,
@@ -169,7 +174,7 @@ public enum NativeEvent: Encodable {
 
     public static func makeState(stopped: Bool, connected: Bool, instanceID: String,
         generation: UInt64, selectedTextAvailable: Bool, microphone: Bool,
-        systemAudio: Bool, playing: Bool,
+        systemAudio: Bool, playing: Bool, shortcutFailures: [NativeShortcutFailure] = [],
         voiceProcessingAvailable: Bool, playbackReferenceAvailable: Bool,
         audioProcessing: NativeAudioProcessingResultFields,
         preferredLanguages: [String]? = nil,
@@ -177,7 +182,7 @@ public enum NativeEvent: Encodable {
         .state(.init(event: "state", fields: .init(preferred_languages: preferredLanguages, privacy_stopped: stopped,
             connected: connected, native_instance_id: instanceID, privacy_generation: generation,
             selected_text_available: selectedTextAvailable, microphone: microphone,
-            system_audio: systemAudio, playing: playing,
+            system_audio: systemAudio, playing: playing, shortcut_failures: shortcutFailures,
             supported_audio_processing: ["unprocessed", "voice_processing"],
             voice_processing_available: voiceProcessingAvailable,
             playback_reference_available: playbackReferenceAvailable,

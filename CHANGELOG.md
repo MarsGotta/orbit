@@ -7,6 +7,15 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve call recordings when macOS cannot observe microphone users. Keep
+  available global shortcuts after a conflict and show failed combinations
+  with their macOS status in Settings.
+- Ignore retired wake-phrase listener reports, decode speech clips off the
+  main thread with stop cancellation, and reduce idle watchdog work and
+  capture allocation/timer overhead.
+
 ### Changed
 
 - The real-test harness supports an English pass with `run --language en`,

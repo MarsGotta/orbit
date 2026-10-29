@@ -36,6 +36,7 @@ fn status_snapshot(
                     account,
                     privacy_stopped: false,
                     helper_connected: true,
+                    shortcut_failures: None,
                     error_reports: None,
                     language: None,
                 },

@@ -70,6 +70,7 @@ package final class AssistantVoiceTrigger {
     private let channel: NativeChannel
     private let makeListener: ListenerFactory?
     private var listener: PhraseListening?
+    private var generation: UInt64 = 0
     /// Every agent's name, as the daemon last gave them.
     private var assistantNames = ["Deimos"]
     private var locale: NativeSpeechLocale = .spanish
@@ -119,7 +120,13 @@ package final class AssistantVoiceTrigger {
             self.assistantNames = [assistantName]
         }
         let channel = self.channel
-        let report: (VoiceTriggerReport) -> Void = { report in _ = channel.send(report.event) }
+        let generation = self.generation
+        let report: (VoiceTriggerReport) -> Void = { [weak self] report in
+            DispatchQueue.main.async {
+                guard let self, self.generation == generation else { return }
+                channel.send(report.event)
+            }
+        }
         let question: (SpokenQuestion, Double) -> Void = { spoken, fedSeconds in
             let now = Int64((Date().timeIntervalSince1970 * 1_000).rounded())
             let ended = now - Int64(((fedSeconds - spoken.end) * 1_000).rounded())
@@ -158,6 +165,7 @@ package final class AssistantVoiceTrigger {
 
     /// Stops listening now: the recording stopped, paused, or the user's stop.
     package func stop() {
+        generation &+= 1
         guard let listener else { return }
         listener.stop()
         self.listener = nil

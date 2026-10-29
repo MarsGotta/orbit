@@ -185,7 +185,30 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
             ends_at_ms: NOW + MINUTE + 16_000,
         })
     );
-    at(&mut runtime, NOW + MINUTE + 15_999).await?;
+    // An unreadable CoreAudio observation cancels this countdown. It is
+    // unknown until a successful list arrives, even long after its deadline.
+    runtime
+        .native_event(json!({"event":"microphone_activity", "v":1,
+        "os_status":-2000}))
+        .await?;
+    at(&mut runtime, NOW + 2 * MINUTE).await?;
+    assert_eq!(panel(&runtime), None);
+    assert_eq!(
+        runtime
+            .state
+            .durable
+            .capture
+            .recording
+            .as_ref()
+            .map(|r| &r.phase),
+        Some(&CapturePhase::Recording)
+    );
+    runtime.native_event(zoom_holding(true)).await?;
+    // A real call ending still follows the ordinary countdown below.
+    runtime.calls.clock_ms = Some(NOW + 3 * MINUTE);
+    runtime.native_event(zoom_holding(false)).await?;
+    at(&mut runtime, NOW + 3 * MINUTE + 3_000).await?;
+    at(&mut runtime, NOW + 3 * MINUTE + 15_999).await?;
     assert_eq!(
         runtime
             .state
@@ -196,7 +219,7 @@ async fn a_call_is_offered_recorded_with_its_event_and_ends_after_the_countdown(
             .map(|r| r.phase.clone()),
         Some(CapturePhase::Recording)
     );
-    at(&mut runtime, NOW + MINUTE + 16_000).await?;
+    at(&mut runtime, NOW + 3 * MINUTE + 16_000).await?;
     assert_eq!(
         runtime
             .state

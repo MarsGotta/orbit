@@ -19,6 +19,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     let mainThreadWatch: MainThreadHangDetector
     let audioSession = SharedAudioSession()
     private let hotkeys = GlobalHotkeys()
+    private var shortcutFailures = [NativeShortcutFailure]()
     lazy var windowScreenshots = WindowScreenshots(diagnostics: diagnostics)
     /// The assistant's folders: the panel, their bookmarks, read-only reads.
     let assistantFiles = AssistantFiles()
@@ -57,6 +58,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
     /// `liveness`, never by a caller flipping a flag one way.
     var connected: Bool { liveness.connected }
     var commandRouter = NativeCommandRouter()
+    var nativeOperations = 0
     var privacyEpoch: UInt64 = 0
     var playbackEpoch: UInt64 = 0
     var microphonePurpose: NativeMicrophonePurpose?
@@ -119,6 +121,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         // `audio_stop` that ends it even before the next beat. It is observed
         // where it is read, before the main thread runs it.
         channel.commandRead = { [liveness = self.liveness] in liveness.observedBeat() }
+        channel.commandPending = { [watch = mainThreadWatch] id, queued in
+            watch.commandPending(id: id, queued: queued)
+        }
         channel.receive = { [weak self] command in self?.receive(command) }
         channel.disconnected = { [weak self] reason in
             self?.daemonDisconnected(reason: reason)
@@ -128,13 +133,13 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
         }
         playback.becameIdle = { [weak self] in
             self?.audioSession.stopIfIdle()
+            self?.updateMainThreadWatch()
         }
         microphone.failed = { [weak self] reason in self?.trackFailed(.microphone, reason: reason) }
         systemAudio.failed = { [weak self] reason in self?.trackFailed(.systemAudio, reason: reason) }
         if !launchOptions.isIsolatedFixture {
             hotkeys.onEvent = { [weak self] action, phase in self?.hotkey(action: action, phase: phase) }
-            do { try hotkeys.register() }
-            catch { channel.send(.makeError(code: "hotkey_registration_failed")) }
+            shortcutFailures = hotkeys.register()
             for name in [NSWorkspace.willSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
                 let observer = NSWorkspace.shared.notificationCenter.addObserver(
                     forName: name, object: nil, queue: .main
@@ -160,11 +165,16 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             launchMode: launchOptions.launchModeName,
             isolatedFixture: launchOptions.isIsolatedFixture, preferredLanguages: Locale.preferredLanguages))
         if !launchOptions.isIsolatedFixture {
-            microphoneActivity.changed = { [weak self] applications in
+            microphoneActivity.changed = { [weak self] observation in
                 guard let self, !self.latch.stopped else { return }
-                self.channel.send(.makeMicrophoneActivity(applications.map {
-                    (pid: $0.applicationPID, bundleID: $0.bundleID, name: $0.name)
-                }))
+                switch observation {
+                case .success(let applications):
+                    self.channel.send(.makeMicrophoneActivity(applications.map {
+                        (pid: $0.applicationPID, bundleID: $0.bundleID, name: $0.name)
+                    }))
+                case .failure(let failure):
+                    self.channel.send(.makeMicrophoneActivityFailure(osStatus: failure.osStatus))
+                }
             }
             resumeMicrophoneActivity()
             assistantTrigger.announce()
@@ -231,7 +241,9 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
          "native_instance_id": windowScreenshots.nativeInstanceID, "privacy_generation": privacyEpoch,
          "selected_text_available": !launchOptions.isIsolatedFixture && AXIsProcessTrusted(),
          "microphone": microphone.slot.isActive, "system_audio": systemAudio.slot.isActive,
-         "playing": playback.playing,
+         "playing": playback.playing, "shortcut_failures": shortcutFailures.map {
+             ["combination": $0.combination, "os_status": $0.os_status] as [String: Any]
+         },
          "supported_audio_processing": ["unprocessed", "voice_processing"],
          "voice_processing_available": audioSession.voiceProcessingAvailable,
          "playback_reference_available": audioSession.playbackReferenceAvailable,
@@ -240,7 +252,7 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
 
     func publishState() {
         let capturing = microphone.slot.isActive || systemAudio.slot.isActive
-        mainThreadWatch.captureChanged(capturing)
+        updateMainThreadWatch()
         liveness.captureChanged(microphone: microphone.slot.isActive,
                                 systemAudio: systemAudio.slot.isActive)
         if captureActivity.update(capturing: capturing) {
@@ -251,13 +263,24 @@ final class OrbitApplication: NSObject, NSApplicationDelegate {
             instanceID: windowScreenshots.nativeInstanceID, generation: privacyEpoch,
             selectedTextAvailable: !launchOptions.isIsolatedFixture && AXIsProcessTrusted(),
             microphone: microphone.slot.isActive, systemAudio: systemAudio.slot.isActive,
-            playing: playback.playing, voiceProcessingAvailable: audioSession.voiceProcessingAvailable,
+            playing: playback.playing, shortcutFailures: shortcutFailures, voiceProcessingAvailable: audioSession.voiceProcessingAvailable,
             playbackReferenceAvailable: audioSession.playbackReferenceAvailable,
             audioProcessing: audioSession.statusFields,
             preferredLanguages: Locale.preferredLanguages,
             calendar: NativeCalendarStatusResultFields(authorization: calendar.authorization.rawValue,
                 physicalReadPending: calendar.physical_read_pending,
                 failure: calendar.failure?.rawValue)))
+    }
+
+    func updateMainThreadWatch() {
+        // assumeIsolated traps off the main thread: a helper crash would end
+        // the capture, so a caller elsewhere only loses the calendar's share.
+        let calendarPending = Thread.isMainThread
+            ? MainActor.assumeIsolated { calendars?.operationPending ?? false } : false
+        mainThreadWatch.activityChanged(pending: nativeOperations > 0 || commandRouter.hasCommandInFlight
+            || privacyCleanupInFlight > 0 || audioRouteRecoveryInFlight || calendarPending,
+            capturing: microphone.slot.isActive || systemAudio.slot.isActive,
+            playing: playback.playing)
     }
 
     func permissions() -> [String: Any] {

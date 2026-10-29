@@ -118,10 +118,24 @@ impl Runtime {
     /// The helper's `microphone_activity`: who holds the microphone now.
     pub(super) async fn on_microphone_activity(&mut self, event: &Value) -> Result<()> {
         let decoded: NativeEvent = serde_json::from_value(event.clone())?;
-        let NativeEvent::MicrophoneActivity { applications, .. } = decoded else {
+        let NativeEvent::MicrophoneActivity {
+            applications,
+            os_status,
+            ..
+        } = decoded
+        else {
             bail!("Inconsistent microphone_activity event");
         };
+        if let Some(status) = os_status {
+            self.log(
+                "microphone_observation_failed",
+                &[("os_status", &status.to_string())],
+            );
+            self.call_signal_lost().await;
+            return Ok(());
+        }
         let applications = applications
+            .context("Microphone observation has neither applications nor OSStatus")?
             .into_iter()
             .map(|application| CallApp {
                 application_pid: application.application_pid,

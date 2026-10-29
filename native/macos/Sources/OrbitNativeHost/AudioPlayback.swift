@@ -12,12 +12,18 @@ package final class AudioPlayback {
     private var queuedFrames = 0
     package private(set) var paused = false
     private var generation: UInt64 = 0
+    private var decodingTask: Task<AVAudioPCMBuffer, Error>?
+    private let decodeClip: @Sendable (PlaybackClip, AVAudioFormat) throws -> AVAudioPCMBuffer
     package private(set) var playing = false
     package var becameIdle: (() -> Void)?
 
-    package init(session: SharedAudioSession, channel: NativeChannel) {
+    package init(session: SharedAudioSession, channel: NativeChannel,
+                 decodeClip: @escaping @Sendable (PlaybackClip, AVAudioFormat) throws -> AVAudioPCMBuffer = {
+                     try CompressedAudioDecoder.decode($0, to: $1)
+                 }) {
         self.session = session
         self.channel = channel
+        self.decodeClip = decodeClip
     }
 
     package func enqueue(_ command: NativePlaybackFields) throws -> [String: Any] {
@@ -35,6 +41,7 @@ package final class AudioPlayback {
             stop()
             paused = wasPaused
         }
+        guard decodingTask == nil else { throw NativeFailure("playback_backpressure") }
         if formatRate != rate {
             guard !playing, queuedFrames == 0 else { throw NativeFailure("playback_format_changed") }
             resampler = try PlaybackResampler(sourceRate: rate)
@@ -78,7 +85,7 @@ package final class AudioPlayback {
                 "rendered_frames": frames, "render_sample_rate": PlaybackResampler.outputRate, "state": "queued"]
     }
 
-    package func enqueueClip(_ command: NativePlaybackClipFields) throws -> [String: Any] {
+    @MainActor package func enqueueClip(_ command: NativePlaybackClipFields) async throws -> [String: Any] {
         let clip: PlaybackClip
         do {
             clip = try command.playbackClip()
@@ -99,13 +106,28 @@ package final class AudioPlayback {
             stop()
             paused = wasPaused
         }
-        guard !playing, queuedFrames == 0 else { throw NativeFailure("playback_backpressure") }
+        guard !playing, queuedFrames == 0, decodingTask == nil else { throw NativeFailure("playback_backpressure") }
         guard let format = session.playbackFormat else {
             throw NativeFailure("unsupported_playback_format")
         }
-        let buffer = try CompressedAudioDecoder.decode(clip, to: format)
-        try session.startPlayback()
+        // Reserve the sequence before yielding, so replacement and stop retire it.
         fence = candidate
+        let decodingGeneration = generation
+        let decode = decodeClip
+        let task = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            return try decode(clip, format)
+        }
+        decodingTask = task
+        defer { if generation == decodingGeneration { decodingTask = nil } }
+        let buffer: AVAudioPCMBuffer
+        do { buffer = try await task.value }
+        catch {
+            guard generation == decodingGeneration else { return ["state": "cancelled"] }
+            throw error
+        }
+        guard generation == decodingGeneration, !task.isCancelled else { return ["state": "cancelled"] }
+        try session.startPlayback()
         formatRate = nil
         resampler = nil
         let frames = Int(buffer.frameLength)
@@ -161,6 +183,8 @@ package final class AudioPlayback {
         paused = false
         let id = queuedFrames > 0 ? fence.currentID : nil
         generation &+= 1
+        decodingTask?.cancel()
+        decodingTask = nil
         session.stopPlayerIfCreated()
         fence.stop()
         queuedFrames = 0

@@ -37,6 +37,7 @@ package struct CalendarHostFacts: Sendable {
     /// The single EventKit slot is taken from admission until the command is
     /// answered; the controller's own `physical_read_pending` covers the rest.
     private var commandInFlight = false
+    package var operationPending: Bool { commandInFlight || controller.lastStatus().physical_read_pending }
     private var refreshing = false
     /// The controller was created on first use before it reported the status
     /// too: until a calendar command or permission request, a stop has no

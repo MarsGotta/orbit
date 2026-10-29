@@ -15,6 +15,7 @@ public final class NativeChannel: Sendable {
     /// Called on the reader's queue for every command read, before the main
     /// thread runs it: the daemon answered, whatever main is doing.
     public typealias Observer = @Sendable () -> Void
+    public typealias PendingObserver = @Sendable (String, Bool) -> Void
 
     private struct RejectedCommandHeader: Decodable {
         let v: Int
@@ -39,6 +40,7 @@ public final class NativeChannel: Sendable {
         var receive: Receiver?
         var disconnected: Disconnection?
         var commandRead: Observer?
+        var commandPending: PendingObserver?
     }
 
     private enum Admission: Sendable {
@@ -126,6 +128,13 @@ public final class NativeChannel: Sendable {
     public var commandRead: Observer? {
         get { state.withLock { $0.commandRead } }
         set { state.withLock { $0.commandRead = newValue } }
+    }
+
+    /// Admission on the reader queue, release on MainActor. Set before start.
+    /// Only admitted commands are reported; neither callback holds the state lock.
+    public var commandPending: PendingObserver? {
+        get { state.withLock { $0.commandPending } }
+        set { state.withLock { $0.commandPending = newValue } }
     }
 
     public convenience init(input: FileHandle, output: FileHandle) {
@@ -359,14 +368,15 @@ public final class NativeChannel: Sendable {
         observer?()
         let name = command.command
         let admission = state.withLock { current -> CommandAdmission in
-            let decided = Self.admission(of: name, in: &current)
-            if case .queued(let slot) = decided {
-                DispatchQueue.main.async { self.deliver(command, slot: slot) }
-            }
-            return decided
+            Self.admission(of: name, in: &current)
         }
         switch admission {
-        case .queued, .beatNotQueued:
+        case .queued(let slot):
+            let pending = state.withLock { $0.commandPending }
+            pending?(command.id, true)
+            DispatchQueue.main.async { self.deliver(command, slot: slot) }
+            return true
+        case .beatNotQueued:
             return true
         case .busy(let pending):
             refuseBusy(command, pending: pending)
@@ -427,7 +437,13 @@ public final class NativeChannel: Sendable {
     }
 
     @MainActor private func deliver(_ command: NativeWireCommand, slot: CommandSlot) {
-        defer { state.withLock { current in Self.release(slot, in: &current) } }
+        defer {
+            let pending = state.withLock { current in
+                Self.release(slot, in: &current)
+                return current.commandPending
+            }
+            pending?(command.id, false)
+        }
         let callback = state.withLock { current -> Receiver? in
             guard !current.failed else { return nil }
             return current.receive

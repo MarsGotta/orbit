@@ -1,4 +1,5 @@
 import Carbon
+import OrbitNativeProtocol
 
 /// Register only explicit shortcuts. No global keyboard event monitor is installed.
 package final class GlobalHotkeys {
@@ -7,9 +8,14 @@ package final class GlobalHotkeys {
     private var pressed = Set<UInt32>()
     package var onEvent: ((String, String) -> Void)?
 
-    package init() {}
+    private let registerKey: ((UInt32, UInt32) -> OSStatus)?
 
-    package func register() throws {
+    /// Inject only the OS registration boundary; tests never own global keys.
+    package init(registerKey: ((UInt32, UInt32) -> OSStatus)? = nil) {
+        self.registerKey = registerKey
+    }
+
+    package func register() -> [NativeShortcutFailure] {
         var types = [
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
@@ -20,21 +26,25 @@ package final class GlobalHotkeys {
             let owner = Unmanaged<GlobalHotkeys>.fromOpaque(context).takeUnretainedValue()
             return owner.handle(event)
         }, types.count, &types, context, &handler)
-        guard result == noErr else { throw NativeFailure("hotkey_handler_unavailable") }
-        let entries: [(UInt32, UInt32)] = [
-            (1, UInt32(kVK_Space)), (2, UInt32(kVK_ANSI_D)),
-            (3, UInt32(kVK_ANSI_M)), (4, UInt32(kVK_Escape))
+        let entries: [(UInt32, UInt32, String)] = [
+            (1, UInt32(kVK_Space), "⌃⌥␣"), (2, UInt32(kVK_ANSI_D), "⌃⌥D"),
+            (3, UInt32(kVK_ANSI_M), "⌃⌥M"), (4, UInt32(kVK_Escape), "⌃⌥Esc")
         ]
-        for (id, keyCode) in entries {
-            var reference: EventHotKeyRef?
-            let status = RegisterEventHotKey(keyCode, UInt32(controlKey | optionKey),
-                EventHotKeyID(signature: 0x4F524254, id: id), GetApplicationEventTarget(), 0, &reference)
-            guard status == noErr, let reference else {
-                unregister()
-                throw NativeFailure("hotkey_conflict")
-            }
-            hotkeys.append(reference)
+        guard result == noErr else {
+            return entries.map { NativeShortcutFailure(combination: $0.2, osStatus: result) }
         }
+        return entries.compactMap { id, keyCode, combination in
+            let status = registerKey?(id, keyCode) ?? registerCarbonKey(id: id, keyCode: keyCode)
+            return status == noErr ? nil : NativeShortcutFailure(combination: combination, osStatus: status)
+        }
+    }
+
+    private func registerCarbonKey(id: UInt32, keyCode: UInt32) -> OSStatus {
+        var reference: EventHotKeyRef?
+        let status = RegisterEventHotKey(keyCode, UInt32(controlKey | optionKey),
+            EventHotKeyID(signature: 0x4F524254, id: id), GetApplicationEventTarget(), 0, &reference)
+        if status == noErr, let reference { hotkeys.append(reference) }
+        return status
     }
 
     private func handle(_ event: EventRef) -> OSStatus {
@@ -55,6 +65,7 @@ package final class GlobalHotkeys {
     package func unregister() {
         hotkeys.forEach { UnregisterEventHotKey($0) }
         hotkeys.removeAll()
+        pressed.removeAll()
         if let handler { RemoveEventHandler(handler) }
         handler = nil
     }

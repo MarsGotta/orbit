@@ -98,6 +98,10 @@ const base = {
     // Recording and calls
     whenCall: "When you start a video call",
     whenCallLabel: "When a call is detected",
+    shortcutFailed: (status: number) =>
+      status === -9878
+        ? `Unavailable: another app is using this shortcut (OSStatus ${status}).`
+        : `Unavailable: macOS rejected the shortcut (OSStatus ${status}).`,
     shortcuts: "Shortcuts from any app",
 
     // Assistants: a summary; each one's own settings are behind its gear.

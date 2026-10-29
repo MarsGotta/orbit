@@ -5,6 +5,35 @@ import XCTest
 /// The main thread's holds are measured from a background queue, with the
 /// command it had started and whether a capture was live; never content.
 final class MainThreadStallWatchTests: XCTestCase {
+    func testIdleWatchPostsNoPingsAndAnOperationRearmsIt() {
+        var watch = MainThreadStallWatch()
+        watch.activityChanged(false)
+        XCTAssertFalse(watch.needsTimer)
+        XCTAssertFalse(watch.timerFired(at: 1).postPing)
+        watch.activityChanged(true)
+        XCTAssertTrue(watch.needsTimer)
+        XCTAssertTrue(watch.timerFired(at: 2).postPing)
+        // Finishing the operation retains the outstanding ping and its report.
+        watch.activityChanged(false)
+        XCTAssertTrue(watch.needsTimer)
+        XCTAssertNotNil(watch.pingAnswered(at: 2.6))
+        XCTAssertFalse(watch.needsTimer)
+        XCTAssertFalse(watch.timerFired(at: 3).postPing)
+    }
+
+    func testCommandsWaitingForMainKeepTheWatchArmedUntilDelivered() {
+        var watch = MainThreadStallWatch()
+        watch.activityChanged(false)
+        watch.commandPending(id: "first", queued: true)
+        watch.commandPending(id: "second", queued: true)
+        watch.commandPending(id: "first", queued: false)
+        XCTAssertTrue(watch.needsTimer)
+        XCTAssertTrue(watch.timerFired(at: 1).postPing)
+        watch.commandPending(id: "second", queued: false)
+        XCTAssertNotNil(watch.pingAnswered(at: 2))
+        XCTAssertFalse(watch.needsTimer)
+    }
+
     func testAPromptAnswerIsNotAStall() {
         var watch = MainThreadStallWatch()
         XCTAssertTrue(watch.timerFired(at: 10).postPing)

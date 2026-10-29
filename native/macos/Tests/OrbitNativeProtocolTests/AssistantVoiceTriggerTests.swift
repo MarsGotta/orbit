@@ -128,6 +128,38 @@ final class AssistantVoiceTriggerTests: XCTestCase {
         XCTAssertEqual(fake.recorded, ["finish"])
     }
 
+    @MainActor
+    func testRetiredListenerCannotPublishOverItsReplacement() async throws {
+        let input = Pipe()
+        let output = Pipe()
+        defer { withExtendedLifetime(input) {} }
+        let channel = NativeChannel(input: input.fileHandleForReading,
+                                    output: output.fileHandleForWriting)
+        var reports = [(VoiceTriggerReport) -> Void]()
+        let trigger = AssistantVoiceTrigger(channel: channel, makeListener: { _, _, report, _ in
+            reports.append(report)
+            return FakeListener()
+        })
+        _ = trigger.start(streamID: "first", allow: { _ in true })
+        // Queued before replacement, delivered only after the main actor yields.
+        reports[0](.listening)
+        _ = trigger.start(streamID: "second", allow: { _ in true })
+        reports[0](.failed(cause: "retired", detail: nil))
+        reports[1](.downloading(percent: 25))
+        // Drain the main queue after all reports, without a timing assertion.
+        await withCheckedContinuation { continuation in
+            DispatchQueue.main.async { continuation.resume() }
+        }
+        let flushed = await channel.flush()
+        XCTAssertTrue(flushed)
+        try output.fileHandleForWriting.close()
+        let bytes = output.fileHandleForReading.readDataToEndOfFile()
+        let events = try bytes.split(separator: 10).map {
+            try XCTUnwrap(JSONSerialization.jsonObject(with: Data($0)) as? [String: Any])
+        }
+        XCTAssertEqual(events.compactMap { $0["state"] as? String }, ["idle", "downloading"])
+    }
+
     private func fields(_ event: NativeEvent) throws -> NSDictionary {
         let data = try JSONEncoder().encode(event)
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? NSDictionary)

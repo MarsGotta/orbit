@@ -22,6 +22,17 @@ final class MicrophonePCMConverterTests: XCTestCase {
         }
     }
 
+    func testSmallBlocksAtDifferentRatesKeepTheirDuration() throws {
+        let routes: [(UInt32, UInt32)] = [(8_000, 48_000), (48_000, 8_000)]
+        for (inputRate, outputRate) in routes {
+            let converter = MicrophonePCMConverter(outputRate: outputRate)
+            let frames = Int(inputRate / 100)
+            let pcm = Data(repeating: 0, count: frames * 2)
+            let converted = try converter.convert(pcm, sampleRate: inputRate)
+            XCTAssertEqual(converted.count, Int(outputRate / 100) * 2)
+        }
+    }
+
     func testRelayPublishesTheMeasuredGapBeforeResumedPCMAtTheOriginalRate() async throws {
         let input = Pipe()
         let output = Pipe()

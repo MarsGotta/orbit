@@ -98,6 +98,10 @@ const base = {
     // Recording and calls
     whenCall: "Cuando empieces una videollamada",
     whenCallLabel: "Al detectar una llamada",
+    shortcutFailed: (status: number) =>
+      status === -9878
+        ? `No disponible: otra app está usando este atajo (OSStatus ${status}).`
+        : `No disponible: macOS rechazó el atajo (OSStatus ${status}).`,
     shortcuts: "Atajos desde cualquier app",
 
     // Assistants: a summary; each one's own settings are behind its gear.

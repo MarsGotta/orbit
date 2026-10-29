@@ -32,6 +32,9 @@ impl ProjectTopic for Projector {
                 account: state.views.account.clone(),
                 privacy_stopped: state.privacy_stopped(),
                 helper_connected: state.helper_connected(),
+                shortcut_failures: source
+                    .runtime
+                    .and_then(|runtime| runtime.helper.shortcut_failures()),
                 language: source.runtime.map(|runtime| runtime.settings.language),
                 error_reports: source
                     .runtime
@@ -47,6 +50,38 @@ impl ProjectTopic for Projector {
 mod tests {
     use super::*;
     use orbit_core::topics::Knowledge;
+
+    #[tokio::test]
+    async fn shortcut_failures_reach_the_status_topic_and_clear_with_the_helper()
+    -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let (mut runtime, _helper) = crate::daemon::audio::tests::fixture(directory.path())?;
+        let failures = |runtime: &crate::daemon::Runtime| match Projector.project(&TopicSource {
+            state: &runtime.state,
+            runtime: Some(runtime),
+            now_ms: 0,
+        }) {
+            TopicData::Status(Knowledge::Present { value, .. }) => value.shortcut_failures,
+            other => panic!("{other:?}"),
+        };
+        runtime
+            .native_event(serde_json::json!({"event":"state", "privacy_stopped":false,
+            "native_instance_id":"55555555-5555-4555-8555-000000000001", "privacy_generation":0,
+            "shortcut_failures":[{"combination":"⌃⌥D", "os_status":-9878}]}))
+            .await?;
+        assert_eq!(
+            failures(&runtime),
+            Some(vec![orbit_core::topics::status::ShortcutFailure {
+                combination: "⌃⌥D".into(),
+                os_status: -9878,
+            }])
+        );
+        runtime
+            .native_event(serde_json::json!({"event":"helper_disconnected"}))
+            .await?;
+        assert_eq!(failures(&runtime), None);
+        Ok(())
+    }
 
     /// The switch is offered only by a build with a Sentry address, and
     /// says the user's choice; turning it changes the topic.
