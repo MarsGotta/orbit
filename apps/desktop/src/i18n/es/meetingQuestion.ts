@@ -1,7 +1,7 @@
 import { numberFormat } from "../locale";
 // Deimos during the meeting — «Preguntar a Deimos», its answer in
 // the floating panel, and «Oye Deimos». A question without answer
-// says what to do; its codes and sizes stay in the log.
+// says what happened, with the limits and recovery that apply.
 const base = {
   meetingQuestion: {
     askAgain: "Otra pregunta",
@@ -15,18 +15,39 @@ const base = {
 
     asked: (question: string) => `Tu pregunta: ${question}`,
 
-    tooLong: "La pregunta es demasiado larga: acórtala.",
-
     linkWithHost: (label: string, host: string) => `${label} (${host})`,
     linkRefused: "No se pudo abrir el enlace.",
     causes: {
       privacyStopped: "Todo está parado. Reactiva Orbit para preguntar.",
       noMeeting: "No hay ninguna grabación en curso.",
       hubUnreachable: "Sin conexión con el hub. Pregunta de nuevo cuando vuelva.",
-      tryAgain: "Vuelve a preguntar en un momento.",
+      tryAgain:
+        "La respuesta no está disponible y Orbit no recibió la causa. Revisa la conversación antes de volver a preguntar.",
       questionEmpty: "La pregunta está vacía.",
-      questionTooLong: "La pregunta es demasiado larga: acórtala.",
-      windowNotOffered: "Elige otra ventana de tiempo.",
+      questionTooLong: (bytes: number, max: number) =>
+        `La pregunta ocupa ${numberFormat().format(bytes)} bytes y el límite es ${numberFormat().format(max)} bytes. Acórtala.`,
+      windowNotOffered: (minutes: number, offered: number[]) =>
+        `La ventana de ${numberFormat().format(minutes)} min solicitada no está disponible. Elige entre los minutos ofrecidos: ${offered.map((n) => numberFormat().format(n)).join(", ") || "ninguno"}.`,
+      turnFailed:
+        "El turno del asistente falló. Revisa la conversación antes de volver a preguntar.",
+      noAnswer:
+        "El asistente terminó sin una respuesta. Revisa la conversación o reformula la pregunta.",
+      unavailable: (code: string) =>
+        `El asistente no está disponible (${code}). Pide a quien gestiona tu hub que lo revise.`,
+      hubRefused: (code: string, message: string) =>
+        `El hub rechazó la pregunta (${code})${message ? `: ${message}` : ". No indicó más detalles."}`,
+      sendFailed: (message: string) =>
+        `La pregunta no se pudo enviar. Comprueba la conexión con el hub antes de intentarlo de nuevo.${message ? ` Detalles: ${message}` : ""}`,
+      refusalCodes: {
+        upstream_unavailable:
+          "El asistente está desconectado del hub. Pregunta de nuevo cuando vuelva.",
+        upstream_rejected:
+          "El asistente rechazó la solicitud. Pide a quien gestiona tu hub que revise su configuración.",
+        upstream_protocol:
+          "El asistente envió una respuesta incompatible. Pide a quien gestiona tu hub que revise las versiones del hub y del asistente.",
+        turn_outcome_unknown:
+          "El hub no puede confirmar qué pasó con la pregunta anterior. Revisa la conversación antes de volver a preguntar.",
+      },
       interrupted: "Interrumpiste la respuesta.",
       revoked: "El hub retiró este Mac. Vuelve a emparejarlo en Ajustes.",
     },
@@ -42,7 +63,7 @@ const base = {
         localeUnsupported: "macOS no ofrece reconocimiento de voz en español; usa el botón",
         unavailable: "este Mac no lo admite; usa el botón",
         failed: "el reconocimiento de voz se detuvo; usa el botón",
-        helperDisconnected: "Orbit.app no está en marcha",
+        helperDisconnected: "el reconocimiento de voz no está disponible; usa el botón",
         helperWithoutPhrase: "actualiza Orbit",
         noMicrophone: "la grabación aún no tiene micrófono",
       },

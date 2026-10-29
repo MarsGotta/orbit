@@ -29,6 +29,8 @@ const base = {
   },
   assistant: {
     ...assistantBase,
+    voiceNoteHelp:
+      "Pulsa para grabar y otra vez para enviar; mantén pulsado para hablar y suelta para enviar.",
     transcribingVoice: "Transcribiendo tu voz…",
 
     transcribing: "Transcribiendo…",

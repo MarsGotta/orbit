@@ -1,12 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import type { MeetingQuestionCause } from "../../bridge/generated/MeetingQuestionCause";
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import type { PhraseAbandonedCause } from "../../bridge/generated/PhraseAbandonedCause";
 import type { VoiceOffCause } from "../../bridge/generated/VoiceOffCause";
+import { configureCopy } from "../../i18n";
+import { english } from "../../i18n/en";
+import { spanish } from "../../i18n/es";
 import { es } from "../../i18n/es";
 import { AskDeimos } from "./AskDeimos";
 import { causeText, voiceStatusShort, voiceStatusText } from "./copy";
@@ -61,22 +64,15 @@ describe("the answer panel", () => {
     expect(answered.sent).toEqual([{ command: "meeting_question_close", id: "turn-1" }]);
   });
 
-  // Each failure says what to do, in one line; the codes and the sizes
-  // stay in the log, never on screen.
-  it("shows each failure as what to do, without codes or numbers", () => {
+  // Each failure preserves its actionable cause.
+  it("shows the unchanged refusal and recovery causes", () => {
     const causes = es.meetingQuestion.causes;
     const cases: [MeetingQuestionCause, string][] = [
       [{ cause: "privacy_stopped" }, causes.privacyStopped],
       [{ cause: "no_meeting" }, causes.noMeeting],
       [{ cause: "hub_unreachable", connection: "offline" }, causes.hubUnreachable],
-      [{ cause: "deimos_unavailable", code: "upstream_unavailable" }, causes.tryAgain],
       [{ cause: "turn_in_flight", turn: "assistant_turn" }, es.meetingQuestion.busy.assistant_turn],
-      [{ cause: "question_too_long", bytes: 1100, max_bytes: 1024 }, causes.questionTooLong],
-      [{ cause: "window_not_offered", minutes: 7, offered: [2, 5, 10] }, causes.windowNotOffered],
-      [{ cause: "turn_failed" }, causes.tryAgain],
       [{ cause: "interrupted" }, causes.interrupted],
-      [{ cause: "hub_refused", code: "send_failed", message: "canal cerrado" }, causes.tryAgain],
-      [{ cause: "no_answer" }, causes.tryAgain],
       [{ cause: "revoked" }, causes.revoked],
       [{ cause: "question_empty" }, causes.questionEmpty],
     ];
@@ -134,10 +130,12 @@ describe("«Preguntar a Deimos»", () => {
     expect(sent).toEqual([{ command: "meeting_ask", question: "¿Y antes?", minutes: 10 }]);
   });
 
-  it("says a question is too long, without its bytes, and does not send it", async () => {
+  it("shows the question’s UTF-8 bytes and ceiling and does not send it", async () => {
     const { sent } = ask();
     await userEvent.type(screen.getByRole("textbox"), "ñ".repeat(21));
-    expect(screen.getByRole("alert").textContent).toBe(es.meetingQuestion.tooLong);
+    expect(screen.getByRole("alert").textContent).toBe(
+      es.meetingQuestion.causes.questionTooLong(42, 40),
+    );
     expect(
       (screen.getByRole("button", { name: es.meetingQuestion.send }) as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -272,3 +270,60 @@ describe("a link says where it leads", () => {
     ]);
   });
 });
+
+describe.each([
+  ["en", english(), /1,100.*1,024/, /7.*2.*5.*10/, /English/, /speech recognition.*unavailable/],
+  ["es", spanish(), /1100.*1024/, /7.*2.*5.*10/, /español/, /reconocimiento de voz.*disponible/],
+] as const)(
+  "meeting failure details in %s",
+  (_language, copy, sizes, windows, language, helper) => {
+    beforeEach(() => {
+      configureCopy(_language, [], "Deimos");
+    });
+    it("shows size ceilings and requested/offered minutes", () => {
+      expect(causeText({ cause: "question_too_long", bytes: 1100, max_bytes: 1024 }, copy)).toMatch(
+        sizes,
+      );
+      expect(
+        causeText({ cause: "window_not_offered", minutes: 7, offered: [2, 5, 10] }, copy),
+      ).toMatch(windows);
+    });
+    it("distinguishes unavailable, rejected, incompatible, failed and absent answers", () => {
+      const texts = ["upstream_unavailable", "upstream_rejected", "upstream_protocol"].map((code) =>
+        causeText({ cause: "deimos_unavailable", code }, copy),
+      );
+      expect(texts[1]).toMatch(_language === "en" ? /refused the request/ : /rechazó la solicitud/);
+      expect(
+        causeText(
+          { cause: "hub_refused", code: "send_failed", message: "Fixture transport detail" },
+          copy,
+        ),
+      ).toContain("Fixture transport detail");
+      texts.push(
+        causeText({ cause: "turn_failed" }, copy),
+        causeText({ cause: "no_answer" }, copy),
+      );
+      expect(new Set(texts).size).toBe(5);
+      expect(causeText({ cause: "hub_refused", code: "session_busy", message: "" }, copy)).toBe(
+        copy.meetingQuestion.busy.assistant_turn,
+      );
+      expect(causeText({ cause: "hub_refused", code: "revoked", message: "" }, copy)).toBe(
+        copy.meetingQuestion.causes.revoked,
+      );
+      expect(
+        causeText({ cause: "hub_refused", code: "future_cause", message: "Fixture detail" }, copy),
+      ).toMatch(/future_cause.*Fixture detail/);
+      expect(causeText({ cause: "deimos_unavailable", code: "future_cause" }, copy)).toContain(
+        "future_cause",
+      );
+    });
+    it("names the recognition language and the unavailable speech component", () => {
+      expect(
+        voiceStatusText({ state: "not_listening", why: { cause: "locale_unsupported" } }, copy),
+      ).toMatch(language);
+      expect(
+        voiceStatusText({ state: "not_listening", why: { cause: "helper_disconnected" } }, copy),
+      ).toMatch(helper);
+    });
+  },
+);

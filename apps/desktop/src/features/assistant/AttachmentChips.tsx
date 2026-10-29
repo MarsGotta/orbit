@@ -2,6 +2,7 @@ import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 
 import { Button } from "../../design/Button";
+import { Tooltip } from "../../design/Tooltip";
 import { Icon } from "../../design/Icon";
 import { attachmentFailure, type DraftAttachment } from "./attachment-drafts";
 import styles from "./Attachments.module.css";
@@ -72,16 +73,18 @@ export function AttachButtons({
   const reason = supported ? undefined : es.attachments.unsupported;
   return (
     <>
-      <Button
-        aria-label={es.attachments.attach}
-        disabled={disabled || !supported}
-        onClick={onAttach}
-        size={32}
-        title={reason}
-        variant="icon"
-      >
-        <Icon name="attach" size={16} />
-      </Button>
+      <Tooltip text={reason ?? es.attachments.attachHelp}>
+        <Button
+          aria-label={es.attachments.attach}
+          disabled={disabled || !supported}
+          onClick={onAttach}
+          size={32}
+          title={reason}
+          variant="icon"
+        >
+          <Icon name="attach" size={16} />
+        </Button>
+      </Tooltip>
       <Button
         className={styles.attachWindow}
         disabled={disabled || !supported}

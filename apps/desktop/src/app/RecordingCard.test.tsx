@@ -214,15 +214,19 @@ describe("«Preguntar a Deimos» from the card", () => {
         },
       }),
     );
-    expect(screen.getByRole("alert").textContent).toBe("Vuelve a preguntar en un momento.");
-    expect(screen.getByRole("dialog").textContent).not.toMatch(/send_failed|canal cerrado/);
+    expect(screen.getByRole("alert").textContent).toBe(
+      "La pregunta no se pudo enviar. Comprueba la conexión con el hub antes de intentarlo de nuevo. Detalles: canal cerrado",
+    );
+    expect(screen.getByRole("dialog").textContent).not.toContain("send_failed");
   });
 
   it("refuses a question too long for Deimos, and Escape closes the menu", async () => {
     const { sent } = renderCard();
     await userEvent.click(screen.getByRole("button", { name: "Preguntar a Deimos" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Tu pregunta" }), "ñ".repeat(21));
-    expect(screen.getByRole("alert").textContent).toBe("La pregunta es demasiado larga: acórtala.");
+    expect(screen.getByRole("alert").textContent).toBe(
+      "La pregunta ocupa 42 bytes y el límite es 40 bytes. Acórtala.",
+    );
     await userEvent.keyboard("{Enter}");
     expect(sent).toEqual([]);
     await userEvent.keyboard("{Escape}");

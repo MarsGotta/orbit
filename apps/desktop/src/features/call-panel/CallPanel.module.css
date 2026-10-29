@@ -161,6 +161,11 @@
   font: var(--o-text-meta);
 }
 
+.choices {
+  display: flex;
+  gap: var(--o-space-6);
+}
+
 .window {
   height: 24px;
   padding: 0 var(--o-space-8);

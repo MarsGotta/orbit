@@ -1,6 +1,7 @@
 // What the design system's controls say on their own, whatever screen uses them.
 export const controls = {
   controls: {
+    discardChanges: "Descartar cambios",
     saving: "Guardando…",
     saved: "✓ Guardado",
     waitingForMacos: "Esperando a macOS…",

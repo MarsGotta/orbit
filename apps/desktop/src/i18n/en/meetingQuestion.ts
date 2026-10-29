@@ -1,7 +1,7 @@
 import { numberFormat } from "../locale";
 // Deimos during the meeting — «Preguntar a Deimos», its answer in
 // the floating panel, and «Oye Deimos». A question without answer
-// says what to do; its codes and sizes stay in the log.
+// says what happened, with the limits and recovery that apply.
 const base = {
   meetingQuestion: {
     askAgain: "Another question",
@@ -15,18 +15,38 @@ const base = {
 
     asked: (question: string) => `Your question: ${question}`,
 
-    tooLong: "The question is too long. Shorten it.",
-
     linkWithHost: (label: string, host: string) => `${label} (${host})`,
     linkRefused: "Couldn’t open the link.",
     causes: {
       privacyStopped: "Everything is stopped. Rearm Orbit to ask.",
       noMeeting: "No recording is in progress.",
       hubUnreachable: "No connection to the hub. Ask again when it reconnects.",
-      tryAgain: "Ask again in a moment.",
+      tryAgain:
+        "The answer is unavailable; Orbit received no cause. Check the conversation before asking again.",
       questionEmpty: "The question is empty.",
-      questionTooLong: "The question is too long. Shorten it.",
-      windowNotOffered: "Choose another time window.",
+      questionTooLong: (bytes: number, max: number) =>
+        `The question is ${numberFormat().format(bytes)} bytes; the limit is ${numberFormat().format(max)} bytes. Shorten it.`,
+      windowNotOffered: (minutes: number, offered: number[]) =>
+        `The requested ${numberFormat().format(minutes)} min window is unavailable. Choose from the offered minutes: ${offered.map((n) => numberFormat().format(n)).join(", ") || "none"}.`,
+      turnFailed: "The assistant’s turn failed. Check the conversation before asking again.",
+      noAnswer:
+        "The assistant finished without an answer. Check the conversation or rephrase your question.",
+      unavailable: (code: string) =>
+        `The assistant is unavailable (${code}). Ask whoever manages your hub to check it.`,
+      hubRefused: (code: string, message: string) =>
+        `The hub refused the question (${code})${message ? `: ${message}` : ". No detail was provided."}`,
+      sendFailed: (message: string) =>
+        `The question could not be sent. Check the hub connection before trying again.${message ? ` Details: ${message}` : ""}`,
+      refusalCodes: {
+        upstream_unavailable:
+          "The assistant is disconnected from the hub. Ask again when it reconnects.",
+        upstream_rejected:
+          "The assistant refused the request. Ask whoever manages your hub to check its configuration.",
+        upstream_protocol:
+          "The assistant sent an incompatible response. Ask whoever manages your hub to check the hub and assistant versions.",
+        turn_outcome_unknown:
+          "The hub cannot confirm what happened to the previous question. Check the conversation before asking again.",
+      },
       interrupted: "You interrupted the answer.",
       revoked: "The hub revoked this Mac. Pair it again in Settings.",
     },
@@ -39,10 +59,10 @@ const base = {
         privacyStopped: "everything is stopped",
         paused: "recording is paused",
         macosVersion: "requires macOS 26; use the button",
-        localeUnsupported: "macOS doesn’t offer Spanish speech recognition; use the button",
+        localeUnsupported: "macOS doesn’t offer English speech recognition; use the button",
         unavailable: "this Mac doesn’t support it; use the button",
         failed: "speech recognition stopped; use the button",
-        helperDisconnected: "Orbit.app isn’t running",
+        helperDisconnected: "speech recognition is unavailable; use the button",
         helperWithoutPhrase: "update Orbit",
         noMicrophone: "the recording has no microphone yet",
       },

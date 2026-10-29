@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
+import { moveWithArrows } from "../../design/roving";
 import { Button } from "../../design/Button";
 
 import { questionBytes, voiceStatusText } from "./copy";
@@ -65,7 +66,7 @@ export function AskDeimos({ ask, voiceStatus, send, onDone }: AskDeimosProps) {
       />
       {tooLong && (
         <p className={styles.cause} role="alert">
-          {es.meetingQuestion.tooLong}
+          {es.meetingQuestion.causes.questionTooLong(bytes, ask.max_question_bytes)}
         </p>
       )}
       {voice !== null && <p className={styles.hint}>{voice}</p>}
@@ -100,6 +101,8 @@ function WindowChoice({
           className={styles.window}
           key={window}
           onClick={() => onChoose(window)}
+          onKeyDown={(event) => moveWithArrows(event, windows, minutes, onChoose)}
+          tabIndex={window === minutes ? 0 : -1}
           role="radio"
           type="button"
         >

@@ -67,12 +67,13 @@
 }
 
 .footer {
-  height: 64px;
+  min-height: 64px;
   flex: none;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 20px 0 24px;
+  padding: 12px 20px 12px 24px;
   border-top: 1px solid var(--o-line);
 }
 

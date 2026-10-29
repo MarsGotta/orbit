@@ -18,19 +18,31 @@ export function causeText(cause: MeetingQuestionCause, copy = getCopy()): string
     case "question_empty":
       return causes.questionEmpty;
     case "question_too_long":
-      return causes.questionTooLong;
+      return causes.questionTooLong(cause.bytes, cause.max_bytes);
     case "window_not_offered":
-      return causes.windowNotOffered;
+      return causes.windowNotOffered(cause.minutes, cause.offered);
     case "interrupted":
       return causes.interrupted;
     case "revoked":
       return causes.revoked;
     case "deimos_unavailable":
+      return refusalText(cause.code, copy) ?? causes.unavailable(cause.code);
     case "turn_failed":
+      return causes.turnFailed;
     case "hub_refused":
+      if (cause.code === "send_failed") return causes.sendFailed(cause.message);
+      return refusalText(cause.code, copy) ?? causes.hubRefused(cause.code, cause.message);
     case "no_answer":
-      return causes.tryAgain;
+      return causes.noAnswer;
   }
+}
+
+/** Only known codes imply a specific cause and recovery; unknown ones keep their detail. */
+function refusalText(code: string, copy: ReturnType<typeof getCopy>): string | undefined {
+  if (code === "session_busy") return copy.meetingQuestion.busy.assistant_turn;
+  if (code === "revoked") return copy.meetingQuestion.causes.revoked;
+  const codes: Readonly<Record<string, string>> = copy.meetingQuestion.causes.refusalCodes;
+  return Object.hasOwn(codes, code) ? codes[code] : undefined;
 }
 
 /**
@@ -51,7 +63,7 @@ export function voiceStatusText(
     case "downloading":
       return copy.meetingQuestion.voice.downloading(status.percent ?? 0);
     case "not_listening":
-      return copy.meetingQuestion.voice.off(offText(status.why));
+      return copy.meetingQuestion.voice.off(offText(status.why, copy));
     case "abandoned":
       return copy.meetingQuestion.voice.abandoned[status.cause];
   }
@@ -72,8 +84,8 @@ export function voiceStatusShort(status: VoiceStatusSnapshot, copy = getCopy()):
   }
 }
 
-function offText(why: VoiceOffCause): string {
-  const reasons = getCopy().meetingQuestion.voice.why;
+function offText(why: VoiceOffCause, copy: ReturnType<typeof getCopy>): string {
+  const reasons = copy.meetingQuestion.voice.why;
   switch (why.cause) {
     case "privacy_stopped":
       return reasons.privacyStopped;

@@ -80,7 +80,7 @@ function PanelContent({ port, store }: { port: DaemonPort; store: OrbitStore }) 
     card = <EndingCard key={call.recording_id} panel={call} send={order} />;
   } else if (asking && ask) {
     card = (
-      <PanelAsk aboutCall={call !== null} ask={ask} onDone={() => focus(false)} send={dispatch} />
+      <PanelAsk aboutCall={call !== null} ask={ask} onDone={() => focus(false)} send={order} />
     );
   } else if (question) {
     card = (

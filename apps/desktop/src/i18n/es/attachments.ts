@@ -132,6 +132,7 @@ const WINDOW_TEXT_MISSING: Record<string, string> = {
 /** What the composer and the messages say about attachments. */
 export const attachmentsCopy = {
   attachments: {
+    attachHelp: "Adjuntar archivos",
     attach: "Adjuntar",
     attachWindow: "Adjuntar ventana",
     unsupported: "Este hub no admite adjuntos",

@@ -3,6 +3,7 @@ import type { AppCommand } from "../../bridge/generated";
 import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
 import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
 import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import { moveWithArrows } from "../../design/roving";
 import { Button } from "../../design/Button";
 import { Icon } from "../../design/Icon";
 import { Popover } from "../../design/Popover";
@@ -26,20 +27,31 @@ function WindowChoice({
 }) {
   const es = useCopy();
   return (
-    <div aria-label={es.askMenu.windows} className={styles.windows} role="radiogroup">
+    <div className={styles.windows}>
       <span aria-hidden="true">{es.askMenu.windows}</span>
-      {windows.map(({ minutes: offered }) => (
-        <button
-          aria-checked={offered === minutes}
-          className={styles.window}
-          key={offered}
-          onClick={() => onChoose(offered)}
-          role="radio"
-          type="button"
-        >
-          {es.askMenu.window(offered)}
-        </button>
-      ))}
+      <div aria-label={es.askMenu.windows} className={styles.choices} role="radiogroup">
+        {windows.map(({ minutes: offered }) => (
+          <button
+            aria-checked={offered === minutes}
+            className={styles.window}
+            key={offered}
+            onClick={() => onChoose(offered)}
+            onKeyDown={(event) =>
+              moveWithArrows(
+                event,
+                windows.map((item) => item.minutes),
+                minutes,
+                onChoose,
+              )
+            }
+            tabIndex={offered === minutes ? 0 : -1}
+            role="radio"
+            type="button"
+          >
+            {es.askMenu.window(offered)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -83,7 +95,10 @@ function AskForm({
       />
       {tooLong && (
         <p className={styles.cause} role="alert">
-          {es.meetingQuestion.tooLong}
+          {es.meetingQuestion.causes.questionTooLong(
+            questionBytes(question),
+            ask.max_question_bytes,
+          )}
         </p>
       )}
       <WindowChoice minutes={minutes} onChoose={setMinutes} windows={ask.windows} />

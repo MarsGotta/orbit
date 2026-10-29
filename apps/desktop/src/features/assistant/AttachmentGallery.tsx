@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -17,7 +16,7 @@ import { attachmentFailure } from "./attachment-drafts";
 import { AttachmentViewer } from "./AttachmentViewer";
 
 interface Gallery {
-  /** An attachment's bytes, asked of the daemon once per conversation shown. */
+  /** Original bytes, held only by their mounted thumbnail or viewer. */
   bytes: (attachmentId: string) => Promise<ArrayBuffer>;
   /** Opens the viewer on an image or a PDF, among the conversation's. */
   view: (attachment: Attachment) => void;
@@ -39,6 +38,7 @@ export function useAttachmentUrl(attachment: Attachment, mime = attachment.mime)
   const [loaded, setLoaded] = useState<LoadedAttachment>({ state: "loading" });
   const { id, name } = attachment;
   useEffect(() => {
+    setLoaded({ state: "loading" });
     let url: string | undefined;
     let gone = false;
     bytes(id).then(
@@ -64,8 +64,8 @@ export function useGallery(): Gallery {
 }
 
 /**
- * The attachments of the messages shown: their bytes, loaded once, and the
- * viewer, which moves between the images and PDFs of those messages.
+ * The viewer moves between the images and PDFs of the shown messages.
+ * Successful full-file promises are not retained for the conversation.
  */
 export function AttachmentGallery({
   children,
@@ -74,7 +74,6 @@ export function AttachmentGallery({
   children: ReactNode;
   messages: ChatMessage[];
 }) {
-  const cache = useRef(new Map<string, Promise<ArrayBuffer>>());
   const [open, setOpen] = useState<{ items: Attachment[]; index: number } | null>(null);
   const viewable = useMemo(
     () =>
@@ -85,20 +84,8 @@ export function AttachmentGallery({
   );
   const track = useTrack();
   const bytes = useCallback(
-    (attachmentId: string) => {
-      const known = cache.current.get(attachmentId);
-      if (known !== undefined) return known;
-      const loading = track(
-        "attachment_content",
-        "assistant",
-        () => attachmentBytes(attachmentId),
-        "assistant",
-      );
-      cache.current.set(attachmentId, loading);
-      // A failure is not kept: opening it again asks again.
-      loading.catch(() => cache.current.delete(attachmentId));
-      return loading;
-    },
+    (attachmentId: string) =>
+      track("attachment_content", "assistant", () => attachmentBytes(attachmentId), "assistant"),
     [track],
   );
   const gallery = useMemo<Gallery>(
