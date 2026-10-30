@@ -24,11 +24,13 @@ def phrases(language):
             "mic-muted": "Cedar umbrellas are purple",
             "remote-muted": "Maple gardens need watering",
         }
+    # «Roble», not «Arce»: the recognizer once heard «ar se», and a split
+    # content word fails the check like a missing one.
     return {
         "mic": "Los estantes de Cedro cuestan setecientos",
-        "remote": "Las ventanas de Arce abren el jueves",
+        "remote": "Las ventanas de Roble abren el jueves",
         "mic-muted": "Los paraguas de Cedro son morados",
-        "remote-muted": "Los jardines de Arce necesitan riego",
+        "remote-muted": "Los jardines de Roble necesitan riego",
     }
 
 

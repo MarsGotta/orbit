@@ -36,9 +36,9 @@ defines the devices' UIDs and virtual transport.
 | Phase | English pass | Spanish pass | Stored side |
 |---|---|---|---|
 | Microphone | Cedar shelves cost seven hundred | Los estantes de Cedro cuestan setecientos | `mic_local` only |
-| Remote | Maple windows open on Thursday | Las ventanas de Arce abren el jueves | `remote_app` only |
+| Remote | Maple windows open on Thursday | Las ventanas de Roble abren el jueves | `remote_app` only |
 | Muted microphone | Cedar umbrellas are purple | Los paraguas de Cedro son morados | Absent everywhere |
-| Remote during mute | Maple gardens need watering | Los jardines de Arce necesitan riego | `remote_app` only |
+| Remote during mute | Maple gardens need watering | Los jardines de Roble necesitan riego | `remote_app` only |
 
 The bridge presses «Silenciar» / Mute. Speech starts only after the daemon
 confirms mute and the bridge reads its visible muted indicator. Unmute is also

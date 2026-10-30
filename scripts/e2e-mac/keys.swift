@@ -57,15 +57,18 @@ if action == "dock" {
         fail("Dock must contain exactly one Orbit Pruebas tile; could not press it")
     }
 } else {
+    // The source first: it connects this process to the window server, and
+    // whatever that changes at the front shows up in the check below. One
+    // run-loop turn at least, so the frontmost app is not a stale answer.
+    let source = CGEventSource(stateID: .hidSystemState)
     let deadline = Date().addingTimeInterval(2)
-    while NSWorkspace.shared.frontmostApplication?.processIdentifier != pid && Date() < deadline {
-        RunLoop.current.run(until: Date().addingTimeInterval(0.02))
-    }
+    repeat {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    } while NSWorkspace.shared.frontmostApplication?.processIdentifier != pid && Date() < deadline
     guard NSWorkspace.shared.frontmostApplication?.processIdentifier == pid else {
         fail("Orbit Pruebas is not frontmost; no key posted")
     }
     guard CGPreflightPostEventAccess() else { fail("posting keys requires the system Accessibility permission") }
-    let source = CGEventSource(stateID: .hidSystemState)
     let keys: [String: (CGKeyCode, CGEventFlags)] = [
         "privacy": (53, [.maskControl, .maskAlternate]),
         "close": (13, .maskCommand), "quit": (12, .maskCommand),

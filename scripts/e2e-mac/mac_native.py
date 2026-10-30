@@ -43,8 +43,12 @@ class NativeChecks:
         result = self.paths.own / "keys-result.json"
         result.unlink(missing_ok=True)
         arguments = [str(self._app_pid()), action] + ([text] if text is not None else [])
+        # `-g`: without it, macOS can bring the sender to the front between its
+        # check that Orbit Pruebas is frontmost and its key, which then lands
+        # on the sender. Single keys went missing that way.
         self.system.run_checked(
             "open",
+            "-g",
             "-W",
             "-n",
             "-a",
