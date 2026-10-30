@@ -14,11 +14,6 @@ pub fn install<R: tauri::Runtime>(
     };
     let state = current(app);
     let items = build_items(app, &state, &label)?;
-    let undo: tauri::menu::MenuItemKind<R> = if state.editing {
-        tauri::menu::MenuItemKind::Predefined(Item::undo(app, Some(label("undo")))?)
-    } else {
-        tauri::menu::MenuItemKind::MenuItem(items["undo"].clone())
-    };
     let menu = Menu::with_items(
         app,
         &[
@@ -37,7 +32,7 @@ pub fn install<R: tauri::Runtime>(
                     &Item::close_window(app, Some(label("close")))?,
                 ],
             )?,
-            &edit_menu(app, &label, &items, &undo)?,
+            &edit_menu(app, &label, &items)?,
             &view_menu(app, &label, &items)?,
             &Submenu::with_id_and_items(
                 app,
@@ -110,25 +105,30 @@ fn edit_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     label: &impl Fn(&str) -> &'static str,
     items: &std::collections::HashMap<&str, tauri::menu::MenuItem<R>>,
-    undo: &tauri::menu::MenuItemKind<R>,
 ) -> tauri::Result<tauri::menu::Submenu<R>> {
-    use tauri::menu::{PredefinedMenuItem as Item, Submenu};
-    Submenu::with_items(
-        app,
-        label("edit"),
-        true,
-        &[
-            undo,
-            &Item::redo(app, Some(label("redo")))?,
-            &Item::separator(app)?,
-            &Item::cut(app, Some(label("cut")))?,
-            &Item::copy(app, Some(label("copy")))?,
-            &Item::paste(app, Some(label("paste")))?,
-            &Item::select_all(app, Some(label("select_all")))?,
-            &Item::separator(app)?,
-            &items["find"],
-        ],
-    )
+    use super::state::{EditItem, edit_items};
+    use tauri::menu::{MenuItemKind, PredefinedMenuItem as Item, Submenu};
+    let rows = edit_items()
+        .iter()
+        .map(|item| {
+            let native = match item {
+                EditItem::NativeUndo => Item::undo(app, Some(label("undo")))?,
+                EditItem::NativeRedo => Item::redo(app, Some(label("redo")))?,
+                EditItem::NativeCut => Item::cut(app, Some(label("cut")))?,
+                EditItem::NativeCopy => Item::copy(app, Some(label("copy")))?,
+                EditItem::NativePaste => Item::paste(app, Some(label("paste")))?,
+                EditItem::NativeSelectAll => Item::select_all(app, Some(label("select_all")))?,
+                EditItem::Separator => Item::separator(app)?,
+                EditItem::Command(id) => return Ok(MenuItemKind::MenuItem(items[id].clone())),
+            };
+            Ok(MenuItemKind::Predefined(native))
+        })
+        .collect::<tauri::Result<Vec<_>>>()?;
+    let references: Vec<&dyn tauri::menu::IsMenuItem<R>> = rows
+        .iter()
+        .map(|row| row as &dyn tauri::menu::IsMenuItem<R>)
+        .collect();
+    Submenu::with_items(app, label("edit"), true, &references)
 }
 
 fn view_menu<R: tauri::Runtime>(

@@ -9,24 +9,21 @@
 mod state;
 use state::commands;
 pub use state::{MenuContext, MenuState};
-use std::sync::atomic::Ordering;
 use tauri::{Emitter, Manager};
 
 fn current<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> MenuState {
     app.try_state::<MenuContext>()
         .map(|context| {
-            let mut state = context
+            context
                 .state
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone();
-            state.editing |= context.panel_editing.load(Ordering::Relaxed);
-            state
+                .clone()
         })
         .unwrap_or_default()
 }
 
-/// Update only when availability, focus or local presentation choices changed.
+/// Update only when availability or local presentation choices changed.
 #[tauri::command]
 pub fn orbit_menu_state<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -48,22 +45,6 @@ pub fn orbit_menu_state<R: tauri::Runtime>(
         crate::copy::for_language(crate::language::current(&app)),
     )
     .map_err(|error| error.to_string())
-}
-
-/// The panel's existing keyboard ownership also determines native text undo.
-/// Keep it separate so a main-window update cannot overwrite the panel's focus.
-pub fn panel_editing<R: tauri::Runtime>(app: &tauri::AppHandle<R>, editing: bool) {
-    let Some(context) = app.try_state::<MenuContext>() else {
-        return;
-    };
-    if context.panel_editing.swap(editing, Ordering::Relaxed) != editing
-        && let Err(error) = install(
-            app,
-            crate::copy::for_language(crate::language::current(app)),
-        )
-    {
-        eprintln!("Could not update text undo for the floating panel: {error}");
-    }
 }
 
 pub fn handle_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {

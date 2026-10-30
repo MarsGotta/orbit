@@ -1,5 +1,5 @@
 //! Presentation facts supplied by the main webview; never meeting or conversation content.
-use std::sync::{Mutex, atomic::AtomicBool};
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, PartialEq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -13,8 +13,7 @@ pub struct MenuState {
     pub bigger: bool,
     pub smaller: bool,
     pub actual_size: bool,
-    pub undo: bool,
-    pub editing: bool,
+    pub recover_template: bool,
 }
 
 impl Default for MenuState {
@@ -29,8 +28,7 @@ impl Default for MenuState {
             bigger: true,
             smaller: false,
             actual_size: false,
-            undo: false,
-            editing: false,
+            recover_template: false,
         }
     }
 }
@@ -38,7 +36,6 @@ impl Default for MenuState {
 #[derive(Default)]
 pub struct MenuContext {
     pub(super) state: Mutex<MenuState>,
-    pub(super) panel_editing: AtomicBool,
 }
 
 pub struct Command {
@@ -82,6 +79,43 @@ pub fn commands(state: &MenuState) -> Vec<Command> {
         item("bigger", "bigger", state.bigger, "Cmd+NumpadAdd"),
         item("smaller", "smaller", state.smaller, "Cmd+-"),
         item("actual_size", "actual_size", state.actual_size, "Cmd+0"),
-        item("undo", "undo", state.undo && !state.editing, "Cmd+Z"),
+        item(
+            "recover_template",
+            "recover_template",
+            state.recover_template,
+            "",
+        ),
+    ]
+}
+
+/// Native responder actions and application commands stay distinct in the menu
+/// description, so adapters and tests never need focus to choose an Undo item.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EditItem {
+    NativeUndo,
+    NativeRedo,
+    NativeCut,
+    NativeCopy,
+    NativePaste,
+    NativeSelectAll,
+    Separator,
+    Command(&'static str),
+}
+
+/// The native builder consumes this description; it has no focus-dependent state.
+pub fn edit_items() -> &'static [EditItem] {
+    use EditItem::*;
+    &[
+        NativeUndo,
+        NativeRedo,
+        Separator,
+        Command("recover_template"),
+        Separator,
+        NativeCut,
+        NativeCopy,
+        NativePaste,
+        NativeSelectAll,
+        Separator,
+        Command("find"),
     ]
 }

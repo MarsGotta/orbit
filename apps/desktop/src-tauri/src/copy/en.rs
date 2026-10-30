@@ -153,6 +153,7 @@ const APPLICATION_MENU: &[(&str, &str)] = &[
     ("close", "Close Window"),
     ("edit", "Edit"),
     ("undo", "Undo"),
+    ("recover_template", "Recover deleted template"),
     ("redo", "Redo"),
     ("cut", "Cut"),
     ("copy", "Copy"),

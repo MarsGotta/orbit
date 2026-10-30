@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AppCommand } from "../../../bridge/generated";
 import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
 import { HUB_CONFIRMATION_MS } from "../../../state/ceilings";
-import { useTemplateUndoKeyboard, useWindowActions } from "../../../state/window-actions";
+import { useWindowActions } from "../../../state/window-actions";
 import type { Restoring } from "./restore-notice";
 import { type RemovedTemplate, newTemplateId, restoreCommand } from "./template-draft";
 
@@ -17,7 +17,6 @@ type Send = (command: AppCommand) => unknown;
 
 /** The delete the user can still undo, and the undo they pressed. */
 export function useDeleteUndo(send: Send, error: string | null, daemon: DaemonConnection) {
-  useTemplateUndoKeyboard();
   const [deleted, setDeleted] = useState<Undoable | null>(null);
   const [restoring, setRestoring] = useState<Restoring | null>(null);
   // A daemon that is not ready while an undo waits may have restarted, and

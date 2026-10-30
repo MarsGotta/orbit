@@ -3,9 +3,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { DaemonPort } from "../bridge/port";
 import { baseViews, bootstrapOf, withOpenNote } from "../showcase/base";
 import { App } from "./App";
+import { useWindowActions } from "../state/window-actions";
 
 afterEach(() => {
   cleanup();
+  useWindowActions.setState({ findTranscript: null, undoTemplate: null });
   window.localStorage.clear();
   window.location.hash = "";
 });
@@ -105,14 +107,15 @@ it("opens New Recording and disables it while a recording is already running", a
   );
 });
 
-it("returns Undo to the template handler when navigation removes a focused text field", async () => {
+it("does not rebuild the menu when the Assistant composer gains or loses focus", async () => {
   window.location.hash = "#/assistant";
   const app = openApp();
   const field = await screen.findByRole("textbox", { name: "Mensaje para Deimos" });
+  const updates = app.states.length;
   act(() => field.focus());
-  await waitFor(() => expect(app.states.at(-1)).toMatchObject({ editing: true }));
-  app.menu("settings");
-  await waitFor(() => expect(app.states.at(-1)).toMatchObject({ editing: false }));
+  expect(app.states).toHaveLength(updates);
+  act(() => field.blur());
+  expect(app.states).toHaveLength(updates);
 });
 
 it("disables Find while the transcript has no search field yet", async () => {
@@ -125,14 +128,40 @@ it("disables Find while the transcript has no search field yet", async () => {
   await waitFor(() => expect(app.states.at(-1)).toMatchObject({ find: false }));
 });
 
-it("keeps Command-Z available after leaving the deleted template's settings", async () => {
+it("recovers a deleted template from its own menu item, including with a text field focused", async () => {
   window.location.hash = "#/settings/reuniones";
   const app = openApp();
   fireEvent.click(await screen.findByRole("button", { name: "Revisión de diseño" }));
-  fireEvent.click(screen.getByRole("button", { name: "Borrar plantilla" }));
+  expect(app.states.at(-1)).toMatchObject({ recover_template: false });
+  app.menu("recover_template");
+  expect(app.send).not.toHaveBeenCalledWith(
+    expect.objectContaining({ request: expect.objectContaining({ action: "restore_template" }) }),
+    expect.any(String),
+  );
+  vi.useFakeTimers();
+  try {
+    fireEvent.click(screen.getByRole("button", { name: "Borrar plantilla" }));
+    expect(app.states.at(-1)).toMatchObject({ recover_template: true });
+    expect(screen.getByRole("button", { name: /^Deshacer/ })).toBeTruthy();
+    act(() => vi.advanceTimersByTime(10_000));
+  } finally {
+    vi.useRealTimers();
+  }
+  expect(screen.queryByRole("button", { name: /^Deshacer/ })).toBeNull();
+  expect(app.states.at(-1)).toMatchObject({ recover_template: true });
   app.menu("settings");
-  await waitFor(() => expect(screen.queryByRole("button", { name: "Deshacer" })).toBeNull());
+  app.menu("new_conversation");
+  const field = await screen.findByRole("textbox", { name: "Mensaje para Deimos" });
+  act(() => field.focus());
+  fireEvent.keyDown(field, { key: "z", metaKey: true });
+  act(() => field.blur());
   fireEvent.keyDown(window, { key: "z", metaKey: true });
+  expect(app.send).not.toHaveBeenCalledWith(
+    expect.objectContaining({ request: expect.objectContaining({ action: "restore_template" }) }),
+    expect.any(String),
+  );
+  act(() => field.focus());
+  app.menu("recover_template");
   await waitFor(() =>
     expect(app.send).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -146,4 +175,8 @@ it("keeps Command-Z available after leaving the deleted template's settings", as
       expect.any(String),
     ),
   );
+  await waitFor(() => expect(app.states.at(-1)).toMatchObject({ recover_template: false }));
+  const sent = app.send.mock.calls.length;
+  app.menu("recover_template");
+  expect(app.send.mock.calls).toHaveLength(sent);
 });
