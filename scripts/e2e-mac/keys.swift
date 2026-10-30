@@ -1,5 +1,5 @@
 // Consented acceptance input, scoped to the exact Orbit Pruebas process.
-// Built as «Orbit Pruebas Teclas.app» (build-keys-app.sh) and launched with
+// Built as «Orbit Pruebas Teclas.app» (build-fixture-apps.sh) and launched with
 // `open`, so the Accessibility permission the owner grants is this app's own,
 // never the SSH session's. Its answer goes to the file after `--result`.
 import AppKit

@@ -27,7 +27,9 @@ def load(path, name):
     return module
 
 
-MIT_OF = "MIT License\n\nCopyright (c) 2024 {who}\n\nPermission is hereby granted, free of charge.\n"
+MIT_OF = (
+    "MIT License\n\nCopyright (c) 2024 {who}\n\nPermission is hereby granted, free of charge.\n"
+)
 
 
 class Fixture:
@@ -40,7 +42,9 @@ class Fixture:
                 {
                     "name": "@ejemplo/editor",
                     "versions": ["2.1.0"],
-                    "paths": [str(self.package("editor", {"LICENSE": MIT_OF.format(who="Ana Ruiz")}))],
+                    "paths": [
+                        str(self.package("editor", {"LICENSE": MIT_OF.format(who="Ana Ruiz")}))
+                    ],
                     "license": "MIT",
                 },
                 {
@@ -110,10 +114,16 @@ class Fixture:
                             normal("orbit-core 0.11.0"),
                             normal("tiempo 1.2.3"),
                             {"pkg": "prueba 9.9.9", "dep_kinds": [{"kind": "dev", "target": None}]},
-                            {"pkg": "construir 5.0.0", "dep_kinds": [{"kind": "build", "target": None}]},
+                            {
+                                "pkg": "construir 5.0.0",
+                                "dep_kinds": [{"kind": "build", "target": None}],
+                            },
                         ],
                     },
-                    {"id": "orbit-core 0.11.0", "deps": [normal("copia 0.1.0"), normal("propio 4.0.0")]},
+                    {
+                        "id": "orbit-core 0.11.0",
+                        "deps": [normal("copia 0.1.0"), normal("propio 4.0.0")],
+                    },
                     {"id": "tiempo 1.2.3", "deps": []},
                     {"id": "copia 0.1.0", "deps": []},
                     {"id": "propio 4.0.0", "deps": []},
@@ -181,7 +191,12 @@ class NoticeTests(unittest.TestCase):
             self.assertIn(line, text)
         # Orbit's own crates are under Orbit's LICENSE; a crate only tests or
         # the build use is not in the app.
-        for absent in ("orbit-desktop 0.11.0", "orbit-core 0.11.0", "prueba 9.9.9", "construir 5.0.0"):
+        for absent in (
+            "orbit-desktop 0.11.0",
+            "orbit-core 0.11.0",
+            "prueba 9.9.9",
+            "construir 5.0.0",
+        ):
             self.assertNotIn(absent, text)
 
     def test_each_licence_text_ships_once_with_the_packages_that_carry_it(self):
@@ -201,7 +216,9 @@ class NoticeTests(unittest.TestCase):
         completed, text = self.generate()
         self.assertEqual(completed.returncode, 0, completed.stderr)
         notices = load(SCRIPT, "third_party_notices")
-        verify = load(ROOT / "scripts" / "release" / "verify-macos-archive.py", "verify_macos_archive")
+        verify = load(
+            ROOT / "scripts" / "release" / "verify-macos-archive.py", "verify_macos_archive"
+        )
         self.assertEqual(notices.HEADER, verify.NOTICES_HEADER.decode("utf-8"))
         self.assertTrue(text.startswith(notices.HEADER))
         self.assertLessEqual(len(verify.NOTICES_HEADER), 32, "the verifier keeps 32 bytes of it")

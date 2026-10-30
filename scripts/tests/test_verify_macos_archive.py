@@ -85,12 +85,8 @@ def entries(architecture="arm64", *, stapled=False):
     the verifier now refuses, and rightly. `stapled=True` moves both together,
     because in a real build they are one fact.
     """
-    result = [
-        (name + "/", b"", stat.S_IFDIR | 0o755) for name in sorted(verify.DIRECTORIES)
-    ]
-    header = struct.pack(
-        "<8I", 0xFEEDFACF, verify.CPU_TYPES[architecture], 0, 2, 0, 0, 0, 0
-    )
+    result = [(name + "/", b"", stat.S_IFDIR | 0o755) for name in sorted(verify.DIRECTORIES)]
+    header = struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES[architecture], 0, 2, 0, 0, 0, 0)
     optional = set(verify.OPTIONAL_FILES)
     if not stapled:
         optional.discard(verify.STAPLED_TICKET)
@@ -140,9 +136,7 @@ def zip_bytes(original, compression=zipfile.ZIP_STORED, *, descriptors=False):
             info.create_system = 3
             info.external_attr = mode << 16
             with warnings.catch_warnings():
-                warnings.simplefilter(
-                    "ignore", UserWarning
-                )  # Intentional duplicate fixtures.
+                warnings.simplefilter("ignore", UserWarning)  # Intentional duplicate fixtures.
                 archive.writestr(info, data)
     return output.getvalue()
 
@@ -175,9 +169,7 @@ def deflate_container(payload, original):
     name = verify.RESOURCES + "/LICENSE"
     raw = zip_bytes(changed(entries(), name, data=payload))
     info, central = member_headers(raw, name)
-    forged = bytearray(
-        forge_sizes(raw, name, size=len(original), checksum=zlib.crc32(original))
-    )
+    forged = bytearray(forge_sizes(raw, name, size=len(original), checksum=zlib.crc32(original)))
     struct.pack_into("<H", forged, info.header_offset + 8, zipfile.ZIP_DEFLATED)
     struct.pack_into("<H", forged, central + 10, zipfile.ZIP_DEFLATED)
     return bytes(forged)
@@ -198,9 +190,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         path = self.root / f"Orbit-{verify.VERSION}-macos-{architecture}.zip"
         path.write_bytes(data)
         checksum = self.root / (path.name + ".sha256")
-        checksum.write_text(
-            f"{hashlib.sha256(data).hexdigest()}  {path.name}\n", encoding="ascii"
-        )
+        checksum.write_text(f"{hashlib.sha256(data).hexdigest()}  {path.name}\n", encoding="ascii")
         return path, {
             "architecture": architecture,
             "commit": COMMIT,
@@ -213,9 +203,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             with self.assertRaises((verify.VerificationError, zipfile.BadZipFile)):
                 verify.verify_archive(path, **options)
         else:
-            with self.assertRaisesRegex(
-                (verify.VerificationError, zipfile.BadZipFile), message
-            ):
+            with self.assertRaisesRegex((verify.VerificationError, zipfile.BadZipFile), message):
                 verify.verify_archive(path, **options)
 
     def test_valid_arm_and_intel_without_claiming_signature_or_notarization(self):
@@ -286,9 +274,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         path, options = self.fixture()
         before = {item.name: item.read_bytes() for item in self.root.iterdir()}
         with (
-            mock.patch.object(
-                zipfile.ZipFile, "extract", side_effect=AssertionError("extract")
-            ),
+            mock.patch.object(zipfile.ZipFile, "extract", side_effect=AssertionError("extract")),
             mock.patch.object(
                 zipfile.ZipFile, "extractall", side_effect=AssertionError("extractall")
             ),
@@ -296,13 +282,9 @@ class ArchiveVerificationTests(unittest.TestCase):
             mock.patch("subprocess.Popen", side_effect=AssertionError("execute")),
         ):
             verify.verify_archive(path, **options)
-        self.assertEqual(
-            before, {item.name: item.read_bytes() for item in self.root.iterdir()}
-        )
+        self.assertEqual(before, {item.name: item.read_bytes() for item in self.root.iterdir()})
 
-    @unittest.skipUnless(
-        hasattr(os, "O_NOFOLLOW"), "atomic nofollow is platform-specific"
-    )
+    @unittest.skipUnless(hasattr(os, "O_NOFOLLOW"), "atomic nofollow is platform-specific")
     def test_input_symlink_is_refused_without_following_it(self):
         path, options = self.fixture()
         target = self.root / "original.zip"
@@ -312,9 +294,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             verify.verify_archive(path, **options)
         self.assertEqual(target.read_bytes(), zip_bytes(entries()))
 
-    @unittest.skipUnless(
-        hasattr(os, "mkfifo") and hasattr(os, "O_NONBLOCK"), "POSIX FIFO fixture"
-    )
+    @unittest.skipUnless(hasattr(os, "mkfifo") and hasattr(os, "O_NONBLOCK"), "POSIX FIFO fixture")
     def test_fifo_input_is_refused_without_waiting_for_a_writer(self):
         fifo = self.root / "synthetic.fifo"
         os.mkfifo(fifo, 0o600)
@@ -329,9 +309,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         ):
             path, options = self.fixture()
             options["checksum_file"].write_text(
-                record.format(
-                    name=path.name, digest=hashlib.sha256(path.read_bytes()).hexdigest()
-                )
+                record.format(name=path.name, digest=hashlib.sha256(path.read_bytes()).hexdigest())
             )
             with self.assertRaisesRegex(verify.VerificationError, "SHA-256"):
                 verify.verify_archive(path, **options)
@@ -381,9 +359,7 @@ class ArchiveVerificationTests(unittest.TestCase):
 
     def test_missing_required_file_and_unexpected_ds_store_rejected(self):
         for missing in verify.REQUIRED_FILES:
-            self.rejected(
-                [entry for entry in entries() if entry[0] != missing], message="missing"
-            )
+            self.rejected([entry for entry in entries() if entry[0] != missing], message="missing")
         self.rejected(
             entries() + [(verify.RESOURCES + "/.DS_Store", b"x", stat.S_IFREG | 0o644)],
             message="unexpected",
@@ -397,9 +373,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         self.assertNotIn(daemon, verify.REQUIRED_FILES)
         self.assertNotIn(daemon, verify.MACHOS)
         header = struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 2, 0, 0, 0, 0)
-        self.rejected(
-            entries() + [(daemon, header, stat.S_IFREG | 0o755)], message="unexpected"
-        )
+        self.rejected(entries() + [(daemon, header, stat.S_IFREG | 0o755)], message="unexpected")
 
     def test_missing_or_modified_cua_driver_license_is_rejected(self):
         self.rejected(
@@ -445,11 +419,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         # ZIP built before stapling stays notarized on Apple's servers and
         # unstapled on the disk of whoever downloads it.
         self.rejected(
-            [
-                entry
-                for entry in entries(stapled=True)
-                if entry[0] != verify.STAPLED_TICKET
-            ],
+            [entry for entry in entries(stapled=True) if entry[0] != verify.STAPLED_TICKET],
             message="contradict",
         )
 
@@ -461,9 +431,7 @@ class ArchiveVerificationTests(unittest.TestCase):
 
     def test_a_file_parked_at_the_ticket_path_is_not_a_ticket(self):
         self.rejected(
-            changed(
-                entries(stapled=True), verify.STAPLED_TICKET, data=b"not a ticket\n"
-            ),
+            changed(entries(stapled=True), verify.STAPLED_TICKET, data=b"not a ticket\n"),
             message="mark",
         )
 
@@ -490,9 +458,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                 self.rejected(entries() + extra, message="duplicate|collision")
 
     def test_file_directory_prefix_conflict(self):
-        original = [
-            entry for entry in entries() if entry[0] != verify.CONTENTS + "/MacOS/"
-        ]
+        original = [entry for entry in entries() if entry[0] != verify.CONTENTS + "/MacOS/"]
         original.append((verify.CONTENTS + "/MacOS", b"x", stat.S_IFREG | 0o644))
         self.rejected(original, message="conflict between a ZIP file and directory")
 
@@ -511,9 +477,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                 self.rejected(entries() + [(name, b"x", stat.S_IFREG | 0o644)])
 
     def test_nul_filename_is_not_silently_truncated(self):
-        raw = zip_bytes(
-            entries() + [(verify.RESOURCES + "/badXname", b"", stat.S_IFREG | 0o644)]
-        )
+        raw = zip_bytes(entries() + [(verify.RESOURCES + "/badXname", b"", stat.S_IFREG | 0o644)])
         self.rejected(raw=raw.replace(b"badXname", b"bad\x00name"), message="NUL")
 
     def test_symlink_special_modes_and_missing_execution_permissions(self):
@@ -533,15 +497,9 @@ class ArchiveVerificationTests(unittest.TestCase):
             for data in (
                 b"truncated",
                 b"\xca\xfe\xba\xbe" + b"x" * 28,
-                struct.pack(
-                    "<8I", 0xFEEDFACF, verify.CPU_TYPES["x86_64"], 0, 2, 0, 0, 0, 0
-                ),
-                struct.pack(
-                    "<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 6, 0, 0, 0, 0
-                ),
-                struct.pack(
-                    "<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 2, 1, 128, 0, 0
-                ),
+                struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES["x86_64"], 0, 2, 0, 0, 0, 0),
+                struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 6, 0, 0, 0, 0),
+                struct.pack("<8I", 0xFEEDFACF, verify.CPU_TYPES["arm64"], 0, 2, 1, 128, 0, 0),
             ):
                 with self.subTest(name=name, data=data):
                     self.rejected(changed(entries(), name, data=data), message="Mach-O")
@@ -556,17 +514,13 @@ class ArchiveVerificationTests(unittest.TestCase):
             ("CFBundleExecutable", "other"),
         ):
             self.rejected(
-                changed(
-                    entries(), verify.PLIST, data=plistlib.dumps({**base, field: value})
-                )
+                changed(entries(), verify.PLIST, data=plistlib.dumps({**base, field: value}))
             )
         duplicate = plist().replace(
             b"</dict>",
             b"<key>CFBundleIdentifier</key><string>app.orbit.companion</string></dict>",
         )
-        self.rejected(
-            changed(entries(), verify.PLIST, data=duplicate), message="duplicate"
-        )
+        self.rejected(changed(entries(), verify.PLIST, data=duplicate), message="duplicate")
 
     def test_minimum_macos_15_plus_must_match_both_documents(self):
         original = changed(
@@ -575,18 +529,12 @@ class ArchiveVerificationTests(unittest.TestCase):
             data=manifest(minimum="16.0"),
         )
         path, options = self.fixture(original)
-        self.assertEqual(
-            verify.verify_archive(path, **options)["minimum_macos"], "16.0"
-        )
+        self.assertEqual(verify.verify_archive(path, **options)["minimum_macos"], "16.0")
         self.rejected(changed(entries(), verify.PLIST, data=plist("16.0")))
 
     def test_crc_checked_even_for_license_not_only_metadata_and_binaries(self):
-        original = changed(
-            entries(), verify.RESOURCES + "/LICENSE", data=b"UNIQUE_CRC_FIXTURE"
-        )
-        raw = zip_bytes(original).replace(
-            b"UNIQUE_CRC_FIXTURE", b"UNIQUE_CRC_FIXTURX", 1
-        )
+        original = changed(entries(), verify.RESOURCES + "/LICENSE", data=b"UNIQUE_CRC_FIXTURE")
+        raw = zip_bytes(original).replace(b"UNIQUE_CRC_FIXTURE", b"UNIQUE_CRC_FIXTURX", 1)
         self.rejected(raw=raw, message="CRC")
 
     def test_stored_and_deflate_cannot_hide_suffix_behind_prefix_crc_and_size(self):
@@ -596,9 +544,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             # 64 KiB block boundary. This changes REAL local and central headers.
             for original in (b"XUNACCOUNTED_TAIL", b"X" + b"A" * 150_000):
                 with self.subTest(compression=compression, length=len(original)):
-                    raw = zip_bytes(
-                        changed(entries(), name, data=original), compression
-                    )
+                    raw = zip_bytes(changed(entries(), name, data=original), compression)
                     forged = forge_sizes(raw, name, size=1, checksum=zlib.crc32(b"X"))
                     # Demonstrate why using ZipExtFile plus len/CRC is insufficient.
                     with zipfile.ZipFile(io.BytesIO(forged)) as clipped:
@@ -613,9 +559,7 @@ class ArchiveVerificationTests(unittest.TestCase):
         verify.verify_archive(path, **options)
         for payload in (stream[:-1], stream + b"UNACCOUNTED", stream + stream):
             with self.subTest(payload=payload):
-                self.rejected(
-                    raw=deflate_container(payload, original), message="DEFLATE"
-                )
+                self.rejected(raw=deflate_container(payload, original), message="DEFLATE")
 
     def test_large_valid_deflate_crosses_output_blocks_without_truncation(self):
         name = verify.RESOURCES + "/LICENSE"
@@ -633,12 +577,8 @@ class ArchiveVerificationTests(unittest.TestCase):
             verify.verify_archive(path, **options)
             name = verify.RESOURCES + "/LICENSE"
             info, _ = member_headers(raw, name)
-            name_size, extra_size = struct.unpack_from(
-                "<HH", raw, info.header_offset + 26
-            )
-            descriptor = (
-                info.header_offset + 30 + name_size + extra_size + info.compress_size
-            )
+            name_size, extra_size = struct.unpack_from("<HH", raw, info.header_offset + 26)
+            descriptor = info.header_offset + 30 + name_size + extra_size + info.compress_size
             self.assertEqual(raw[descriptor : descriptor + 4], b"PK\x07\x08")
             for relative in (0, 4, 8, 12):
                 forged = bytearray(raw)

@@ -85,7 +85,7 @@ class RetiredCopyTests(unittest.TestCase):
             '"El rearme por pipe"',
             "retranscribeTitle: '¿Volver a transcribir la reunión?',",
             "<h2>¿Volver a escribir el resumen?</h2>",
-            "Volviendo a transcribir la reunión…{\" \"}",
+            'Volviendo a transcribir la reunión…{" "}',
         ):
             self.assertTrue(RETIRED.search(copy), copy)
         for code in (

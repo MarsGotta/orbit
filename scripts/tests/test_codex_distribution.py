@@ -1,7 +1,7 @@
 """Publishing verifies local fixture bytes before extraction; no network."""
 
-import sys
 import hashlib
+import sys
 import tarfile
 import unittest
 from pathlib import Path
@@ -21,6 +21,7 @@ class CodexDistributionTests(unittest.TestCase):
             asset = sandbox.root / "codex-fixture.tar.gz"
             import tomllib
             import urllib.parse
+
             pin = tomllib.loads(sandbox.repo_file("codex-release.toml").read_text())
             asset = Path(urllib.parse.urlparse(pin["url"]).path)
             replacement = asset.with_name("incomplete.tar.gz")
@@ -59,13 +60,17 @@ class CodexDistributionTests(unittest.TestCase):
             sandbox.close()
 
     def test_unsupported_platform_names_it_before_downloading(self):
-        from orbit_hub.assistant.codex_distribution import install
         from unittest.mock import patch
+
+        from orbit_hub.assistant.codex_distribution import install
 
         sandbox = HubSandbox()
         try:
             sandbox.make_repo()
-            with patch("platform.machine", return_value="aarch64"), patch("urllib.request.urlopen") as download:
+            with (
+                patch("platform.machine", return_value="aarch64"),
+                patch("urllib.request.urlopen") as download,
+            ):
                 with self.assertRaisesRegex(ValueError, "Linux/aarch64.*x86_64"):
                     install(sandbox.repo / "server")
                 download.assert_not_called()

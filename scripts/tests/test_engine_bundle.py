@@ -18,8 +18,10 @@ ENGINE = "Contents/Helpers/Orbit Engine.app"
 class EngineBundleTests(unittest.TestCase):
     def test_engine_bundle_has_its_own_identity_and_is_signed_before_orbit(self):
         for pruebas, icon_result in (
-            (False, "compiled"), (True, "compiled"),
-            (False, "empty"), (False, "failed"),
+            (False, "compiled"),
+            (True, "compiled"),
+            (False, "empty"),
+            (False, "failed"),
         ):
             with (
                 self.subTest(pruebas=pruebas, icon_result=icon_result),
@@ -69,13 +71,13 @@ class EngineBundleTests(unittest.TestCase):
                 executable("swift", f'#!/bin/sh\necho "{root}/swift"\n')
                 executable(
                     "xcrun",
-                    f'#!{sys.executable}\nimport pathlib, sys\n'
-                    'args = sys.argv[1:]\n'
+                    f"#!{sys.executable}\nimport pathlib, sys\n"
+                    "args = sys.argv[1:]\n"
                     'if args == ["--find", "actool"]: print(sys.argv[0]); sys.exit(0)\n'
                     'assert args[0] == "actool", args\n'
                     'for flag, value in (("--app-icon", "AppIcon"), ("--platform", "macosx"), '
                     '("--minimum-deployment-target", "26.0")):\n'
-                    '    assert args[args.index(flag) + 1] == value, args\n'
+                    "    assert args[args.index(flag) + 1] == value, args\n"
                     'assert pathlib.Path(args[1], "icon.json").is_file(), args\n'
                     f'if {icon_result!r} == "failed": print("synthetic compiler failure", file=sys.stderr); sys.exit(42)\n'
                     f'if {icon_result!r} == "empty": sys.exit(0)\n'
@@ -123,9 +125,7 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 )
                 version = next(
                     line.split('"')[1]
-                    for line in (ROOT / "crates/orbit-control/src/cua.rs")
-                    .read_text()
-                    .splitlines()
+                    for line in (ROOT / "crates/orbit-control/src/cua.rs").read_text().splitlines()
                     if line.startswith("pub const VERIFIED_DRIVER_VERSION")
                 )
                 driver = root / "driver"
@@ -149,7 +149,11 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                 )
                 if icon_result != "compiled":
                     self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-                    reason = "actool wrote no Assets.car" if icon_result == "empty" else "synthetic compiler failure"
+                    reason = (
+                        "actool wrote no Assets.car"
+                        if icon_result == "empty"
+                        else "synthetic compiler failure"
+                    )
                     self.assertIn(reason, result.stdout + result.stderr)
                     self.assertFalse(log.exists(), "an incomplete icon must not be signed")
                     continue
@@ -164,9 +168,7 @@ with open(path, "wb") as target: plistlib.dump(info, target)
                             (ROOT / "native/macos/Resources" / relative).read_bytes(),
                         )
                 engine = bundle / ENGINE
-                self.assertTrue(
-                    engine.is_dir(), "the engine is still in the outer bundle"
-                )
+                self.assertTrue(engine.is_dir(), "the engine is still in the outer bundle")
                 self.assertEqual(
                     (engine / "Contents/MacOS/cua-driver").read_bytes(),
                     driver.read_bytes(),

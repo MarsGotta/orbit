@@ -56,6 +56,8 @@ def _main(argv: list[str], mac) -> int:
         elif command == "restore":
             _, max_s = _bound(rest)
             output = mac.restore(max_s)
+        elif command == "remote-audio" and len(rest) == 1:
+            output = mac.remote_audio(rest[0])
         elif command == "native" and 1 <= len(rest) <= 2:
             output = mac.native(rest[0], rest[1] if len(rest) > 1 else None)
         elif command == "logs":

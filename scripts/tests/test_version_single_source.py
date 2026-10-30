@@ -54,7 +54,10 @@ class SingleSourceTests(unittest.TestCase):
             path = ROOT / name
             if name in allowed or path.suffix not in MANIFESTS or not path.is_file():
                 continue
-            if name.endswith(("Cargo.lock", "pnpm-lock.yaml")) or name == "server/codex-release.toml":
+            if (
+                name.endswith(("Cargo.lock", "pnpm-lock.yaml"))
+                or name == "server/codex-release.toml"
+            ):
                 # Lockfiles state the resolved versions of dependencies, not
                 # a version of Orbit; pnpm's is generated like Cargo's. The
                 # Codex pin is a dependency too, guarded by its checksum.
@@ -89,8 +92,6 @@ class SingleSourceTests(unittest.TestCase):
             if named.search(path.read_text(encoding="utf-8", errors="replace")):
                 strays.append(name)
         self.assertEqual(strays, [], "the archive name is written by hand")
-
-
 
 
 FAKE_CARGO = """#!/bin/sh
@@ -141,7 +142,12 @@ class SetVersionRunTests(unittest.TestCase):
         environment = dict(os.environ, PATH=f"{self.bin}{os.pathsep}{os.environ.get('PATH', '')}")
         environment.update(env)
         return subprocess.run(
-            [sys.executable, "-B", str(self.root / "scripts" / "release" / "set-version.py"), *arguments],
+            [
+                sys.executable,
+                "-B",
+                str(self.root / "scripts" / "release" / "set-version.py"),
+                *arguments,
+            ],
             cwd=self.root,
             env=environment,
             capture_output=True,
@@ -158,7 +164,11 @@ class SetVersionRunTests(unittest.TestCase):
         written = self.set_version("7.8.9")
         self.assertEqual(written.returncode, 0, written.stdout + written.stderr)
         self.assertEqual(self.set_version("--check").returncode, 0)
-        env = {key: value for key, value in os.environ.items() if key not in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "UV_FROZEN")}
+        env = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT", "UV_FROZEN")
+        }
         env["UV_OFFLINE"] = "1"
         built = subprocess.run(
             [uv, "sync", "--locked", "--no-dev", "--link-mode", "copy"],
@@ -202,7 +212,10 @@ class SetVersionRunTests(unittest.TestCase):
     def test_a_file_that_no_longer_declares_its_version_fails_the_command(self):
         lock = self.root / "server" / "uv.lock"
         text = lock.read_text(encoding="utf-8")
-        lock.write_text(text.replace('name = "orbit-hub"\nversion = ', 'name = "orbit-hub"\nrelease = ', 1), encoding="utf-8")
+        lock.write_text(
+            text.replace('name = "orbit-hub"\nversion = ', 'name = "orbit-hub"\nrelease = ', 1),
+            encoding="utf-8",
+        )
         failed = self.set_version("7.8.9")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("server/uv.lock", failed.stdout + failed.stderr)

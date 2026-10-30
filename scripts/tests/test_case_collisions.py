@@ -57,11 +57,15 @@ class CaseCollisionTests(unittest.TestCase):
         self.assertEqual(collisions(listing), [])
 
     def test_no_tracked_files_collide_on_a_case_insensitive_mac(self):
-        listing = subprocess.run(
-            ["git", "-C", str(ROOT), "ls-files", "-z"],
-            check=True,
-            capture_output=True,
-        ).stdout.decode().split("\0")
+        listing = (
+            subprocess.run(
+                ["git", "-C", str(ROOT), "ls-files", "-z"],
+                check=True,
+                capture_output=True,
+            )
+            .stdout.decode()
+            .split("\0")
+        )
         found = collisions([path for path in listing if path])
         self.assertEqual(
             found,

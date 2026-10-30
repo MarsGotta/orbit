@@ -100,15 +100,28 @@ class InstallRelaunchTests(RelaunchFixture):
         env = self.installer_environment(server.url)
         env["ORBIT_OPEN_LOG"] = str(self.open_log)
         launcher = subprocess.run(
-            ["bash", "-c", 'bash --posix "$1" --relaunch </dev/null >/dev/null 2>&1 & echo $!', "--", str(INSTALL)],
-            capture_output=True, text=True, env=env, timeout=5,
+            [
+                "bash",
+                "-c",
+                'bash --posix "$1" --relaunch </dev/null >/dev/null 2>&1 & echo $!',
+                "--",
+                str(INSTALL),
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=5,
         )
         self.assertEqual(launcher.returncode, 0, launcher.stderr)
         self.assertTrue(launcher.stdout.strip().isdigit(), launcher.stdout)
         log = self.home / "Library" / "Logs" / "Orbit" / "instalador.log"
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            if log.exists() and "resultado|0.1.0|" in log.read_text() and "|bien|" in log.read_text():
+            if (
+                log.exists()
+                and "resultado|0.1.0|" in log.read_text()
+                and "|bien|" in log.read_text()
+            ):
                 break
             time.sleep(0.01)
         else:
@@ -156,7 +169,6 @@ class InstallRelaunchTests(RelaunchFixture):
             "Orbit opened before the failure was recorded",
         )
 
-
     def test_relaunch_waits_for_the_bundle_then_installs_and_opens_orbit(self):
         self.publish(self.build_package(b"version-nueva"))
         server = Server(self.work / "serve")
@@ -199,7 +211,8 @@ class InstallRelaunchTests(RelaunchFixture):
             "ready.touch()\n"
             "while not release.exists():\n"
             "    time.sleep(0.01)\n",
-            str(ready), str(release),
+            str(ready),
+            str(release),
         )
         # Only a second process check lets the app exit. Skipping the wait
         # loop therefore completes the installation with the app still alive.
@@ -214,8 +227,7 @@ class InstallRelaunchTests(RelaunchFixture):
             "with calls.open('a') as handle:\n"
             "    handle.write('ps\\n')\n"
             "if len(calls.read_text().splitlines()) >= 2:\n"
-            "    release.touch()\n"
-            + observer.read_text()
+            "    release.touch()\n" + observer.read_text()
         )
 
         install = self.install_command(server.url, "--relaunch")
@@ -228,7 +240,8 @@ class InstallRelaunchTests(RelaunchFixture):
 
         self.assertEqual(install.returncode, 0, stdout + stderr)
         self.assertGreaterEqual(
-            len(calls.read_text().splitlines()), 2,
+            len(calls.read_text().splitlines()),
+            2,
             "the installer replaced the package without checking the live app again",
         )
         self.assertEqual(process.wait(timeout=5), 0)

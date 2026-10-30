@@ -12,6 +12,7 @@ exits 1.
     wait WHAT [ARG] --max S   waits on a fact Orbit Pruebas publishes or answers on its socket
     read detail ID | read sessions
     say PART                  says one part of the script into BlackHole (PARTS)
+    remote-audio ACTION       check 25 preflight, fixture player, speech and cleanup
     voice-note                a voice note to Deimos: voice_start, one phrase into BlackHole, voice_end
     command call_start|call_stop  starts or stops a call with Deimos
     restore --max S           closes Orbit Pruebas and puts the previous input back
@@ -63,6 +64,7 @@ from mac_controls import PARTS, MacFailure, script_parts
 from mac_drafts_panel import RELAUNCH_WATCH_S, DraftsAndPanel
 from mac_engine import CuaDriver
 from mac_native import NativeChecks
+from mac_remote_audio import RemoteAudio
 from mac_system import System
 from mac_waits import WAITS
 from meeting_language import script_path, voice_note_phrase
@@ -87,9 +89,11 @@ class Paths:
 
     def __init__(self, home: Path):
         self.app = home / "Applications" / "Orbit Pruebas.app"
-        # The only sender of real keys (build-keys-app.sh): launched with
+        # The only sender of real keys (build-fixture-apps.sh): launched with
         # `open`, it holds its own Accessibility permission, never SSH's.
         self.keys_app = home / "Applications" / "Orbit Pruebas Teclas.app"
+        # The silent far side of a meeting for check 25, signed the same way.
+        self.remote_app = home / "Applications" / "Orbit Pruebas Remote.app"
         self.data = home / "Library" / "Application Support" / DATA_DIRECTORY
         self.socket = self.data / "orbit.sock"
         self.bridge = self.data / "orbit-test-bridge.sock"
@@ -314,7 +318,7 @@ def required_voices(listing: str) -> list[str]:
 # ── The steps ───────────────────────────────────────────────────────────────
 
 
-class Mac(DraftsAndPanel, CuaDriver, NativeChecks):
+class Mac(DraftsAndPanel, CuaDriver, NativeChecks, RemoteAudio):
     def __init__(
         self,
         paths: Paths,
@@ -587,12 +591,23 @@ class Mac(DraftsAndPanel, CuaDriver, NativeChecks):
         }
 
     def restore(self, max_s: float) -> dict:
-        cua = self.engine_stop(max_s)
-        closed = self._close_ours(max_s)
+        # Every cleanup is attempted, especially restoration of the owner's
+        # input, even if the fixture player or an earlier shutdown fails.
+        try:
+            remote = self.remote_audio("stop")
+        finally:
+            try:
+                cua = self.engine_stop(max_s)
+            finally:
+                try:
+                    closed = self._close_ours(max_s)
+                finally:
+                    previous = self._restore_input()
         return {
+            "remote_audio": remote,
             "cua_driver": cua,
             "orbit_pruebas": closed,
-            "restored_input": self._restore_input(),
+            "restored_input": previous,
         }
 
     # ── CuaDriver: its manifest and its target (mac_engine.py runs it) ──

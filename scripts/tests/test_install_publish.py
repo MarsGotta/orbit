@@ -50,7 +50,7 @@ printf '%s %s %s\\n' "$$" "$PPID" "$0"
 PS_FROM_PROC = """#!/bin/bash
 exec python3 "$(dirname "$0")/ps_shim.py"
 """
-PS_SHIM = '''import os
+PS_SHIM = """import os
 
 SHELLS = {"sh", "bash", "dash", "zsh"}
 
@@ -95,14 +95,14 @@ for entry in sorted(os.listdir("/proc")):
 seen = os.environ.get("ORBIT_PS_SEEN")
 if seen and bundled:
     open(seen, "w", encoding="utf-8").close()
-'''
+"""
 UNZIP = """#!/bin/bash
 exec python3 "$(dirname "$0")/unzip_shim.py" "$2" "$4"
 """
 # Real unzip restores the stored mode bits and Python's extractall does not, so
 # the stand-in has to as well: otherwise the installed command is not executable
 # and the test would fail for a reason the installer is not responsible for.
-UNZIP_SHIM = '''import os, sys, zipfile
+UNZIP_SHIM = """import os, sys, zipfile
 
 with zipfile.ZipFile(sys.argv[1]) as bundle:
     for entry in bundle.infolist():
@@ -110,7 +110,7 @@ with zipfile.ZipFile(sys.argv[1]) as bundle:
         mode = entry.external_attr >> 16
         if mode:
             os.chmod(written, mode)
-'''
+"""
 SHIMS = {"uname": UNAME, "shasum": SHASUM, "ps": PS, "unzip": UNZIP}
 
 
@@ -122,9 +122,7 @@ class Server:
     """Serve one directory on loopback for the duration of a test."""
 
     def __init__(self, directory):
-        handler = functools.partial(
-            http.server.SimpleHTTPRequestHandler, directory=str(directory)
-        )
+        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(directory))
         handler.log_message = lambda *_args: None
         self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
         self.url = "http://127.0.0.1:%d" % self.httpd.server_address[1]
@@ -163,9 +161,7 @@ class Fixture(unittest.TestCase):
         executable.parent.mkdir(parents=True, exist_ok=True)
         executable.write_text(body)
         executable.chmod(executable.stat().st_mode | stat.S_IEXEC)
-        process = subprocess.Popen(
-            [str(executable), *arguments], start_new_session=True
-        )
+        process = subprocess.Popen([str(executable), *arguments], start_new_session=True)
 
         def stop():
             if process.poll() is None:
@@ -194,13 +190,12 @@ class Fixture(unittest.TestCase):
         checksum = out / (archive.name + ".sha256")
         checksum.write_text(digest(archive) + "  " + archive.name)
         (out / "build-manifest.txt").write_text(
-            "version=0.1.0\narchitecture=arm64\nsource_commit=" + "a" * 40
+            "version=0.1.0\narchitecture=arm64\nsource_commit="
+            + "a" * 40
             + "\nsource_dirty=false\nminimum_macos=15.0\nnotarized=true\n"
         )
         (out / "install.sh").write_bytes(INSTALL.read_bytes())
-        (out / "install.sha256").write_text(
-            digest(out / "install.sh") + "  install.sh\n"
-        )
+        (out / "install.sha256").write_text(digest(out / "install.sh") + "  install.sh\n")
         return out
 
     def publish(self, source, version="0.1.0", serve=None):
@@ -250,7 +245,6 @@ class InstallTests(Fixture):
         self.assertTrue((app / "Contents" / "MacOS" / "Orbit").is_file())
         self.assertFalse((app / "Contents" / "Resources" / "orbit").exists())
 
-
     def test_what_was_installed_is_recorded_with_data_not_inside_the_app(self):
         self.publish(self.build_package())
         server = Server(self.work / "serve")
@@ -259,11 +253,7 @@ class InstallTests(Fixture):
         record = self.home / "Library/Application Support/com.MarsGotta.Orbit/.orbit-instalado"
         self.assertTrue(record.is_file())
         package = next((self.work / "serve" / "packages").glob("*.zip"))
-        fields = dict(
-            line.split("=", 1)
-            for line in record.read_text().splitlines()
-            if "=" in line
-        )
+        fields = dict(line.split("=", 1) for line in record.read_text().splitlines() if "=" in line)
         self.assertEqual(fields["sha256"], digest(package))
         self.assertEqual(fields["version"], "0.1.0")
         # Writing inside the bundle would break its signature.
@@ -285,7 +275,6 @@ class InstallTests(Fixture):
         self.assertIn(expected, result.stderr)
         self.assertIn(actual, result.stderr)
         self.assertFalse((self.applications / "Orbit.app").exists())
-
 
     def test_previous_copies_wait_for_the_new_app_to_open_the_store(self):
         # A user had three stale bundles in ~/Applications after three updates,
@@ -323,15 +312,12 @@ class InstallTests(Fixture):
         source = INSTALL
         self.assertEqual(served.read_bytes(), source.read_bytes())
 
-
     def test_a_manifest_naming_a_path_is_refused_instead_of_followed(self):
         self.publish(self.build_package())
         serve = self.work / "serve"
         lines = (serve / "latest.txt").read_text().splitlines()
         rewritten = [
-            "arm64_file=../../../../etc/passwd"
-            if line.startswith("arm64_file=")
-            else line
+            "arm64_file=../../../../etc/passwd" if line.startswith("arm64_file=") else line
             for line in lines
         ]
         (serve / "latest.txt").write_text(EOL.join(rewritten) + EOL)
@@ -366,7 +352,6 @@ class PublishTests(Fixture):
         self.assertEqual(result.returncode, 1)
         self.assertIn("sha256 expected='" + "0" * 64, result.stderr)
         self.assertIn("found='" + digest(next(source.glob("*.zip"))), result.stderr)
-
 
     def test_a_version_that_is_not_a_plain_name_is_refused(self):
         source = self.build_package()

@@ -42,7 +42,7 @@ from support_network_fence import install
 
 FENCE = install()
 # Every check can pass or fail, including the menu bar through the bridge.
-ALL = list(range(1, 25))
+ALL = list(range(1, 26))
 SKIPPED = {}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
@@ -932,7 +932,7 @@ def test_bridge_connection_failure_names_the_transport_and_command(capsys):
 
 def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
     results, directory = dry_run.run("good", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 25)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 26)}
     data = json.loads((directory / "report.json").read_text())
     assert set(data["accessibility"]["trees"]) == {"idle", "recording"}
     assert (directory / "trees/accessibility-idle.txt").is_file()
@@ -946,7 +946,7 @@ def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
 def test_accessibility_failure_does_not_change_any_other_check(tmp_path):
     results, _ = dry_run.run("bad-21", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 25)
+        n: "fail" if n == 21 else "pass" for n in range(1, 26)
     }
 
 
@@ -954,7 +954,7 @@ def test_accessibility_waits_for_webkit_to_build_its_tree(tmp_path):
     # Real run of 2026-10-29: the first macOS read held only the window's own
     # buttons, and check 21 failed although the app named every control.
     results, directory = dry_run.run("accessibility-lazy-tree", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 25)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 26)}
     data = json.loads((directory / "report.json").read_text())
     assert data["accessibility"]["reads"] == {"idle": 3, "recording": 3}
     assert "Grabar reunión" in (directory / "trees/accessibility-idle.txt").read_text()
@@ -1150,7 +1150,7 @@ def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibil
     assert "press_key" not in manifest and "type_text" not in manifest and "click" not in manifest
     results, _ = dry_run.run("own-process", tmp_path / "run")
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 25)
+        n: "fail" if n == 21 else "pass" for n in range(1, 26)
     }
 
 
@@ -1159,7 +1159,7 @@ def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(
 ):
     results, _ = dry_run.run("accessibility-start-refused", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 25)
+        n: "fail" if n == 21 else "pass" for n in range(1, 26)
     }
 
 
@@ -1612,3 +1612,103 @@ def test_failed_privacy_key_stops_fixture_playback_before_restoring_physical_out
         mac.native("privacy-playback")
     assert not system.playing
     assert system.output == "Fixture speakers"
+
+
+@pytest.mark.parametrize("damage", (None, "checksum", "frames"))
+def test_remote_readback_uses_real_encrypted_tracks_and_stored_sides(tmp_path, damage):
+    import hashlib
+    import io
+    import wave
+
+    import hub_audio
+    from mac_remote_audio import phrases
+
+    from orbit_hub.storage import Store, initialize
+
+    root, key = tmp_path / "data", tmp_path / "key"
+    initialize(root, key)
+    store = Store(root, key)
+    try:
+        device = store.devices.pair(store.devices.create_code(0), "Cedar fixture", 1)["device_id"]
+        tracks = []
+        expected = []
+        for side, pcm, text in (
+            ("mic_local", b"\x80\x00" * 160, phrases("en")["mic"]),
+            ("remote_app", b"\x40\x00" * 160, phrases("en")["remote"]),
+        ):
+            stream = io.BytesIO()
+            with wave.open(stream, "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(16000)
+                wav.writeframes(pcm)
+            body = stream.getvalue()
+            store.recordings.put_chunk(
+                device,
+                side,
+                "cedar",
+                side,
+                0,
+                hashlib.sha256(body).hexdigest(),
+                body,
+                {"frames": 160, "started_at_ms": 1000},
+            )
+            tracks.append(
+                {"track": side, "chunk_count": 1, "last_sequence": 0, "total_frames": 160}
+            )
+            expected.append({"track": side, "text": text})
+        store.recordings.finalize(
+            device,
+            "cedar",
+            {
+                "started_at_ms": 1000,
+                "finalized_at_ms": 1010,
+                "gaps": 0,
+                "tracks": tracks,
+            },
+        )
+        words = [{**s, "voice": s["track"], "start_ms": 0, "end_ms": 10} for s in expected]
+        blob = store.encrypt(
+            json.dumps({"words": words, "audio_ms": 10, "language": "en"}).encode(),
+            f"recording-final-transcript:{device}:cedar",
+        )
+        with store.transaction() as db:
+            db.execute(
+                "INSERT INTO recording_final_transcripts VALUES (?,?,?)", (device, "cedar", blob)
+            )
+            if damage == "checksum":
+                db.execute("UPDATE chunks SET sha256=? WHERE track='remote_app'", ("0" * 64,))
+            elif damage == "frames":
+                metadata = store.encrypt(
+                    json.dumps({"frames": 161}).encode(), f"metadata:{device}:remote_app"
+                )
+                db.execute(
+                    "UPDATE transcription_jobs SET metadata=? WHERE chunk_id='remote_app'",
+                    (metadata,),
+                )
+        if damage:
+            with pytest.raises(ValueError, match="checksum|frames"):
+                hub_audio.inspect_remote(store, "cedar")
+        else:
+            found = hub_audio.inspect_remote(store, "cedar")
+            assert found["closed"] and found["complete"]
+            assert found["segments"] == expected
+            assert (
+                found["tracks"]["remote_app"]["sha256"]
+                == hashlib.sha256(b"\x40\x00" * 160).hexdigest()
+            )
+            assert found["tracks"]["remote_app"]["sha256"] != found["tracks"]["mic_local"]["sha256"]
+            assert all(t["frames"] == 160 and t["nonzero"] for t in found["tracks"].values())
+            assert hub_audio.inspect_remote(store, "other") == {"closed": False}
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("language", ("es", "en"))
+def test_spoiled_remote_audio_only_fails_check_25(language, tmp_path):
+    results, directory = dry_run.run("bad-25", tmp_path, language=language)
+    assert statuses(results) == {n: "fail" if n == 25 else "pass" for n in ALL}
+    report = json.loads((directory / "report.json").read_text())
+    assert report["remote_audio"]["restored"] is True
+    assert report["restored"]["remote_audio"]["restored"] is True
+    assert "muted microphone" in next(r["detail"] for r in results if r["number"] == 25)

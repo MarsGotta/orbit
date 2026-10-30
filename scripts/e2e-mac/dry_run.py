@@ -104,6 +104,7 @@ class DryRunSystem(DryNative, mac_side.System):
         self.output = "Fixture speakers"
         self.commands: list[list[str]] = []
         self.app_open = False
+        self.remote_open = False
         self.signals: list[tuple[int, int]] = []
         self.pauses: list[float] = []
         self.view = DryRunView(example, paths.logs)
@@ -127,9 +128,12 @@ class DryRunSystem(DryNative, mac_side.System):
             expected = "en-US" if self.example.language == "en" else "es-ES"
             assert command[5:] == (expected,)
             return 0, "", ""
+        remote = self.remote_command(command)
+        if remote is not None:
+            return remote
         if command[0] == "SwitchAudioSource":
             if "-a" in command:
-                return 0, f"Micrófono del MacBook Pro\n{mac_side.BLACKHOLE}\n", ""
+                return 0, f"Micrófono del MacBook Pro\n{mac_side.BLACKHOLE}\nBlackHole 16ch\n", ""
             if "-c" in command:
                 return (
                     0,
@@ -193,12 +197,30 @@ class DryRunSystem(DryNative, mac_side.System):
             return 0, "", ""
         return 1, "", f"command the dry run does not expect: {command}"
 
+    def remote_command(self, command):
+        if command[0].endswith("/RemoteSpeaker") and command[1] == "--probe":
+            return 0, json.dumps(self.example.json("remote-audio.json")["route"]), ""
+        if command[0] == "open" and any("Orbit Pruebas Remote.app" in c for c in command):
+            self.remote_open = True
+            directory = self.paths.own / "remote-audio"
+            (directory / "ready.json").write_text('{"pid":4545}')
+            return 0, "", ""
+        return None
+
     def has_command(self, name: str) -> bool:
         return True
 
     def pause(self, seconds: float) -> None:
         # Nothing plays here: the beat is noted, never slept.
         self.pauses.append(seconds)
+        directory = self.paths.own / "remote-audio"
+        request = directory / "request.json"
+        if self.remote_open and request.exists():
+            phase = json.loads(request.read_text())["phase"]
+            request.unlink()
+            (directory / f"{phase}-done.json").write_text(
+                '{"played":true,"output_uid":"BlackHole16ch_UID"}'
+            )
 
     def local_time(self, seconds: float) -> time.struct_time:
         # The examples' Mac lives in UTC, so their titles do not depend on
@@ -212,10 +234,22 @@ class DryRunSystem(DryNative, mac_side.System):
             rows.append((self.view.pid + 1000, str(self.paths.app / mac_side.MEMBERS[1])))
         if self.cua.running:
             rows.append((CUA_PID, mac_engine.CUA_APP + "Contents/MacOS/CuaDriver"))
+        if self.remote_open:
+            rows.append(
+                (
+                    4545,
+                    str(
+                        self.paths.own
+                        / "remote-audio/Orbit Pruebas Remote.app/Contents/MacOS/RemoteSpeaker"
+                    ),
+                )
+            )
         return rows
 
     def signal(self, pid: int, number: int) -> None:
         self.signals.append((pid, number))
+        if pid == 4545:
+            self.remote_open = False
         if pid == self.view.pid:
             self.app_open = False
 
@@ -421,6 +455,10 @@ def run(
     home = root / "mac"
     mac_paths = mac_side.Paths(home)
     (mac_paths.app / "Contents").mkdir(parents=True)
+    # The signed helper build-fixture-apps.sh installs beside Orbit Pruebas.
+    remote = mac_paths.remote_app / "Contents" / "MacOS" / "RemoteSpeaker"
+    remote.parent.mkdir(parents=True)
+    remote.write_bytes(b"")
     (mac_paths.app / "Contents" / "Info.plist").write_bytes(
         plistlib.dumps({"CFBundleIdentifier": mac_side.BUNDLE_ID})
     )
@@ -461,4 +499,5 @@ def run(
     test.bounds["accessibility-tree"] = (2, "cua.json may hold back the first reads")
     test.hub_kept = DryRunHub(example, test.hub_kept)
     test.hub_audio = lambda ident: example.json("native.json")["hub_audio"]
+    test.hub_remote_audio = lambda ident: example.json("remote-audio.json")["stored"]
     return test.run(), run_directory

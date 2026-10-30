@@ -29,11 +29,19 @@ class SystemInstallationTests(Fixture):
         source = INSTALL.read_text()
         self.assertTrue(source.endswith('main "$@"\n'))
         functions.write_text(source.removesuffix('main "$@"\n'))
-        env = {**os.environ, "HOME": str(self.home), "ORBIT_INSTALL_BASE": "https://updates.example.test"}
+        env = {
+            **os.environ,
+            "HOME": str(self.home),
+            "ORBIT_INSTALL_BASE": "https://updates.example.test",
+        }
         env.pop("ORBIT_APPLICATIONS_DIR", None)
         result = subprocess.run(
             ["bash", "-c", 'source "$1"; printf "%s" "$APP_DIR"', "test", str(functions)],
-            env=env, text=True, capture_output=True, timeout=5, check=False,
+            env=env,
+            text=True,
+            capture_output=True,
+            timeout=5,
+            check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "/Applications")
@@ -58,7 +66,12 @@ class SystemInstallationTests(Fixture):
     def test_first_move_preserves_rollback_and_unrelated_apps_until_startup(self):
         legacy = self.home / "Applications"
         for directory in (legacy, self.system):
-            for name in ("Expo Orbit.app", "Orbit Pruebas.app", "Orbit.app.anterior-", "Orbit.app.anterior-vieja"):
+            for name in (
+                "Expo Orbit.app",
+                "Orbit Pruebas.app",
+                "Orbit.app.anterior-",
+                "Orbit.app.anterior-vieja",
+            ):
                 bundle = directory / name
                 bundle.mkdir(parents=True)
                 (bundle / "marker").write_text(name)
@@ -70,5 +83,10 @@ class SystemInstallationTests(Fixture):
         # Installation alone is not proof that the new daemon opened the store.
         self.assertEqual((old / "marker").read_text(), "anterior")
         for directory in (legacy, self.system):
-            for name in ("Expo Orbit.app", "Orbit Pruebas.app", "Orbit.app.anterior-", "Orbit.app.anterior-vieja"):
+            for name in (
+                "Expo Orbit.app",
+                "Orbit Pruebas.app",
+                "Orbit.app.anterior-",
+                "Orbit.app.anterior-vieja",
+            ):
                 self.assertEqual((directory / name / "marker").read_text(), name)

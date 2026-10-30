@@ -72,9 +72,7 @@ class SDKPreflightTests(unittest.TestCase):
                 check=False,
             )
             calls = (
-                [json.loads(line) for line in log.read_text().splitlines()]
-                if log.exists()
-                else []
+                [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
             )
             return result, calls
 
@@ -143,7 +141,6 @@ class SDKPreflightTests(unittest.TestCase):
             runner.chmod(0o700)
         return developer
 
-
     def test_a_missing_runner_names_the_installed_xcode_that_has_one(self):
         with tempfile.TemporaryDirectory(prefix="orbit-xcode-") as temporary:
             root = Path(temporary)
@@ -161,7 +158,7 @@ class SDKPreflightTests(unittest.TestCase):
 
     def test_a_missing_runner_without_any_xcode_states_the_exact_requirement(self):
         with tempfile.TemporaryDirectory(prefix="orbit-xcode-") as temporary:
-            root = (Path(temporary) / "Applications")
+            root = Path(temporary) / "Applications"
             root.mkdir()
             command = ["xcrun", "--sdk", "macosx", "--find", "xctest"]
             result, _ = self.run_fixture(["xctest"], fail=command, search=str(root))

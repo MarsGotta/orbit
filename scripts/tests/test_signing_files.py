@@ -61,9 +61,7 @@ class SigningFileTests(unittest.TestCase):
     def assert_refused(self, result, reason):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(reason, result.stderr)
-        self.assertFalse(
-            self.receipt.exists(), "the build ran with a refused file"
-        )
+        self.assertFalse(self.receipt.exists(), "the build ran with a refused file")
 
     def test_unknown_key_is_refused_before_building(self):
         self.assert_refused(
@@ -72,16 +70,12 @@ class SigningFileTests(unittest.TestCase):
         )
 
     def test_a_line_without_equals_is_refused_before_building(self):
-        self.assert_refused(
-            self.run_build(self.base + "BROKEN_LINE\n"), "without KEY=value"
-        )
+        self.assert_refused(self.run_build(self.base + "BROKEN_LINE\n"), "without KEY=value")
 
     def test_signing_values_are_data_and_notary_keys_do_not_reach_the_bundle(self):
         result = self.run_build()
         self.assertEqual(result.returncode, 77, result.stdout + result.stderr)
-        self.assertEqual(
-            self.receipt.read_text().splitlines(), ["$(touch injected)", "unset"]
-        )
+        self.assertEqual(self.receipt.read_text().splitlines(), ["$(touch injected)", "unset"])
         self.assertFalse((self.root / "injected").exists())
 
     def test_group_readable_material_is_refused(self):

@@ -38,7 +38,12 @@ def listings(root: Path) -> tuple[Path, Path]:
         json.dumps(
             {
                 "packages": [
-                    {**app, "license": None, "manifest_path": str(root / "Cargo.toml"), "source": None},
+                    {
+                        **app,
+                        "license": None,
+                        "manifest_path": str(root / "Cargo.toml"),
+                        "source": None,
+                    },
                     {
                         "id": "ejemplo-crate 1.0.0",
                         "name": "ejemplo-crate",

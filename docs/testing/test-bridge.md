@@ -71,6 +71,9 @@ evaluation of that window returns `view_busy` with its counts. Oversized request
 bytes. The Mac-side client imposes a twelve-second overall deadline and the
 same byte ceiling. These are engineering budgets, not Mac latency measurements.
 
+Check 25 uses the bridge for application selection and microphone mute, with
+independent silent sources described in [remote audio](remote-audio.md).
+
 ## Harness scope and reviewer acceptance
 
 Ordinary web-view presses, typing and reads use the bridge through `interface.py`;
@@ -117,7 +120,7 @@ cleanup retries an interrupted stop only for the driver's recorded pid.
 `dry_bridge.py` replays the app-view boundary from `screens/` and
 `transitions.json`; the fake CuaDriver can read only the independent
 `accessibility-*.md` fixtures and refuses every input tool. The good example
-passes all 24 checks; `bad-21` removes an AX button name without changing DOM
+passes all 25 checks; `bad-21` removes an AX button name without changing DOM
 behavior or any of the original checks. The original spoiled examples still
 fail their own checks. Cross-language tests run the actual injected DOM code
 and pass its trees to the existing list, transcript and recovered-draft checks.
@@ -134,7 +137,7 @@ It cannot prove WebKit delivery, AppKit behavior or real AX visibility. On a
 consented, idle Mac with the isolated Orbit Pruebas fixtures, the reviewer must:
 
 1. Rebuild Orbit Pruebas with the current bridge and run the full Spanish
-   harness. All 24 checks must pass, including the native cases below.
+   harness. All 25 checks must pass, including the native cases below.
 2. Inspect saved bridge trees for the transcript's times/speakers/text, meeting
    titles and day groups, editable title values, muted spans and draft recovery.
    Confirm every web-view press/type is a DOM action. Repeated controls must

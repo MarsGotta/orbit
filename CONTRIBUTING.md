@@ -146,7 +146,7 @@ SSH:
   reopens Orbit Pruebas once (the Dock's quit) to check a draft
   survives. Nobody should be using the Mac while it runs. The speech is synthesized
   with `say` into the BlackHole 2ch virtual input, so the Mac needs
-  `blackhole-2ch`, `switchaudio-osx` and voices for the selected language
+  `blackhole-2ch`, `blackhole-16ch` (check 25), `switchaudio-osx` and voices for the selected language
   (two English voices for the English pass), plus the corresponding on-device
   speech recognition; the run
   switches the audio input and restores it afterwards. All presses, typing and readings inside

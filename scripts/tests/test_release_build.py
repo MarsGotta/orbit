@@ -2,7 +2,6 @@
 
 import hashlib
 import os
-import re
 import shlex
 import shutil
 import subprocess
@@ -11,9 +10,9 @@ import tomllib
 import unittest
 from pathlib import Path
 
-from scripts.tests import test_verify_macos_archive as archive_fixture
-from driver_fixture import verified_driver_version
 import notice_fixture
+from driver_fixture import verified_driver_version
+from scripts.tests import test_verify_macos_archive as archive_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE = ROOT / "scripts/release"
@@ -72,13 +71,9 @@ class ReleaseBuildTests(unittest.TestCase):
         ):
             self.tool(
                 tool,
-                '#!/bin/sh\nprintf "%s %s\\n" "'
-                + tool
-                + '" "$*" >> "$ORBIT_TEST_LOG"\n',
+                '#!/bin/sh\nprintf "%s %s\\n" "' + tool + '" "$*" >> "$ORBIT_TEST_LOG"\n',
             )
-        self.tool(
-            "uname", '#!/bin/sh\ncase "$1" in -s) echo Darwin;; -m) echo arm64;; esac\n'
-        )
+        self.tool("uname", '#!/bin/sh\ncase "$1" in -s) echo Darwin;; -m) echo arm64;; esac\n')
         self.env = {
             **os.environ,
             "PATH": f"{self.bin}:{os.environ['PATH']}",
@@ -107,9 +102,7 @@ class ReleaseBuildTests(unittest.TestCase):
         return home, cargo, local
 
     def git_commit(self, fixture, message):
-        subprocess.run(
-            ["git", "init", "-q", "-b", "main", str(fixture)], check=True, timeout=10
-        )
+        subprocess.run(["git", "init", "-q", "-b", "main", str(fixture)], check=True, timeout=10)
         subprocess.run(["git", "-C", str(fixture), "add", "."], check=True, timeout=10)
         subprocess.run(
             [
@@ -192,7 +185,7 @@ class ReleaseBuildTests(unittest.TestCase):
             "dwarfdump",
             '#!/bin/sh\necho "dwarfdump $*" >> "$ORBIT_TEST_LOG"\n'
             'case "$2" in *.dSYM) uuid=${ORBIT_TEST_DSYM_UUID:-11111111-2222-3333-4444-555555555555};; '
-            '*) uuid=11111111-2222-3333-4444-555555555555;; esac\n'
+            "*) uuid=11111111-2222-3333-4444-555555555555;; esac\n"
             'echo "UUID: $uuid (arm64) $2"\n',
             directory=cargo,
         )
@@ -219,9 +212,7 @@ class ReleaseBuildTests(unittest.TestCase):
 
     def test_mac_build_is_versioned_and_rejects_a_reused_directory(self):
         script = RELEASE / "mac-build.sh"
-        self.assertTrue(
-            script.is_file(), "the Mac's script is missing from the repository"
-        )
+        self.assertTrue(script.is_file(), "the Mac's script is missing from the repository")
         output = self.scratch / "already-used"
         output.mkdir()
         env, _, _, _ = self.mac_build_env()
@@ -232,7 +223,6 @@ class ReleaseBuildTests(unittest.TestCase):
         # artifacts folder — and not the 16-09 story, which belongs to the guide.
         self.assertIn("absolute path", result.stderr)
         self.assertNotIn("orbit-core", result.stderr)
-
 
     def test_mac_build_runs_every_stage_of_the_host_script_in_order(self):
         """The whole host build, stage by stage, in its order.
@@ -380,15 +370,15 @@ class ReleaseBuildTests(unittest.TestCase):
             'exec /usr/bin/bash "$@"\n',
             directory=local,
         )
-        export = ('source "$1"\n'
-                  'export PATH="${RELEASE_HOST_PATH//\\$HOME/$HOME}"')
+        export = 'source "$1"\nexport PATH="${RELEASE_HOST_PATH//\\$HOME/$HOME}"'
         probe = subprocess.run(
             [
                 "/usr/bin/bash",
                 "-c",
                 export
                 + "\ncommand -v pnpm\ncommand -v bash\npnpm --version\nbash --version | sed -n 1p\n",
-                "probe", str(RELEASE / "lib.sh"),
+                "probe",
+                str(RELEASE / "lib.sh"),
             ],
             env={
                 "HOME": str(home),
@@ -405,8 +395,11 @@ class ReleaseBuildTests(unittest.TestCase):
         self.assertIn(str(local / "bash"), probe.stdout)
         self.assertIn("10.10.0", probe.stdout)
         self.assertIn("5.3.9", probe.stdout)
-        for name in ("scripts/release/mac-build.sh", "scripts/release/build-on-mac.sh",
-                     "scripts/e2e-mac/build-test-app.sh"):
+        for name in (
+            "scripts/release/mac-build.sh",
+            "scripts/release/build-on-mac.sh",
+            "scripts/e2e-mac/build-test-app.sh",
+        ):
             self.assertIn("RELEASE_HOST_PATH", (ROOT / name).read_text())
 
     def test_signing_prechecks_stop_before_compiling(self):
@@ -463,7 +456,6 @@ class ReleaseBuildTests(unittest.TestCase):
         calls = self.log.read_text()
         self.assertIn("security find-certificate -c Synthetic Identity", calls)
         self.assertNotIn("cargo", calls)
-
 
     def test_missing_commit_and_version_report_both_values(self):
         self.assertTrue(
@@ -544,9 +536,7 @@ class ReleaseBuildTests(unittest.TestCase):
         (fixture / "scripts/release/set-version.py").write_text("import sys\nsys.exit(0)\n")
         (fixture / "Cargo.toml").write_text('[workspace.package]\nversion = "7.8.9"\n')
         (fixture / ".gitignore").write_text("ignored/\n")
-        subprocess.run(
-            ["git", "init", "-q", "-b", "main", str(fixture)], check=True, timeout=10
-        )
+        subprocess.run(["git", "init", "-q", "-b", "main", str(fixture)], check=True, timeout=10)
         subprocess.run(["git", "-C", str(fixture), "add", "."], check=True, timeout=10)
         subprocess.run(
             [
@@ -607,12 +597,13 @@ class ReleaseBuildTests(unittest.TestCase):
                     "-o IdentitiesOnly=yes",
                 ):
                     self.assertIn(option, line)
-        launch = next(
-            line for line in self.log.read_text().splitlines() if "mac-build.sh" in line
-        )
+        launch = next(line for line in self.log.read_text().splitlines() if "mac-build.sh" in line)
         self.assertIn("$HOME/.cargo/bin:$HOME/.local/bin:/opt/homebrew/bin", launch)
         arguments = shlex.split(launch)
-        self.assertIn("ORBIT_UPDATE_BASE_URL=https://updates.example.test/path?channel=beta&track=test", arguments)
+        self.assertIn(
+            "ORBIT_UPDATE_BASE_URL=https://updates.example.test/path?channel=beta&track=test",
+            arguments,
+        )
         self.assertIn("VITE_ORBIT_HUB_URL=https://hub.example", arguments)
         expected = subprocess.check_output(
             ["git", "-C", str(fixture), "ls-tree", "-r", "--name-only", commit],
@@ -632,7 +623,6 @@ class ReleaseBuildTests(unittest.TestCase):
             ).strip(),
             commit,
         )
-
 
     def bundle_fixture(self, swift_fails=False):
         fixture = self.scratch / "fixture"
@@ -659,9 +649,7 @@ class ReleaseBuildTests(unittest.TestCase):
         shutil.copytree(ROOT / "Icon", fixture / "Icon")
         bundle = fixture / "scripts/macos/bundle.sh"
         bundle.write_text(
-            bundle.read_text().replace(
-                "/usr/libexec/PlistBuddy", str(self.bin / "plistbuddy")
-            )
+            bundle.read_text().replace("/usr/libexec/PlistBuddy", str(self.bin / "plistbuddy"))
         )
         if (ROOT / "scripts/release/lib.sh").is_file():
             target = fixture / "scripts/release/lib.sh"
@@ -709,7 +697,9 @@ class ReleaseBuildTests(unittest.TestCase):
             "security",
             "ditto",
         ):
-            answer = notice_fixture.answering(tool, pnpm, cargo) if tool in ("pnpm", "cargo") else ""
+            answer = (
+                notice_fixture.answering(tool, pnpm, cargo) if tool in ("pnpm", "cargo") else ""
+            )
             self.tool(tool, f'#!/bin/sh\necho "{tool} $*" >> "$ORBIT_TEST_LOG"\n{answer}')
         self.tool(
             "codesign",
@@ -722,7 +712,7 @@ class ReleaseBuildTests(unittest.TestCase):
             'if [ "$1" = actool ]; then\n'
             '  while [ "$1" != --compile ]; do shift; done\n'
             '  printf "compiled icon fixture" > "$2/Assets.car"\n'
-            'fi\n'
+            "fi\n"
             'case "$*" in *"notarytool submit"*) echo \'{"id":"synthetic"}\';;'
             ' *"notarytool info"*) echo \'{"status":"Accepted"}\';; esac\n',
         )
@@ -793,7 +783,6 @@ class ReleaseBuildTests(unittest.TestCase):
             "the smoke did not receive the bundle's signed helper",
         )
 
-
     def test_refuses_wrong_checksum_and_dirty_manifest_before_mac_verification(self):
         commit = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, timeout=10
@@ -863,10 +852,13 @@ class ReleaseBuildTests(unittest.TestCase):
         # while this worktree changes the bundle layout before integration.
         fixture = self.scratch / "source"
         for name in (
-            "scripts/release/lib.sh", "scripts/release/fetch-build.sh",
-            "scripts/release/verify-macos-archive.py", "scripts/release/strict_zip.py",
+            "scripts/release/lib.sh",
+            "scripts/release/fetch-build.sh",
+            "scripts/release/verify-macos-archive.py",
+            "scripts/release/strict_zip.py",
             "Cargo.toml",
-            "crates/orbit-control/src/cua.rs", "third-party/cua-driver/LICENSE.md",
+            "crates/orbit-control/src/cua.rs",
+            "third-party/cua-driver/LICENSE.md",
         ):
             target = fixture / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -908,7 +900,11 @@ class ReleaseBuildTests(unittest.TestCase):
                 "ORBIT_RELEASE_DIR": str(self.scratch / "releases"),
                 "ORBIT_TEST_REMOTE_DIR": str(remote),
             },
-            cwd=fixture, text=True, capture_output=True, timeout=40, check=False,
+            cwd=fixture,
+            text=True,
+            capture_output=True,
+            timeout=40,
+            check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         saved = self.scratch / "releases" / version
@@ -1028,9 +1024,7 @@ class ReleaseBuildTests(unittest.TestCase):
             shutil.copy2(RELEASE / name, fixture / "scripts/release" / name)
         archive = self.scratch / "synthetic.zip"
         archive.write_bytes(b"synthetic")
-        self.tool(
-            "ditto", '#!/bin/sh\nfor last do :; done\nmkdir -p "$last/Orbit.app"\n'
-        )
+        self.tool("ditto", '#!/bin/sh\nfor last do :; done\nmkdir -p "$last/Orbit.app"\n')
         result = subprocess.run(
             ["bash", str(fixture / "scripts/release/mac-verify.sh"), str(archive)],
             env=self.env,
@@ -1056,9 +1050,7 @@ class ReleaseBuildTests(unittest.TestCase):
             shutil.copy2(RELEASE / name, fixture / "scripts/release" / name)
         archive = self.scratch / "synthetic.zip"
         archive.write_bytes(b"synthetic")
-        self.tool(
-            "ditto", '#!/bin/sh\nfor last do :; done\nmkdir -p "$last/Orbit.app"\n'
-        )
+        self.tool("ditto", '#!/bin/sh\nfor last do :; done\nmkdir -p "$last/Orbit.app"\n')
         for failing, later in (
             ("codesign", "spctl"),
             ("spctl", "xcrun"),
@@ -1125,7 +1117,6 @@ class ReleaseBuildTests(unittest.TestCase):
             with self.subTest(path=path):
                 for forbidden, why in FORBIDDEN_SECRET_FORMS:
                     self.assertNotRegex(text, forbidden, why)
-
 
     # ── The Sentry address ──────────────────────────────────────────────────
 
@@ -1200,9 +1191,7 @@ class ReleaseBuildTests(unittest.TestCase):
         return result, fixture, seen
 
     def test_the_sentry_address_reaches_only_the_bundle(self):
-        result, _, seen = self.staged_mac_build(
-            {"ORBIT_SENTRY_DSN_FILE": str(self.dsn_file())}
-        )
+        result, _, seen = self.staged_mac_build({"ORBIT_SENTRY_DSN_FILE": str(self.dsn_file())})
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(seen.read_text(), SYNTHETIC_DSN)
         calls = self.log.read_text()
@@ -1263,12 +1252,16 @@ class ReleaseBuildTests(unittest.TestCase):
         commit = self.git_commit(fixture, "fixture")
         key = self.scratch / "ssh-key"
         key.write_text("fake")
-        return fixture, commit, {
-            "ORBIT_MAC_HOST": "fixture@mac",
-            "ORBIT_MAC_SSH_KEY": str(key),
-            "ORBIT_CUA_DRIVER_BINARY": "/fixture/cua-driver",
-            "ORBIT_SIGNING_ENV": "/fixture/signing.env",
-        }
+        return (
+            fixture,
+            commit,
+            {
+                "ORBIT_MAC_HOST": "fixture@mac",
+                "ORBIT_MAC_SSH_KEY": str(key),
+                "ORBIT_CUA_DRIVER_BINARY": "/fixture/cua-driver",
+                "ORBIT_SIGNING_ENV": "/fixture/signing.env",
+            },
+        )
 
     def launch(self, fixture, commit, env):
         return subprocess.run(
@@ -1315,15 +1308,18 @@ class ReleaseBuildTests(unittest.TestCase):
         if self.log.exists():
             self.assertNotRegex(self.log.read_text(), r"^(ssh|rsync) ")
 
-
     def test_a_dsym_of_another_binary_stops_the_release(self):
         """The symbols that go to Sentry must be the shipped app's (with the
         daemon inside): a dSYM whose UUID differs from the bundled binary's
         stops the build before anything is zipped for upload."""
-        result, _, _ = self.staged_mac_build({"ORBIT_TEST_DSYM_UUID": "99999999-0000-0000-0000-000000000000"})
+        result, _, _ = self.staged_mac_build(
+            {"ORBIT_TEST_DSYM_UUID": "99999999-0000-0000-0000-000000000000"}
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("is not its binary's", result.stderr)
-        self.assertNotIn("ditto -c -k --keepParent target/release/orbit-desktop.dSYM", self.log.read_text())
+        self.assertNotIn(
+            "ditto -c -k --keepParent target/release/orbit-desktop.dSYM", self.log.read_text()
+        )
 
 
 if __name__ == "__main__":

@@ -30,15 +30,11 @@ def read_constant(source, name):
         )
         # The updater's regression test pins the ceiling in assert_eq! rather
         # than declaring another constant. It is a copy of the same number.
-        assertion = re.search(
-            rf"assert_eq!\(\s*{re.escape(symbol)}\s*,\s*([\d_]+)\s*,", source
-        )
+        assertion = re.search(rf"assert_eq!\(\s*{re.escape(symbol)}\s*,\s*([\d_]+)\s*,", source)
         match = declaration or assertion
         if match is None:
             raise ValueError(f"the definition of {symbol} is missing")
-        return evaluate(
-            ast.parse(match.group(1).strip(), mode="eval").body, (*resolving, symbol)
-        )
+        return evaluate(ast.parse(match.group(1).strip(), mode="eval").body, (*resolving, symbol))
 
     def evaluate(node, resolving):
         if isinstance(node, ast.Constant) and type(node.value) in (int, str):
