@@ -65,16 +65,17 @@ class FunctionSpeech:
 
 
 class FunctionProcessing:
-    def __init__(self, registry, fallback):
+    def __init__(self, registry, fallback, function="meeting_notes"):
         self.registry, self.fallback = registry, fallback
+        self.function = function
 
     @property
     def configured(self):
-        return self.fallback is not None or self.registry.selected("meeting_notes") is not None
+        return self.fallback is not None or self.registry.selected(self.function) is not None
 
     @property
     def configuration(self):
-        return self.resolve_configuration(self.registry.selected("meeting_notes"))
+        return self.resolve_configuration(self.registry.selected(self.function))
 
     def resolve_configuration(self, selected):
         base = self.fallback.configuration if self.fallback else None
@@ -96,7 +97,7 @@ class FunctionProcessing:
     async def session(self):
         # Pin once for the whole note, including all map/reduce parts. A save
         # changes the next note, never the destination halfway through one.
-        selected = self.registry.selected("meeting_notes")
+        selected = self.registry.selected(self.function)
         if selected is None:
             if self.fallback is None:
                 raise ProcessingError("processing_not_configured")

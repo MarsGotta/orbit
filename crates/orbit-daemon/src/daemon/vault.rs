@@ -1,4 +1,4 @@
-//! Read-only vault calls run off the actor loop; the hub keeps all settings.
+//! Vault calls run off the actor loop; the hub keeps all settings.
 use super::*;
 use orbit_core::vault::{VaultCall, VaultOutcome, VaultResponse};
 

@@ -72,7 +72,7 @@ it("keeps a settings refusal in place and clears the token after submitting", as
   await waitFor(() => expect((screen.getByLabelText("Token") as HTMLInputElement).value).toBe(""));
 });
 
-it("64 stores link style and links to the AI model choice while maintenance stays inert", async () => {
+it("64 stores link style and links directly to the vault AI function", async () => {
   const port = vi.fn<VaultPort>(async (call) => ({
     outcome: "config",
     configuration:
@@ -82,7 +82,7 @@ it("64 stores link style and links to the AI model choice while maintenance stay
   fireEvent.click(await screen.findByLabelText("[[Wikilinks]]"));
   expect(
     screen.getByRole("link", { name: "Elegir modelo en Ajustes › IA" }).getAttribute("href"),
-  ).toBe("#/settings/ia");
+  ).toBe("#/settings/ia?function=vault");
   fireEvent.click(screen.getByRole("button", { name: "Guardar configuración" }));
   await waitFor(() =>
     expect(port).toHaveBeenCalledWith(
@@ -95,8 +95,6 @@ it("64 stores link style and links to the AI model choice while maintenance stay
       }),
     ),
   );
-  expect(
-    screen.getAllByRole("switch").every((control) => (control as HTMLButtonElement).disabled),
-  ).toBe(true);
+  expect(screen.queryAllByRole("switch")).toHaveLength(0);
   expect(screen.queryByRole("button", { name: "Revisar ahora" })).toBeNull();
 });

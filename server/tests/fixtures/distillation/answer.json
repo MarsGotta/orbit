@@ -1,0 +1,96 @@
+{
+  "summary": "The Cedar pilot starts on November 2. Nora will send the plan.",
+  "quotes": [
+    {
+      "id": "q1",
+      "at_ms": 0,
+      "speaker": "Owen Reed",
+      "text": "The Cedar pilot starts on 2026-11-02. Nora will send the plan. Eli joins as designer."
+    }
+  ],
+  "changes": [
+    {
+      "path": "Meetings/cedar-review.md",
+      "title": "Cedar review",
+      "properties": [
+        {
+          "key": "type",
+          "after": "session",
+          "quote_ids": [
+            "q1"
+          ]
+        },
+        {
+          "key": "title",
+          "after": "Cedar review",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ],
+      "lines": [
+        {
+          "section": "Summary",
+          "before": "",
+          "after": "## Summary\nThe pilot starts on November 2.\n\n## People\n[Owen Reed](/People/owen-reed.md), [Nora Vale](/People/nora-vale.md), [Eli Brook](/People/eli-brook.md).\n\n## Decisions\nStart the pilot on November 2.\n\n## Tasks\n- [ ] [Nora Vale](/People/nora-vale.md) Send the plan 📅 2026-11-02 🆔 plan\n- [ ] Launch [Cedar pilot](/Projects/cedar-pilot.md) ⛔ plan\n",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "Projects/cedar-pilot.md",
+      "title": "Cedar pilot",
+      "properties": [
+        {
+          "key": "kickoff",
+          "after": "2026-11-02",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ],
+      "lines": [
+        {
+          "section": "Status",
+          "before": "Waiting for the plan.",
+          "after": "Nora is preparing the plan.",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "People/eli-brook.md",
+      "title": "Eli Brook",
+      "properties": [
+        {
+          "key": "type",
+          "after": "contact",
+          "quote_ids": [
+            "q1"
+          ]
+        },
+        {
+          "key": "title",
+          "after": "Eli Brook",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ],
+      "lines": [
+        {
+          "section": "Identity",
+          "before": "",
+          "after": "Designer for the Cedar pilot.\n",
+          "quote_ids": [
+            "q1"
+          ]
+        }
+      ]
+    }
+  ]
+}

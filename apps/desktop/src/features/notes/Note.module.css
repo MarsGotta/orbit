@@ -819,3 +819,11 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.meetingMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}

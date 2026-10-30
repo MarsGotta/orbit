@@ -21,7 +21,7 @@ export const vaultCopy = {
   format:
     "Formato abierto: cada nota lleva su type en las propiedades (OKF 0.2), con un índice y un registro.",
   settingsIntro: "Tu vault: dónde vive, cómo llegan a él tus reuniones y quién lo mantiene.",
-  readOnly: "Solo lectura. Las acciones que cambian tus notas llegarán más adelante.",
+  readOnly: "Los cambios de una reunión se revisan en Destilar antes de escribir en tus notas.",
   md: "Markdown",
   text: "Volver al texto",
   yaml: "Propiedades (YAML) · OKF 0.2",

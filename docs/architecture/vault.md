@@ -1,4 +1,4 @@
-# Read-only Markdown vault
+# Markdown vault
 
 The hub owns the encrypted working copy and connector configuration in its
 existing encrypted SQLite store. The desktop uses a dedicated typed vault
@@ -13,8 +13,9 @@ configuration response. Disconnect removes the configuration and working copy.
 Reads refresh the connector catalogue before using the working copy. Unchanged
 notes reuse encrypted content only with matching fresh file metadata or sync
 versions; changed notes are read again and deleted entries are pruned. An
-upstream failure is reported instead of presenting a stale copy as current. No background model
-job runs. The selected maintenance model and link style are stored for later.
+upstream failure is reported instead of presenting a stale copy as current. A reviewed meeting-distillation job uses the vault AI function when configured;
+see [distillation](distillation.md) for the write API, privacy rules and connector
+transaction limits. Other maintenance operations remain deferred.
 
 Folder reads pin directories with descriptor-relative, no-follow opens.
 Hidden files, system names, symlinks and non-Markdown files are skipped;
@@ -76,8 +77,8 @@ understood filters. No localized file syntax is recognized.
 
 Upgrade the hub before the Mac for this reading-contract change. Upgrade both
 for the role-based views and Tasks queries; older Mac versions do not understand
-the new query records or customized roles. No data migration or vault writes
-are performed. The English acceptance vault uses invented people and content.
+the new query records or customized roles. Reading performs no vault writes. Reviewed writes use the separate
+[distillation API](distillation.md). The English acceptance vault uses invented people and content.
 
 OKF lifecycle is separate from project progress: `status` accepts `draft`,
 `stable` and `deprecated`, defaulting to `stable`; `stage` describes project

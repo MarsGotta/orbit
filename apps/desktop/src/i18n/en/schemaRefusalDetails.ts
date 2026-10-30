@@ -4,6 +4,7 @@ import type { VaultDiagnostic } from "../../bridge/generated/VaultDiagnostic";
 export function schemaProblemText(diagnostic: VaultDiagnostic): string | undefined {
   const { code, field, numbers, value = "" } = diagnostic;
   const causes: Record<string, string> = {
+    schema_owner_invalid: "owner must be a non-empty id without whitespace or colons",
     schema_frontmatter_unclosed: `frontmatter closing delimiter missing`,
     schema_yaml_unsafe: `frontmatter contains YAML aliases, anchors or tags`,
     schema_yaml_invalid: `invalid YAML`,

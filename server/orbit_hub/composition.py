@@ -8,6 +8,7 @@ import asyncio
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from .ai.registry import Registry
 from .assistant.access import AgentAccess
@@ -27,6 +28,9 @@ from .runtime import Runtimes, TurnInputTracker
 from .storage import Store
 from .transcription import TranscriptionWorker
 from .transcription_preferences import Transcriber
+
+if TYPE_CHECKING:
+    from .distillation import Distillations
 
 
 @dataclass
@@ -62,6 +66,7 @@ class Hub:
     final_passes: FinalPassWorker | None = None
     transcriptions: TranscriptionWorker | None = None
     ai: Registry | None = None
+    distillations: "Distillations | None" = None
     pair_attempts: dict[str, tuple[float, int]] = field(default_factory=dict)
 
 
@@ -146,6 +151,12 @@ def _meetings(hub: Hub, processing_client) -> None:
         default_language=hub.meeting_language,
         recording_changed=changed,
     )
+    from .distillation import Distillations
+
+    hub.distillations = Distillations(
+        store, now, hub.meeting_language, processing_client.fallback, changed
+    )
+    hub.notes.distillations = hub.distillations
     hub.final_passes = FinalPassWorker(
         store, meeting_transcriber, settings.diarization, notes_signal, changed, hub.store_executor
     )

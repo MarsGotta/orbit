@@ -68,6 +68,7 @@ def load(text=""):
     schema = {
         "path": "SCHEMA.md" if text else "",
         "body": "",
+        "owner": None,
         "folders": {},
         "types": DEFAULT_TYPES.copy(),
         "fields": {name: name for name in FIELD_NAMES},
@@ -76,10 +77,20 @@ def load(text=""):
     }
     try:
         fields, schema["body"] = frontmatter(text)
+        owner = fields.get("owner")
+        if "owner" in fields and (
+            not isinstance(owner, str) or not re.fullmatch(r"[^\s:]+", owner)
+        ):
+            raise SchemaProblem(
+                "schema_owner_invalid",
+                "owner must be a non-empty id without whitespace or colons",
+                "owner",
+            )
         types = fields.get("types", DEFAULT_TYPES)
         _types(types)
         aliases = fields.get("fields", {})
         _fields(aliases)
+        schema["owner"] = owner
         schema["types"] = types
         schema["fields"].update(aliases)
         schema["folders"] = {

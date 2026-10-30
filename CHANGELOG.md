@@ -7,6 +7,25 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Added
+
+- Notes distills a meeting into the vault, as a proposal you review first. It
+  shows what has to be decided, the notes that change (each can be left out),
+  the meeting kept as a source, and each change with its properties, its text
+  by section and what was said. You can edit a change before applying it, and
+  apply, discard or undo the proposal. When a note and the meeting disagree,
+  you choose: the new value, the old one, or both, marked as under discussion.
+- Proposals to review appear in the Notes column and home and on the meeting,
+  and macOS says when a new one is ready. Orbit asks the hub only after a note
+  is ready or a proposal is asked for, and while one is being prepared.
+- The hub prepares proposals with the model of Settings › AI, with quotes from
+  the transcript, and writes only what you applied. It checks that no note
+  changed since the proposal was prepared, keeps the meeting as an unchanging
+  source, and writes to a server folder or to Fast Note Sync. See
+  [the API and connector guarantees](docs/architecture/distillation.md).
+- `SCHEMA.md` may name the vault's `owner`: reviewed changes are verified by
+  `human:<owner>`, and Orbit shows them as «Reviewed by you».
+
 ## [0.14.1] - 2026-10-30
 
 ### Fixed

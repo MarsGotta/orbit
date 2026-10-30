@@ -1,4 +1,4 @@
-"""Fast Note Sync's REST reader (master docs, token header, no mutation endpoints)."""
+"""Fast Note Sync REST connector: token authentication and bounded envelopes."""
 
 import json
 from time import monotonic
@@ -12,9 +12,10 @@ from .privacy import private_read
 
 
 class FastNoteSync:
-    def __init__(self, configuration):
+    def __init__(self, configuration, *, budget_seconds=CONNECTOR_SECONDS):
         self.config = configuration
-        self.deadline = monotonic() + CONNECTOR_SECONDS
+        self.budget_seconds = budget_seconds
+        self.deadline = monotonic() + budget_seconds
         self.client = None
         try:
             url = urlsplit(configuration.url)
@@ -46,6 +47,9 @@ class FastNoteSync:
                 self.client.close()
 
     def get(self, endpoint, **parameters):
+        return self.request("GET", endpoint, parameters=parameters)
+
+    def request(self, method, endpoint, *, parameters=None, payload=None):
         """Stream a bounded envelope. Never return upstream messages/details."""
         token = self.config.token.get_secret_value()
         if self.client is None:
@@ -54,17 +58,18 @@ class FastNoteSync:
         if remaining <= 0:
             raise refusal(
                 "vault_sync_timeout",
-                f"The Fast Note Sync read exceeded {CONNECTOR_SECONDS} seconds.",
+                f"The Fast Note Sync read exceeded {self.budget_seconds} seconds.",
                 message_code="vault_sync_timeout",
-                timeout_seconds=CONNECTOR_SECONDS,
+                timeout_seconds=self.budget_seconds,
             )
         try:
             with (
                 private_read(),
                 self.client.stream(
-                    "GET",
+                    method,
                     self.config.url.rstrip("/") + "/api/" + endpoint,
-                    params={"vault": self.config.vault, **parameters},
+                    params={"vault": self.config.vault, **(parameters or {})},
+                    json=payload,
                     headers={"token": token},
                     timeout=remaining,
                 ) as response,
@@ -87,9 +92,9 @@ class FastNoteSync:
                     if monotonic() > self.deadline:
                         raise refusal(
                             "vault_sync_timeout",
-                            f"The Fast Note Sync read exceeded {CONNECTOR_SECONDS} seconds.",
+                            f"The Fast Note Sync read exceeded {self.budget_seconds} seconds.",
                             message_code="vault_sync_timeout",
-                            timeout_seconds=CONNECTOR_SECONDS,
+                            timeout_seconds=self.budget_seconds,
                         )
                     body.extend(chunk)
                     if len(body) > MAX_UPSTREAM_BYTES:
@@ -105,9 +110,9 @@ class FastNoteSync:
         except httpx.TimeoutException:
             raise refusal(
                 "vault_sync_timeout",
-                f"Fast Note Sync did not respond within {CONNECTOR_SECONDS} seconds.",
+                f"Fast Note Sync did not respond within {self.budget_seconds} seconds.",
                 message_code="vault_sync_no_response",
-                timeout_seconds=CONNECTOR_SECONDS,
+                timeout_seconds=self.budget_seconds,
             ) from None
         except httpx.HTTPError:
             raise refusal(
@@ -228,6 +233,21 @@ class FastNoteSync:
                 message_code="vault_sync_note_shape",
             )
         return data["content"]
+
+    def snapshot(self, path):
+        from .sync_write import snapshot
+
+        return snapshot(self, path)
+
+    def write(self, path, text, previous):
+        from .sync_write import write
+
+        return write(self, path, text, previous)
+
+    def remove(self, path, previous):
+        from .sync_write import remove
+
+        remove(self, path, previous)
 
     def linked(self, path, direction):
         data = self.get("note/" + direction, path=checked(path))

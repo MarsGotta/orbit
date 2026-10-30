@@ -4,19 +4,20 @@ title: Vault maintenance method
 ---
 # Markdown vault method
 
-This is a template for a vault's agent instructions. Orbit currently reads
-notes; it does not run ingestion, maintenance or writes.
+This is a template for a vault's agent instructions. Orbit reads notes and prepares meeting distillation for human review.
+Other ingestion, query generation and scheduled review remain deferred.
 
 Read `SCHEMA.md`, root `index.md` and `log.md` before proposing a change.
 Keep source transcripts and the person's own prose unchanged. Propose a
-conflict when a new source contradicts existing material. A future hub job
-with its own configured model will prepare proposals.
+conflict when a new source contradicts existing material. The hub job
+uses the vault AI function to prepare proposals; only the reviewed proposal writes.
 
 `SCHEMA.md` frontmatter defines this vault's type names and field aliases:
 
 ```yaml
 ---
 type: schema
+owner: cedar-owner
 types:
   person: {role: person, folder: People/}
   project: {role: project, folder: Projects/}
@@ -39,6 +40,13 @@ undeclared type keeps its name and has role `note`. Without `types`, the
 six types other than `note` default to their matching roles; there are no
 implicit folder mappings. Without a type or matching folder, a note has type
 and role `note`. The body of `SCHEMA.md` is free text, never configuration.
+
+`owner` is optional. It identifies the vault owner for human verification;
+reviewed changes use `verified.by: human:<owner>` exactly. Use a non-empty id without whitespace or colons, as required by the OKF
+`human:id` actor format.
+Without it, the hub normalizes the reviewing device's owner name, falling back
+to its authenticated device id. Orbit presents the matching verification as
+“Reviewed by you”; protocol actors remain in the Markdown metadata.
 
 `fields` may rename only `stage` (the project's progress) and `start` (its
 kickoff). Omitted mappings use those names. OKF fields keep their standard

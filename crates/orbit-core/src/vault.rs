@@ -1,4 +1,4 @@
-//! Read-only vault contracts. The hub owns settings, credentials and all note I/O.
+//! Vault contracts. The hub owns settings, credentials and all note I/O.
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -14,12 +14,19 @@ macro_rules! wire {
     };
 }
 
+mod distillation;
+pub use distillation::*;
 mod index;
 pub use index::*;
 
 wire! {
     #[serde(tag = "call", rename_all = "snake_case", deny_unknown_fields)]
     pub enum VaultCall {
+        ListDistillations { meeting_id: Option<String>, page: u32 },
+        Distillation { id: String },
+        PrepareDistillation { meeting_id: String },
+        ReviewDistillation { id: String, review: DistillationReview },
+        DistillationAction { id: String, action: DistillationAction },
         Config,
         Configure { configuration: VaultConnection },
         Disconnect,
@@ -184,6 +191,9 @@ wire! {
 wire! {
     #[serde(tag = "outcome", rename_all = "snake_case")]
     pub enum VaultOutcome {
+        Distillations { page: DistillationPage },
+        Distillation { proposal: Distillation },
+        DistillationDisabled { reason: String },
         Config { configuration: VaultSettings },
         Page { page: VaultPage },
         Note { note: VaultNote },

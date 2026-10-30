@@ -2,4 +2,4 @@
 import type { VaultDiagnostic } from "./VaultDiagnostic";
 import type { VaultType } from "./VaultType";
 
-export type VaultSchema = { path: string, body: string, folders: { [key in string]?: string }, types: { [key in string]?: VaultType }, fields: { [key in string]?: string }, warnings: Array<string>, diagnostics?: Array<VaultDiagnostic>, };
+export type VaultSchema = { owner?: string, path: string, body: string, folders: { [key in string]?: string }, types: { [key in string]?: VaultType }, fields: { [key in string]?: string }, warnings: Array<string>, diagnostics?: Array<VaultDiagnostic>, };

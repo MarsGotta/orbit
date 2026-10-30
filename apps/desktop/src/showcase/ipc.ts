@@ -132,7 +132,9 @@ function handler(daemon: Daemon, scenario: Scenario, connected: () => void) {
       scenario.stall === true
         ? new Promise(() => undefined)
         : page(daemon.hub.messages[String(args.sessionId)] ?? []),
-    orbit_vault: (args) => vaultAnswer(args.call as VaultCall, scenario.id === "vault-connect"),
+    orbit_vault: (args) =>
+      scenario.vault?.(args.call as VaultCall) ??
+      vaultAnswer(args.call as VaultCall, scenario.id === "vault-connect"),
     orbit_agent: (args) => {
       const call = args.call as AgentCall;
       const answered = scenario.agent?.(call, daemon.views) ?? null;

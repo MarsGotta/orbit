@@ -128,6 +128,14 @@ async fn answer(
     let body = String::from_utf8_lossy(&bytes[header_end..]).into_owned();
     let (status, reply) = if path == "/v1/pair" {
         ("200 OK", json!({"device_id": DEVICE_ID, "token": TOKEN}))
+    } else if path.contains("/distillations") {
+        seen.lock().unwrap().push(Seen {
+            method: method.clone(),
+            path: path.clone(),
+            authorization,
+            body: body.clone(),
+        });
+        distillation_reply(&method, &path)
     } else if path.starts_with("/v1/vault/") {
         seen.lock().unwrap().push(Seen {
             method: method.clone(),
@@ -453,5 +461,105 @@ async fn ai_settings_cross_the_mac_without_echoing_provider_credentials()
         seen.iter()
             .all(|r| r.authorization.as_deref() == Some("bearer synthetic-agents-token"))
     );
+    Ok(())
+}
+
+fn distillation_reply(method: &str, path: &str) -> (&'static str, Value) {
+    let mut proposal: Value = serde_json::from_str(include_str!(
+        "../../../apps/desktop/src/features/vault/__fixtures__/distillation.json"
+    ))
+    .unwrap();
+    if path.contains("/distillations?") {
+        return ("200 OK", json!({"entries":[proposal],"next_page":null}));
+    }
+    if method == "PATCH" {
+        proposal["revision"] = json!(1);
+    }
+    if path.ends_with("/apply") {
+        proposal["status"] = json!("applied");
+    }
+    if path.ends_with("/undo") {
+        proposal["status"] = json!("undone");
+    }
+    if path.ends_with("/discard") {
+        proposal["status"] = json!("discarded");
+    }
+    ("200 OK", proposal)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn distillation_calls_reach_device_routes_with_typed_reviews() -> Result<(), Box<dyn Error>> {
+    use orbit_core::vault::{VaultCall, VaultOutcome};
+    let hub = hub().await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let id = "00000000-0000-4000-8000-000000000312";
+    let meeting = "00000000-0000-4000-8000-000000000313";
+    let calls = [
+        json!({"call":"list_distillations","meeting_id":meeting,"page":1}),
+        json!({"call":"prepare_distillation","meeting_id":meeting}),
+        json!({"call":"distillation","id":id}),
+        json!({"call":"review_distillation","id":id,"review":{"revision":0,"decisions":{"date":"both"},"changes":{"person":{"include":false}}}}),
+        json!({"call":"distillation_action","id":id,"action":"apply"}),
+        json!({"call":"distillation_action","id":id,"action":"undo"}),
+        json!({"call":"distillation_action","id":id,"action":"discard"}),
+        json!({"call":"distillation_action","id":id,"action":"prepare"}),
+    ];
+    for (i, call) in calls.into_iter().enumerate() {
+        let call: VaultCall = serde_json::from_value(call)?;
+        let answer = tokio::time::timeout(CALL_BUDGET, app.vault(call)).await??;
+        if i == 0 {
+            assert!(
+                matches!(answer, VaultOutcome::Distillations { page } if page.entries.len() == 1)
+            );
+        } else {
+            assert!(
+                matches!(answer, VaultOutcome::Distillation { .. }),
+                "{answer:?}"
+            );
+        }
+    }
+    let seen = hub.seen.lock().unwrap();
+    assert_eq!(seen.len(), 8);
+    assert_eq!(seen[0].method, "GET");
+    assert_eq!(
+        seen[0].path,
+        format!("/v1/vault/distillations?page=1&meeting_id={meeting}")
+    );
+    assert_eq!(
+        seen[1].path,
+        format!("/v1/recordings/{meeting}/distillations")
+    );
+    assert_eq!(seen[3].method, "PATCH");
+    assert_eq!(
+        serde_json::from_str::<Value>(&seen[3].body)?["decisions"]["date"],
+        "both"
+    );
+    assert!(
+        seen.iter()
+            .all(|r| r.authorization.as_deref() == Some("bearer synthetic-agents-token"))
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn malformed_proposal_identifiers_are_request_errors_without_http_effects()
+-> Result<(), Box<dyn Error>> {
+    use orbit_core::vault::{VaultCall, VaultOutcome};
+    let hub = hub().await?;
+    let (_directory, _daemon, app) = paired_client(&hub).await?;
+    let answer = tokio::time::timeout(
+        CALL_BUDGET,
+        app.vault(VaultCall::Distillation {
+            id: "invalid/../id".into(),
+        }),
+    )
+    .await??;
+    assert!(matches!(
+        answer,
+        VaultOutcome::Failed {
+            refusal: Refusal::InvalidParameter { .. }
+        }
+    ));
+    assert!(hub.seen.lock().unwrap().is_empty());
     Ok(())
 }

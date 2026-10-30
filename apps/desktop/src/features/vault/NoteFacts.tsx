@@ -1,16 +1,10 @@
+import { actor, useVaultOwner } from "./provenance";
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultNote } from "../../bridge/generated/VaultNote";
 
 import { displayDate } from "./TaskRows";
 import styles from "./VaultReading.module.css";
-
-function actor(value: unknown): string {
-  if (typeof value !== "object" || value === null || Array.isArray(value))
-    return getCopy().vaultReading.noData;
-  const event = value as { by?: unknown; at?: unknown };
-  return `${typeof event.by === "string" ? event.by : getCopy().vaultReading.noData}${typeof event.at === "string" ? ` · ${displayDate(event.at)}` : ""}`;
-}
 
 function statusLabel(value: unknown) {
   const labels: Record<string, string> = {
@@ -24,6 +18,7 @@ function statusLabel(value: unknown) {
 export function NoteFacts({ note }: { note: VaultNote }) {
   const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
+  const owner = useVaultOwner();
   const fields = note.frontmatter;
   const verified = Array.isArray(fields.verified)
     ? fields.verified
@@ -44,11 +39,15 @@ export function NoteFacts({ note }: { note: VaultNote }) {
         </div>
         <div>
           <dt>{inlineCopy.writtenBy}</dt>
-          <dd>{actor(fields.generated)}</dd>
+          <dd>{actor(fields.generated, owner)}</dd>
         </div>
         <div>
           <dt>{inlineCopy.review}</dt>
-          <dd>{verified.length === 0 ? inlineCopy.unreviewed : verified.map(actor).join("; ")}</dd>
+          <dd>
+            {verified.length === 0
+              ? inlineCopy.unreviewed
+              : verified.map((value) => actor(value, owner, true)).join("; ")}
+          </dd>
         </div>
         <div>
           <dt>{inlineCopy.expires}</dt>

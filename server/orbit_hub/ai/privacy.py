@@ -22,7 +22,6 @@ def sentence(code, *, material=None, destination=None):
         "network": f"The {material} is sent to {destination}, outside your hub, over your network or the Internet.",
         "hub": f"The {material} stays on your hub.",
         "operator": "The operator configuration is used; the service may send data outside the hub.",
-        "vault_legacy": "Notes model saved by the operator; the hub job does not run yet.",
         "unconfigured": "No operator model is configured for this function.",
         "hermes": f"The {material} is sent to Hermes at {destination}; its configuration determines whether data goes to another provider.",
     }[code]

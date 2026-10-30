@@ -1,3 +1,5 @@
+import type { VaultCall } from "../bridge/generated/VaultCall";
+import type { VaultOutcome } from "../bridge/generated/VaultOutcome";
 import type { FeatureFrame, FeatureId } from "../bridge/generated";
 import type { AgentCall } from "../bridge/generated/AgentCall";
 import type { AgentConfig } from "../bridge/generated/AgentConfig";
@@ -72,6 +74,7 @@ export interface Scenario {
   /** What the daemon publishes once the window watches: notices, a new turn. */
   later?: (views: Views) => Partial<Views>;
   hub?: (base: HubData) => HubData;
+  vault?: (call: VaultCall) => VaultOutcome | Promise<VaultOutcome>;
   /** The daemon never answers the first snapshot, or refuses it: the app before its first frames. */
   connect?: "hang" | "fail";
   /** The hub never answers the reads of the conversations: the window as it waits for them. */

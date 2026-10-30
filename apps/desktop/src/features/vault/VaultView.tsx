@@ -1,3 +1,7 @@
+import { VaultPageBar } from "./VaultPageBar";
+import { VaultOwner, normalizeOwner } from "./provenance";
+import { DistillationView } from "./DistillationView";
+import { useDistillations } from "./use-distillations";
 import { VaultWarnings } from "./VaultWarnings";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
@@ -24,12 +28,14 @@ function RouteContent({
   configuration,
   port,
   owner,
+  proposals,
 }: {
   route: VaultRoute;
   catalog: VaultCatalog;
   configuration: VaultSettings;
   port?: VaultPort;
   owner?: string;
+  proposals: ReturnType<typeof useDistillations>;
 }) {
   return (
     <>
@@ -41,7 +47,12 @@ function RouteContent({
         />
       )}
       {route.section === "home" && (
-        <VaultHome catalog={catalog} configuration={configuration} port={port} />
+        <VaultHome
+          catalog={catalog}
+          configuration={configuration}
+          port={port}
+          proposals={proposals}
+        />
       )}
       {route.section === "note" && (
         <VaultNotePane catalog={catalog} key={route.path} port={port} route={route} />
@@ -91,53 +102,54 @@ function Reading({
   owner?: string;
 }) {
   const inlineCopy = useCopy().vaultReading;
-  const copy = useCopy().extras.vaultCopy;
   const route = useVaultRoute();
+  const proposals = useDistillations(port);
   const [number, setNumber] = useState(1);
   const { answer, error, retry } = useVaultRead(port, readFilter("catalog", "", number));
   const catalog = answer?.outcome === "catalog" ? answer.catalog : null;
   return (
-    <div className={styles.view}>
-      <VaultColumn catalog={catalog} configuration={configuration} route={route} />
-      <div className={styles.reading}>
-        {route.section !== "note" && (
-          <TopBarLeading>
-            <span>
-              {route.section === "tasks"
-                ? copy.tasks
-                : route.section === "map"
-                  ? copy.map
-                  : copy.home}
-            </span>
-          </TopBarLeading>
-        )}
-        {error !== null && (
-          <p className={styles.content} role="alert">
-            {error}{" "}
-            <Button onClick={retry} size={28}>
-              {inlineCopy.retry}
-            </Button>
-          </p>
-        )}
-        {catalog === null && error === null && (
-          <p className={styles.content} role="status">
-            {inlineCopy.readingIndex}
-          </p>
-        )}
-        {catalog !== null && (
-          <>
-            <RouteContent
-              route={route}
-              catalog={catalog}
-              configuration={configuration}
-              port={port}
-              owner={owner}
-            />
-            <IndexPages catalog={catalog} number={number} setNumber={setNumber} />
-          </>
-        )}
+    <VaultOwner value={catalog?.schema.owner ?? normalizeOwner(owner)}>
+      <div className={styles.view}>
+        <VaultColumn
+          catalog={catalog}
+          configuration={configuration}
+          route={route}
+          proposals={proposals}
+        />
+        <div className={styles.reading}>
+          {route.section === "distill" && (
+            <DistillationView key={route.path} id={route.path} port={port} />
+          )}
+          <VaultPageBar route={route} />
+          {error !== null && (
+            <p className={styles.content} role="alert">
+              {error}{" "}
+              <Button onClick={retry} size={28}>
+                {inlineCopy.retry}
+              </Button>
+            </p>
+          )}
+          {catalog === null && error === null && (
+            <p className={styles.content} role="status">
+              {inlineCopy.readingIndex}
+            </p>
+          )}
+          {catalog !== null && route.section !== "distill" && (
+            <>
+              <RouteContent
+                route={route}
+                catalog={catalog}
+                configuration={configuration}
+                port={port}
+                owner={owner}
+                proposals={proposals}
+              />
+              <IndexPages catalog={catalog} number={number} setNumber={setNumber} />
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </VaultOwner>
   );
 }
 
@@ -178,7 +190,6 @@ export default function VaultView({ port, owner }: { port?: VaultPort; owner?: s
               port={port}
             />
             <p className={styles.muted}>{copy.format}</p>
-            <p>{copy.readOnly}</p>
           </>
         )}
       </div>

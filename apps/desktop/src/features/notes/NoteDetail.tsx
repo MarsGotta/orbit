@@ -1,3 +1,4 @@
+import type { VaultPort } from "../vault/api";
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useUiStore } from "../../state/ui";
@@ -44,6 +45,7 @@ function tabsOf(note: OpenNoteSnapshot): { id: NoteTab; label: string }[] {
 }
 
 interface NoteParts {
+  vault?: VaultPort;
   error: string | null;
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
@@ -122,6 +124,7 @@ export function NoteDetail(
       <article className={styles.read}>
         <ViewError error={error} />
         <NoteHeader
+          vault={props.vault}
           library={library}
           note={note}
           onAsk={ask}

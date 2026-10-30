@@ -1,3 +1,4 @@
+import type { VaultPort } from "../vault/api";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
 import type { AppCommand } from "../../bridge/generated";
@@ -19,6 +20,7 @@ import styles from "./Note.module.css";
 type Send = (command: AppCommand) => Promise<unknown>;
 
 interface NotesViewProps {
+  vault?: VaultPort;
   error: string | null;
   onRecord: () => void;
   send: Send;
@@ -130,6 +132,7 @@ function opened({
   readMatches,
   send,
   snapshot,
+  vault,
 }: {
   error: string | null;
   notes: NotesSnapshot;
@@ -137,6 +140,7 @@ function opened({
   readMatches: boolean;
   send: Send;
   snapshot: AppView;
+  vault?: VaultPort;
 }) {
   const read = notes.open_read;
   if (routeId !== "") {
@@ -150,6 +154,7 @@ function opened({
   if (routeId === "" && note.pending_changes?.includes("delete") === true) return null;
   return (
     <NoteDetail
+      vault={vault}
       error={error}
       library={notes.library}
       note={note}
@@ -162,7 +167,7 @@ function opened({
 
 /** Meetings: the list in the window's list column (`MeetingsColumn`), and
  * here the open meeting, or why there is none. */
-export default function NotesView({ error, onRecord, send, snapshot }: NotesViewProps) {
+export default function NotesView({ error, onRecord, send, snapshot, vault }: NotesViewProps) {
   const es = useCopy();
   useNotesMidnightRefresh(send);
   const notes = snapshot.notes ?? { list: [], open: null };
@@ -170,7 +175,7 @@ export default function NotesView({ error, onRecord, send, snapshot }: NotesView
   useNoteArrows(notes.list, routeId || (notes.open?.recording_id ?? ""), (note) =>
     openMeeting(note.recording_id, send),
   );
-  const note = opened({ error, notes, routeId, readMatches, send, snapshot });
+  const note = opened({ error, notes, routeId, readMatches, send, snapshot, vault });
   return (
     <section aria-label={es.notes.section} className={styles.view}>
       <MeetingsColumn send={send} snapshot={snapshot} />

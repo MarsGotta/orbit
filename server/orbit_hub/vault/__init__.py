@@ -1,4 +1,4 @@
-"""The owner's Markdown vault, read-only through hub-owned connectors."""
+"""The owner's Markdown vault, through hub-owned connectors."""
 
 from .method import METHOD_SCHEMA, validate_note
 from .routes import mount

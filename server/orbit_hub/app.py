@@ -82,7 +82,13 @@ def mount_routes(app: FastAPI, hub: composition.Hub) -> None:
     _mount_devices(app, hub, identity)
     from .vault import mount as mount_vault
 
-    mount_vault(app, store, identity, bounded_body, hub.meetings_bridge, transport)
+    mount_vault(
+        app, store, identity, bounded_body, hub.meetings_bridge, transport, hub.distillations.model
+    )
+    from .distillation import mount as mount_distillations
+
+    app.state.distillations = hub.distillations
+    mount_distillations(app, hub.distillations, identity, bounded_body)
 
 
 def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> None:

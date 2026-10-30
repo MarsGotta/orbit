@@ -18,6 +18,8 @@ export function vaultAnswer(call: VaultCall, empty: boolean): VaultOutcome {
     maintenance_model: "",
     maintenance_enabled: false,
   };
+  if (call.call === "list_distillations")
+    return { outcome: "distillations", page: { entries: [], next_page: null } };
   if (call.call !== "read") return { outcome: "config", configuration };
   if (call.request.operation === "catalog")
     return { outcome: "catalog", catalog: fixture.catalog as VaultCatalog };

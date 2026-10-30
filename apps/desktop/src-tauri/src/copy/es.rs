@@ -1,6 +1,8 @@
 use super::Copy;
 
 pub(super) const COPY: Copy = Copy {
+    distillation_title: "Destilado listo",
+    distillation_body: "Hay una propuesta nueva para revisar en Notas.",
     update_recording_unobserved: "Aún no se conoce el estado de la grabación; espera antes de actualizar.",
     update_call_unobserved: "Aún no se conoce el estado de la llamada; espera antes de actualizar.",
     audio_transcription: "ASR en curso: {completed} grupos transcritos, {pending} pendientes, {failed} fallidos, en cola: {queued}.",

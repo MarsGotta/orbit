@@ -12,6 +12,11 @@ export function useVaultRead(port: VaultPort | undefined, filter: VaultRead | nu
   const [attempt, retry] = useState(0);
   const key = JSON.stringify(filter);
   useEffect(() => {
+    const changed = () => retry((value) => value + 1);
+    window.addEventListener("orbit-vault-content-changed", changed);
+    return () => window.removeEventListener("orbit-vault-content-changed", changed);
+  }, []);
+  useEffect(() => {
     let alive = true;
     setAnswer(null);
     setError(null);

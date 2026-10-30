@@ -72,7 +72,7 @@ it.each([
   expectEnglish(view.container);
 });
 
-it("renders vault connection, format and future settings in English", async () => {
+it("renders vault connection, format and the vault model link in English", async () => {
   const port = fixturePort();
   const view = render(
     <CopyProvider choice="en">
@@ -85,7 +85,10 @@ it("renders vault connection, format and future settings in English", async () =
   );
   fireEvent.change(screen.getByLabelText("Connector"), { target: { value: "fast_note_sync" } });
   expect(screen.getByLabelText("Fast Note Sync URL")).toBeTruthy();
-  expect(screen.getByRole("switch", { name: "Apply automatically and notify me" })).toBeTruthy();
+  expect(screen.queryByRole("switch", { name: "Apply automatically and notify me" })).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "Choose model in Settings › AI" }).getAttribute("href"),
+  ).toBe("#/settings/ia?function=vault");
   expectEnglish(view.container);
 });
 

@@ -17,8 +17,8 @@ from .service import Vault
 BRIDGE_PATH = "/internal/v1/vault/read"
 
 
-def mount(app, store, identity, bounded_body, meetings_bridge, transport_allowed):
-    vault = Vault(store)
+def mount(app, store, identity, bounded_body, meetings_bridge, transport_allowed, maintenance=None):
+    vault = Vault(store, maintenance)
 
     @app.get("/v1/vault/config")
     async def configuration(request: Request):

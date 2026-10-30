@@ -2346,5 +2346,47 @@
     "source": "registry",
     "unit": "characters",
     "value": 4096
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/distillation/models.py",
+        "name": "MAX_CHANGES",
+        "unit": "notes"
+      }
+    ],
+    "name": "DISTILLATION_MAX_CHANGES",
+    "resource": "touched notes per proposal, review and write recovery work",
+    "source": "python",
+    "unit": "notes",
+    "value": 24
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/distillation/models.py",
+        "name": "MAX_PROPOSAL_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "DISTILLATION_MAX_PROPOSAL_BYTES",
+    "resource": "encrypted proposal, before images and bounded review request envelope",
+    "source": "python",
+    "unit": "bytes",
+    "value": 8388608
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/distillation/models.py",
+        "name": "CONNECTOR_JOB_SECONDS",
+        "unit": "seconds"
+      }
+    ],
+    "name": "DISTILLATION_CONNECTOR_JOB_SECONDS",
+    "resource": "background proposal capture and commit connector I/O, independently of app reads",
+    "source": "python",
+    "unit": "seconds",
+    "value": 120
   }
 ]

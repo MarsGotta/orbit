@@ -1,3 +1,5 @@
+import { logAction, logDetail } from "./log-presentation";
+import { actorName, useVaultOwner } from "./provenance";
 import { useCopy } from "../../i18n/CopyProvider";
 import { NoteFacts } from "./NoteFacts";
 import { useState } from "react";
@@ -12,9 +14,9 @@ import { taskTitle } from "./TaskRows";
 import { useVaultRead } from "./use-vault-read";
 import styles from "./VaultReading.module.css";
 
-function Sources({ note }: { note: VaultNote }) {
-  const inlineCopy = useCopy().vaultReading;
+function Sources({ note, catalog }: { note: VaultNote; catalog: VaultCatalog }) {
   const copy = useCopy().extras.vaultCopy;
+  const provenance = useCopy().distillation;
   return (
     <section>
       <h3>
@@ -24,22 +26,30 @@ function Sources({ note }: { note: VaultNote }) {
       <ol className={styles.sources}>
         {note.citations.map((source) => {
           const internal = internalTarget(note.path, source.resource);
+          const title =
+            source.title !== "" && source.title !== source.resource && !source.title.endsWith(".md")
+              ? source.title
+              : (catalog.notes.find((n) => n.path === internal)?.title ??
+                provenance.sourceFallback);
           return (
             <li id={`vault-source-${source.id}`} key={source.id}>
               <span className={styles.citation}>{source.number}</span>
               <div>
                 {internal !== null ? (
-                  <a href={noteRoute(internal)}>{source.title}</a>
+                  <a href={noteRoute(internal)}>{title}</a>
+                ) : source.resource.startsWith("orbit://meeting/") ? (
+                  <a
+                    href={`#/notes/${encodeURIComponent(source.resource.slice("orbit://meeting/".length))}`}
+                  >
+                    {title}
+                  </a>
                 ) : /^https?:\/\//.test(source.resource) ? (
                   <a href={source.resource} rel="noopener noreferrer" target="_blank">
-                    {source.title}
+                    {title}
                   </a>
                 ) : (
-                  <span>{source.title}</span>
+                  <span>{title}</span>
                 )}
-                <small>
-                  {source.resource === "" ? inlineCopy.undeclaredSource : source.resource}
-                </small>
               </div>
             </li>
           );
@@ -123,7 +133,7 @@ export function AboutNote({
   return (
     <aside aria-label={copy.about} className={styles.about}>
       <NoteFacts note={note} />
-      <Sources note={note} />
+      <Sources note={note} catalog={catalog} />
       <Backlinks catalog={catalog} note={note} port={port} />
       <History note={note} port={port} />
     </aside>
@@ -133,6 +143,7 @@ export function AboutNote({
 function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
   const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
+  const owner = useVaultOwner();
   const [number, setNumber] = useState(1);
   const { answer, error } = useVaultRead(
     port,
@@ -147,7 +158,9 @@ function History({ note, port }: { note: VaultNote; port?: VaultPort }) {
       {data?.history.length === 0 && <p>{copy.noHistory}</p>}
       {data?.history.map((entry, i) => (
         <p key={i}>
-          {entry.text !== "" ? entry.text : `${entry.by} · ${entry.action} · ${entry.detail}`}
+          {entry.text !== ""
+            ? entry.text
+            : `${actorName(entry.by, owner)} · ${logAction(entry.action)} · ${logDetail(entry.detail)}`}
           <small>
             {entry.date}
             {entry.time !== "" ? ` · ${entry.time}` : ""}

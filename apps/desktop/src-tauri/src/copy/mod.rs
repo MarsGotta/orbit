@@ -7,6 +7,8 @@ pub mod presentation;
 #[derive(Debug)]
 #[cfg_attr(test, derive(serde::Serialize))]
 pub struct Copy {
+    pub distillation_title: &'static str,
+    pub distillation_body: &'static str,
     pub update_recording_unobserved: &'static str,
     pub update_call_unobserved: &'static str,
     pub audio_transcription: &'static str,

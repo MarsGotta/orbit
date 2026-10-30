@@ -1,3 +1,5 @@
+import type { DistillationList } from "./use-distillations";
+import { PendingLinks } from "./PendingDistillations";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 import type { VaultSettings } from "../../bridge/generated/VaultSettings";
@@ -69,10 +71,12 @@ function Contents({
   catalog,
   configuration,
   route,
+  proposals,
 }: {
   catalog: VaultCatalog | null;
   configuration: VaultSettings;
   route: VaultRoute;
+  proposals?: DistillationList;
 }) {
   const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
@@ -83,29 +87,8 @@ function Contents({
   return (
     <>
       <VaultIdentity name={name} catalog={catalog} />
-      <nav aria-label={inlineCopy.sections}>
-        {(
-          [
-            ["home", copy.home, "#/vault"],
-            ["tasks", inlineCopy.tasks, "#/vault/tasks"],
-            ["map", inlineCopy.map, "#/vault/map"],
-          ] as const
-        ).map(([id, label, href]) => (
-          <a
-            aria-current={route.section === id ? "page" : undefined}
-            className={styles.row}
-            href={href}
-            key={id}
-          >
-            {label}
-            {id === "tasks" && catalog !== null && (
-              <span aria-label={inlineCopy.taskCount(catalog.open_tasks)} className={styles.count}>
-                {catalog.open_tasks}
-              </span>
-            )}
-          </a>
-        ))}
-      </nav>
+      <SectionLinks catalog={catalog} route={route} />
+      {proposals !== undefined && <PendingLinks {...proposals} />}
       <p className={styles.caption}>{copy.folders}</p>
       <Folders catalog={catalog} route={route} />
       <footer className={styles.footer}>
@@ -127,6 +110,7 @@ function Contents({
 }
 
 export function VaultColumn(props: {
+  proposals?: DistillationList;
   catalog: VaultCatalog | null;
   configuration: VaultSettings;
   route: VaultRoute;
@@ -149,5 +133,35 @@ export function VaultColumn(props: {
     <ListColumn label={copy.aside} title={copy.title}>
       {contents}
     </ListColumn>
+  );
+}
+
+function SectionLinks({ catalog, route }: { catalog: VaultCatalog | null; route: VaultRoute }) {
+  const inlineCopy = useCopy().vaultReading;
+  const copy = useCopy().extras.vaultCopy;
+  return (
+    <nav aria-label={inlineCopy.sections}>
+      {(
+        [
+          ["home", copy.home, "#/vault"],
+          ["tasks", inlineCopy.tasks, "#/vault/tasks"],
+          ["map", inlineCopy.map, "#/vault/map"],
+        ] as const
+      ).map(([id, label, href]) => (
+        <a
+          aria-current={route.section === id ? "page" : undefined}
+          className={styles.row}
+          href={href}
+          key={id}
+        >
+          {label}
+          {id === "tasks" && catalog !== null && (
+            <span aria-label={inlineCopy.taskCount(catalog.open_tasks)} className={styles.count}>
+              {catalog.open_tasks}
+            </span>
+          )}
+        </a>
+      ))}
+    </nav>
   );
 }

@@ -65,3 +65,10 @@ it("the vault route opens Notas independently of meeting notes", () => {
     window.location.hash = "";
   }
 });
+
+it("Notes model links preserve the AI settings route with a function query", () => {
+  expect(ui.parseRoute("#/settings/ia?function=vault")).toEqual({
+    view: "settings",
+    section: "ia",
+  });
+});

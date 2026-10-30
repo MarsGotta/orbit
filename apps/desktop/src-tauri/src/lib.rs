@@ -3,6 +3,7 @@ mod commands;
 mod copy;
 pub mod daemon_thread;
 mod desktop_system;
+mod distillation_notices;
 mod events;
 mod interface_flush;
 mod language;
@@ -154,6 +155,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     language::follow(app.handle(), client.composed_snapshot().settings.language)?;
     #[cfg(feature = "pruebas")]
     test_bridge::install(app.handle(), &paths.root)?;
+    distillation_notices::watch(app.handle().clone(), client.clone());
     events::forward_frames(app.handle().clone(), client.clone());
     panel_hover::watch(app.handle().clone(), client.clone());
     tauri::async_runtime::spawn(follow_updates(paths, executable, client, updater));
