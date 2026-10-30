@@ -42,6 +42,9 @@ fn emit_feature_frames<R: tauri::Runtime>(
         if let FeatureFrame::Status { view, .. } = &frame {
             crate::notify::follow_system_notices(app, &view.notices);
         }
+        if let FeatureFrame::Notes { view, .. } = &frame {
+            crate::distillation_notices::follow_notes(app, view.as_ref());
+        }
         let event = format!("{FEATURE_EVENT_PREFIX}{}", frame.feature().as_str());
         // The recording frame also says whether the floating panel
         // has something to say; it is shown or hidden after the frame went out.

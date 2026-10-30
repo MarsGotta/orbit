@@ -1,3 +1,4 @@
+import { distillationScenarios } from "./scenarios/distillation";
 import { aiScenarios } from "./scenarios/ai";
 import { vaultScenarios } from "./scenarios/vault";
 import { assistantsScenarios } from "./scenarios/assistants";
@@ -34,6 +35,7 @@ export const scenarios: Scenario[] = [
   ...calendarScenarios,
   ...notesScenarios,
   ...vaultScenarios,
+  ...distillationScenarios,
   ...noteMenuScenarios,
   ...editorScenarios,
   ...noteWordScenarios,

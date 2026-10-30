@@ -121,8 +121,10 @@ meeting patches use its meeting role/folder and the model sees existing naming
 patterns. Log actions are `create`, `update`, and `delete` on undo, with an
 English `Undo meeting distillation` detail. Logs retain older free prose.
 
-The reviewing Mac's encrypted device profile `owner_name` is the only owner
-name the hub knows. Normalize it using the vault filename normalization
+The optional `owner` id in `SCHEMA.md` takes precedence for `verified.by`,
+using `human:<owner>` exactly. It is validated alongside `types` and `fields`;
+invalid owner metadata prevents preparation. Without `owner`, use the reviewing
+Mac's encrypted device profile `owner_name`. Normalize it using the vault filename normalization
 (lowercase, transliterated, hyphen separated) for `human:<owner>`. Thus the
 invented owner “Owen Reed” becomes `human:owen-reed`, without a hard-coded
 identity. If the reviewing
@@ -179,8 +181,13 @@ background connector budget, and the bounded model I/O budget. Ordinary app read
 retain their seven-second budget. These protect memory, review work and
 recovery; they do not limit vault storage or silently truncate a transcript.
 The existing 4 MiB public vault response bound also applies to proposal replies.
-Upgrade the hub first. The app's proposal UI, query/lint jobs, auto-apply policies,
-private-note inclusion and document ingestion are outside this hub change.
+Upgrade the hub first. The app forwards typed proposal calls through the existing
+vault bridge. React polls active reviews and lists; a native observer posts a
+localized notice when a queued or new proposal becomes ready, even with the
+window closed. The observer wakes at startup, on the existing ready-note signal
+and after explicit preparation; only queued/preparing proposals retain a timer.
+Query/lint jobs, auto-apply policies, private-note inclusion and
+document ingestion remain deferred.
 
 ## Acceptance evidence
 

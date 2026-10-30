@@ -1,3 +1,5 @@
+import { MeetingDistillation } from "./MeetingDistillation";
+import type { VaultPort } from "../vault/api";
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
@@ -86,6 +88,7 @@ function dataLine(note: OpenNoteSnapshot, row?: NoteListItem): string {
 
 /** Title, short summary, the meeting's data and what can be done with it. */
 export function NoteHeader({
+  vault,
   library,
   note,
   onAsk,
@@ -93,6 +96,7 @@ export function NoteHeader({
   row,
   send,
 }: {
+  vault?: VaultPort;
   library?: NoteLibrarySnapshot | null;
   note: OpenNoteSnapshot;
   onAsk: () => void;
@@ -110,7 +114,12 @@ export function NoteHeader({
     <header className={styles.head}>
       <NoteTitle key={note.recording_id} note={note} send={send} />
       {note.summary && <p className={styles.shortSummary}>{note.summary.short_summary}</p>}
-      <p className={styles.dataLine}>{dataLine(note, row)}</p>
+      <div className={styles.meetingMeta}>
+        <p className={styles.dataLine}>{dataLine(note, row)}</p>
+        {note.summary !== null && (
+          <MeetingDistillation key={note.recording_id} port={vault} meetingId={note.recording_id} />
+        )}
+      </div>
       {note.capture === "open" && note.recorded_on && (
         <p className={styles.dataLine}>{es.notes.pendingAudioOn(note.recorded_on.name)}</p>
       )}

@@ -1,3 +1,5 @@
+import { logAction, logDetail } from "./log-presentation";
+import { actorName, useVaultOwner } from "./provenance";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
 
@@ -35,6 +37,7 @@ export function ProjectCards({ catalog }: { catalog: VaultCatalog }) {
   );
 }
 export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
+  const owner = useVaultOwner();
   const inlineCopy = useCopy().vaultReading;
   const copy = useCopy().extras.vaultCopy;
   return (
@@ -44,14 +47,14 @@ export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
         {catalog.recent.map((event, i) => (
           <li key={i}>
             <span aria-hidden="true" className={styles.avatar}>
-              {event.by.charAt(0).toUpperCase()}
+              {actorName(event.by, owner).charAt(0).toUpperCase()}
             </span>
             <div>
               {event.text !== "" ? (
                 event.text
               ) : (
                 <>
-                  {event.by} · {event.action} ·{" "}
+                  {actorName(event.by, owner)} · {logAction(event.action)} ·{" "}
                   {event.path === "" ? (
                     event.title
                   ) : (
@@ -62,7 +65,7 @@ export function RecentActivity({ catalog }: { catalog: VaultCatalog }) {
               <small>
                 {event.date}
                 {event.time !== "" ? ` · ${event.time}` : ""}
-                {event.detail === "" ? "" : ` · ${event.detail}`}
+                {event.detail === "" ? "" : ` · ${logDetail(event.detail)}`}
               </small>
             </div>
           </li>

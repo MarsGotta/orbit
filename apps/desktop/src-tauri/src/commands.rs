@@ -47,9 +47,15 @@ pub async fn orbit_agent(
 #[tauri::command]
 pub async fn orbit_vault(
     call: orbit_core::vault::VaultCall,
+    app: AppHandle,
     client: State<'_, DaemonClient>,
 ) -> Result<orbit_core::vault::VaultOutcome, AppError> {
-    client.vault(call).await
+    let preparation = crate::distillation_notices::prepares(&call).then(|| call.clone());
+    let answer = client.vault(call).await;
+    if let Some(call) = preparation {
+        crate::distillation_notices::preparation_requested(&app, &call);
+    }
+    answer
 }
 
 pub use orbit_app_core::PanelOrder;

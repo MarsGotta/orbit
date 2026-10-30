@@ -1,3 +1,4 @@
+import { distillationCopy } from "./distillation";
 import { aiPrivacy } from "./aiPrivacy";
 import { agentActivity } from "./agentActivity";
 import { interfaceCopy } from "./interface";
@@ -48,6 +49,7 @@ export { globalShortcuts };
 export function english(assistantName = "Deimos") {
   return defineCatalogue({
     ...interfaceCopy,
+    ...distillationCopy(assistantName),
     agentActivity,
     aiPrivacy,
     extras: {

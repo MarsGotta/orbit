@@ -19,7 +19,7 @@ export const vaultCopy = {
   emptyAside: "No vault yet. Connect Fast Note Sync or a hub folder on the right.",
   format: "Open format: each note has a type in its properties (OKF 0.2), with an index and a log.",
   settingsIntro: "Your vault: where it lives, how meetings reach it and who maintains it.",
-  readOnly: "Read-only. Actions that change your notes are coming later.",
+  readOnly: "Meeting changes are reviewed in Distill before writing to your notes.",
   md: "Markdown",
   text: "Back to text",
   yaml: "Properties (YAML) · OKF 0.2",

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { lookupCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import type { AiFunction } from "../../bridge/generated/AiFunction";
@@ -15,6 +16,7 @@ interface FunctionRowProps {
 }
 
 function FunctionRow({ fn, providers, view }: FunctionRowProps) {
+  const target = useFunctionTarget(fn.id);
   const { aiPrivacy } = useCopy();
   const inlineCopy = useCopy().settingsInline;
   const copy = useCopy().extras.aiCopy;
@@ -36,6 +38,7 @@ function FunctionRow({ fn, providers, view }: FunctionRowProps) {
     >
       <div className={`${styles.select} ${styles.aiSelect}`}>
         <select
+          ref={target}
           aria-label={lookupCopy(copy.functions, fn.id) ?? fn.id}
           disabled={view.busy}
           value={fn.provider_id === "operator" ? operator : selected}
@@ -81,4 +84,21 @@ export function AIFunctions({ view }: { view: View }) {
       </List>
     </Group>
   );
+}
+
+function useFunctionTarget(id: string) {
+  const target = useRef<HTMLSelectElement>(null);
+  useEffect(() => {
+    const focus = () => {
+      const query = window.location.hash.split("?")[1] ?? "";
+      if (new URLSearchParams(query).get("function") === id) {
+        target.current?.focus();
+        target.current?.scrollIntoView?.({ block: "center" });
+      }
+    };
+    focus();
+    window.addEventListener("hashchange", focus);
+    return () => window.removeEventListener("hashchange", focus);
+  }, [id]);
+  return target;
 }

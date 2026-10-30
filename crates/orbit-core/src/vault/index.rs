@@ -70,6 +70,9 @@ wire! {
 }
 wire! {
     pub struct VaultSchema {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "ts", ts(optional))]
+        pub owner: Option<String>,
         pub path: String, pub body: String, pub folders: BTreeMap<String, String>,
         pub types: BTreeMap<String, VaultType>, pub fields: BTreeMap<String, String>,
         pub warnings: Vec<String>,

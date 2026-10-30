@@ -64,7 +64,7 @@ interface Route {
  * an unknown section of Settings is General.
  */
 export function parseRoute(hash: string): Route {
-  const [first = "", second = ""] = hash.replace(/^#\/?/, "").split("/");
+  const [first = "", second = ""] = hash.split("?")[0]!.replace(/^#\/?/, "").split("/");
   const view = VIEWS.includes(first as ViewId) ? (first as ViewId) : "briefing";
   const named = RENAMED_SECTIONS[second] ?? second;
   const section =

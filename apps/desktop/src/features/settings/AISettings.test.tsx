@@ -1,10 +1,13 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AISettings } from "./AISettings";
 import { AIStep } from "../onboarding/OnboardingAIStep";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.location.hash = "";
+});
 const settings = {
   providers: [
     {
@@ -107,4 +110,18 @@ it("shows the hub's off-hub privacy line in the function row", async () => {
   })) as AgentPort;
   render(<AISettings agent={agent} />);
   expect(await screen.findByText(privacy)).toBeTruthy();
+});
+
+it("the Notes settings deep link focuses the vault model function", async () => {
+  window.location.hash = "#/settings/ia?function=vault";
+  const agent = vi.fn<AgentPort>(async (call) => ({
+    call,
+    outcome: {
+      outcome: "ai_settings",
+      settings: { ...settings, functions: [{ ...settings.functions[0]!, id: "vault" }] },
+    },
+  }));
+  render(<AISettings agent={agent} />);
+  const model = await screen.findByRole("combobox", { name: "Destilado y revisión de Notas" });
+  await waitFor(() => expect(document.activeElement).toBe(model));
 });

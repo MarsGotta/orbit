@@ -70,10 +70,7 @@ export function FormatSettings({
             }
             title={inlineCopy.workingCopy}
           >
-            <span>
-              {inlineCopy.readOnlyConnector}{" "}
-              {configuration.kind === "folder" ? inlineCopy.hubFolder : inlineCopy.sync}
-            </span>
+            <span>{configuration.kind === "folder" ? inlineCopy.hubFolder : inlineCopy.sync}</span>
           </Row>
           <Row help={copy.formatHelp} title={inlineCopy.format} />
           <Row help={copy.linkHelp} title={inlineCopy.noteLinks}>
@@ -101,12 +98,13 @@ export function FormatSettings({
 function Maintainer({ model }: { model: string }) {
   const inlineCopy = useCopy().vaultSettings;
   const copy = useCopy().extras.vaultCopy;
+  const distillation = useCopy().distillation;
   return (
-    <Group help={inlineCopy.maintainerHelp} label={inlineCopy.maintainer}>
+    <Group help={distillation.modelHelp} label={distillation.modelTitle}>
       <List>
         <Row title={inlineCopy.hubJob}>
           <p>{model || inlineCopy.noModel}</p>
-          <a href="#/settings/ia">{inlineCopy.chooseModel}</a>
+          <a href="#/settings/ia?function=vault">{distillation.modelLink}</a>
         </Row>
         <Row help={copy.schemaHelp} title={inlineCopy.schema}>
           <a href={noteRoute("SCHEMA.md")}>{inlineCopy.readSchema}</a>

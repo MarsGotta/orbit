@@ -4,6 +4,8 @@ use orbit_core::{
     vault::{VaultCall, VaultOperation, VaultOutcome},
 };
 
+mod routes;
+
 pub async fn call(hub: &crate::hub_notes::NoteHub, call: &VaultCall) -> VaultOutcome {
     match exchange(hub, call).await {
         Ok(answer) => answer,
@@ -15,25 +17,7 @@ async fn exchange(
     hub: &crate::hub_notes::NoteHub,
     call: &VaultCall,
 ) -> Result<VaultOutcome, Box<Refusal>> {
-    let (method, path, body) = match call {
-        VaultCall::Config => (reqwest::Method::GET, "config", None),
-        VaultCall::Configure { configuration } => (
-            reqwest::Method::PUT,
-            "config",
-            Some(serde_json::json!(configuration)),
-        ),
-        VaultCall::Disconnect => (reqwest::Method::DELETE, "config", None),
-        VaultCall::Read { request } => (
-            reqwest::Method::POST,
-            "read",
-            Some(serde_json::json!(request)),
-        ),
-    };
-    let mut url = hub.base.clone();
-    url.path_segments_mut()
-        .map_err(|()| invalid())?
-        .pop_if_empty()
-        .extend(["v1", "vault", path]);
+    let routes::Request { method, url, body } = routes::request(&hub.base, call)?;
     let mut request =
         crate::hub::request(method, url, Some(&hub.token), &hub.op).map_err(|_| invalid())?;
     // Shorter than LocalClient's confirmation budget, including response decoding.
@@ -105,6 +89,15 @@ fn decode(call: &VaultCall, status: u16, bytes: &[u8]) -> Result<VaultOutcome, B
         });
     }
     match call {
+        VaultCall::ListDistillations { .. } => {
+            serde_json::from_slice(bytes).map(|page| VaultOutcome::Distillations { page })
+        }
+        VaultCall::Distillation { .. }
+        | VaultCall::PrepareDistillation { .. }
+        | VaultCall::ReviewDistillation { .. }
+        | VaultCall::DistillationAction { .. } => {
+            return decode_distillation(bytes);
+        }
         VaultCall::Config | VaultCall::Configure { .. } | VaultCall::Disconnect => {
             serde_json::from_slice(bytes)
                 .map(|configuration| VaultOutcome::Config { configuration })
@@ -128,6 +121,18 @@ fn decode(call: &VaultCall, status: u16, bytes: &[u8]) -> Result<VaultOutcome, B
         }
     }
     .map_err(|_| invalid())
+}
+
+fn decode_distillation(bytes: &[u8]) -> Result<VaultOutcome, Box<Refusal>> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| invalid())?;
+    if value["prepared"] == false && value["reason"] == "vault_or_model_not_configured" {
+        return Ok(VaultOutcome::DistillationDisabled {
+            reason: "vault_or_model_not_configured".into(),
+        });
+    }
+    serde_json::from_value(value)
+        .map(|proposal| VaultOutcome::Distillation { proposal })
+        .map_err(|_| invalid())
 }
 
 fn invalid() -> Box<Refusal> {

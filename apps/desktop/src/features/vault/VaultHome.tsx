@@ -1,3 +1,5 @@
+import { PendingDistillations } from "./PendingDistillations";
+import type { useDistillations } from "./use-distillations";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
 import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
@@ -144,6 +146,7 @@ function DueTasks({ port, catalog }: { port?: VaultPort; catalog: VaultCatalog }
 }
 
 export function VaultHome({
+  proposals,
   port,
   catalog,
   configuration,
@@ -151,9 +154,9 @@ export function VaultHome({
   port?: VaultPort;
   catalog: VaultCatalog;
   configuration: VaultSettings;
+  proposals?: ReturnType<typeof useDistillations>;
 }) {
   const inlineCopy = useCopy().vaultReading;
-  const copy = useCopy().extras.vaultCopy;
   const name =
     configuration.vault ||
     (configuration.path.split("/").filter(Boolean).pop() ?? inlineCopy.vault);
@@ -169,9 +172,9 @@ export function VaultHome({
           )}{" "}
           {inlineCopy.okf} {catalog.okf_version || inlineCopy.noVersion}
         </p>
-        <p className={styles.muted}>{copy.readOnly}</p>
       </header>
       <Search catalog={catalog} port={port} />
+      {proposals !== undefined && <PendingDistillations {...proposals} />}
       <div className={styles.homeGrid}>
         <ProjectCards catalog={catalog} />
         <div>

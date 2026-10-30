@@ -20,6 +20,8 @@ export async function request(port: VaultPort | undefined, call: VaultCall): Pro
   } catch {
     throw new VaultRequestError(() => getCopy().errors.notesNoResponse);
   }
+  if (result.outcome === "distillation_disabled")
+    throw new VaultRequestError(() => getCopy().distillation.disabled);
   if (result.outcome === "refused") {
     const refusal = result;
     const numbers = Object.entries(refusal.numbers)

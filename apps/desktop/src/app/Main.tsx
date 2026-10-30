@@ -88,7 +88,9 @@ function View({
     );
   }
   if (view === "notes") {
-    return <NotesView error={error} onRecord={onRecord} send={send} snapshot={snapshot} />;
+    return (
+      <NotesView vault={vault} error={error} onRecord={onRecord} send={send} snapshot={snapshot} />
+    );
   }
   if (view === "vault")
     return <VaultView owner={snapshot.settings.profile?.name ?? undefined} port={vault} />;

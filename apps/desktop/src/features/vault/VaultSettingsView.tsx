@@ -1,6 +1,5 @@
 import { useCopy } from "../../i18n/CopyProvider";
 import { FormatSettings } from "./VaultFormatSettings";
-import { LaterSettings } from "./VaultLaterSettings";
 import { Button } from "../../design/Button";
 
 import { SectionHeading } from "../settings/layout";
@@ -50,7 +49,6 @@ export function VaultSettingsView({ port }: { port?: VaultPort }) {
           )}
         </>
       )}
-      <LaterSettings />
     </>
   );
 }

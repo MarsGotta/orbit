@@ -1,3 +1,4 @@
+import { distillationCause } from "./distillationFailures";
 import { schemaProblemText } from "./schemaRefusalDetails";
 import { vaultRequestRefusal } from "./vaultRequestRefusals";
 import { formatQuantity } from "../locale";
@@ -37,6 +38,8 @@ export function vaultRefusalText(
   numbers: Record<string, number>,
   fields: Record<string, string | undefined> = {},
 ): string {
+  const distillation = distillationCause(code);
+  if (distillation !== undefined) return distillation;
   const schema = schemaProblemText({
     code,
     field: fields.field ?? "",

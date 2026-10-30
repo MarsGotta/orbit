@@ -1,0 +1,28 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--o-line2);
+  border-radius: 7px;
+  color: var(--o-ink);
+  font-size: 12px;
+  text-decoration: none;
+}
+.pill span {
+  color: var(--o-warn);
+  font-size: 9px;
+}
+.pill[data-applied="true"] span {
+  color: var(--o-ok);
+}
+.pill:hover {
+  background: var(--o-hover);
+}

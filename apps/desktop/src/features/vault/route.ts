@@ -1,22 +1,25 @@
 import { useEffect, useState } from "react";
 
 export interface VaultRoute {
-  section: "home" | "tasks" | "map" | "note";
+  section: "home" | "tasks" | "map" | "note" | "distill";
   path: string;
   markdown: boolean;
 }
 export function readRoute(): VaultRoute {
   const route = window.location.hash.slice(1);
   const [path = "", query = ""] = route.split("?");
-  const section = path.startsWith("/vault/n/")
-    ? "note"
-    : path === "/vault/tasks"
-      ? "tasks"
-      : path === "/vault/map"
-        ? "map"
-        : "home";
+  const section = path.startsWith("/vault/distill/")
+    ? "distill"
+    : path.startsWith("/vault/n/")
+      ? "note"
+      : path === "/vault/tasks"
+        ? "tasks"
+        : path === "/vault/map"
+          ? "map"
+          : "home";
   let note = "";
   try {
+    if (section === "distill") note = decodeURIComponent(path.slice("/vault/distill/".length));
     if (section === "note") note = decodeURIComponent(path.slice("/vault/n/".length));
   } catch {
     note = "";

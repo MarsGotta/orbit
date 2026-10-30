@@ -1,3 +1,5 @@
+import { logBody } from "./log-presentation";
+import { useVaultOwner } from "./provenance";
 import { VaultWarnings } from "./VaultWarnings";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useEffect } from "react";
@@ -93,6 +95,8 @@ function ReadNote({
       ? note.frontmatter.title
       : (note.path.split("/").pop() ?? note.path);
   const type = note.type;
+  const owner = useVaultOwner();
+  const presented = note.path === "log.md" ? { ...note, body: logBody(note.body, owner) } : note;
   return (
     <>
       <NoteBar note={note} title={title} markdown={markdown} />
@@ -111,7 +115,7 @@ function ReadNote({
             <RawNote note={note} />
           ) : (
             <>
-              <VaultMarkdown note={note} notes={catalog.notes} port={port} />
+              <VaultMarkdown note={presented} notes={catalog.notes} port={port} />
               {note.role === "project" && <DependencyDiagram note={note} />}
             </>
           )}

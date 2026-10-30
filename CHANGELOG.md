@@ -7,8 +7,22 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Fixed
+
+- Native distillation notices check at startup, on a newly ready meeting note
+  and after explicit preparation; only queued or preparing proposals keep a
+  timer. Older meeting reviews use date-neutral contradiction labels.
+- The macOS filename guard includes untracked replacements and omits deleted
+  index names, so it detects source collisions before changes are staged.
+
 ### Added
 
+- Review meeting distillation in Notes: section diffs with transcript evidence,
+  contradiction choices, editable proposals, exclusions, apply, discard and undo.
+  Pending proposals appear in the Notes column and home, in meeting pills and
+  native notifications. Notes settings link to the vault AI model function.
+- Optional vault `SCHEMA.md` owner attribution for human verification, with
+  readable author, reviewer and source names in the app.
 - The hub prepares reviewed meeting-to-vault proposals with transcript citations,
   contradiction choices, typed review/apply/discard/undo APIs, stale-content
   checks, encrypted recovery journals and immutable sources. Folder writes are

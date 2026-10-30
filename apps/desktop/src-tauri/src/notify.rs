@@ -171,7 +171,7 @@ pub fn follow_system_notices<R: tauri::Runtime>(
     }
 }
 
-fn post<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notice: TurnNotice, sound: bool) {
+pub(crate) fn post<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notice: TurnNotice, sound: bool) {
     // Only production setup installs the OS adapter. Mock apps have no device effects.
     if app.try_state::<crate::desktop_system::Native>().is_none() {
         return;

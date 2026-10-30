@@ -277,7 +277,8 @@ class Distillations:
                             409,
                         )
                     schema = load(value["snapshot"]["SCHEMA.md"]["raw"] or "")
-                    journal = effects.plan(value, schema, value["by"], human, at)
+                    reviewer = "human:" + schema["owner"] if schema.get("owner") else human
+                    journal = effects.plan(value, schema, value["by"], reviewer, at)
                     writing.apply(remote, value, journal, self.repository)
                 elif action == "undo":
                     if value["status"] not in {
