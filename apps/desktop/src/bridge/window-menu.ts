@@ -9,7 +9,7 @@ export type MenuAction =
   | "bigger"
   | "smaller"
   | "actual_size"
-  | "undo";
+  | "recover_template";
 
 /** The main window's current handlers and local presentation state, never content. */
 export interface MenuState {
@@ -22,6 +22,5 @@ export interface MenuState {
   bigger: boolean;
   smaller: boolean;
   actual_size: boolean;
-  undo: boolean;
-  editing: boolean;
+  recover_template: boolean;
 }

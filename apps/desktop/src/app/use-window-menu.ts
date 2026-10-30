@@ -1,35 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { DaemonPort } from "../bridge/port";
 import type { AppCommand } from "../bridge/generated";
 import type { MenuAction, MenuState } from "../bridge/window-menu";
 import type { AppView } from "../state/app-view";
 import { useUiStore } from "../state/ui";
 import { followWindowPreferences, useWindowPreferences } from "../state/window-preferences";
-import { textHasFocus, useTemplateUndoKeyboard, useWindowActions } from "../state/window-actions";
+import { useWindowActions } from "../state/window-actions";
 import { goTo } from "../features/assistant/assistant-route";
 
-function useEditing() {
-  const [editing, setEditing] = useState(textHasFocus);
-  // Removing a focused field need not dispatch focusout (for example on navigation).
-  useEffect(() => setEditing(textHasFocus()));
-  useEffect(() => {
-    const focus = () => setEditing(textHasFocus());
-    document.addEventListener("focusin", focus);
-    document.addEventListener("focusout", focus);
-    return () => {
-      document.removeEventListener("focusin", focus);
-      document.removeEventListener("focusout", focus);
-    };
-  }, []);
-  return editing;
-}
-
-function menuState(
-  snapshot: AppView | null,
-  find: boolean,
-  undo: boolean,
-  editing: boolean,
-): MenuState {
+function menuState(snapshot: AppView | null, find: boolean, recoverTemplate: boolean): MenuState {
   const { sidebar, scale } = useWindowPreferences.getState();
   const ready = snapshot?.connection.daemon === "ready";
   const current = ready && snapshot?.recording_availability?.state === "current";
@@ -39,8 +18,7 @@ function menuState(
     smaller: scale > 1,
     actual_size: scale !== 1,
     find,
-    undo,
-    editing,
+    recover_template: recoverTemplate,
     record: current && snapshot.meeting.phase === "idle",
     finish: current && ["starting", "recording", "paused"].includes(snapshot.meeting.phase),
     new_conversation: ready && snapshot?.chat.availability?.state === "current",
@@ -78,8 +56,8 @@ function run(
     case "find":
       actions.findTranscript?.();
       break;
-    case "undo":
-      if (!textHasFocus()) actions.undoTemplate?.();
+    case "recover_template":
+      actions.undoTemplate?.();
       break;
     case "sidebar":
       preferences.toggleSidebar();
@@ -105,11 +83,9 @@ export function useWindowMenu(
 ) {
   const { findTranscript, undoTemplate } = useWindowActions();
   const { sidebar, scale } = useWindowPreferences();
-  const editing = useEditing();
-  const state = menuState(snapshot, findTranscript !== null, undoTemplate !== null, editing);
+  const state = menuState(snapshot, findTranscript !== null, undoTemplate !== null);
   const latest = useRef((action: MenuAction) => run(action, state, send, record));
   latest.current = (action) => run(action, state, send, record);
-  useTemplateUndoKeyboard();
   useEffect(() => followWindowPreferences(), []);
   useEffect(() => {
     let active = true;

@@ -18,6 +18,12 @@ English and Spanish; labels quoted below may use either language.
   missing second device. Linux replays cover successful and spoiled evidence;
   native silence and ScreenCaptureKit acceptance require the test Mac.
 
+### Fixed
+
+- Edit › Undo and Redo always use native text editing, including the Assistant
+  composer. Recover deleted template has its own Edit menu item without a
+  shortcut; the deletion toast still offers Undo.
+
 ## [0.14.0] - 2026-10-30
 
 ### Added

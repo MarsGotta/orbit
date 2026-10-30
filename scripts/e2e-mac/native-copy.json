@@ -83,6 +83,10 @@
         "Undo"
       ],
       [
+        "recover_template",
+        "Recover deleted template"
+      ],
+      [
         "redo",
         "Redo"
       ],
@@ -347,6 +351,10 @@
       [
         "undo",
         "Deshacer"
+      ],
+      [
+        "recover_template",
+        "Recuperar la plantilla borrada"
       ],
       [
         "redo",

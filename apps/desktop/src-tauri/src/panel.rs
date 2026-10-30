@@ -54,7 +54,6 @@ pub fn focus<R: tauri::Runtime>(app: &tauri::AppHandle<R>, focus: bool) {
         eprintln!("No se pudo cambiar el foco del panel flotante: {error}");
         return;
     }
-    crate::application_menu::panel_editing(app, focus);
     if focus && let Err(error) = window.set_focus() {
         eprintln!("No se pudo dar el foco al panel flotante: {error}");
     }
@@ -143,7 +142,6 @@ pub fn apply<R: tauri::Runtime>(app: &tauri::AppHandle<R>, visible: bool) {
     };
     let shown = window.is_visible().unwrap_or(false);
     if !visible {
-        crate::application_menu::panel_editing(app, false);
         if shown {
             if let Err(error) = window.hide() {
                 eprintln!("No se pudo ocultar el panel de llamadas: {error}");

@@ -147,6 +147,7 @@ const APPLICATION_MENU: &[(&str, &str)] = &[
     ("close", "Cerrar ventana"),
     ("edit", "Edición"),
     ("undo", "Deshacer"),
+    ("recover_template", "Recuperar la plantilla borrada"),
     ("redo", "Rehacer"),
     ("cut", "Cortar"),
     ("copy", "Copiar"),
