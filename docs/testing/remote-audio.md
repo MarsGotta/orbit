@@ -9,9 +9,10 @@ with the missing device's name before any speech; the other checks can still run
 
 Choose **Una app concreta / Application audio**, then **Orbit Pruebas Remote**.
 The harness launches that small fixture app from
-`~/.orbit-pruebas/remote-audio/Orbit Pruebas Remote.app`. It has a visible window,
-an ad-hoc signed bundle (`app.orbit.pruebas.remote`) and a stable process
-for the whole meeting. Only `orbit-core/pruebas` adds that identifier to the
+`~/Applications/Orbit Pruebas Remote.app`. `build-fixture-apps.sh` builds it with
+every `build-test-app.sh` and signs it (`app.orbit.pruebas.remote`) with Orbit
+Pruebas's stable identity; nothing is compiled or signed during a run. It has a
+visible window and a stable process for the whole meeting. Only `orbit-core/pruebas` adds that identifier to the
 source picker's existing inventory. The shipping build never offers it.
 
 `crates/orbit-daemon/src/daemon/audio/meeting.rs` starts both `mic_local` and
@@ -110,6 +111,5 @@ On a consented, idle Mac with isolated fixtures, the reviewer must:
    timings and any capture/speech failures; do not count skipped as passed.
 
 Expected added cost: roughly **20–40 seconds plus hub transcription/note closure**,
-with about 10–15 seconds of unique speech. A cold fixture compilation adds a few
-seconds; its source hash caches subsequent builds. These are estimates, not Mac
+with about 10–15 seconds of unique speech. These are estimates, not Mac
 measurements. No Mac, SSH, production hub or Hermes trial was run for this change.
