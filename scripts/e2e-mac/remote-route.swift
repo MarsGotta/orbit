@@ -84,9 +84,13 @@ func silentRoute(_ allowed: Set<UInt32>) throws -> [String: Any] {
     for object in try numbers(system, kAudioHardwarePropertyProcessObjectList) {
         let pid = try number(object, kAudioProcessPropertyPID)
         if !allowed.contains(pid), try number(object, kAudioProcessPropertyIsRunningInput) != 0 {
-            // Conservative: no unrelated microphone reader at all, including a
-            // monitoring app whose route cannot be inspected. Save only a cause.
-            throw RouteFailure("another input client could monitor fixture audio; close it before speaking")
+            // A reader of another device (Siri on the built-in microphone, say)
+            // cannot hear the fixture sinks; one reading them could forward
+            // them. An unreadable device list fails closed. Save only a cause.
+            let reading = try numbers(object, kAudioProcessPropertyDevices, kAudioObjectPropertyScopeInput)
+            if !sinkIDs.isDisjoint(with: reading) {
+                throw RouteFailure("another input client reads a fixture device; close it before speaking")
+            }
         }
     }
     return ["devices": rows, "unsafe_readers": 0, "unsafe_aggregates": 0]
