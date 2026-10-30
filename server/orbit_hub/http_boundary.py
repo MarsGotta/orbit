@@ -12,13 +12,16 @@ import wave
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from starlette.requests import ClientDisconnect
 
 from .config import Settings
 from .errors import http_response, render
-from .log import bind_op, report
+from .log import bind_op, get_logger, report
 from .protocol import HubError
 from .storage import is_storage_full
 from .urls import LOOPBACK_HOSTS
+
+logger = get_logger(__name__)
 
 
 def bearer(headers) -> str:
@@ -120,6 +123,14 @@ def unforeseen(request, failure: Exception, store, op: str):
     """What a route did not foresee, without its text."""
     # The template, never the path: a path holds the ids of one request.
     route = getattr(request.scope.get("route"), "path", None)
+    if isinstance(failure, ClientDisconnect):
+        # The client hung up mid-body (a privacy stop cuts an upload): nobody
+        # reads an answer, and it is not a hub failure.
+        logger.info(
+            "client_disconnected",
+            extra={"event": "client_disconnected", "op": op, "route": route},
+        )
+        return Response(status_code=499)
     if is_storage_full(failure):
         # The disk is full: a cause someone can fix, said with its numbers.
         full = store.space.full()

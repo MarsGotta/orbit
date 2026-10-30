@@ -15,6 +15,9 @@ English and Spanish; labels quoted below may use either language.
   always macOS's own; restoring the last deleted note template has its own
   Edit item, «Recover deleted template», with no shortcut. The deletion toast
   keeps its Undo.
+- The hub no longer reports a client that hangs up mid-request as an internal
+  error, in its log or to Sentry. The privacy shortcut cuts an upload that
+  way. It is an info line now.
 
 ### Added
 

@@ -60,10 +60,12 @@ spoken phase. Both exact device names must resolve to the expected distinct
 UIDs, virtual transport, live devices, and input and output streams. Hardware,
 renamed substitutes and aggregate/multi-output sinks fail. Any aggregate whose
 active subdevices contain a fixture sink also fails, even if not selected.
-Any other process holding audio input fails conservatively: a separate monitor
-could forward either virtual device to hardware. Only Orbit Pruebas and its
-helper, identified by exact executable paths, may hold input. An unreadable
-CoreAudio property fails closed; no device or unrelated process inventory is
+Any other process reading a fixture device fails conservatively: a separate
+monitor could forward it to hardware. Only Orbit Pruebas and its helper,
+identified by exact executable paths, may read them; a reader of another device
+(Siri on the built-in microphone) cannot hear them. An unreadable
+CoreAudio property fails closed; an object that went away since it was listed
+(a `say` that ended) is skipped. No device or unrelated process inventory is
 saved. Close monitoring/routing software before running, and keep the Mac idle
 with Bluetooth audio disabled as required by CONTRIBUTING.md.
 

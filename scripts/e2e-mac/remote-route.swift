@@ -7,6 +7,12 @@ struct RouteFailure: Error, CustomStringConvertible {
     init(_ text: String) { description = text }
 }
 
+/// An object listed a moment ago that no longer exists (a `say` that ended):
+/// it reads and routes nothing. Any other unreadable property still fails.
+struct Vanished: Error, CustomStringConvertible {
+    var description: String { "an audio object went away while it was read" }
+}
+
 func address(_ selector: AudioObjectPropertySelector,
              _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) -> AudioObjectPropertyAddress {
     AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
@@ -17,10 +23,12 @@ func numbers(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector,
     var key = address(selector, scope)
     var size: UInt32 = 0
     let status = AudioObjectGetPropertyDataSize(object, &key, 0, nil, &size)
+    if status == kAudioHardwareBadObjectError { throw Vanished() }
     guard status == noErr else { throw RouteFailure("CoreAudio size read failed: \(status)") }
     guard size > 0 else { return [] }
     var values = [UInt32](repeating: 0, count: Int(size) / MemoryLayout<UInt32>.size)
     let read = AudioObjectGetPropertyData(object, &key, 0, nil, &size, &values)
+    if read == kAudioHardwareBadObjectError { throw Vanished() }
     guard read == noErr else { throw RouteFailure("CoreAudio read failed: \(read)") }
     return Array(values.prefix(Int(size) / MemoryLayout<UInt32>.size))
 }
@@ -36,8 +44,14 @@ func string(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) th
     var value: CFString = "" as CFString
     var size = UInt32(MemoryLayout<CFString>.size)
     let status = AudioObjectGetPropertyData(object, &key, 0, nil, &size, &value)
+    if status == kAudioHardwareBadObjectError { throw Vanished() }
     guard status == noErr else { throw RouteFailure("CoreAudio string read failed: \(status)") }
     return value as String
+}
+
+/// `read`'s value, or nil when its object has gone since it was listed.
+func present<T>(_ read: () throws -> T) throws -> T? {
+    do { return try read() } catch is Vanished { return nil }
 }
 
 func silentRoute(_ allowed: Set<UInt32>) throws -> [String: Any] {
@@ -47,8 +61,8 @@ func silentRoute(_ allowed: Set<UInt32>) throws -> [String: Any] {
     var rows = [[String: Any]]()
     var sinkIDs = Set<UInt32>()
     for device in devices {
-        let name = try string(device, kAudioObjectPropertyName)
-        guard let uid = sinks[name] else { continue }
+        guard let name = try present({ try string(device, kAudioObjectPropertyName) }),
+              let uid = sinks[name] else { continue }
         guard try string(device, kAudioDevicePropertyDeviceUID) == uid else {
             throw RouteFailure("\(name) has an unexpected device UID")
         }
@@ -75,19 +89,22 @@ func silentRoute(_ allowed: Set<UInt32>) throws -> [String: Any] {
     // Reject even inactive aggregate/multi-output membership: it can become an
     // audible monitoring branch. Never rename or dismantle the owner's devices.
     for device in devices {
-        guard try number(device, kAudioDevicePropertyTransportType) == kAudioDeviceTransportTypeAggregate else { continue }
-        let children = try numbers(device, kAudioAggregateDevicePropertyActiveSubDeviceList)
+        guard try present({ try number(device, kAudioDevicePropertyTransportType) }) == kAudioDeviceTransportTypeAggregate,
+              let children = try present({ try numbers(device, kAudioAggregateDevicePropertyActiveSubDeviceList) })
+        else { continue }
         if !sinkIDs.isDisjoint(with: children) {
             throw RouteFailure("aggregate/multi-output device contains a fixture sink")
         }
     }
     for object in try numbers(system, kAudioHardwarePropertyProcessObjectList) {
-        let pid = try number(object, kAudioProcessPropertyPID)
-        if !allowed.contains(pid), try number(object, kAudioProcessPropertyIsRunningInput) != 0 {
+        guard let pid = try present({ try number(object, kAudioProcessPropertyPID) }) else { continue }
+        if !allowed.contains(pid), try present({ try number(object, kAudioProcessPropertyIsRunningInput) }) ?? 0 != 0 {
             // A reader of another device (Siri on the built-in microphone, say)
             // cannot hear the fixture sinks; one reading them could forward
             // them. An unreadable device list fails closed. Save only a cause.
-            let reading = try numbers(object, kAudioProcessPropertyDevices, kAudioObjectPropertyScopeInput)
+            let reading = try present({
+                try numbers(object, kAudioProcessPropertyDevices, kAudioObjectPropertyScopeInput)
+            }) ?? []
             if !sinkIDs.isDisjoint(with: reading) {
                 throw RouteFailure("another input client reads a fixture device; close it before speaking")
             }

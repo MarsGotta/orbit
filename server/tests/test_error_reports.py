@@ -20,6 +20,7 @@ import pytest
 import sentry_sdk
 from conftest import device
 from fastapi.testclient import TestClient
+from starlette.requests import ClientDisconnect
 from support_app import crash_the_revocation_pass
 from support_client_e2e import tcp_server
 from support_orbit_mcp import (
@@ -123,6 +124,28 @@ def test_unexpected_exception_in_a_route_answers_internal_error_with_the_request
     assert line["status"] == 500
     assert [line["op"] for line in lines.with_event("store_thread_line")] == [OP]
     assert MARKER not in json.dumps(lines.lines)
+
+
+def test_a_client_that_hangs_up_mid_request_is_no_hub_failure(environment, monkeypatch, lines):
+    def hung_up(self, device_id, recording, payload, now):
+        # What `request.stream()` raises when a privacy stop cuts an upload.
+        raise ClientDisconnect()
+
+    monkeypatch.setattr(NoteRepository, "edit", hung_up)
+    _, store, _ = environment
+    owner = device(store)
+    with _http(environment) as http:
+        response = http.put(
+            f"/v1/recordings/{RECORDING}/note/edits",
+            json={"base_revision": 0},
+            headers={"Authorization": "Bearer " + owner["token"], "X-Orbit-Op": OP},
+        )
+    assert response.status_code == 499
+    assert lines.with_event("internal_error") == []
+    [line] = lines.with_event("client_disconnected")
+    assert line["op"] == OP
+    assert line["route"] == "/v1/recordings/{recording_id}/note/edits"
+    assert line["level"] == "INFO"
 
 
 def test_every_http_error_body_carries_the_op_and_an_invalid_op_is_replaced(environment):
