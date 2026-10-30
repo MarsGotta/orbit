@@ -215,7 +215,7 @@ class ArchiveVerificationTests(unittest.TestCase):
                 report = verify.verify_archive(path, **options, manifest=external)
                 # The nested engine app adds its plist and resource seal; the
                 # third-party notice and compiled icon are one each.
-                self.assertEqual(report["members"], 25)
+                self.assertEqual(report["members"], 31)
                 self.assertEqual(report["source_commit"], COMMIT)
                 self.assertEqual(report["architecture"], architecture)
                 self.assertFalse(report["signature_verified"])
@@ -236,6 +236,22 @@ class ArchiveVerificationTests(unittest.TestCase):
         self.rejected(
             changed(entries(), driver, mode=stat.S_IFREG | 0o644),
             message="executable without",
+        )
+
+    def test_every_localized_text_the_build_copies_is_required(self):
+        # 0.14.1's Mac build was refused: the bundle had gained en.lproj and
+        # es.lproj (copy-localizations.sh) and the verifier did not know them.
+        resources = Path(__file__).resolve().parents[2] / "native" / "macos" / "Resources"
+        copied = {
+            f"{verify.RESOURCES}/{path.parent.name}/{path.name}"
+            for path in resources.glob("*.lproj/*.strings")
+        }
+        self.assertEqual(len(copied), 4)
+        self.assertLessEqual(copied, verify.REQUIRED_FILES)
+        name = verify.RESOURCES + "/es.lproj/Localizable.strings"
+        self.rejected(
+            [entry for entry in entries() if entry[0] != name],
+            message="required bundle files are missing",
         )
 
     def test_compiled_icon_is_accepted_and_required_in_the_archive(self):
@@ -408,7 +424,7 @@ class ArchiveVerificationTests(unittest.TestCase):
     def test_a_notarized_package_carries_its_stapled_ticket(self):
         path, options = self.fixture(entries(stapled=True))
         report = verify.verify_archive(path, **options)
-        self.assertEqual(report["members"], 26)
+        self.assertEqual(report["members"], 32)
         self.assertTrue(report["manifest_notarized"])
         self.assertTrue(report["stapled_ticket"])
         # Present and marked is not valid: nothing here talks to Apple.
@@ -442,7 +458,7 @@ class ArchiveVerificationTests(unittest.TestCase):
             if not entry[0].endswith("/") and entry[0] not in verify.OPTIONAL_FILES
         ]
         path, options = self.fixture(original)
-        self.assertEqual(verify.verify_archive(path, **options)["members"], 11)
+        self.assertEqual(verify.verify_archive(path, **options)["members"], 15)
 
     def test_duplicate_casefold_and_unicode_nfc_collisions(self):
         for first, second in (
