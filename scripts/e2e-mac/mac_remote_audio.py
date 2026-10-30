@@ -77,8 +77,12 @@ class RemoteAudio:
 
     def _remote_answer(self, name, max_s):
         path = self.remote_directory / f"{name}.json"
+        failure = self.remote_directory / "failure.json"
         start = self.system.now()
         while not path.exists():
+            if failure.exists():
+                cause = json.loads(failure.read_text(encoding="utf-8")).get("error")
+                raise MacFailure(f"remote speaker stopped: {cause}")
             if self.system.now() - start >= max_s:
                 raise MacFailure(f"remote speaker has no {name} receipt within {max_s} s")
             self.system.pause(0.1)
@@ -166,7 +170,7 @@ class RemoteAudio:
                 self.system.run_checked(
                     "say", "-v", voice, "-o", str(directory / f"{phase}.aiff"), phrase
                 )
-        for name in ("ready", "remote-done", "remote-muted-done", "request"):
+        for name in ("ready", "remote-done", "remote-muted-done", "request", "failure"):
             (directory / f"{name}.json").unlink(missing_ok=True)
         self.system.run_checked(
             "open",

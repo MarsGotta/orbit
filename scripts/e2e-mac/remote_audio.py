@@ -26,6 +26,18 @@ def exercise(test):
             row["route"] = player["route"]
             ui, main = test.ui, test.main
             ui.press(main, copy_text("shell.record"), ("AXButton",), first=True)
+            # While the list arrives the option's name ends in «Finding apps…»,
+            # and a press names the whole option: it must not change under it.
+            test.measure(
+                "screen",
+                ui.read_until(
+                    main,
+                    "remote-source",
+                    None,
+                    lambda text: copy_text("meeting.sourceSearching") not in text,
+                    test.bounds["screen"][0],
+                ),
+            )
             ui.press(
                 main,
                 copy_text("meeting.sourceApplication"),

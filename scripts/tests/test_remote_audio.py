@@ -239,6 +239,30 @@ class RemoteAudioTests(unittest.TestCase):
         self.assertIn(remote_audio.copy_text("meeting.finish"), calls)
         self.assertTrue(test.ev["remote_audio"]["restored"])
 
+    def test_a_speaker_that_stopped_between_phases_names_its_cause(self):
+        import mac
+
+        route = self.routes()
+
+        class System(mac.System):
+            def run(self, *command):
+                if "--probe" in command:
+                    return 0, json.dumps(route), ""
+                if command[0] == "SwitchAudioSource":
+                    return 0, "BlackHole 2ch", ""
+                return 0, "", ""
+
+            def processes(self):
+                return []
+
+        with tempfile.TemporaryDirectory() as directory:
+            device = mac.Mac(mac.Paths(Path(directory)), System())
+            device.remote_directory.mkdir(parents=True)
+            failure = {"error": "another input client reads a fixture device"}
+            (device.remote_directory / "failure.json").write_text(json.dumps(failure))
+            with self.assertRaisesRegex(mac.MacFailure, "stopped: another input client"):
+                device.remote_audio("remote-muted")
+
     def test_failed_player_stop_still_restores_the_owners_input(self):
         import mac
 

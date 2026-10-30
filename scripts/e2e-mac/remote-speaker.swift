@@ -47,7 +47,7 @@ let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             }
             return
         }
-        if Date().timeIntervalSince(idle) > 120 { app.terminate(nil) }
+        if Date().timeIntervalSince(idle) > 120 { throw RouteFailure("idle for two minutes") }
         let request = directory.appendingPathComponent("request.json")
         guard FileManager.default.fileExists(atPath: request.path) else { return }
         let data = try Data(contentsOf: request)
@@ -76,8 +76,9 @@ let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
         player = output
         output.play()
     } catch {
+        // Its own receipt: between phases no phase receipt is awaited.
         player?.pause()
-        receipt((phase ?? "remote") + "-done", ["error": String(describing: error)])
+        receipt("failure", ["error": String(describing: error)])
         app.terminate(nil)
     }
 }
