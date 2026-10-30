@@ -150,7 +150,7 @@ class DryRunSystem(DryNative, mac_side.System):
         if command[:4] == ("open", "-n", "-g", "-a"):
             return self.cua.start(list(command))
         if command[0] == "open" and "--result" in command:
-            arguments = list(command[6 : command.index("--result")])
+            arguments = list(command[command.index("--args") + 1 : command.index("--result")])
             code, _out, err = self.native_key(
                 arguments[1], arguments[2] if len(arguments) > 2 else None
             )
