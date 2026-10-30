@@ -7,6 +7,15 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-30
+
+### Fixed
+
+- The release verifier accepts the app's permission texts in English and
+  Spanish (`en.lproj`, `es.lproj`), which the bundle carries since the app
+  speaks both languages. It refused every Mac build since then; 0.14.1's was
+  the first to reach it. The app is 0.14.1's.
+
 ## [0.14.1] - 2026-10-30
 
 ### Fixed
