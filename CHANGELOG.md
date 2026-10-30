@@ -7,22 +7,25 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
-### Added
-
-- A disposable-calendar acceptance script for Orbit Pruebas verifies event
-  creation, recurring occurrence moves and scoped deletion through the daemon,
-  reports only synthetic Cedar fixture data, and cleans up the run's events.
-- Real-test check 25 records independent microphone and remote application speech
-  through BlackHole 2ch and 16ch, verifies their stored transcript sides and remote
-  speech during microphone mute, and fails before speech on unsafe routing or a
-  missing second device. Linux replays cover successful and spoiled evidence;
-  native silence and ScreenCaptureKit acceptance require the test Mac.
+## [0.14.1] - 2026-10-30
 
 ### Fixed
 
-- Edit › Undo and Redo always use native text editing, including the Assistant
-  composer. Recover deleted template has its own Edit menu item without a
-  shortcut; the deletion toast still offers Undo.
+- ⌘Z undoes typing in the Assistant composer again. Edit › Undo and Redo are
+  always macOS's own; restoring the last deleted note template has its own
+  Edit item, «Recover deleted template», with no shortcut. The deletion toast
+  keeps its Undo.
+
+### Added
+
+- The real test checks the other side of a meeting (check 25): remote speech
+  played only into BlackHole 16ch is captured as an application source, kept
+  on its own side, and kept while the microphone is muted. Nothing reaches
+  speakers or headphones.
+- The real test's real keys come from «Orbit Pruebas Teclas», a helper signed
+  with Orbit Pruebas's identity that holds its own Accessibility permission.
+- A disposable-calendar acceptance script checks EventKit writes through the
+  daemon on a «Cedar fixture» calendar, and reports nothing of any other.
 
 ## [0.14.0] - 2026-10-30
 
