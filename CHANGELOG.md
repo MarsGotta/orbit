@@ -7,6 +7,12 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+### Added
+
+- A disposable-calendar acceptance script for Orbit Pruebas verifies event
+  creation, recurring occurrence moves and scoped deletion through the daemon,
+  reports only synthetic Cedar fixture data, and cleans up the run's events.
+
 ## [0.14.0] - 2026-10-30
 
 ### Added
