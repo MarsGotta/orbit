@@ -18,6 +18,7 @@ not import it.
 import json
 import sqlite3
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -1250,6 +1251,34 @@ def test_the_voice_note_counts_the_words_after_the_assistants_name(language, phr
     with harness_copy.language_scope(language):
         ok, detail = checks.c11_voice_note({"voice_note": note})
     assert ok, detail
+
+
+def test_check_10_does_not_count_what_the_privacy_brake_causes_by_design():
+    # Real run 20261030T115848Z: the brake's own consequences failed check 10.
+    import checks
+
+    brake = {"name": "real privacy brake during recording", "start": 100.0, "end": 130.0}
+    ev = {"steps": [brake], "logs": {"report-daemon.log": ""}}
+
+    def run(rows):
+        lines = "".join(json.dumps(row) + "\n" for row in rows)
+        return checks.c10_no_failures({**ev, "logs": {"report-daemon.log": lines}})
+
+    def row(code, ts, cls="fixable", data=None):
+        stamp = datetime.fromtimestamp(ts, UTC).isoformat().replace("+00:00", "Z")
+        return {"class": cls, "code": code, "op": "x", "ts": stamp, "data": data or {}}
+
+    expected = [
+        row("helper_command_failed", 110, "failed", {"code": "privacy_stopped"}),
+        row("privacy_stop_kept", 120),
+        row("recording_closed_after_cut", 121),
+        row("pending_work_keep_open", 200),
+    ]
+    assert run(expected)[0], run(expected)[1]
+    # The same codes before the brake, or another cause, still fail.
+    assert not run([row("recording_closed_after_cut", 50)])[0]
+    assert not run([row("helper_command_failed", 110, "failed", {"code": "helper_gone"})])[0]
+    assert not run([row("upstream_failed", 110, "failed")])[0]
 
 
 @pytest.mark.parametrize(

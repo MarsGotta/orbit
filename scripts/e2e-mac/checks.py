@@ -567,10 +567,27 @@ def _instant(text: object, utc: bool) -> float | None:
     return moment.timestamp()
 
 
+# What the real privacy shortcut (check 22) causes by design, from the moment
+# it is pressed: commands refused because Orbit is stopped, the stop kept
+# across the relaunch, the recording it cut, and that recording's pending work
+# at the final close (real run 20261030T115848Z).
+BRAKE_STEP = "real privacy brake during recording"
+AFTER_BRAKE = {"privacy_stop_kept", "recording_closed_after_cut", "pending_work_keep_open"}
+
+
+def _caused_by_the_brake(failure: dict, ev: dict) -> bool:
+    pressed = next((s["start"] for s in ev.get("steps", []) if s["name"] == BRAKE_STEP), None)
+    if pressed is None or failure.get("ts") is None or failure["ts"] < pressed:
+        return False
+    if failure.get("code") == "helper_command_failed":
+        return (failure.get("data") or {}).get("code") == "privacy_stopped"
+    return failure.get("code") in AFTER_BRAKE
+
+
 def c10_no_failures(ev: dict) -> tuple[bool, str]:
     if "logs" not in ev:
         raise Unchecked("the Mac's logs were not collected")
-    failures = failure_lines(ev)
+    failures = [f for f in failure_lines(ev) if not _caused_by_the_brake(f, ev)]
     if failures:
         return False, "; ".join(_describe(f, ev) for f in failures[:10])
     names = ", ".join(sorted(ev["logs"])) + (", hub" if ev.get("hub_log") is not None else "")
