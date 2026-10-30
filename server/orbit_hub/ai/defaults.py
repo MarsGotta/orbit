@@ -1,6 +1,5 @@
 """Describe the existing operator configuration without changing its consumers."""
 
-import json
 from urllib.parse import urlsplit
 
 from .privacy import combine, describe_privacy, sentence
@@ -20,14 +19,6 @@ def describe(registry, function):
             endpoint_privacy(function, settings.meeting_transcription.endpoint, "whisper"),
         )
     if function in ("meeting_notes", "vault"):
-        if function == "vault":
-            legacy = vault_model(registry.store)
-            if legacy:
-                return (
-                    "operator",
-                    legacy,
-                    sentence("vault_legacy"),
-                )
         if settings.processing is not None:
             return (
                 "operator",
@@ -82,17 +73,3 @@ def speech(settings, agent):
         voice = agent.settings.speech
         return voice.model, endpoint_privacy("speech", voice.base_url, voice.model)
     return None
-
-
-def vault_model(store):
-    with store.read_snapshot() as db:
-        if not db.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='vault_configuration'"
-        ).fetchone():
-            return None
-        row = db.execute("SELECT body FROM vault_configuration WHERE id=1").fetchone()
-        return (
-            json.loads(store.decrypt(row[0], "vault-configuration:v1")).get("maintenance_model")
-            if row
-            else None
-        )

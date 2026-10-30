@@ -76,6 +76,7 @@ class NotesWorker:
         self.recording_changed = recording_changed or (lambda device, recording: None)
         self.templates = TemplateRepository(repository.store)
         self._task: asyncio.Task | None = None
+        self.distillations = None
 
     @property
     def configured(self) -> bool:
@@ -108,6 +109,8 @@ class NotesWorker:
                 await self._run(self.repository.wake_waiting)
             self.signal.clear()
             if await self.run_once():
+                continue
+            if self.distillations is not None and await self.distillations.run_once():
                 continue
             with suppress(TimeoutError):
                 await asyncio.wait_for(self.signal.wait(), IDLE_TICK_SECONDS)

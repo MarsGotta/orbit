@@ -20,6 +20,29 @@ class Folder:
         if not os.path.isabs(self.root):
             raise refusal("vault_folder_absolute", "Enter an absolute path to a folder on the hub.")
 
+    def snapshot(self, path):
+        from .folder_write import current
+
+        return {"raw": current(self, path), "version": None}
+
+    def write(self, path, text, previous):
+        from .folder_write import write
+
+        write(self, path, text, previous["raw"])
+        result = self.snapshot(path)
+        if result["raw"] != text:
+            raise refusal(
+                "distillation_write_uncertain",
+                "The folder changed after replacement; inspect recovery before retrying.",
+                409,
+            )
+        return result
+
+    def remove(self, path, previous):
+        from .folder_write import remove
+
+        remove(self, path, previous["raw"])
+
     def close(self):
         pass
 

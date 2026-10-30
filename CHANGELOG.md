@@ -9,6 +9,12 @@ English and Spanish; labels quoted below may use either language.
 
 ### Added
 
+- The hub prepares reviewed meeting-to-vault proposals with transcript citations,
+  contradiction choices, typed review/apply/discard/undo APIs, stale-content
+  checks, encrypted recovery journals and immutable sources. Folder writes are
+  atomic per file; Fast Note Sync writes use read hashes and versioned history,
+  with explicit recovery when remote writes cannot be confirmed. See
+  [the API and connector guarantees](docs/architecture/distillation.md).
 - A disposable-calendar acceptance script for Orbit Pruebas verifies event
   creation, recurring occurrence moves and scoped deletion through the daemon,
   reports only synthetic Cedar fixture data, and cleans up the run's events.

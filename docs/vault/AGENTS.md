@@ -4,13 +4,13 @@ title: Vault maintenance method
 ---
 # Markdown vault method
 
-This is a template for a vault's agent instructions. Orbit currently reads
-notes; it does not run ingestion, maintenance or writes.
+This is a template for a vault's agent instructions. Orbit reads notes and prepares meeting distillation for human review.
+Other ingestion, query generation and scheduled review remain deferred.
 
 Read `SCHEMA.md`, root `index.md` and `log.md` before proposing a change.
 Keep source transcripts and the person's own prose unchanged. Propose a
-conflict when a new source contradicts existing material. A future hub job
-with its own configured model will prepare proposals.
+conflict when a new source contradicts existing material. The hub job
+uses the vault AI function to prepare proposals; only the reviewed proposal writes.
 
 `SCHEMA.md` frontmatter defines this vault's type names and field aliases:
 

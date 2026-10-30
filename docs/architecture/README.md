@@ -17,7 +17,7 @@ Details: [process chain](process-chain.md), [local storage](storage.md),
 
 ## Components
 
-The [read-only Markdown vault](vault.md) owns connector configuration, the
+The [Markdown vault](vault.md) owns connector configuration, the
 hub's encrypted working copy, its reading index and the `notes` tool group.
 
 | Component | Location | Owns | Must not do |

@@ -43,6 +43,7 @@ _BY_RECORDING = (
     "recording_titles",
     "recording_languages",
     "recording_notes",
+    "vault_distillations",
     "recording_dictionaries",
 )
 
@@ -86,6 +87,13 @@ def delete(store, device: str, recording: str, now: float) -> dict[str, int]:
                 (device, device, recording),
             ).rowcount
         for table in _BY_RECORDING:
+            if (
+                table == "vault_distillations"
+                and not db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name='vault_distillations'"
+                ).fetchone()
+            ):
+                continue
             removed[table] = db.execute(
                 f"DELETE FROM {table} WHERE device_id=? AND recording=?", (device, recording)
             ).rowcount

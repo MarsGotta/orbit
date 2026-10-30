@@ -1,4 +1,4 @@
-"""One read-only connector contract and the vault's encrypted, hub-owned settings."""
+"""One connector contract and the vault's encrypted, hub-owned settings."""
 
 import json
 from threading import BoundedSemaphore
@@ -18,10 +18,17 @@ class Connector(Protocol):
     def close(self) -> None: ...
     def catalog(self) -> list[dict]: ...
     def read(self, path: str) -> str: ...
+    def snapshot(self, path: str) -> dict: ...
+    def write(self, path: str, text: str, previous: dict) -> dict: ...
+    def remove(self, path: str, previous: dict) -> None: ...
 
 
-def connector(config: Configuration) -> Connector:
-    return Folder(config) if config.kind == "folder" else FastNoteSync(config)
+def connector(config: Configuration, *, budget_seconds=None) -> Connector:
+    if config.kind == "folder":
+        return Folder(config)
+    return FastNoteSync(
+        config, **({"budget_seconds": budget_seconds} if budget_seconds is not None else {})
+    )
 
 
 def page(entries, request):
@@ -36,8 +43,9 @@ def page(entries, request):
 
 
 class Vault:
-    def __init__(self, store):
+    def __init__(self, store, maintenance=None):
         self.store = store
+        self.maintenance = maintenance
         self.copy = WorkingCopy(store)
         self.read_slots = BoundedSemaphore(MAX_READS)
         with store.transaction() as db:
@@ -62,8 +70,12 @@ class Vault:
 
         selected = Registry(self.store).selected("vault")
         result = config.public()
-        if selected:
+        if self.maintenance is not None and self.maintenance.configured:
+            result["maintenance_model"] = self.maintenance.configuration.model
+            result["maintenance_enabled"] = True
+        elif selected:
             result["maintenance_model"] = selected["model"]
+            result["maintenance_enabled"] = True
         return result
 
     def configure(self, config):
@@ -106,7 +118,7 @@ class Vault:
                 "INSERT INTO vault_configuration VALUES(1,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
                 (sealed,),
             )
-        return config.public()
+        return self.public()
 
     def disconnect(self):
         with self.store.transaction() as db:
