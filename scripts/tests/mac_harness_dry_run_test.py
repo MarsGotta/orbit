@@ -1574,6 +1574,12 @@ def test_failed_privacy_key_stops_fixture_playback_before_restoring_physical_out
         playing = False
 
         def run(self, *command):
+            if command[0] == "open" and "--result" in command:
+                # Orbit Pruebas Teclas answers in its result file.
+                Path(command[command.index("--result") + 1]).write_text(
+                    '{"failure": "shortcut delivery failed"}', encoding="utf-8"
+                )
+                return 0, "", ""
             if command[0] == "open":
                 return 0, "", ""
             if command[0] == "SwitchAudioSource":
@@ -1581,8 +1587,6 @@ def test_failed_privacy_key_stops_fixture_playback_before_restoring_physical_out
                     return 0, self.output, ""
                 self.output = command[-1]
                 return 0, "", ""
-            if command[0] == "swift":
-                return 1, "", "shortcut delivery failed"
             raise AssertionError(command)
 
         def processes(self):

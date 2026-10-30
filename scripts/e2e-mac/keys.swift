@@ -1,13 +1,35 @@
 // Consented acceptance input, scoped to the exact Orbit Pruebas process.
+// Built as «Orbit Pruebas Teclas.app» (build-keys-app.sh) and launched with
+// `open`, so the Accessibility permission the owner grants is this app's own,
+// never the SSH session's. Its answer goes to the file after `--result`.
 import AppKit
 import ApplicationServices
 import Foundation
 
-func fail(_ text: String) -> Never {
-    FileHandle.standardError.write(Data((text + "\n").utf8))
-    exit(1)
+var args = CommandLine.arguments
+var resultPath: String?
+if let flag = args.firstIndex(of: "--result"), flag + 1 < args.count {
+    resultPath = args[flag + 1]
+    args.removeSubrange(flag...(flag + 1))
 }
-let args = CommandLine.arguments
+func answer(_ text: String, code: Int32) -> Never {
+    if let resultPath {
+        try? Data((text + "\n").utf8).write(to: URL(fileURLWithPath: resultPath), options: .atomic)
+    } else if code == 0 {
+        print(text)
+    } else {
+        FileHandle.standardError.write(Data((text + "\n").utf8))
+    }
+    exit(code)
+}
+func fail(_ text: String) -> Never {
+    answer("{\"failure\":\(String(reflecting: text))}", code: 1)
+}
+// «trust» asks macOS once, with its own prompt, and says whether it is granted.
+if args.count == 2, args[1] == "trust" {
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+    answer("{\"trusted\":\(AXIsProcessTrustedWithOptions(options))}", code: 0)
+}
 guard args.count >= 3, let pid = Int32(args[1]),
       let app = NSRunningApplication(processIdentifier: pid),
       app.bundleIdentifier == "app.orbit.companion.pruebas" else {
@@ -71,4 +93,4 @@ if action == "dock" {
     down.post(tap: .cghidEventTap)
     up.post(tap: .cghidEventTap)
 }
-print("{\"posted\":true}")
+answer("{\"posted\":true}", code: 0)
