@@ -20,7 +20,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from hub_harness import HUB_UNIT, RESTART_ORDER, HubSandbox, linux_only  # noqa: E402
+from hub_harness import HUB_UNIT, RESTART_ORDER, HubSandbox, linux_only
 
 
 @linux_only
@@ -40,7 +40,9 @@ class ActivationCopyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, f"{result.stdout}\n{result.stderr}")
 
     def systemctl_verbs(self):
-        return [entry["argv"][1] for entry in self.sandbox.events("systemctl") if len(entry["argv"]) > 1]
+        return [
+            entry["argv"][1] for entry in self.sandbox.events("systemctl") if len(entry["argv"]) > 1
+        ]
 
     def test_without_a_database_yet_the_activation_goes_on(self):
         result = self.activate("1.0.0")
@@ -56,10 +58,13 @@ class ActivationCopyTests(unittest.TestCase):
         self.assertActivated(result)
         self.assertIn("as 1.0.0 left them", result.stdout)
         self.assertEqual(
-            sorted(path.name for path in self.copy.iterdir()), ["FROM", "hub.sqlite3", "storage.key"]
+            sorted(path.name for path in self.copy.iterdir()),
+            ["FROM", "hub.sqlite3", "storage.key"],
         )
         self.assertIn("version=1.0.0\n", (self.copy / "FROM").read_text(encoding="utf-8"))
-        self.assertEqual((self.copy / "storage.key").read_bytes(), self.sandbox.key_file.read_bytes())
+        self.assertEqual(
+            (self.copy / "storage.key").read_bytes(), self.sandbox.key_file.read_bytes()
+        )
         self.assertEqual(
             self.sandbox.database_rows(self.copy / "hub.sqlite3"), ["Acta de la Cooperativa Brezo"]
         )
@@ -69,7 +74,9 @@ class ActivationCopyTests(unittest.TestCase):
         self.assertEqual(self.sandbox.restarts(), list(RESTART_ORDER))
         self.assertNotIn("stop", self.systemctl_verbs())
 
-    def test_going_back_after_a_migration_puts_the_copy_back_and_sets_the_newer_database_aside(self):
+    def test_going_back_after_a_migration_puts_the_copy_back_and_sets_the_newer_database_aside(
+        self,
+    ):
         self.sandbox.make_database()
         self.assertActivated(self.activate("1.0.0"))
         self.assertActivated(self.activate("1.1.0"))

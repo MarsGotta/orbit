@@ -26,7 +26,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from hub_harness import HubSandbox, find_uv, linux_only, lock_version, release_fields  # noqa: E402
+from hub_harness import HubSandbox, find_uv, linux_only, lock_version, release_fields
 
 DEV_ONLY = {"pytest", "pytest-asyncio", "ruff", "iniconfig", "pluggy"}
 
@@ -108,7 +108,18 @@ class PublishedReleaseTests(unittest.TestCase):
             relative = path.relative_to(self.release)
             if ".git" in relative.parts:
                 self.fail(f"the release carries {relative}")
-            if relative.parts[0] in (".venv", "RELEASE", "bin", "codex-path", "codex-resources", "codex-package.json") or "__pycache__" in relative.parts:
+            if (
+                relative.parts[0]
+                in (
+                    ".venv",
+                    "RELEASE",
+                    "bin",
+                    "codex-path",
+                    "codex-resources",
+                    "codex-package.json",
+                )
+                or "__pycache__" in relative.parts
+            ):
                 continue
             if path.is_file():
                 found[relative] = path.read_bytes()
@@ -134,7 +145,9 @@ class PublishedReleaseTests(unittest.TestCase):
     def test_codex_is_downloaded_from_the_pinned_asset_and_sealed(self):
         binary = self.release / "bin" / "codex"
         self.assertTrue(binary.is_file(), "publish must ship Codex beside the venv")
-        result = subprocess.run([str(binary), "--version"], capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            [str(binary), "--version"], capture_output=True, text=True, timeout=10
+        )
         self.assertEqual(result.stdout.strip(), "codex-cli 0.164.0")
         fields = release_fields(self.release / "RELEASE")
         self.assertEqual(fields.get("codex"), "0.164.0")
@@ -197,20 +210,30 @@ class PublishedReleaseTests(unittest.TestCase):
         clean = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
         hub = subprocess.run(
             [str(self.release / ".venv" / "bin" / "orbit-hub"), "--help"],
-            capture_output=True, text=True, timeout=120, env=clean,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=clean,
         )
         self.assertEqual(hub.returncode, 0, hub.stderr)
         self.assertIn("usage: orbit-hub", hub.stdout)
         clean["ORBIT_MCP_CONFIG"] = str(self.sandbox.root / "does-not-exist.toml")
         mcp = subprocess.run(
             [str(self.release / ".venv" / "bin" / "orbit-mcp")],
-            capture_output=True, text=True, timeout=120, env=clean, stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=clean,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(mcp.returncode, 1, mcp.stderr)
         # The same two wordings publish.sh accepts: Spanish up to 0.9.0, English after.
         self.assertRegex(mcp.stderr, "Orbit MCP (cannot start|no puede arrancar)")
         self.assertNotIn("Traceback", mcp.stderr)
-        where = self.python("-c", "import orbit_hub, orbit_mcp; print(orbit_hub.__file__); print(orbit_mcp.__file__)")
+        where = self.python(
+            "-c",
+            "import orbit_hub, orbit_mcp; print(orbit_hub.__file__); print(orbit_mcp.__file__)",
+        )
         self.assertEqual(where.returncode, 0, where.stderr)
         for line in where.stdout.splitlines():
             self.assertTrue(
@@ -264,7 +287,9 @@ class PublishRefusalTests(unittest.TestCase):
         self.assertFalse(self.release.exists())
 
     def test_an_untracked_file_in_server_is_an_uncommitted_change(self):
-        (self.sandbox.repo_file("orbit_hub") / "half_done.py").write_text("x = 1\n", encoding="utf-8")
+        (self.sandbox.repo_file("orbit_hub") / "half_done.py").write_text(
+            "x = 1\n", encoding="utf-8"
+        )
         refused = self.publish()
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("server/orbit_hub/half_done.py", refused.stderr)
@@ -285,7 +310,9 @@ class PublishRefusalTests(unittest.TestCase):
         # only `uv sync --locked` can tell, and it must.
         pyproject = self.sandbox.repo_file("pyproject.toml")
         text = pyproject.read_text(encoding="utf-8")
-        pyproject.write_text(text.replace('"cryptography", ', '"cryptography", "idna", ', 1), encoding="utf-8")
+        pyproject.write_text(
+            text.replace('"cryptography", ', '"cryptography", "idna", ', 1), encoding="utf-8"
+        )
         self.sandbox.commit("dependency not locked")
         refused = self.publish()
         self.assertNotEqual(refused.returncode, 0)
@@ -297,7 +324,9 @@ class PublishRefusalTests(unittest.TestCase):
         first = self.publish()
         self.assertEqual(first.returncode, 0, first.stderr)
         readme = self.sandbox.repo_file("README.md")
-        readme.write_text(readme.read_text(encoding="utf-8") + "\nanother commit\n", encoding="utf-8")
+        readme.write_text(
+            readme.read_text(encoding="utf-8") + "\nanother commit\n", encoding="utf-8"
+        )
         second = self.sandbox.commit("same number, other code")
         refused = self.publish()
         self.assertNotEqual(refused.returncode, 0)
@@ -320,7 +349,10 @@ class PublishRefusalTests(unittest.TestCase):
         refused = self.publish("no-such-commit")
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("no-such-commit", refused.stderr)
-        self.assertFalse((self.sandbox.base / "releases").exists() and any((self.sandbox.base / "releases").iterdir()))
+        self.assertFalse(
+            (self.sandbox.base / "releases").exists()
+            and any((self.sandbox.base / "releases").iterdir())
+        )
 
 
 if __name__ == "__main__":

@@ -62,6 +62,7 @@ import mac_controls
 import meeting_controls
 import meeting_language
 import native_checks
+import remote_audio
 import silence_recording
 from interface import InAppBridge, Interface, StepFailed
 
@@ -301,6 +302,9 @@ class RemoteMac:
                 str(DIRECTORY / "mac_waits.py"),
                 str(DIRECTORY / "mac_silence.py"),
                 str(DIRECTORY / "audio_route.py"),
+                str(DIRECTORY / "mac_remote_audio.py"),
+                str(DIRECTORY / "remote-speaker.swift"),
+                str(DIRECTORY / "remote-route.swift"),
                 str(DIRECTORY / "meeting-script.txt"),
                 str(DIRECTORY / "windows.swift"),
                 str(DIRECTORY / "pointer.swift"),
@@ -419,6 +423,9 @@ class RemoteMac:
     def native(self, action, argument=None):
         return self._call(180, "native", action, *([argument] if argument is not None else []))
 
+    def remote_audio(self, action):
+        return self._call(120, "remote-audio", action)
+
     def listening_choice(self):
         return self._call(30, "listening-choice")
 
@@ -501,6 +508,7 @@ class RealTest:
         # What the test hub keeps of a recording (the dry run replays it).
         self.hub_kept = lambda recording: hub_traces.kept(database, recording)
         self.hub_audio = lambda recording: hub_audio.read(paths.config, recording)
+        self.hub_remote_audio = lambda recording: hub_audio.read_remote(paths.config, recording)
         self.processes: list[isolated_hub.Process] = []
         # The codes that are failures though they are silent on screen,
         # read from the one place that decides it (NoticeCode::is_failure).
@@ -607,6 +615,8 @@ class RealTest:
         with self.step("prepare the Mac"):
             self.mac.copy()
             self.ev["mac"] = self.mac.prepare(self.bounds["daemon"][0])
+        with self.step("check 25 silent remote audio prerequisites", (25,), critical=False):
+            self.ev["remote_preflight"] = self.mac.remote_audio("preflight")
         with self.step("pair Orbit Pruebas with the test hub"):
             code = isolated_hub.pairing_code(self.paths)
             self.mac.pair(self.hub_url, code, DEVICE_NAME)
@@ -882,6 +892,7 @@ class RealTest:
         meeting_controls.discard_second_recording(self)
         meeting_controls.delete_first_meeting(self)
         silence_recording.record_without_answer(self)
+        remote_audio.exercise(self)
         native_checks.exercise(self)
         # Last: it quits Orbit Pruebas and opens it again.
         drafts_panel.drafts_survive_quitting(self)
@@ -915,7 +926,7 @@ class RealTest:
             with self.step("stop CuaDriver left by the accessibility check", critical=False):
                 self.ev["cua"].update(self.mac.engine_stop(self.bounds["close"][0]))
                 self.cua_active = False
-        with self.step("close Orbit Pruebas and give the audio input back", critical=False):
+        with self.step("close Orbit Pruebas and give the audio input back", (25,), critical=False):
             self.ev["restored"] = self.mac.restore(self.bounds["close"][0])
             came_back = self.ev["restored"]["orbit_pruebas"].get("came_back", 0)
             if came_back:
@@ -1000,6 +1011,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "panel_hold": ev.get("panel_hold"),
         "silence": ev.get("silence"),
         "audio_route": ev.get("audio_route"),
+        "remote_audio": ev.get("remote_audio"),
         "privacy": ev.get("privacy"),
         "lifecycle": ev.get("lifecycle"),
         "native_edit": ev.get("native_edit"),

@@ -1,0 +1,27 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Reuniones"
+    - [6] AXButton "Grabar reunión" [actions=[press]]
+    - AXGroup (Nueva grabación)
+      - AXHeading
+        - AXStaticText = "Nueva grabación"
+      - AXStaticText = "Orbit graba y, al terminar, escribe la nota por ti."
+      - [7] AXButton (Cerrar) [actions=[press]]
+      - [8] AXTextField (Título) [actions=[confirm]]
+      - AXRadioGroup (Qué audio grabar)
+        - [9] AXRadioButton "Audio del sistema Lo que suena en el Mac y tu micrófono. Para videollamadas." [actions=[press]]
+        - [10] AXRadioButton "Solo mi micrófono Para una reunión en persona." [actions=[press]]
+        - [11] AXRadioButton "Una app concreta Solo el sonido de la app que elijas." [actions=[press]]
+      - [14] AXButton "Orbit Pruebas Remote" [actions=[press]]
+      - AXStaticText = "Si cierras la ventana, sigue grabando. Tras 2 min de silencio, te pregunta si terminar."
+      - AXStaticText = "esc para cerrar"
+      - [12] AXButton "Cancelar" [actions=[press]]
+      - [13] AXButton "Empezar a grabar" [actions=[press]]

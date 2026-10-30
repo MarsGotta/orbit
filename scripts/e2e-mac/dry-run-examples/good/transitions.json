@@ -104,10 +104,12 @@
  },
  "silence-saved": {
   "press:Reuniones": "silence-meetings",
-  "press:Asistente": "assistant"
+  "press:Asistente": "assistant",
+  "press:Grabar reunión": "remote-dialog"
  },
  "silence-meetings": {
-  "press:Asistente": "native-editor"
+  "press:Asistente": "native-editor",
+  "press:Grabar reunión": "remote-dialog"
  },
  "native-editor": {
   "press:Grabar reunión": "native-dialog"
@@ -132,5 +134,20 @@
  },
  "native-dialog-microphone": {
   "press:Empezar a grabar": "native-recording"
+ },
+ "remote-dialog": {
+  "press:Una app concreta Solo el sonido de la app que elijas.": "remote-dialog",
+  "press:Orbit Pruebas Remote": "remote-dialog",
+  "press:Empezar a grabar": "remote-recording"
+ },
+ "remote-recording": {
+  "press:Silenciar": "remote-muted",
+  "press:Terminar": "remote-saved"
+ },
+ "remote-muted": {
+  "press:Reactivar micrófono": "remote-recording"
+ },
+ "remote-saved": {
+  "press:Asistente": "native-editor"
  }
 }

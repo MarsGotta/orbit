@@ -19,7 +19,11 @@ class InstallerRoutes(unittest.TestCase):
         self.script.write_text(source.removesuffix('main "$@"\n'))
         home = Path(self.directory.name) / "home"
         (home / "Library" / "Logs" / "Orbit").mkdir(parents=True)
-        self.environment = {**os.environ, "HOME": str(home), "ORBIT_INSTALL_BASE": "https://updates.example.test"}
+        self.environment = {
+            **os.environ,
+            "HOME": str(home),
+            "ORBIT_INSTALL_BASE": "https://updates.example.test",
+        }
 
     def run_decision(self, code, listing):
         return subprocess.run(
@@ -36,7 +40,10 @@ class InstallerRoutes(unittest.TestCase):
         rows = [
             ("/Applications/Orbit.app/Contents/MacOS/Orbit", "la aplicación"),
             ("/Applications/Orbit.app.anterior-20260928/Contents/MacOS/Orbit", "la aplicación"),
-            ("/Applications/Orbit.app.anterior-20260928/Contents/MacOS/OrbitNative", "su ayudante nativo"),
+            (
+                "/Applications/Orbit.app.anterior-20260928/Contents/MacOS/OrbitNative",
+                "su ayudante nativo",
+            ),
             ("/Applications/Orbit 2.app/Contents/MacOS/Orbit", ""),
             ("/Applications/Orbit.app.anterior-/Contents/MacOS/Orbit", ""),
             ("/Applications/Orbit.app.anterior-20260928/nested/Contents/MacOS/Orbit", ""),
@@ -45,7 +52,7 @@ class InstallerRoutes(unittest.TestCase):
         ]
         for path, expected in rows:
             with self.subTest(path=path):
-                result = self.run_decision('chain_names', f"501 1 {path}\n")
+                result = self.run_decision("chain_names", f"501 1 {path}\n")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 bundle = path.split("/Contents/")[0]
                 self.assertEqual(result.stdout, f"{expected} ({bundle})" if expected else "")
@@ -61,7 +68,6 @@ class InstallerRoutes(unittest.TestCase):
         result = self.run_decision(code, "")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "la aplicación (/Applications/Orbit.app)")
-
 
 
 if __name__ == "__main__":

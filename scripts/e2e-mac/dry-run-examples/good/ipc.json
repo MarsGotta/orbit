@@ -1752,6 +1752,425 @@
    ]
   },
   {
+   "wait": "remote-recording",
+   "topics": [
+    "recording"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "starting",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       }
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       }
+      },
+      "as_of_ms": null
+     }
+    }
+   ]
+  },
+  {
+   "wait": "remote-muted",
+   "topics": [
+    "recording"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       },
+       "voice_trigger": {
+        "state": "listening"
+       }
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       },
+       "voice_trigger": {
+        "state": "listening"
+       },
+       "microphone_muted": true
+      },
+      "as_of_ms": null
+     }
+    }
+   ]
+  },
+  {
+   "wait": "remote-unmuted",
+   "topics": [
+    "recording"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       },
+       "voice_trigger": {
+        "state": "listening"
+       },
+       "microphone_muted": true
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "recording",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       },
+       "voice_trigger": {
+        "state": "listening"
+       }
+      },
+      "as_of_ms": null
+     }
+    }
+   ]
+  },
+  {
+   "wait": "remote-saved",
+   "topics": [
+    "recording",
+    "notes"
+   ],
+   "frames": [
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": {
+        "id": "9f1c2d3e-0000-4000-8000-000000000025",
+        "title": "Reunión 16/10/26, 10:00",
+        "started_at_ms": 1760608800000,
+        "ended_at_ms": null,
+        "expires_at_ms": 1760612400000,
+        "application_pid": null,
+        "audio": {
+         "application": {
+          "application_pid": 4545
+         }
+        },
+        "phase": "finalizing",
+        "sealed_chunks": 0,
+        "gaps": 0,
+        "finalizing_since_ms": null
+       },
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       }
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "notes",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "revision": 2,
+       "recordings": {
+        "9f1c2d3e-0000-4000-8000-000000000025": 2
+       },
+       "recording": "9f1c2d3e-0000-4000-8000-000000000025"
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "recording",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "recording": null,
+       "recording_signal": null,
+       "pending_jobs": 0,
+       "offline": false,
+       "applications": {
+        "state": "unknown",
+        "why": "not_observed_yet"
+       }
+      },
+      "as_of_ms": null
+     }
+    },
+    {
+     "topic": "notes",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "revision": 3,
+       "recordings": {
+        "9f1c2d3e-0000-4000-8000-000000000025": 3
+       }
+      },
+      "as_of_ms": null
+     }
+    }
+   ],
+   "reads": [
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000025",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 130000,
+      "capture": "open",
+      "transcript": "none",
+      "note": null,
+      "local": {
+       "phase": "recording",
+       "pending_chunks": 1
+      }
+     }
+    ],
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000025",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 131000,
+      "capture": "closed",
+      "transcript": "none",
+      "note": null,
+      "local": {
+       "phase": "uploading",
+       "pending_chunks": 0
+      }
+     }
+    ]
+   ]
+  },
+  {
+   "wait": "remote-note",
+   "topics": [
+    "notes"
+   ],
+   "frames": [
+    {
+     "topic": "notes",
+     "knowledge": {
+      "state": "present",
+      "value": {
+       "revision": 4,
+       "recordings": {
+        "9f1c2d3e-0000-4000-8000-000000000025": 4
+       }
+      },
+      "as_of_ms": null
+     }
+    }
+   ],
+   "reads": [
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000025",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 131000,
+      "capture": "closed",
+      "transcript": "pending",
+      "note": {
+       "state": "waiting_transcript",
+       "short_summary": null
+      }
+     }
+    ],
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000025",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 131000,
+      "capture": "closed",
+      "transcript": "ready",
+      "note": {
+       "state": "generating",
+       "short_summary": null
+      }
+     }
+    ],
+    [
+     {
+      "recording_id": "9f1c2d3e-0000-4000-8000-000000000025",
+      "title": "Reunión 16/10/26, 10:00",
+      "started_at_ms": 1760608800000,
+      "duration_ms": 131000,
+      "capture": "closed",
+      "transcript": "ready",
+      "note": {
+       "state": "ready",
+       "short_summary": "Presupuesto y calendario de obras de la biblioteca."
+      }
+     }
+    ]
+   ]
+  },
+  {
    "wait": "paired",
    "topics": [
     "status"

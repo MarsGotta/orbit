@@ -14,9 +14,7 @@ NAMES = {
     23: "Window close keeps recording; Dock reopening and real Command-Q drain and save its audio",
     24: "Native Undo, Redo, Copy and Paste reach the focused editable field",
 }
-NOT_COVERED = (
-    "independent remote speech: the single BlackHole 2ch fixture cannot supply two distinct silent tracks; see docs/testing/remote-audio.md",
-)
+NOT_COVERED = ()
 BOUNDS = {
     "lifecycle-hub": (
         60,

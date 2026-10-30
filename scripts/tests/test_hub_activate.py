@@ -29,7 +29,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from hub_harness import (  # noqa: E402
+from hub_harness import (
     DEIMOS_RESTART_OUTPUT,
     DEVELOPMENT_EXEC_START,
     DEVELOPMENT_WORKING_DIRECTORY,
@@ -77,7 +77,9 @@ class ActivationTests(unittest.TestCase):
         self.assertEqual(refused.stdout.strip(), DEIMOS_RESTART_OUTPUT)
         self.assertEqual(self.sandbox.gateway_translators(), before)
         self.assertActivated(self.activate("1.0.0"))
-        self.assertIn(translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators())
+        self.assertIn(
+            translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators()
+        )
 
     # Activating ----------------------------------------------------------
 
@@ -85,7 +87,9 @@ class ActivationTests(unittest.TestCase):
         self.assertActivated(self.activate("1.0.0"))
         self.assertTrue(self.current.is_symlink())
         self.assertEqual(os.readlink(self.current), "releases/1.0.0")
-        leftovers = [path.name for path in self.sandbox.base.iterdir() if path.name.startswith(".current")]
+        leftovers = [
+            path.name for path in self.sandbox.base.iterdir() if path.name.startswith(".current")
+        ]
         self.assertEqual(leftovers, [])
 
     def test_current_changes_by_one_rename_and_is_never_missing(self):
@@ -127,14 +131,23 @@ readlink "$link"
             self.fail(f"did not happen: {what}")
 
         def restarted(unit):
-            return lambda e: e["tool"] == "systemctl" and e["argv"][1:2] == ["restart"] and e["argv"][-1] == unit
+            return lambda e: (
+                e["tool"] == "systemctl" and e["argv"][1:2] == ["restart"] and e["argv"][-1] == unit
+            )
 
         hub = position(restarted(HUB_UNIT), "hub restart")
-        healthy = position(lambda e: e["tool"] == "hub" and e["path"] == "/health" and e["status"] == 200, "/health 200")
-        version = position(lambda e: e["tool"] == "hub" and e["path"] == "/openapi.json" and e["status"] == 200, "version")
+        healthy = position(
+            lambda e: e["tool"] == "hub" and e["path"] == "/health" and e["status"] == 200,
+            "/health 200",
+        )
+        version = position(
+            lambda e: e["tool"] == "hub" and e["path"] == "/openapi.json" and e["status"] == 200,
+            "version",
+        )
         serve = position(restarted(SERVE_UNIT), "hermes-serve-orbit restart")
         gateway = position(
-            lambda e: e["tool"] == "hermes" and e["argv"] == GATEWAY_RESTART_ARGV, "hermes -p default gateway restart"
+            lambda e: e["tool"] == "hermes" and e["argv"] == GATEWAY_RESTART_ARGV,
+            "hermes -p default gateway restart",
         )
         self.assertLess(hub, healthy)
         self.assertLess(healthy, serve)
@@ -152,7 +165,9 @@ readlink "$link"
         self.assertTrue(hermes)
         for call in calls + hermes:
             self.assertEqual(call["env"]["XDG_RUNTIME_DIR"], f"/run/user/{uid}", call)
-            self.assertEqual(call["env"]["DBUS_SESSION_BUS_ADDRESS"], f"unix:path=/run/user/{uid}/bus", call)
+            self.assertEqual(
+                call["env"]["DBUS_SESSION_BUS_ADDRESS"], f"unix:path=/run/user/{uid}/bus", call
+            )
 
     def test_a_hub_that_never_answers_is_named_with_its_status_and_journal(self):
         self.assertActivated(self.activate("1.0.0"))
@@ -167,7 +182,9 @@ readlink "$link"
         self.assertIn(STATUS_MARK, failed.stderr)
         self.assertIn(JOURNAL_MARK, failed.stderr)
         self.assertIn("activate.sh 1.0.0", failed.stderr)
-        self.assertEqual(self.sandbox.restarts(), [HUB_UNIT], "Hermes was restarted with the hub down")
+        self.assertEqual(
+            self.sandbox.restarts(), [HUB_UNIT], "Hermes was restarted with the hub down"
+        )
 
     def test_a_hub_that_dies_on_start_is_reported_without_waiting_out_the_deadline(self):
         # Restart=always puts a dead hub in activating/auto-restart; the wait
@@ -175,7 +192,9 @@ readlink "$link"
         # that early path produces this message: without it the script waits
         # the full 120 s and reports a hub that did not answer instead, which
         # fails here on the message, well inside the harness's own 600 s.
-        self.sandbox.set_unit(HUB_UNIT, after_restart={"ActiveState": "activating", "SubState": "auto-restart"})
+        self.sandbox.set_unit(
+            HUB_UNIT, after_restart={"ActiveState": "activating", "SubState": "auto-restart"}
+        )
         self.sandbox.hub.answering = False
         failed = self.activate("1.0.0", ORBIT_HUB_HEALTH_TIMEOUT="120")
         self.assertNotEqual(failed.returncode, 0)
@@ -186,7 +205,11 @@ readlink "$link"
         self.assertEqual(self.sandbox.restarts(), [HUB_UNIT])
 
     def test_a_failed_restart_names_the_service_and_its_output(self):
-        self.sandbox.set_unit(SERVE_UNIT, restart_exit=1, restart_output="Job for hermes-serve-orbit.service failed (fake)")
+        self.sandbox.set_unit(
+            SERVE_UNIT,
+            restart_exit=1,
+            restart_output="Job for hermes-serve-orbit.service failed (fake)",
+        )
         failed = self.activate("1.0.0")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn(SERVE_UNIT, failed.stderr)
@@ -194,18 +217,26 @@ readlink "$link"
         self.assertIn("status 1", failed.stderr)
         self.assertIn(STATUS_MARK, failed.stderr)
         self.assertIn(JOURNAL_MARK, failed.stderr)
-        self.assertEqual(self.sandbox.restarts(), [HUB_UNIT, SERVE_UNIT], "it went on after the failure")
+        self.assertEqual(
+            self.sandbox.restarts(), [HUB_UNIT, SERVE_UNIT], "it went on after the failure"
+        )
 
     def test_a_hermes_that_is_not_active_after_its_restart_is_named(self):
         # The gateway was the unit this used to check; it is no unit any more,
         # so hermes-serve-orbit, the one Hermes still under systemd, carries it.
-        self.sandbox.set_unit(SERVE_UNIT, after_restart={"ActiveState": "failed", "SubState": "failed"})
+        self.sandbox.set_unit(
+            SERVE_UNIT, after_restart={"ActiveState": "failed", "SubState": "failed"}
+        )
         failed = self.activate("1.0.0")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn(SERVE_UNIT, failed.stderr)
         self.assertIn("failed", failed.stderr)
         self.assertIn(JOURNAL_MARK, failed.stderr)
-        self.assertEqual(self.sandbox.restarts(), [HUB_UNIT, SERVE_UNIT], "the gateway was restarted after the failure")
+        self.assertEqual(
+            self.sandbox.restarts(),
+            [HUB_UNIT, SERVE_UNIT],
+            "the gateway was restarted after the failure",
+        )
 
     def test_the_running_hub_must_be_the_version_just_activated(self):
         self.sandbox.hub.version = "0.0.1"
@@ -268,7 +299,10 @@ readlink "$link"
         warned = self.activate("1.0.0")
         self.assertActivated(warned)
         self.assertIn("Warning", warned.stdout + warned.stderr)
-        self.assertIn(f"command: {self.sandbox.base}/current/.venv/bin/orbit-mcp", warned.stdout + warned.stderr)
+        self.assertIn(
+            f"command: {self.sandbox.base}/current/.venv/bin/orbit-mcp",
+            warned.stdout + warned.stderr,
+        )
         self.sandbox.profile.write_text(self.sandbox.profile_text(current=True), encoding="utf-8")
         quiet = self.activate("1.1.0")
         self.assertActivated(quiet)
@@ -279,10 +313,14 @@ readlink "$link"
     def test_the_host_gateway_is_restarted_through_hermes_and_never_through_systemd(self):
         activated = self.activate("1.0.0")
         self.assertActivated(activated)
-        self.assertEqual(self.sandbox.hermes_calls().count(GATEWAY_RESTART_ARGV), 1, self.sandbox.hermes_calls())
+        self.assertEqual(
+            self.sandbox.hermes_calls().count(GATEWAY_RESTART_ARGV), 1, self.sandbox.hermes_calls()
+        )
         for call in self.sandbox.events("systemctl"):
             self.assertNotIn(RETIRED_GATEWAY_UNIT, call["argv"], call)
-        self.assertIn(translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators())
+        self.assertIn(
+            translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators()
+        )
         self.assertIn("1.0.0", activated.stdout)
         self.assertIn(f"PID {GATEWAY_PID}", activated.stdout)
 
@@ -291,7 +329,9 @@ readlink "$link"
         # as it did on the server; the wait ends on seeing it.
         self.sandbox.write_hermes({"respawn_after_calls": 3})
         self.assertActivated(self.activate("1.0.0", ORBIT_HUB_GATEWAY_TIMEOUT="600"))
-        self.assertIn(translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators())
+        self.assertIn(
+            translator_args(self.sandbox.base, "1.0.0"), self.sandbox.gateway_translators()
+        )
 
     def test_a_gateway_that_keeps_its_old_translator_is_named_with_what_is_seen(self):
         self.assertActivated(self.activate("1.0.0"))
@@ -340,7 +380,9 @@ readlink "$link"
         self.assertActivated(self.activate("1.0.0"))
         self.sandbox.write_hermes({"respawn": False})
         failed = self.activate("1.0.0", ORBIT_HUB_GATEWAY_TIMEOUT="2")
-        self.assertNotEqual(failed.returncode, 0, "it accepted the orbit-mcp from before the restart")
+        self.assertNotEqual(
+            failed.returncode, 0, "it accepted the orbit-mcp from before the restart"
+        )
 
     def test_another_translator_left_on_an_old_release_is_warned_about(self):
         # A second gateway process with an orbit-mcp of another release: the
@@ -355,7 +397,9 @@ readlink "$link"
 
     def test_a_failed_gateway_restart_names_the_command_its_output_and_code(self):
         self.assertActivated(self.activate("1.0.0"))
-        self.sandbox.write_hermes({"restart_exit": 1, "restart_output": "fake gateway failure", "respawn": False})
+        self.sandbox.write_hermes(
+            {"restart_exit": 1, "restart_output": "fake gateway failure", "respawn": False}
+        )
         self.sandbox.clear_events()
         failed = self.activate("1.1.0", ORBIT_HUB_GATEWAY_TIMEOUT="600")
         self.assertNotEqual(failed.returncode, 0)
@@ -364,25 +408,33 @@ readlink "$link"
         self.assertIn("status 1", failed.stderr)
         self.assertIn("activate.sh 1.0.0", failed.stderr)
         # It fails on Hermes's answer, without waiting out the 600 s.
-        self.assertLess(len(self.sandbox.events("ps")), 5, "it waited for orbit-mcp after a failed restart")
+        self.assertLess(
+            len(self.sandbox.events("ps")), 5, "it waited for orbit-mcp after a failed restart"
+        )
 
     def test_a_restart_hermes_could_not_confirm_is_judged_by_the_translator(self):
         # Measured on 2026-10-15: the restart answered "not confirmed … still
         # pending" and had worked. That answer alone is no failure.
         for code in (0, 1):
             with self.subTest(code=code):
-                self.sandbox.write_hermes({"restart_exit": code, "restart_output": PENDING_RESTART_OUTPUT})
+                self.sandbox.write_hermes(
+                    {"restart_exit": code, "restart_output": PENDING_RESTART_OUTPUT}
+                )
                 activated = self.activate("1.0.0")
                 self.assertActivated(activated)
                 self.assertIn(PENDING_RESTART_OUTPUT, activated.stderr)
-        self.sandbox.write_hermes({"restart_exit": 1, "restart_output": PENDING_RESTART_OUTPUT, "respawn": False})
+        self.sandbox.write_hermes(
+            {"restart_exit": 1, "restart_output": PENDING_RESTART_OUTPUT, "respawn": False}
+        )
         failed = self.activate("1.1.0", ORBIT_HUB_GATEWAY_TIMEOUT="2")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn(PENDING_RESTART_OUTPUT, failed.stderr)
         self.assertIn("status 1", failed.stderr)
 
     def test_a_failing_gateway_status_is_named_with_its_output_and_code(self):
-        self.sandbox.write_hermes({"respawn": False, "status_exit": 2, "status_output": "fake broken status"})
+        self.sandbox.write_hermes(
+            {"respawn": False, "status_exit": 2, "status_output": "fake broken status"}
+        )
         failed = self.activate("1.0.0", ORBIT_HUB_GATEWAY_TIMEOUT="2")
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn("hermes -p default gateway status", failed.stderr)
@@ -436,7 +488,9 @@ readlink "$link"
         for version in ("1.0.0", "1.1.0", "1.2.0", "anterior", "1.0.0"):
             self.assertActivated(self.activate(version))
         for version in ("1.0.0", "1.1.0", "1.2.0"):
-            self.assertTrue((self.sandbox.base / "releases" / version / "RELEASE").is_file(), version)
+            self.assertTrue(
+                (self.sandbox.base / "releases" / version / "RELEASE").is_file(), version
+            )
         self.assertEqual(os.readlink(self.current), "releases/1.0.0")
         self.assertEqual(os.readlink(self.previous), "releases/1.1.0")
 
@@ -468,13 +522,17 @@ class RestartAndStatusTests(unittest.TestCase):
     def test_restart_needs_hermes_and_waits_for_the_new_translator(self):
         self.assertEqual(self.sandbox.run("activate.sh", "1.0.0").returncode, 0)
         missing = self.sandbox.root / "no-hermes-here"
-        refused = self.sandbox.run("restart.sh", env=self.sandbox.env(ORBIT_HUB_HERMES=str(missing)))
+        refused = self.sandbox.run(
+            "restart.sh", env=self.sandbox.env(ORBIT_HUB_HERMES=str(missing))
+        )
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn(str(missing), refused.stderr)
         self.sandbox.write_hermes({"respawn": False})
         self.sandbox.clear_events()
         failed = self.sandbox.run("restart.sh", env=self.sandbox.env(ORBIT_HUB_GATEWAY_TIMEOUT="2"))
-        self.assertNotEqual(failed.returncode, 0, "it took the orbit-mcp from before the restart as good")
+        self.assertNotEqual(
+            failed.returncode, 0, "it took the orbit-mcp from before the restart as good"
+        )
         self.assertIn(GATEWAY_RESTART, failed.stderr)
 
     def test_status_no_longer_asks_for_the_retired_unit_and_shows_the_gateway(self):
@@ -485,23 +543,42 @@ class RestartAndStatusTests(unittest.TestCase):
         self.assertNotIn(RETIRED_GATEWAY_UNIT, status.stdout + status.stderr)
         for call in self.sandbox.events("systemctl"):
             self.assertNotIn(RETIRED_GATEWAY_UNIT, call["argv"], call)
-        self.assertEqual(self.sandbox.hermes_calls(), [GATEWAY_STATUS_ARGV], "status.sh asked for more than status")
+        self.assertEqual(
+            self.sandbox.hermes_calls(),
+            [GATEWAY_STATUS_ARGV],
+            "status.sh asked for more than status",
+        )
         self.assertIn(HOST_STATUS_OUTPUT, status.stdout)
-        translator = [line for line in status.stdout.splitlines() if "orbit-mcp" in line and "gateway" in line]
+        translator = [
+            line for line in status.stdout.splitlines() if "orbit-mcp" in line and "gateway" in line
+        ]
         self.assertTrue(translator, status.stdout)
-        self.assertTrue(any("1.0.0" in line and "active" in line for line in translator), status.stdout)
+        self.assertTrue(
+            any("1.0.0" in line and "active" in line for line in translator), status.stdout
+        )
         self.assertEqual(self.sandbox.restarts(), [])
 
     def test_status_says_when_the_gateway_runs_another_release(self):
         self.assertEqual(self.sandbox.run("activate.sh", "1.0.0").returncode, 0)
-        self.assertEqual(self.sandbox.run("activate.sh", "1.1.0", env=self.sandbox.env()).returncode, 0)
-        table = [p for p in self.sandbox.processes() if not ("orbit-mcp" in p["args"] and p["ppid"] == GATEWAY_PID)]
-        table.append({"pid": 777, "ppid": GATEWAY_PID, "args": translator_args(self.sandbox.base, "1.0.0")})
+        self.assertEqual(
+            self.sandbox.run("activate.sh", "1.1.0", env=self.sandbox.env()).returncode, 0
+        )
+        table = [
+            p
+            for p in self.sandbox.processes()
+            if not ("orbit-mcp" in p["args"] and p["ppid"] == GATEWAY_PID)
+        ]
+        table.append(
+            {"pid": 777, "ppid": GATEWAY_PID, "args": translator_args(self.sandbox.base, "1.0.0")}
+        )
         self.sandbox.write_processes(table)
         status = self.sandbox.run("status.sh")
         self.assertIn("1.0.0", status.stdout)
         self.assertTrue(
-            any("777" in line and "1.0.0" in line and "1.1.0" in line for line in status.stdout.splitlines()),
+            any(
+                "777" in line and "1.0.0" in line and "1.1.0" in line
+                for line in status.stdout.splitlines()
+            ),
             status.stdout,
         )
 
@@ -518,7 +595,9 @@ class RestartAndStatusTests(unittest.TestCase):
         status = self.sandbox.run("status.sh", env=self.sandbox.env(ORBIT_HUB_HERMES=str(missing)))
         self.assertNotEqual(status.returncode, 0)
         self.assertIn(str(missing), status.stdout + status.stderr)
-        self.assertIn("Active:", status.stdout, "it stopped reporting the rest because hermes was missing")
+        self.assertIn(
+            "Active:", status.stdout, "it stopped reporting the rest because hermes was missing"
+        )
 
     def test_status_names_current_previous_and_every_release(self):
         self.sandbox.make_release("1.2.0", complete=False)
@@ -529,8 +608,12 @@ class RestartAndStatusTests(unittest.TestCase):
         self.assertEqual(status.returncode, 0, status.stderr)
         lines = status.stdout.splitlines()
         self.assertTrue(any("1.1.0" in line and "current" in line for line in lines), status.stdout)
-        self.assertTrue(any("1.0.0" in line and "previous" in line for line in lines), status.stdout)
-        self.assertTrue(any("1.2.0" in line and "incomplete" in line for line in lines), status.stdout)
+        self.assertTrue(
+            any("1.0.0" in line and "previous" in line for line in lines), status.stdout
+        )
+        self.assertTrue(
+            any("1.2.0" in line and "incomplete" in line for line in lines), status.stdout
+        )
         self.assertEqual(self.sandbox.restarts(), [], "status.sh restarted something")
 
 

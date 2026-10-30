@@ -1,0 +1,48 @@
+{
+  "route": {
+    "devices": [
+      {
+        "name": "BlackHole 2ch",
+        "uid": "BlackHole2ch_UID",
+        "virtual": true,
+        "alive": true
+      },
+      {
+        "name": "BlackHole 16ch",
+        "uid": "BlackHole16ch_UID",
+        "virtual": true,
+        "alive": true
+      }
+    ],
+    "unsafe_readers": 0,
+    "unsafe_aggregates": 0
+  },
+  "stored": {
+    "closed": true,
+    "complete": true,
+    "tracks": {
+      "mic_local": {
+        "frames": 288000,
+        "chunks": 6,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "nonzero": true
+      },
+      "remote_app": {
+        "frames": 288000,
+        "chunks": 6,
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "nonzero": true
+      }
+    },
+    "segments": [
+      {
+        "track": "mic_local",
+        "text": "Los estantes de Cedro cuestan setecientos"
+      },
+      {
+        "track": "remote_app",
+        "text": "Las ventanas de Arce abren el jueves. Los jardines de Arce necesitan riego Los paraguas de Cedro son morados"
+      }
+    ]
+  }
+}

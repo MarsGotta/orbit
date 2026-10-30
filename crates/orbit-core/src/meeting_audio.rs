@@ -32,7 +32,7 @@ const DEDICATED: [&str; 11] = [
     "co.teamport.around",
 ];
 
-/// Kept at five so the whole list is two helper reads of eight
+/// Kept at five so the shipping list is two helper reads of eight
 /// (`audio_sources::MAX_BUNDLE_IDS`); a browser added here is one more read
 /// for every inventory of the start dialog.
 const BROWSERS: [&str; 5] = [
@@ -52,8 +52,21 @@ pub fn candidate_bundle_ids() -> Vec<String> {
     DEDICATED
         .iter()
         .chain(BROWSERS.iter())
+        // Only the isolated acceptance build offers the silent remote speaker.
+        // It is not a conferencing app and must not trigger call detection.
+        .chain(test_source_bundle_ids())
         .map(|id| (*id).to_owned())
         .collect()
+}
+
+#[cfg(feature = "pruebas")]
+fn test_source_bundle_ids() -> std::slice::Iter<'static, &'static str> {
+    ["app.orbit.pruebas.remote"].iter()
+}
+
+#[cfg(not(feature = "pruebas"))]
+fn test_source_bundle_ids() -> std::slice::Iter<'static, &'static str> {
+    [].iter()
 }
 
 /// What kind of call application a bundle is, if it is one at all.
@@ -282,5 +295,13 @@ mod tests {
         assert!(!ids.contains(&"com.apple.Notes".to_owned()));
         // The native side caps how many identifiers it will accept.
         assert!(ids.len() <= 32, "the list cannot grow without a bound");
+    }
+
+    #[test]
+    fn the_remote_speaker_fixture_is_only_offered_by_the_test_build() {
+        let offered = candidate_bundle_ids().contains(&"app.orbit.pruebas.remote".to_owned());
+        assert_eq!(offered, cfg!(feature = "pruebas"));
+        // A test source is never classified as a live conferencing call.
+        assert_eq!(call_kind("app.orbit.pruebas.remote"), None);
     }
 }

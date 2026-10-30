@@ -79,16 +79,15 @@ class VariantBuildTests(unittest.TestCase):
         # The first binary the doubles never produced stops the script: what
         # it asked for up to there is the whole build.
         self.assertNotEqual(completed.returncode, 0, completed.stderr)
-        calls = [
-            line.split("\t")
-            for line in self.calls.read_text(encoding="utf-8").splitlines()
-        ]
+        calls = [line.split("\t") for line in self.calls.read_text(encoding="utf-8").splitlines()]
         bundles = sorted(path.name for path in output.glob("*.app"))
         return calls, bundles
 
     @staticmethod
     def compilation(calls, tool, start):
-        found = [call[1:] for call in calls if call[0] == tool and call[1 : 1 + len(start)] == start]
+        found = [
+            call[1:] for call in calls if call[0] == tool and call[1 : 1 + len(start)] == start
+        ]
         if len(found) != 1:
             raise AssertionError(f"{tool} {' '.join(start)}: {len(found)} calls in {calls}")
         return found[0]
@@ -101,7 +100,9 @@ class VariantBuildTests(unittest.TestCase):
         ):
             with self.subTest(name):
                 calls, bundles = self.build(name, **extra)
-                self.assertEqual(self.compilation(calls, "pnpm", OFFICIAL_TAURI[:3]), OFFICIAL_TAURI)
+                self.assertEqual(
+                    self.compilation(calls, "pnpm", OFFICIAL_TAURI[:3]), OFFICIAL_TAURI
+                )
                 # The daemon is inside the app; no build of its own.
                 self.assertEqual([call for call in calls if call[0] == "cargo"], [])
                 self.assertEqual(bundles, ["Orbit.app"])
@@ -120,7 +121,9 @@ class VariantBuildTests(unittest.TestCase):
     def test_the_variant_identifier_is_its_own_and_keeps_orbits_prefix(self):
         official = plistlib.loads(INFO_PLIST.read_bytes())["CFBundleIdentifier"]
         self.assertEqual(official, "app.orbit.companion")
-        found = re.findall(r"Set :CFBundleIdentifier ([A-Za-z0-9.]+)", SCRIPT.read_text(encoding="utf-8"))
+        found = re.findall(
+            r"Set :CFBundleIdentifier ([A-Za-z0-9.]+)", SCRIPT.read_text(encoding="utf-8")
+        )
         self.assertEqual(len(found), 1, found)
         variant = found[0]
         self.assertNotEqual(variant, official)
