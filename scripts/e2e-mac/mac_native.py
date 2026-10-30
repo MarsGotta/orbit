@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from mac_controls import MacFailure
 
-KEYS = Path(__file__).resolve().with_name("keys.swift")
 # Each is below the two-minute silence question; these are provisional
 # scheduling/observation budgets, not product latency claims.
 OBSERVE_S = 5
+# How long Orbit Pruebas Teclas may take to write its answer after `open`.
+KEYS_ANSWER_S = 10
 STATE_S = 10
 # The 32-second process-exit patience covers the current 17-second daemon
 # join plus AppKit teardown; the 60-second playback patience covers fixture
@@ -39,10 +39,34 @@ def progress(state, argument):
 
 class NativeChecks:
     def native_key(self, action, text=None):
-        command = ["swift", str(KEYS), str(self._app_pid()), action]
-        if text is not None:
-            command.append(text)
-        self.system.run_checked(*command)
+        self.paths.own.mkdir(parents=True, exist_ok=True)
+        result = self.paths.own / "keys-result.json"
+        result.unlink(missing_ok=True)
+        arguments = [str(self._app_pid()), action] + ([text] if text is not None else [])
+        self.system.run_checked(
+            "open",
+            "-W",
+            "-n",
+            "-a",
+            str(self.paths.keys_app),
+            "--args",
+            *arguments,
+            "--result",
+            str(result),
+        )
+        # `open -W` can return before the app answers when the app ends too
+        # fast for it to wait on ("Unable to block on application").
+        start = self.system.now()
+        while not result.exists() and self.system.now() - start < KEYS_ANSWER_S:
+            self.system.pause(0.1)
+        try:
+            answer = json.loads(result.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as cause:
+            raise MacFailure(
+                f"Orbit Pruebas Teclas gave no answer for «{action}»: {cause}"
+            ) from None
+        if "failure" in answer:
+            raise MacFailure(f"Orbit Pruebas Teclas: {answer['failure']}")
 
     def audio_state(self, expected, max_s=STATE_S):
         start = self.system.now()

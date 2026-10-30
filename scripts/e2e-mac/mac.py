@@ -87,6 +87,9 @@ class Paths:
 
     def __init__(self, home: Path):
         self.app = home / "Applications" / "Orbit Pruebas.app"
+        # The only sender of real keys (build-keys-app.sh): launched with
+        # `open`, it holds its own Accessibility permission, never SSH's.
+        self.keys_app = home / "Applications" / "Orbit Pruebas Teclas.app"
         self.data = home / "Library" / "Application Support" / DATA_DIRECTORY
         self.socket = self.data / "orbit.sock"
         self.bridge = self.data / "orbit-test-bridge.sock"

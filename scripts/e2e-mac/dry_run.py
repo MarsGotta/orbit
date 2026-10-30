@@ -145,6 +145,14 @@ class DryRunSystem(DryNative, mac_side.System):
             return 0, self.example.text("voices.txt"), ""
         if command[:4] == ("open", "-n", "-g", "-a"):
             return self.cua.start(list(command))
+        if command[0] == "open" and "--result" in command:
+            arguments = list(command[6 : command.index("--result")])
+            code, _out, err = self.native_key(
+                arguments[1], arguments[2] if len(arguments) > 2 else None
+            )
+            answer = '{"posted":true}' if code == 0 else json.dumps({"failure": err.strip()})
+            Path(command[command.index("--result") + 1]).write_text(answer, encoding="utf-8")
+            return 0, "", ""
         if command[0] == "open":
             # Orbit Pruebas «starts»: its logs are the example's, and on a
             # second start they are still the first one's (the data stays).
@@ -163,8 +171,6 @@ class DryRunSystem(DryNative, mac_side.System):
             self._quit()
             self.view.follow("apple-event:quit")
             return 0, "", ""
-        if command[0] == "swift" and command[1].endswith("keys.swift"):
-            return self.native_key(command[3], command[4] if len(command) > 4 else None)
         if command[0] == "swift" and command[1].endswith("pointer.swift"):
             return self.view.pointer(int(command[2]), command[3])
         if command[0] == "sw_vers":

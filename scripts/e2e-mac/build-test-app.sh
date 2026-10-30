@@ -57,3 +57,6 @@ mkdir -p -- "$HOME/Applications"
 ditto "$output/out/Orbit Pruebas.app" "$destination"
 codesign --verify --deep --strict "$destination"
 echo "Installed: $destination ($identifier)"
+# The real test's sender of real keys, signed with the same identity so its
+# Accessibility permission survives this build too.
+bash "$repo/scripts/e2e-mac/build-keys-app.sh"
