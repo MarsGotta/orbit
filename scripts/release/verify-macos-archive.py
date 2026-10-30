@@ -119,7 +119,15 @@ MACHOS = {
     DRIVER,
 }
 EXECUTABLES = MACHOS
-REQUIRED_FILES = EXECUTABLES | {
+# The permission texts and the helper's own words, in each interface language
+# (scripts/macos/copy-localizations.sh).
+LANGUAGES = ("en", "es")
+LOCALIZATIONS = {
+    f"{RESOURCES}/{language}.lproj/{name}"
+    for language in LANGUAGES
+    for name in ("InfoPlist.strings", "Localizable.strings")
+}
+REQUIRED_FILES = EXECUTABLES | LOCALIZATIONS | {
     PLIST,
     ENGINE_PLIST,
     MANIFEST,
@@ -152,6 +160,7 @@ DIRECTORIES = {
     ENGINE_CONTENTS + "/MacOS",
     ENGINE_CONTENTS + "/_CodeSignature",
     RESOURCES,
+    *(f"{RESOURCES}/{language}.lproj" for language in LANGUAGES),
     RESOURCES + "/third-party",
     RESOURCES + "/third-party/cua-driver",
     CONTENTS + "/_CodeSignature",
