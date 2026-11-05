@@ -187,6 +187,9 @@ pub(super) enum StoreWork {
 /// one domain's runtime state and the methods that touch only that state.
 pub(super) struct Runtime {
     pub(super) closing: bool,
+    /// The hub link was online when Orbit began closing: the way out
+    /// (`exit_delivery`) only sends to a hub that answered then.
+    pub(super) online_at_close: bool,
     /// A timed-out privacy retirement keeps its durable tail owed to the
     /// next maintenance turn after the writer recovers.
     pub(super) privacy_retirement_owed: bool,

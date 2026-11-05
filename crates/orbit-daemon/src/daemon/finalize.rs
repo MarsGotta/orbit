@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 #[path = "finalize_schedule.rs"]
 mod schedule;
+pub(super) use schedule::post_closure;
 
 #[cfg(test)]
 #[path = "finalize_tests.rs"]

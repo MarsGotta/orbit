@@ -83,6 +83,7 @@ pub(in crate::daemon) fn fixture(
     Ok((
         Runtime {
             closing: false,
+            online_at_close: false,
             privacy_retirement_owed: false,
             paths,
             settings: Settings::default(),

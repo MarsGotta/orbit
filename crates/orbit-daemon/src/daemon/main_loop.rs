@@ -127,6 +127,7 @@ impl MainLoop<'_> {
                 .observe_listener(listener_ended, self.runtime)
                 .await;
             if self.closing.ready(self.runtime) {
+                Box::pin(self.deliver_before_exit()).await;
                 break;
             }
             // The bounded budget is checked on every iteration, not only on
@@ -150,6 +151,7 @@ impl MainLoop<'_> {
                 break;
             }
             if self.closing.ready(self.runtime) {
+                Box::pin(self.deliver_before_exit()).await;
                 break;
             }
         }
@@ -159,6 +161,14 @@ impl MainLoop<'_> {
             );
         }
         Ok(())
+    }
+
+    /// Everything is stored: what the closed recording owes the hub goes up
+    /// within what is left of the one closing budget, never past it.
+    async fn deliver_before_exit(&mut self) {
+        if let Some(deadline) = self.closing.deadline {
+            Box::pin(self.runtime.deliver_before_exit(deadline)).await;
+        }
     }
 
     /// Waits for the next source and serves it.

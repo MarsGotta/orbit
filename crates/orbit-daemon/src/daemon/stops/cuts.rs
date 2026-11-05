@@ -94,6 +94,12 @@ impl Runtime {
             .await;
             return;
         };
+        // The meeting ends here, at the quit, with the closing's cause: the
+        // way out closes it once its audio is stored (`exit_delivery`).
+        self.note_cut(cause, cause.name());
+        // A second door into the closure finds the link already offline:
+        // the first one's view is kept.
+        self.online_at_close |= self.state.connection() == Connection::Online;
         self.state = decision.state.clone();
         if let Err(error) = self
             .request_full_audio_stop(super::audio::FullStop::Cut)

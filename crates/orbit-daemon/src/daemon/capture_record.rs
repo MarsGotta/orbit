@@ -92,6 +92,6 @@ impl Runtime {
     ) -> Result<()> {
         self.restore_capture_record()?;
         self.close_empty_interrupted(empty).await?;
-        Box::pin(self.close_cut_recording_at_start()).await
+        Box::pin(self.close_unresumable_cut_recording()).await
     }
 }
