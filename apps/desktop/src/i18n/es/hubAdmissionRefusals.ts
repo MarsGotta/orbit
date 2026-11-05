@@ -95,7 +95,7 @@ export const hubAdmissionRefusals = {
   final_audio_empty: () => "La grabación no tiene audio legible",
   final_audio_time_out_of_range: () => "El inicio del fragmento queda fuera de la grabación",
   final_audio_timeout: () => "La conversión de audio agotó su plazo",
-  final_window_too_large: () => "La ventana Opus supera el límite de Whisper",
+  final_window_too_large: () => "La ventana Opus supera el límite del modelo de tu hub",
   group_not_found: () => "Grupo no disponible",
   handover_no_question: () =>
     "La conversación no tiene ninguna pregunta sin respuesta que pasar; escribe la pregunta",
@@ -124,7 +124,7 @@ export const hubAdmissionRefusals = {
   invalid_payload: () => "Carga vacía",
   invalid_recording: () => "ID de grabación no válido",
   invalid_request: () => "Solicitud de emparejado no válida",
-  invalid_transcription_setting: () => "Elige Whisper o MAI para transcribir",
+  invalid_transcription_setting: () => "Elige el modelo de tu hub o MAI para transcribir",
   invalid_working_folder: () => "Este asistente no usa una carpeta de trabajo del hub",
   manifest_conflict: () => "La grabación ya tiene un manifiesto de cierre distinto",
   manifest_mismatch: () => "Las pistas del manifiesto no coinciden con los fragmentos durables",

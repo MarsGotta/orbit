@@ -79,7 +79,9 @@ fn a_new_ready_note_frame_wakes_once_even_without_a_window() -> Result<(), Box<d
     ready.sequence = 4;
     follow_notes(app.handle(), &Some(notes.clone()));
     assert!(handle.change(|w| w.take_poll(false)));
-    handle.change(|w| w.observe(&[]));
+    let mut listed = proposal("proposed")?;
+    listed.meeting_id = "cedar-meeting".into();
+    handle.change(|w| w.observe(&[listed]));
     follow_notes(app.handle(), &None);
     follow_notes(app.handle(), &Some(notes));
     assert!(
@@ -142,12 +144,12 @@ fn privacy_stop_skips_the_read_and_leaves_no_timer_until_a_new_reason() -> Resul
     let mut watcher = Watcher::default();
     assert!(!watcher.take_poll(true));
     assert!(!watcher.take_poll(false));
-    assert!(watcher.note_ready(1));
+    assert!(watcher.note_ready(1, "meeting"));
     assert!(watcher.take_poll(false));
     watcher.observe(&[proposal("queued")?]);
     assert!(!watcher.take_poll(true));
     assert!(!watcher.take_poll(false));
-    assert!(watcher.note_ready(2));
+    assert!(watcher.note_ready(2, "meeting"));
     assert!(watcher.take_poll(false));
     Ok(())
 }
@@ -159,11 +161,11 @@ fn a_proposal_notifies_once_across_later_triggers() -> Result<(), Box<dyn Error>
     assert_eq!(watcher.observe(&[proposal("proposed")?]), 0);
     let mut new = proposal("proposed")?;
     new.id = "cedar-new".into();
-    assert!(watcher.note_ready(1));
+    assert!(watcher.note_ready(1, "meeting"));
     assert!(watcher.take_poll(false));
     assert_eq!(watcher.observe(&[new.clone(), proposal("proposed")?]), 1);
     assert!(!watcher.take_poll(false));
-    assert!(watcher.note_ready(2));
+    assert!(watcher.note_ready(2, "meeting"));
     assert!(watcher.take_poll(false));
     assert_eq!(watcher.observe(&[new, proposal("proposed")?]), 0);
     assert!(!watcher.take_poll(false));
@@ -171,17 +173,18 @@ fn a_proposal_notifies_once_across_later_triggers() -> Result<(), Box<dyn Error>
 }
 
 #[test]
-fn a_trigger_while_reading_survives_an_empty_response() {
+fn a_trigger_while_reading_survives_an_empty_response() -> Result<(), Box<dyn Error>> {
     let mut watcher = Watcher::default();
     assert!(watcher.take_poll(false));
-    assert!(watcher.note_ready(1));
+    assert!(watcher.note_ready(1, "meeting"));
     watcher.observe(&[]);
     assert!(
         watcher.take_poll(false),
         "the newer reason was not answered by this read"
     );
-    watcher.observe(&[]);
+    watcher.observe(&[proposal("failed")?]);
     assert!(!watcher.take_poll(false));
+    Ok(())
 }
 
 #[test]
@@ -202,4 +205,36 @@ fn all_terminal_states_stop_polling() -> Result<(), Box<dyn Error>> {
         assert!(!watcher.take_poll(false), "{status}");
     }
     Ok(())
+}
+
+#[test]
+fn a_note_ready_before_its_proposal_reads_until_the_proposal_is_there() -> Result<(), Box<dyn Error>>
+{
+    let mut watcher = Watcher::default();
+    assert!(watcher.take_poll(false));
+    watcher.observe(&[]);
+    assert!(watcher.note_ready(1, "meeting"));
+    assert!(watcher.take_poll(false));
+    // The hub stored the note and has not made the meeting's proposal yet.
+    assert_eq!(watcher.observe(&[]), 0);
+    assert!(
+        watcher.take_poll(false),
+        "the ready note's proposal is still to come"
+    );
+    assert_eq!(watcher.observe(&[proposal("proposed")?]), 1);
+    assert!(!watcher.take_poll(false));
+    Ok(())
+}
+
+#[test]
+fn a_proposal_the_hub_never_lists_stops_the_reads_at_their_bound() {
+    let mut watcher = Watcher::default();
+    assert!(watcher.take_poll(false));
+    watcher.observe(&[]);
+    assert!(watcher.note_ready(1, "meeting"));
+    for _ in 0..PROPOSAL_AWAIT_READS {
+        assert!(watcher.take_poll(false));
+        watcher.observe(&[]);
+    }
+    assert!(!watcher.take_poll(false));
 }

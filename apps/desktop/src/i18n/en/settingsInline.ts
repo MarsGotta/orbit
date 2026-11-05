@@ -13,7 +13,8 @@ export const settingsInline = {
   saveCapabilities: "Save capabilities",
   providers: "Providers",
   inHub: "On your hub",
-  hubModelsHelp: "Whisper and pyannote · No key. Configured by the operator.",
+  hubModelsHelp:
+    "Your hub's transcription model and pyannote · No key. Configured by the operator.",
   keyStored: "Key saved in the hub",
   noKey: "No key",
   edit: "Edit",

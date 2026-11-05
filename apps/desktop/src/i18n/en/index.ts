@@ -49,7 +49,7 @@ export { globalShortcuts };
 export function english(assistantName = "Deimos") {
   return defineCatalogue({
     ...interfaceCopy,
-    ...distillationCopy(assistantName),
+    ...distillationCopy,
     agentActivity,
     aiPrivacy,
     extras: {

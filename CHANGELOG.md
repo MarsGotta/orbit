@@ -39,6 +39,17 @@ English and Spanish; labels quoted below may use either language.
   failure, and it can still be read.
 - A read that timed out reports which wait it was (`operation`, such as
   `session_list`) with how long it waited and its deadline.
+- The meetings list is read when the app starts even if the daemon published
+  every topic before the app began following them; it could stay unread until
+  the next change.
+- macOS says a meeting's proposal is ready even when the note was ready before
+  the hub had started the proposal. Orbit reads again every ten seconds, for
+  at most five minutes, until the hub lists it.
+- The distillation copy credits Orbit, which prepares it with the model of
+  Settings › AI, instead of the assistant's name.
+- The app no longer calls the hub's transcription model «Whisper»: it says
+  «Your hub's model», and Settings › AI names it as the operator configured it
+  in `[meeting_transcription] model`. The wire value stays `whisper`.
 
 ## [0.14.2] - 2026-10-30
 

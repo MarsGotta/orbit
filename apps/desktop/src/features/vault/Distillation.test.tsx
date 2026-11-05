@@ -298,7 +298,7 @@ it("shows today’s author, fallback owner and source names without protocol act
       }}
     />,
   );
-  expect(await screen.findByText("Deimos · hoy, 11:52")).toBeTruthy();
+  expect(await screen.findByText("Orbit · hoy, 11:52")).toBeTruthy();
   expect(screen.getByText(/Revisada por ti/)).toBeTruthy();
   expect(screen.getByRole("link", { name: "Cedar review · 21 oct" }).getAttribute("href")).toBe(
     "#/vault/n/Sources%2Fcedar-review.md",

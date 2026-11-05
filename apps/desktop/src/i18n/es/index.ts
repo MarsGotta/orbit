@@ -48,7 +48,7 @@ export { globalShortcuts };
 export function spanish(assistantName = "Deimos") {
   return {
     ...interfaceCopy,
-    ...distillationCopy(assistantName),
+    ...distillationCopy,
     agentActivity,
     aiPrivacy,
     extras: {

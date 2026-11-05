@@ -13,10 +13,14 @@ def endpoint_privacy(function, url, model):
 def describe(registry, function):
     settings = registry.settings
     if function == "meeting_transcription":
+        # The hub's transcriber is the operator's `[meeting_transcription]`,
+        # read by the name the operator gave it. Choosing it explicitly is
+        # still `hub`/`whisper` on the wire (`Registry.hub_provider`).
+        transcription = settings.meeting_transcription
         return (
-            "hub",
-            "whisper",
-            endpoint_privacy(function, settings.meeting_transcription.endpoint, "whisper"),
+            "operator",
+            transcription.model,
+            endpoint_privacy(function, transcription.endpoint, transcription.model),
         )
     if function in ("meeting_notes", "vault"):
         if settings.processing is not None:

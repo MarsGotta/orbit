@@ -10,12 +10,24 @@ use std::{
 use tauri::Manager;
 use tokio::sync::Notify;
 
+/// Reads a ready note's meeting may take, at the ten-second timer, while the
+/// hub has not listed its proposal: thirty, five minutes. The hub makes the
+/// proposal after it stores the note, and only once no other note is waiting
+/// to be written, so the first read can come too soon. The bound keeps the
+/// app from reading forever for a proposal the hub will not make (a vault
+/// without a processing model). It does not bound a preparation: once the
+/// proposal is listed queued or preparing, that state keeps the reads going.
+const PROPOSAL_AWAIT_READS: u8 = 30;
+
 pub struct Watcher {
     // One hub page of ids/statuses only; proposal content is never retained.
     previous: Option<BTreeMap<String, DistillationStatus>>,
     requested: bool,
     preparing: bool,
     note_sequence: u32,
+    /// The meeting whose note became ready and whose proposal the hub has
+    /// not listed yet, with the reads it may still take.
+    awaited: Option<(String, u8)>,
 }
 impl Default for Watcher {
     fn default() -> Self {
@@ -29,27 +41,41 @@ impl Watcher {
             requested: true,
             preparing: false,
             note_sequence,
+            awaited: None,
         }
     }
     pub fn should_poll(&self, privacy_stopped: bool) -> bool {
-        !privacy_stopped && (self.requested || self.preparing)
+        !privacy_stopped && (self.requested || self.following())
+    }
+    /// Whether a timer reads again: a proposal in preparation, or a ready
+    /// note's proposal still to come.
+    fn following(&self) -> bool {
+        self.preparing || self.awaited.is_some()
+    }
+    fn stop_following(&mut self) {
+        self.preparing = false;
+        self.awaited = None;
     }
     fn take_poll(&mut self, privacy_stopped: bool) -> bool {
         if privacy_stopped {
             self.requested = false;
-            self.preparing = false;
+            self.stop_following();
             return false;
         }
         let poll = self.should_poll(false);
         self.requested = false;
+        if poll && let Some((_, left)) = self.awaited.as_mut() {
+            *left = left.saturating_sub(1);
+        }
         poll
     }
-    fn note_ready(&mut self, sequence: u32) -> bool {
+    fn note_ready(&mut self, sequence: u32, meeting_id: &str) -> bool {
         if sequence <= self.note_sequence {
             return false;
         }
         self.note_sequence = sequence;
         self.requested = true;
+        self.awaited = Some((meeting_id.to_owned(), PROPOSAL_AWAIT_READS));
         true
     }
     fn preparation_requested(&mut self, call: &VaultCall) -> bool {
@@ -79,6 +105,11 @@ impl Watcher {
                 .map(|entry| (entry.id.clone(), entry.status.clone()))
                 .collect(),
         );
+        if let Some((meeting, left)) = &self.awaited
+            && (*left == 0 || entries.iter().any(|entry| entry.meeting_id == *meeting))
+        {
+            self.awaited = None;
+        }
         ready
     }
 }
@@ -129,7 +160,7 @@ pub fn follow_notes<R: tauri::Runtime>(app: &tauri::AppHandle<R>, notes: &Option
     if let Some(ready) = notes.as_ref().and_then(|notes| notes.ready.as_ref())
         && let Some(handle) = app.try_state::<Handle>()
     {
-        handle.trigger(|watcher| watcher.note_ready(ready.sequence));
+        handle.trigger(|watcher| watcher.note_ready(ready.sequence, &ready.recording_id));
     }
 }
 
@@ -157,9 +188,10 @@ pub fn watch<R: tauri::Runtime>(app: tauri::AppHandle<R>, client: DaemonClient) 
             if handle.change(|watcher| watcher.requested) {
                 continue;
             }
-            if handle.change(|watcher| watcher.preparing) {
-                // Only an observed queued/preparing proposal owns a timer.
-                // Ten seconds bounds readiness latency, not proposal lifetime.
+            if handle.change(|watcher| watcher.following()) {
+                // Only an observed queued/preparing proposal, or a ready
+                // note's proposal still to come, owns a timer. Ten seconds
+                // bounds readiness latency, not proposal lifetime.
                 tokio::select! {
                     _ = handle.0.wake.notified() => {},
                     _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {},
@@ -188,7 +220,7 @@ async fn read<R: tauri::Runtime>(
             handle.change(|watcher| watcher.observe(&page.entries))
         }
         Ok(VaultOutcome::Refused { .. } | VaultOutcome::DistillationDisabled { .. }) => {
-            handle.change(|watcher| watcher.preparing = false);
+            handle.change(Watcher::stop_following);
             0
         }
         // A transport failure neither invents queued work at startup nor

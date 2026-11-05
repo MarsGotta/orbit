@@ -104,27 +104,25 @@ const fixedCopy = {
   longNote: (words: number, max: number) =>
     `The resulting note has ${words} words; the recommended maximum is ${max}.`,
 };
-export function distillationCopy(name: string) {
-  const changes = (n: number) => `${n} ${n === 1 ? "change" : "changes"}`;
-  return {
-    distillation: {
-      ...fixedCopy,
-      changes,
-      lead: (n: number, m: number) =>
-        `${name} read the transcript and proposes ${changes(n)} in ${noteCount(m)}. The meeting is saved as a source.`,
-      apply: (n: number) => `Apply ${changes(n)}`,
-      alsoIndex: `${name} also adds the meeting to index.md and records it in log.md.`,
-      conflictHead: `${name} leaves the decision to you when two sources disagree`,
-      applied: (n: number, m: number) =>
-        `Applied ${changes(n)} in ${noteCount(m)}. ${name} updated index.md and log.md; the notes are marked as reviewed by you.`,
-      pendingTitle: (meeting: string) => `${name} distilled “${meeting}”`,
-      reviewPill: (n: number) => `Review distillation · ${changes(n)}`,
-      inNotes: (n: number) => `In Notes · ${changes(n)}`,
-      reviewTip: (n: number, m: number) =>
-        `${name} proposes ${changes(n)} in ${noteCount(m)}: review them before applying`,
-      appliedTip: (n: number, m: number) =>
-        `You reviewed the distillation: ${changes(n)} in ${noteCount(m)}`,
-      assistant: name,
-    },
-  };
-}
+const changes = (n: number) => `${n} ${n === 1 ? "change" : "changes"}`;
+export const distillationCopy = {
+  distillation: {
+    ...fixedCopy,
+    changes,
+    lead: (n: number, m: number) =>
+      `Orbit read the transcript and proposes ${changes(n)} in ${noteCount(m)}. The meeting is saved as a source.`,
+    apply: (n: number) => `Apply ${changes(n)}`,
+    alsoIndex: "Orbit also adds the meeting to index.md and records it in log.md.",
+    conflictHead: "Orbit leaves the decision to you when two sources disagree",
+    applied: (n: number, m: number) =>
+      `Applied ${changes(n)} in ${noteCount(m)}. Orbit updated index.md and log.md; the notes are marked as reviewed by you.`,
+    pendingTitle: (meeting: string) => `Orbit distilled “${meeting}”`,
+    reviewPill: (n: number) => `Review distillation · ${changes(n)}`,
+    inNotes: (n: number) => `In Notes · ${changes(n)}`,
+    reviewTip: (n: number, m: number) =>
+      `Orbit proposes ${changes(n)} in ${noteCount(m)}: review them before applying`,
+    appliedTip: (n: number, m: number) =>
+      `You reviewed the distillation: ${changes(n)} in ${noteCount(m)}`,
+    author: "Orbit",
+  },
+};

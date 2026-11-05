@@ -1,7 +1,7 @@
 export const transcription = {
   title: "Transcript",
   label: "Transcription model",
-  whisper: "Whisper on your hub",
+  whisper: "Your hub's model",
   mai: "MAI-Transcribe-2 (OpenRouter)",
   privacy:
     "Audio from meetings, voice notes and calls is sent to Microsoft through OpenRouter. Zero data retention (ZDR) is requested.",
