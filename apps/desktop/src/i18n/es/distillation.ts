@@ -105,27 +105,25 @@ const fixedCopy = {
   longNote: (words: number, max: number) =>
     `La nota resultante tiene ${words} palabras; se recomienda no pasar de ${max}.`,
 };
-export function distillationCopy(name: string) {
-  const changes = (n: number) => `${n} ${n === 1 ? "cambio" : "cambios"}`;
-  return {
-    distillation: {
-      ...fixedCopy,
-      changes,
-      lead: (n: number, m: number) =>
-        `${name} leyó la transcripción y propone ${changes(n)} en ${noteCount(m)}. La reunión se guarda como fuente.`,
-      apply: (n: number) => `Aplicar ${changes(n)}`,
-      alsoIndex: `Además, ${name} añade la reunión a index.md y deja constancia en log.md.`,
-      conflictHead: `${name} no elige por ti cuando dos fuentes dicen cosas distintas`,
-      applied: (n: number, m: number) =>
-        `${n === 1 ? "Aplicado" : "Aplicados"} ${changes(n)} en ${noteCount(m)}. ${name} actualizó index.md y log.md; las notas quedan como revisadas por ti.`,
-      pendingTitle: (meeting: string) => `${name} destiló «${meeting}»`,
-      reviewPill: (n: number) => `Revisar el destilado · ${changes(n)}`,
-      inNotes: (n: number) => `En Notas · ${changes(n)}`,
-      reviewTip: (n: number, m: number) =>
-        `${name} propone ${changes(n)} en ${noteCount(m)}: revísalos antes de aplicarlos`,
-      appliedTip: (n: number, m: number) =>
-        `Revisaste el destilado: ${changes(n)} en ${noteCount(m)}`,
-      assistant: name,
-    },
-  };
-}
+const changes = (n: number) => `${n} ${n === 1 ? "cambio" : "cambios"}`;
+export const distillationCopy = {
+  distillation: {
+    ...fixedCopy,
+    changes,
+    lead: (n: number, m: number) =>
+      `Orbit leyó la transcripción y propone ${changes(n)} en ${noteCount(m)}. La reunión se guarda como fuente.`,
+    apply: (n: number) => `Aplicar ${changes(n)}`,
+    alsoIndex: "Además, Orbit añade la reunión a index.md y deja constancia en log.md.",
+    conflictHead: "Orbit no elige por ti cuando dos fuentes dicen cosas distintas",
+    applied: (n: number, m: number) =>
+      `${n === 1 ? "Aplicado" : "Aplicados"} ${changes(n)} en ${noteCount(m)}. Orbit actualizó index.md y log.md; las notas quedan como revisadas por ti.`,
+    pendingTitle: (meeting: string) => `Orbit destiló «${meeting}»`,
+    reviewPill: (n: number) => `Revisar el destilado · ${changes(n)}`,
+    inNotes: (n: number) => `En Notas · ${changes(n)}`,
+    reviewTip: (n: number, m: number) =>
+      `Orbit propone ${changes(n)} en ${noteCount(m)}: revísalos antes de aplicarlos`,
+    appliedTip: (n: number, m: number) =>
+      `Revisaste el destilado: ${changes(n)} en ${noteCount(m)}`,
+    author: "Orbit",
+  },
+};

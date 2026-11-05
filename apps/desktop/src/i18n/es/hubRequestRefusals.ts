@@ -126,7 +126,7 @@ export const hubRequestRefusals = {
       : `El servicio de transcripción tardó más de ${formatQuantity(n.timeout_ms)} ms`,
   transcription_unavailable: () => "Worker de transcripción detenido; conserva el audio",
   transcription_word_out_of_range: () => "Tiempo de palabra fuera de su ventana",
-  transcription_words_missing: () => "Whisper no devolvió tiempos por palabra",
+  transcription_words_missing: () => "El modelo de transcripción no devolvió tiempos por palabra",
   turn_id_required: () => "El control requiere la identidad del turno original",
   turn_no_longer_exists: () => "El turno ya no existe en la transcripción",
   unauthorized: () => "Credencial de dispositivo requerida",

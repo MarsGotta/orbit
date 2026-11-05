@@ -120,7 +120,7 @@ export const hubRequestRefusals: Record<HubRequestCode, (n: Numbers) => string |
       : `The transcription service took longer than ${formatQuantity(n.timeout_ms)} ms`,
   transcription_unavailable: () => "Transcription worker stopped; keep the audio",
   transcription_word_out_of_range: () => "Word timestamp outside its window",
-  transcription_words_missing: () => "Whisper did not return word timestamps",
+  transcription_words_missing: () => "The transcription model did not return word timestamps",
   turn_id_required: () => "Control requires the original turn identity",
   turn_no_longer_exists: () => "The turn is no longer in the transcript",
   unauthorized: () => "Device credential required",

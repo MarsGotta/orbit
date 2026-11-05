@@ -143,8 +143,11 @@ fn initial_snapshot(
 /// Follows the published notes head for as long as the client lives.
 ///
 /// This client belongs to one daemon lifetime. Read the list and library
-/// again only when their published heads change.
+/// again only when their published heads change. The head on record when it
+/// starts counts as a change: in-process, the subscription can publish every
+/// topic before `connect` makes this receiver, and nothing may change after.
 async fn follow_notes(weak: std::sync::Weak<ClientInner>, mut changes: watch::Receiver<()>) {
+    changes.mark_changed();
     let mut seen: Option<(u64, Option<String>)> = None;
     let mut seen_library = None;
     let mut seen_series: Option<(Option<series::SeriesTarget>, u64)> = None;
@@ -379,6 +382,104 @@ mod bootstrap_tests {
             |frame| matches!(frame, crate::features::FeatureFrame::Local { view, .. }
                 if view.login_item == LoginItemState::On)
         ));
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod follow_tests {
+    use super::*;
+    use orbit_core::{
+        protocol::{Command, TopicResponse},
+        reads::ReadRequest,
+        topics::{Knowledge, Page, TopicData, TopicFrame, TopicId, notes},
+    };
+    use tokio::sync::mpsc;
+
+    /// The subscription's tasks start before `connect` makes the follower's
+    /// receiver, and in-process they can publish every topic first. A
+    /// follower that starts after the notes head was published, with no
+    /// change after it, still reads the list.
+    #[tokio::test]
+    async fn a_follower_started_after_the_head_was_published_reads_the_list()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let paths = Paths::resolve(Some(directory.path().to_path_buf()))?;
+        let (notes_topic, _) = watch::channel(TopicFrame {
+            epoch: "follow".into(),
+            revision: 1,
+            data: TopicData::Notes(Knowledge::Present {
+                value: notes::Value::default(),
+                as_of_ms: None,
+            }),
+        });
+        let (calls, mut incoming) = mpsc::channel::<orbit_ipc::Call>(4);
+        let endpoint =
+            crate::client_fixture::channel(calls, [(TopicId::Notes, notes_topic)].into());
+        let (list_reads, mut lists) = mpsc::unbounded_channel();
+        let actor = tokio::spawn(async move {
+            while let Some(call) = incoming.recv().await {
+                let Command::Read { read } = call.request.body else {
+                    continue;
+                };
+                if matches!(read, ReadRequest::NotesPage { cursor: None }) {
+                    let _ = list_reads.send(());
+                }
+                let _ = call.reply.send(TopicResponse {
+                    v: orbit_core::PROTOCOL_VERSION,
+                    id: call.request.id,
+                    ok: true,
+                    revisions: std::collections::BTreeMap::new(),
+                    read: Some(read.id()),
+                    answer: Some(Knowledge::Present {
+                        value: Page {
+                            items: Vec::new(),
+                            next: None,
+                            total: 0,
+                            revision: 0,
+                            store_version: None,
+                            handed_over_from: None,
+                        },
+                        as_of_ms: None,
+                    }),
+                    refusal: None,
+                });
+            }
+        });
+        let client = DaemonClient::connect(paths, endpoint.client.clone());
+        // On this single-threaded runtime nothing has run yet: the follower
+        // `connect` started goes before it could see anything.
+        if let Ok(mut slot) = client.inner.note_refresh_abort.lock()
+            && let Some(follower) = slot.take()
+        {
+            follower.abort();
+        }
+        let mut published = client.watch_frames();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while client
+                .inner
+                .topics
+                .read()
+                .await
+                .topic(TopicId::Notes)
+                .is_none()
+            {
+                published.changed().await?;
+            }
+            Ok::<_, watch::error::RecvError>(())
+        })
+        .await??;
+        let late = tokio::spawn(follow_notes(
+            Arc::downgrade(&client.inner),
+            client.watch_frames(),
+        ));
+        // Five seconds bound a hang; the read is the follower's first step.
+        tokio::time::timeout(Duration::from_secs(5), lists.recv())
+            .await?
+            .ok_or("the fake daemon ended")?;
+        late.abort();
+        actor.abort();
+        endpoint.abort();
         Ok(())
     }
 }

@@ -70,7 +70,7 @@ function PendingCard({ proposal }: { proposal: Distillation }) {
   return (
     <article className={pendingStyles.card}>
       <span className={pendingStyles.avatar} aria-hidden="true">
-        {copy.assistant.charAt(0)}
+        {copy.author.charAt(0)}
       </span>
       <div className={pendingStyles.body}>
         <h2>{pendingHeading(proposal, copy)}</h2>

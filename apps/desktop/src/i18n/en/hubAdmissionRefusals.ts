@@ -98,7 +98,7 @@ export const hubAdmissionRefusals: Record<HubAdmissionCode, (n: Numbers) => stri
   final_audio_empty: () => "The recording has no readable audio",
   final_audio_time_out_of_range: () => "The chunk starts outside the recording",
   final_audio_timeout: () => "Audio conversion exceeded its deadline",
-  final_window_too_large: () => "The Opus window exceeds the Whisper limit",
+  final_window_too_large: () => "The Opus window exceeds your hub's model limit",
   group_not_found: () => "Group unavailable",
   handover_no_question: () =>
     "This conversation has no unanswered question to hand over; write the question",
@@ -127,7 +127,7 @@ export const hubAdmissionRefusals: Record<HubAdmissionCode, (n: Numbers) => stri
   invalid_payload: () => "Empty payload",
   invalid_recording: () => "Invalid recording ID",
   invalid_request: () => "Invalid pairing request",
-  invalid_transcription_setting: () => "Choose Whisper or MAI for transcription",
+  invalid_transcription_setting: () => "Choose your hub's model or MAI for transcription",
   invalid_working_folder: () => "This assistant does not use a hub working folder",
   manifest_conflict: () => "The recording already has a different closure manifest",
   manifest_mismatch: () => "Manifest tracks do not match durable chunks",

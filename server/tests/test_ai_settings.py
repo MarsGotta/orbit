@@ -202,6 +202,30 @@ async def test_load_migrates_legacy_key_and_separates_function_choices(environme
         assert untouched["listening"] == functions["listening"]
 
 
+async def test_the_hub_transcriber_reads_as_the_model_the_operator_configured(environment):
+    """Settings › AI names the hub's transcriber by `[meeting_transcription] model`,
+    never a model name written in the code; the chosen hub model stays `whisper`
+    on the wire for Macs with an older app."""
+    settings, store, adapter = environment
+    app = create_app(settings, store=store, assistant=adapter, speech=adapter)
+    owner = device(store)
+    async with app.router.lifespan_context(app), routes_only(app) as http:
+        public = (await http.get("/v1/settings/ai", headers=bearer(owner))).json()
+        functions = {f["id"]: f for f in public["functions"]}
+        transcription = functions["meeting_transcription"]
+        assert (transcription["provider_id"], transcription["model"]) == (
+            "operator",
+            settings.meeting_transcription.model,
+        )
+        assert transcription["privacy"] == "The audio stays on your hub."
+        assert (
+            await select(http, owner, "meeting_transcription", "hub", "whisper")
+        ).status_code == 200
+        chosen = (await http.get("/v1/settings/ai", headers=bearer(owner))).json()
+        chosen = {f["id"]: f for f in chosen["functions"]}["meeting_transcription"]
+        assert (chosen["provider_id"], chosen["model"]) == ("hub", "whisper")
+
+
 async def test_privacy_includes_non_loopback_network(environment):
     from orbit_hub.ai.registry import privacy_line
 

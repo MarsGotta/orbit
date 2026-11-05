@@ -13,7 +13,7 @@ export function normalizeOwner(value: string) {
 export function actorName(by: string, owner: string) {
   const copy = getCopy().distillation;
   if (by.startsWith("orbit-hub/") || by.startsWith("orbit/") || by.startsWith("deimos/"))
-    return copy.assistant;
+    return copy.author;
   if (by.startsWith("human:"))
     return owner !== "" && by.slice(6) === owner
       ? copy.you

@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
 import type { DaemonPort, FrameListener } from "../bridge/port";
 import { spanish } from "./es";
+import { english } from "./en";
 import { receive } from "../app/interceptor";
 import { PanelApp } from "../features/call-panel/PanelApp";
 
@@ -157,5 +158,22 @@ it("uses the configured name in chat, notes, permissions and notices, preserving
     );
     expect(result.messages[0]?.text).toContain("Atlas");
     expect(result.messages[0]?.text).not.toContain("Deimos");
+  }
+});
+
+it("credits the distillation to Orbit, which makes it, whatever the assistant is called", () => {
+  for (const copy of [spanish("Atlas").distillation, english("Atlas").distillation]) {
+    const credited = [
+      copy.lead(2, 1),
+      copy.alsoIndex,
+      copy.conflictHead,
+      copy.applied(2, 1),
+      copy.pendingTitle("Cedar review"),
+      copy.reviewTip(2, 1),
+    ];
+    for (const text of credited) {
+      expect(text).toContain("Orbit");
+      expect(text).not.toMatch(/Atlas|Deimos/);
+    }
   }
 });
