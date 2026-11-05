@@ -366,6 +366,13 @@ app_type! {
         /// The hub has more meetings than are listed: «Cargar más».
         pub more: bool,
         pub detail: Option<String>,
+        /// Why a `failed` list was not read, as a code and never text: the
+        /// refusal's (`upstream_failed`, `too_large`…), the app's own check
+        /// of the answer (`read_list_invalid`…), or the call to the daemon's
+        /// (`daemon_call_timeout`, `daemon_call_failed`, `orbit_closing`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        pub cause: Option<String>,
     }
 }
 

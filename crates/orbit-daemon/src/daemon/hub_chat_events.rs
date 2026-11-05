@@ -219,10 +219,17 @@ impl Runtime {
             .await?;
         } else if !interrupt_refused {
             self.log("hub_error", &fields);
-            self.say(Notice::new(NoticeCode::HubError).with_token(
-                NoticeKey::Code,
-                data.code.as_deref().unwrap_or("not_reported"),
-            ));
+            // The hub keeps each Mac's conversations to that Mac: observing
+            // one from the other Mac, or one from before the hub was
+            // restored or this Mac paired again, finds none. That is not a
+            // failure; the person is told it is not on this Mac, as a turn
+            // sent to it is (`transition::assistant::failure`).
+            let notice = if code == "session_not_found" {
+                NoticeCode::AssistantSessionNotFound
+            } else {
+                NoticeCode::HubError
+            };
+            self.say(Notice::new(notice).with_token(NoticeKey::Code, code));
         }
         Ok(())
     }

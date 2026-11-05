@@ -298,3 +298,40 @@ fn a_panic_keeps_the_addresses_and_the_image_sentry_symbolicates_with() {
     assert_eq!(u64::from(image.image_addr), 0x1_0000_0000);
     assert!(image.debug_file.is_none());
 }
+
+/// What the interface reports for ORBIT-APP-1 and ORBIT-APP-G leaves with
+/// its codes and numbers: why the notes list was not read, and which wait
+/// timed out. A sentence under either key is not even a report line.
+#[test]
+fn the_lists_cause_and_the_wait_that_timed_out_leave_as_codes() {
+    let line = |code: &str, data: serde_json::Value| {
+        serde_json::from_value::<Report>(serde_json::json!({
+            "op": "0123abcd-op", "code": code, "class": "failed", "source": "app", "data": data
+        }))
+    };
+    let timeout = line(
+        "timeout",
+        serde_json::json!({"operation": "session_list", "elapsed_ms": 8012, "timeout_ms": 8000}),
+    )
+    .unwrap();
+    let clean = scrub(event(&timeout, 0)).unwrap();
+    assert_eq!(
+        clean.extra.get("operation"),
+        Some(&Value::from("session_list"))
+    );
+    assert_eq!(clean.extra.get("elapsed_ms"), Some(&Value::from(8012)));
+    assert_eq!(clean.extra.get("timeout_ms"), Some(&Value::from(8000)));
+    let index = line(
+        "notes_index_failed",
+        serde_json::json!({"cause": "daemon_call_timeout"}),
+    )
+    .unwrap();
+    let clean = scrub(event(&index, 0)).unwrap();
+    assert_eq!(
+        clean.extra.get("cause"),
+        Some(&Value::from("daemon_call_timeout"))
+    );
+    for key in ["operation", "cause"] {
+        assert!(line("timeout", serde_json::json!({key: "una espera privada"})).is_err());
+    }
+}

@@ -37,6 +37,17 @@ English and Spanish; labels quoted below may use either language.
   scan's result differs, instead of every ten minutes.
 - A failed Hermes dictation is logged with the HTTP status Hermes answered, or
   the time limit that fired, as numbers.
+- The meetings list is read again by itself, twice within four seconds, when
+  it fails for a cause that passes: the hub answering 5xx, a cut answer, or a
+  page slower than the app's ten-second call to the daemon after the Mac
+  wakes. Only a list that does not recover says it failed, and its report now
+  carries the cause's code (`upstream_failed`, `daemon_call_timeout`…).
+- Opening a conversation the hub does not keep for this Mac (one from the
+  other Mac, or one from before the hub was restored or this Mac paired
+  again) says «That conversation isn't on this Mac» instead of a generic
+  failure, and it can still be read.
+- A read that timed out reports which wait it was (`operation`, such as
+  `session_list`) with how long it waited and its deadline.
 
 ## [0.14.2] - 2026-10-30
 

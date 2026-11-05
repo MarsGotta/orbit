@@ -154,6 +154,17 @@ describe("each failure the screen no longer explains is reported", () => {
     expect(failure.code).toBe("notes_index_failed");
   });
 
+  // ORBIT-APP-1: 207 reports of this code arrived with no cause at all.
+  it("a notes index that failed carries its cause's code, never its text", () => {
+    const failed = (cause: string) =>
+      only(
+        stateFailures(view({ notes: { index: { state: "failed", detail: "privado", cause } } })),
+      );
+    expect(failed("upstream_failed").data).toEqual({ cause: "upstream_failed" });
+    expect(failed("daemon_call_timeout").data).toEqual({ cause: "daemon_call_timeout" });
+    expect(failed("Algo privado del hub").data).toEqual({});
+  });
+
   it("while Orbit closes, the reads it cuts off are not failures", () => {
     const failing = view({ notes: { index: { state: "failed", detail: "cerrado" } } });
     expect(stateFailures(failing, true)).toEqual([]);
@@ -446,6 +457,32 @@ describe("reads and the panel's links report their refusals", () => {
     expect(report.mock.calls.map(([line]) => [line.code, line.source])).toEqual([
       ["hub_unreachable", "app"],
       ["internal", "app"],
+    ]);
+    for (const [line] of report.mock.calls) expectClosed(line);
+  });
+
+  // ORBIT-APP-G: a `timeout` arrived once with no data, so nobody knew which wait it was.
+  it("a read that timed out says which wait it was and its numbers, as codes", async () => {
+    const timeout = (operation: string) => ({
+      state: "absent" as const,
+      refusal: {
+        code: "timeout" as const,
+        operation,
+        waited_ms: 8012,
+        deadline_ms: 8000,
+        retry: "never",
+      },
+    });
+    const { port, report } = fakePort({
+      readSessionsPage: () => Promise.resolve(timeout("session_list")),
+      readSessionMessages: () => Promise.resolve(timeout("una espera privada")),
+    });
+    const reads = reportingReads(port);
+    await reads.readSessionsPage?.(null);
+    await reads.readSessionMessages?.("session", null);
+    expect(report.mock.calls.map(([line]) => [line.code, line.source, line.data])).toEqual([
+      ["timeout", "app", { operation: "session_list", elapsed_ms: 8012, timeout_ms: 8000 }],
+      ["timeout", "app", { elapsed_ms: 8012, timeout_ms: 8000 }],
     ]);
     for (const [line] of report.mock.calls) expectClosed(line);
   });

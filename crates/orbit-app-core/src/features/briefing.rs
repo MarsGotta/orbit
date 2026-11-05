@@ -647,6 +647,7 @@ mod tests {
                 state: crate::NotesIndexState::Failed,
                 more: false,
                 detail: Some(detail.clone()),
+                cause: None,
             }));
         }
         topics.observe_at(
@@ -937,6 +938,7 @@ mod tests {
                 state: crate::NotesIndexState::Available,
                 more: false,
                 detail: None,
+                cause: None,
             }));
         }
         let with_previous =
@@ -1235,6 +1237,7 @@ mod tests {
                 state: crate::NotesIndexState::Available,
                 more: false,
                 detail: None,
+                cause: None,
             }));
         }
         let input = FeatureInput::new(&snapshot, &topics);

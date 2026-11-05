@@ -167,6 +167,7 @@ fn unread_notes() -> NotesSnapshot {
             state: NotesIndexState::Loading,
             more: false,
             detail: None,
+            cause: None,
         })),
         open: None,
         open_read: None,
