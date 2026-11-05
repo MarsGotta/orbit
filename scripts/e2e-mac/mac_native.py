@@ -46,7 +46,10 @@ class NativeChecks:
         # `-g`: without it, macOS can bring the sender to the front between its
         # check that Orbit Pruebas is frontmost and its key, which then lands
         # on the sender. Single keys went missing that way.
-        self.system.run_checked(
+        # Its exit code is not the answer: `open -W` fails with "Unable to
+        # block on applications" when the app has already ended. The result
+        # file below is the answer, and stderr says why there is none.
+        _, _, opened = self.system.run(
             "open",
             "-g",
             "-W",
@@ -67,7 +70,7 @@ class NativeChecks:
             answer = json.loads(result.read_text(encoding="utf-8"))
         except (OSError, ValueError) as cause:
             raise MacFailure(
-                f"Orbit Pruebas Teclas gave no answer for «{action}»: {cause}"
+                f"Orbit Pruebas Teclas gave no answer for «{action}»: {cause}; open: {opened.strip()}"
             ) from None
         if "failure" in answer:
             raise MacFailure(f"Orbit Pruebas Teclas: {answer['failure']}")
