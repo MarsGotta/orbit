@@ -59,6 +59,13 @@ English and Spanish; labels quoted below may use either language.
 - The app no longer calls the hub's transcription model «Whisper»: it says
   «Your hub's model», and Settings › AI names it as the operator configured it
   in `[meeting_transcription] model`. The wire value stays `whisper`.
+- Quitting Orbit while a meeting records now delivers it before Orbit
+  leaves: its last audio and its closure reach the hub within the ten-second
+  closing budget, so the hub writes its note without waiting for the next
+  launch. The meeting ends at the moment of the quit. A hub that does not
+  answer in time keeps the rest queued on the Mac for the next start, as
+  before. Nothing goes up after the privacy stop, and a quit while the hub is
+  offline does not wait for it.
 
 ## [0.14.2] - 2026-10-30
 

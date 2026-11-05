@@ -39,6 +39,13 @@ wait for any of it (`crates/orbit-daemon/src/daemon/capture_lane/`):
   chunks, one at a time, under the retry gate the loop's closures share. A
   decision that retires uploads (a privacy stop, Orbit closing) aborts the one
   in flight before it takes effect.
+- Quitting with a meeting recording: once the drained audio is stored, the
+  meeting is closed at the quit and the loop sends what the queue owes (the
+  chunks, then each closure they make ready), one request at a time, within
+  what is left of the closing budget (`daemon/exit_delivery.rs`). The first
+  failure or the deadline leaves the rest queued for the next start. Nothing
+  goes up after the privacy stop or when the hub link was offline at the quit,
+  so an unreachable hub does not hold the quit.
 - A recording's chunk counters are a projection of the chunks it sealed: at
   start they are rebuilt from the store, so a recording an older version left
   cut is closed at its last audio and the hub writes its note.

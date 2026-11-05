@@ -383,8 +383,10 @@ impl Runtime {
     /// closing when it stopped) that will not go on is closed now, at the end
     /// of the audio it kept, so the hub writes its note. One this restart cut
     /// and that may resume is left to `recover_cut_recording`, which resumes
-    /// it once the helper is back or closes it after the wait.
-    pub(super) async fn close_cut_recording_at_start(&mut self) -> Result<()> {
+    /// it once the helper is back or closes it after the wait. Orbit closing
+    /// calls it too, once the quit's audio is stored (`exit_delivery`): the
+    /// meeting ends at the quit, which `note_cut` remembered.
+    pub(super) async fn close_unresumable_cut_recording(&mut self) -> Result<()> {
         let recording = self.state.durable.capture.recording.clone();
         let Some(recording) = recording.filter(|recording| {
             recording.phase == CapturePhase::Interrupted

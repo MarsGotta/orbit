@@ -68,6 +68,7 @@ pub(super) fn build_runtime(
     let recovery = cut_recovery::recovery_after_restart(restart_recording, helper_path.is_some());
     let runtime = Runtime {
         closing: false,
+        online_at_close: false,
         privacy_retirement_owed: false,
         paths,
         settings,

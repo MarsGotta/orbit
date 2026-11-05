@@ -21,7 +21,10 @@ use tokio::signal::unix::{Signal, SignalKind, signal};
 /// the seals of the audio already received and every vertical's pending write
 /// — from being cut short by whoever asked for it. The same number for every
 /// door: the app quitting (`Shutdown` over IPC), launchd at logout (SIGTERM)
-/// and a terminal (SIGINT).
+/// and a terminal (SIGINT). What is left of it once everything is stored goes
+/// to the meeting the quit cut: its last chunks and its closure are sent to
+/// the hub until this deadline and never after it (`exit_delivery`); it was
+/// not enlarged for that, and a hub slower than what is left keeps them queued.
 ///
 /// Why this size: an ordinary closure takes well under a second (the app-core
 /// suite measured 597 ms at its worst, under load, for the daemon's exit after

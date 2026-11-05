@@ -62,6 +62,7 @@ mod capture_record;
 mod commands;
 mod computer_control;
 mod cut_recovery;
+mod exit_delivery;
 mod finalize;
 mod hub_account;
 mod hub_events;

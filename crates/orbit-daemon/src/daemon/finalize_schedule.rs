@@ -2,20 +2,66 @@
 //! for good declared in it, and the upload off the loop.
 use super::*;
 
+/// A closure ready to go up: its job, its recording and the manifest the
+/// hub receives, with the chunks it refused for good declared.
+pub(in crate::daemon) struct Closure {
+    pub(in crate::daemon) job: Job,
+    recording_id: String,
+    manifest: Value,
+}
+
+/// The closure to the hub, confirmed only by its durable receipt.
+pub(in crate::daemon) async fn post_closure(
+    base: &reqwest::Url,
+    token: &str,
+    closure: &Closure,
+    op: &orbit_core::notice::Op,
+) -> Result<()> {
+    let recording_id = &closure.recording_id;
+    let response = crate::hub::request(
+        reqwest::Method::POST,
+        base.join(&format!("v1/recordings/{recording_id}/finalize"))?,
+        Some(token),
+        op,
+    )?
+    .json(&closure.manifest)
+    .send()
+    .await?;
+    let response = crate::retry::check_response(response).await?;
+    let receipt: Value = crate::hub::bounded_json(response).await?;
+    if receipt["durable"] != true
+        || receipt["finalized"] != true
+        || receipt["recording_id"] != recording_id.as_str()
+    {
+        bail!("Invalid finalization receipt");
+    }
+    Ok(())
+}
+
 impl Runtime {
     pub(in crate::daemon) async fn schedule_finalize(&mut self) -> Result<bool> {
-        let Some(job) = self.next_finalize_candidate()? else {
+        let Some(closure) = self.next_closure()? else {
             return Ok(false);
         };
-        let recording_id = job.payload["recording_id"]
-            .as_str()
-            .context("Manifest has no recording_id")?
-            .to_owned();
         let token = self.link.token.clone().context("No credential")?;
         let base = crate::config::validate_hub_url(
             self.settings.hub_url.as_deref().context("No hub")?,
             self.development,
         )?;
+        self.spawn_finalize(closure, token, base).await?;
+        Ok(true)
+    }
+
+    /// The next closure ready to go, with the chunks the hub refused for
+    /// good declared in its manifest.
+    pub(in crate::daemon) fn next_closure(&mut self) -> Result<Option<Closure>> {
+        let Some(job) = self.next_finalize_candidate()? else {
+            return Ok(None);
+        };
+        let recording_id = job.payload["recording_id"]
+            .as_str()
+            .context("Manifest has no recording_id")?
+            .to_owned();
         let refused = self.refused_chunks_of(&recording_id)?;
         let mut manifest = job.payload["manifest"].clone();
         if !refused.is_empty() {
@@ -25,9 +71,11 @@ impl Runtime {
                 &[("chunks", &refused.len().to_string())],
             );
         }
-        self.spawn_finalize(job, recording_id, token, base, manifest)
-            .await?;
-        Ok(true)
+        Ok(Some(Closure {
+            job,
+            recording_id,
+            manifest,
+        }))
     }
 
     /// The next closure ready to go. Bound candidate work and advance a
@@ -81,17 +129,15 @@ impl Runtime {
     /// The closure goes up off the loop; its result comes back as work.
     pub(super) async fn spawn_finalize(
         &mut self,
-        job: Job,
-        recording_id: String,
+        closure: Closure,
         token: String,
         base: reqwest::Url,
-        manifest: Value,
     ) -> Result<()> {
         let generation = self.state.generation();
         let events = self.work_events.clone();
-        let job_id = job.id.clone();
-        let job_op =
-            super::super::turn::job_op(&job.payload).unwrap_or_else(|| self.turn.op.clone());
+        let job_id = closure.job.id.clone();
+        let job_op = super::super::turn::job_op(&closure.job.payload)
+            .unwrap_or_else(|| self.turn.op.clone());
         self.store_actor
             .run(move |store| Ok(store.update_job(&job_id, JobState::Running)?))
             .await?;
@@ -99,32 +145,12 @@ impl Runtime {
             .worker
             .start_logical(generation, job_op, (), move |ticket| {
                 tokio::spawn(async move {
-                    let result: Result<()> = async {
-                        let response = crate::hub::request(
-                            reqwest::Method::POST,
-                            base.join(&format!("v1/recordings/{recording_id}/finalize"))?,
-                            Some(&token),
-                            ticket.op(),
-                        )?
-                        .json(&manifest)
-                        .send()
-                        .await?;
-                        let response = crate::retry::check_response(response).await?;
-                        let receipt: Value = crate::hub::bounded_json(response).await?;
-                        if receipt["durable"] != true
-                            || receipt["finalized"] != true
-                            || receipt["recording_id"] != recording_id
-                        {
-                            bail!("Invalid finalization receipt");
-                        }
-                        Ok(())
-                    }
-                    .await;
+                    let result = post_closure(&base, &token, &closure, ticket.op()).await;
                     crate::daemon::deliver_work(
                         &events,
                         WorkResult::Store(crate::daemon::StoreWork::Uploaded {
                             ticket,
-                            job_id: job.id,
+                            job_id: closure.job.id,
                             result,
                         }),
                     )
