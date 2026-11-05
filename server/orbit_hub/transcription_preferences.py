@@ -231,5 +231,5 @@ async def final_pass_model(request):
         return payload["model"]
     except (ValueError, TypeError):
         raise HubError(
-            "invalid_transcription_setting", "Choose Whisper or MAI for transcription"
+            "invalid_transcription_setting", "Choose the hub's model or MAI for transcription"
         ) from None

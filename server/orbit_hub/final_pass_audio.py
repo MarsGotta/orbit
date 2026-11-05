@@ -160,7 +160,7 @@ def encode_window(pcm):
         if len(audio) > MAX_AUDIO_BYTES:
             raise HubError(
                 "final_window_too_large",
-                "The Opus window exceeds the Whisper limit",
+                "The Opus window exceeds the hub model's limit",
                 numbers={"bytes": len(audio), "max_bytes": MAX_AUDIO_BYTES},
             )
         return audio

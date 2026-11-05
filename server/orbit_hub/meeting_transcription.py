@@ -206,7 +206,7 @@ class MeetingTranscriber:
                 if final and text.strip() and not words:
                     raise HubError(
                         "transcription_words_missing",
-                        "Whisper did not return word timestamps",
+                        "The transcription model did not return word timestamps",
                         numbers={"words": 0, "characters": len(text)},
                     )
                 # Whisper names its language in words ("english"): the

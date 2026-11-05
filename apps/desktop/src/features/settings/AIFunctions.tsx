@@ -26,7 +26,12 @@ function FunctionRow({ fn, providers, view }: FunctionRowProps) {
       .map((model) => ({
         provider_id: provider.id,
         model: model.id,
-        label: `${provider.id === "hub" ? aiPrivacy.hubName : provider.name} · ${model.id}`,
+        // The hub's transcriber keeps the wire id "whisper" whatever model the
+        // operator runs (Parakeet since 2026-11): its option names the hub only.
+        label:
+          provider.id === "hub" && model.id === "whisper"
+            ? aiPrivacy.hubName
+            : `${provider.id === "hub" ? aiPrivacy.hubName : provider.name} · ${model.id}`,
       })),
   );
   const selected = JSON.stringify([fn.provider_id, fn.model]);

@@ -125,3 +125,11 @@ it("the Notes settings deep link focuses the vault model function", async () => 
   const model = await screen.findByRole("combobox", { name: "Destilado y revisión de Notas" });
   await waitFor(() => expect(document.activeElement).toBe(model));
 });
+
+it("names the hub's transcriber by the hub, not by its wire id", async () => {
+  render(<AISettings agent={port()} />);
+  await screen.findByText("El audio se queda en tu hub.");
+  const labels = screen.getAllByRole("option").map((option) => option.textContent ?? "");
+  expect(labels).toContain("En tu hub");
+  expect(labels.join(" ")).not.toMatch(/whisper/i);
+});
