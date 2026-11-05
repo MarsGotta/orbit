@@ -11,7 +11,7 @@ import type { NoticeAction, NoticeData } from "../i18n";
 import type { FailedNoticeCode } from "../i18n";
 import { failureCode, genericFailure, repeatable, failure, worded, type Failure } from "./failure";
 
-import { closedData, token } from "./report-data";
+import { closedData, timeoutData, token } from "./report-data";
 import type { ViewId } from "../state/ui";
 
 /** Where a command's refusal is shown: the view, overlay or panel that sent it. */
@@ -123,7 +123,11 @@ function refusalEntry(refusal: Refusal) {
     : undefined;
 }
 
-/** The report line of a refusal: its own code and class, no text. */
+/**
+ * The report line of a refusal: its own code and class, no text. The wait a
+ * `timeout` names (`operation`, a code of the daemon's) and its numbers come
+ * with it, so the log says which wait it was.
+ */
 export function refusalReport(op: string, refusal: Refusal): Report {
   const entry = refusalEntry(refusal);
   return {
@@ -131,7 +135,7 @@ export function refusalReport(op: string, refusal: Refusal): Report {
     code: token(refusal.code),
     class: entry?.class ?? "failed",
     source: "app",
-    data: {},
+    data: refusal.code === "timeout" ? timeoutData(refusal) : {},
   };
 }
 

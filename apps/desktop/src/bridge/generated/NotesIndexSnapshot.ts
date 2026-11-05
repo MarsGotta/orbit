@@ -9,4 +9,11 @@ export type NotesIndexSnapshot = { state: NotesIndexState,
 /**
  * The hub has more meetings than are listed: «Cargar más».
  */
-more: boolean, detail: string | null, };
+more: boolean, detail: string | null, 
+/**
+ * Why a `failed` list was not read, as a code and never text: the
+ * refusal's (`upstream_failed`, `too_large`…), the app's own check
+ * of the answer (`read_list_invalid`…), or the call to the daemon's
+ * (`daemon_call_timeout`, `daemon_call_failed`, `orbit_closing`).
+ */
+cause?: string, };

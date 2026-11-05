@@ -1,3 +1,4 @@
+import type { Refusal } from "../bridge/refusal";
 import type { NoticeData } from "../i18n";
 
 const TOKEN = /^[a-z0-9_.-]{1,64}$/;
@@ -14,4 +15,13 @@ export function closedData(data: NoticeData | undefined): NoticeData {
 
 export function token(code: string): string {
   return TOKEN.test(code) ? code : "unrecognized";
+}
+
+/** Which wait a `timeout` refusal names (a code of the daemon's) and its numbers. */
+export function timeoutData({ operation, waited_ms, deadline_ms }: Refusal): NoticeData {
+  const data: NoticeData = {};
+  if (typeof operation === "string") data.operation = operation;
+  if (typeof waited_ms === "number") data.elapsed_ms = waited_ms;
+  if (typeof deadline_ms === "number") data.timeout_ms = deadline_ms;
+  return closedData(data);
 }

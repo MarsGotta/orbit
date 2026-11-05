@@ -300,6 +300,7 @@ pub(crate) fn projected_briefing(fixture: &BriefingFixture, now_ms: i64) -> Valu
             state: crate::NotesIndexState::Available,
             more: false,
             detail: None,
+            cause: None,
         }));
     }
     let input = crate::features::FeatureInput::with_clock(

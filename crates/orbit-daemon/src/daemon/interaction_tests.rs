@@ -1284,6 +1284,42 @@ async fn a_chat_rejection_keeps_its_code_and_op_without_logging_content() -> Res
     Ok(())
 }
 
+/// ORBIT-APP-F: opening a conversation asks the hub for its live turn
+/// (`chat.observe`), and the hub keeps each Mac's conversations to that Mac.
+/// One from the other Mac, or one this Mac had before the hub was restored
+/// or paired again, answers `session_not_found` outside any turn: the person
+/// is told the conversation is not on this Mac, never a generic failure, and
+/// can still read it.
+#[tokio::test]
+async fn a_conversation_the_hub_does_not_have_for_this_mac_says_so() -> Result<()> {
+    let directory = tempfile::tempdir()?;
+    let (mut runtime, _helper) = fixture(directory.path())?;
+    runtime
+        .apply(orbit_core::Event::Session {
+            id: "other-mac-session".into(),
+            agent_id: None,
+        })
+        .await?;
+    runtime
+        .hub_event(HubEvent::Frame(json!({
+            "event": "error", "id": "observe-request",
+            "data": {"code": "session_not_found", "message": "PRIVATE HUB MESSAGE"}
+        })))
+        .await?;
+    let notice = runtime.state.durable.notice.as_ref().context("notice")?;
+    assert_eq!(notice.code, NoticeCode::AssistantSessionNotFound);
+    assert!(!notice.code.is_failure());
+    assert_eq!(
+        serde_json::to_value(notice)?["data"]["code"],
+        "session_not_found"
+    );
+    assert_eq!(
+        runtime.state.session_id().as_deref(),
+        Some("other-mac-session")
+    );
+    Ok(())
+}
+
 #[tokio::test]
 async fn hub_rejection_diagnostics_keep_the_code_without_text() -> Result<()> {
     for (request_id, event) in [

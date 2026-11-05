@@ -74,6 +74,9 @@ struct HubNow {
     note_ready: AtomicBool,
     /// The meeting was deleted: the hub answers that it has no such recording.
     deleted: AtomicBool,
+    /// What the next reads of the list's first page are refused with, in
+    /// order; once empty, the list is read.
+    list_refusals: std::sync::Mutex<Vec<orbit_core::refusal::Refusal>>,
 }
 
 fn document_now(now: &HubNow) -> Value {
@@ -177,6 +180,15 @@ fn answer(read: &ReadRequest, now: &HubNow) -> Knowledge<Page<Value>> {
             resource: orbit_core::refusal::Resource::Recording,
         },
     };
+    if matches!(read, ReadRequest::NotesPage { cursor: None })
+        && let Some(refusal) = now
+            .list_refusals
+            .lock()
+            .ok()
+            .and_then(|mut queued| (!queued.is_empty()).then(|| queued.remove(0)))
+    {
+        return Knowledge::Absent { refusal };
+    }
     match read {
         ReadRequest::NoteDetail { .. } | ReadRequest::NoteTranscript { .. }
             if now.deleted.load(Ordering::SeqCst) =>
@@ -897,5 +909,106 @@ async fn a_meeting_deleted_or_discarded_here_leaves_its_open_note() -> Result<()
             "{order:?}: nothing reads the meeting again"
         );
     }
+    Ok(())
+}
+
+/// The hub's proxy answered the list with a 502: a passing cause.
+fn upstream_502() -> orbit_core::refusal::Refusal {
+    orbit_core::refusal::Refusal::UpstreamFailed {
+        service: orbit_core::refusal::Service::Hub,
+        status: Some(502),
+    }
+}
+
+fn refused_list(refusals: Vec<orbit_core::refusal::Refusal>) -> HubNow {
+    HubNow {
+        list_refusals: std::sync::Mutex::new(refusals),
+        ..HubNow::default()
+    }
+}
+
+/// Every state the list's index takes, in order, until `ready`.
+async fn index_states_until(
+    client: &DaemonClient,
+    ready: impl Fn(&orbit_app_core::NotesIndexSnapshot) -> bool,
+) -> Result<Vec<orbit_app_core::NotesIndexSnapshot>, Box<dyn Error>> {
+    let mut frames = client.watch_frames();
+    let states = tokio::time::timeout(Duration::from_secs(10), async {
+        let mut states: Vec<orbit_app_core::NotesIndexSnapshot> = Vec::new();
+        loop {
+            let index = client
+                .composed_snapshot()
+                .notes
+                .and_then(|notes| notes.index.map(|index| *index));
+            if let Some(index) = index {
+                if states.last() != Some(&index) {
+                    states.push(index.clone());
+                }
+                if ready(&index) {
+                    return Ok::<_, watch::error::RecvError>(states);
+                }
+            }
+            frames.changed().await?;
+        }
+    })
+    .await??;
+    Ok(states)
+}
+
+/// ORBIT-APP-1: a list the hub's proxy refused once (a 502 while the hub
+/// restarts or the Mac wakes) is read again by itself and ends read; the
+/// screen never says it failed, so nothing is reported.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_list_refused_for_a_passing_cause_is_read_again_by_itself() -> Result<(), Box<dyn Error>>
+{
+    let fixture = fixture_with(refused_list(vec![upstream_502()])).await?;
+    let states = index_states_until(&fixture.client, |index| {
+        index.state == NotesIndexState::Available
+    })
+    .await?;
+    assert!(
+        states
+            .iter()
+            .all(|index| index.state != NotesIndexState::Failed),
+        "a read that recovered by itself said it failed: {states:?}"
+    );
+    assert_eq!(fixture.list_reads.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+/// A list that keeps failing for a passing cause says so once its reads
+/// again ran out, with the cause's code and never its text.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_list_that_keeps_failing_says_so_with_its_cause() -> Result<(), Box<dyn Error>> {
+    let fixture = fixture_with(refused_list(vec![upstream_502(); 8])).await?;
+    let states = index_states_until(&fixture.client, |index| {
+        index.state == NotesIndexState::Failed
+    })
+    .await?;
+    let failed = states.last().ok_or("no index")?;
+    assert_eq!(failed.cause.as_deref(), Some("upstream_failed"));
+    assert_eq!(fixture.list_reads.load(Ordering::SeqCst), 3);
+    Ok(())
+}
+
+/// A list refused for a cause that lasts (an answer too large for the
+/// app) is not read again: it fails at once, with its cause.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_list_refused_for_a_lasting_cause_fails_at_once() -> Result<(), Box<dyn Error>> {
+    let too_large = orbit_core::refusal::Refusal::TooLarge {
+        resource: orbit_core::refusal::Resource::HubResponse,
+        bytes: 9_000_000,
+        max_bytes: 8_000_000,
+    };
+    let fixture = fixture_with(refused_list(vec![too_large; 8])).await?;
+    let states = index_states_until(&fixture.client, |index| {
+        index.state == NotesIndexState::Failed
+    })
+    .await?;
+    assert_eq!(
+        states.last().and_then(|index| index.cause.as_deref()),
+        Some("too_large")
+    );
+    assert_eq!(fixture.list_reads.load(Ordering::SeqCst), 1);
     Ok(())
 }

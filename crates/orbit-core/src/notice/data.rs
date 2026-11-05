@@ -83,7 +83,10 @@ macro_rules! notice_keys {
             /// leave the Mac in an error report; any other key's
             /// token stays in the local log.
             pub const fn closed(self) -> bool {
-                matches!(self, Self::Cause | Self::Code | Self::Origin | Self::Step)
+                matches!(
+                    self,
+                    Self::Cause | Self::Code | Self::Origin | Self::Step | Self::Operation
+                )
             }
         }
     };
@@ -144,6 +147,8 @@ notice_keys! {
     ExitStatus,
     StopReason,
     ResetsAtMs,
+    // The wait a refusal names (`refusal::Operation`): which one timed out.
+    Operation,
 }
 
 /// A short machine value: a code a component already speaks (`privacy_stopped`,

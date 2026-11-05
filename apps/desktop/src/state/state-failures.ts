@@ -67,8 +67,14 @@ function noteFailures(view: AppView): StateFailure[] {
       code: "transcript_read_failed",
       data: {},
     });
+  // app-core reads again by itself a list whose cause passes; a failed list
+  // is one that did not recover, said with its cause's code.
   if (notes?.index?.state === "failed" && !cutByClosing(notes.index.detail))
-    failures.push({ key: "notes_index", code: "notes_index_failed", data: {} });
+    failures.push({
+      key: "notes_index",
+      code: "notes_index_failed",
+      data: data({ cause: token(notes.index.cause) }),
+    });
   return failures;
 }
 
