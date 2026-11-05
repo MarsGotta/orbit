@@ -319,8 +319,9 @@ public struct SpokenQuestionPolicy {
     /// Where the final results have reached on the audio timeline: the end
     /// of the newest final result with words.
     private var finalThrough = -Double.infinity
-    /// The transcription was asked to finalize this question's words.
-    private var finalizeRequested = false
+    /// The voice the transcription was last asked to finalize through: once
+    /// per stretch of voice.
+    private var finalizedVoice = -Double.infinity
     private var now = 0.0
     /// Results that start before this were already used: a question sent,
     /// or a phrase forgotten with nothing after it.
@@ -376,9 +377,9 @@ public struct SpokenQuestionPolicy {
             segments.removeFirst(segments.count - Self.maximumSegments)
         }
         now = max(now, segment.end)
-        if !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if segment.isFinal, !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             lastVoice = max(lastVoice, segment.end)
-            if segment.isFinal { finalThrough = max(finalThrough, segment.end) }
+            finalThrough = max(finalThrough, segment.end)
         }
         if phrase == nil {
             var found: (segment: HeardSegment, name: String)?
@@ -393,7 +394,7 @@ public struct SpokenQuestionPolicy {
                 // long result that ends with it never cuts the question.
                 phrase = (found.segment.start, now, found.name)
                 step = .heard
-                lastVoice = max(lastVoice, found.segment.end)
+                if found.segment.isFinal { lastVoice = max(lastVoice, found.segment.end) }
             }
         } else if currentQuestion() == nil {
             if let phrase, segment.isFinal, segment.start < phrase.heardAt,
@@ -427,18 +428,37 @@ public struct SpokenQuestionPolicy {
         return decide()
     }
 
+    /// Where the voice reached: the microphone and the final results, and a
+    /// volatile result while it is still the newest word on its words. Its
+    /// range runs on to all the audio fed so far (macOS 27.2: [0–11.6] for
+    /// words that ended at 7.0, probe on a Mac, 2026-11-05), so it stops
+    /// counting once the final result that covers it has come. Until then it
+    /// keeps a quiet voice, under the microphone's threshold, from ending
+    /// the question.
+    private var voiceEnd: Double {
+        let volatile = segments.lazy.filter {
+            !$0.isFinal && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }.map(\.end).max() ?? -Double.infinity
+        return max(lastVoice, volatile)
+    }
+
     /// Where the transcription should finalize its results now, once per
-    /// question: the pause has come and only volatile words hold the
-    /// question. macOS's transcriber keeps the last word of a phrase volatile
-    /// while only silence follows (wake-phrase trial runs 25 to 27: «hablando» never
-    /// came in the 3 s of catch-up), so the listener asks it to finalize
-    /// through `now`, all the audio fed so far.
+    /// stretch of voice: the pause has come and the final results have not
+    /// reached it. macOS's transcriber keeps the last word of a phrase
+    /// volatile while only silence follows (wake-phrase trial runs 25 to 27:
+    /// «hablando» never came in the 3 s of catch-up), so the listener asks it
+    /// to finalize through `now`, all the audio fed so far.
+    ///
+    /// Before the phrase too: macOS 27.2's Spanish
+    /// transcriber says nothing while it is fed live and gave its first
+    /// result 5.4 s after the voice ended, or 0.2 s after this request (probe
+    /// on a Mac, 2026-11-05). Without it «Oye Deimos» was heard late and its
+    /// question sent at the thirty-second ceiling.
     public mutating func finalizationDue() -> Double? {
-        guard phrase != nil, !finalizeRequested,
-              !(currentQuestion() ?? "").isEmpty,
+        guard lastVoice > finalizedVoice,
               now - lastVoice >= pauseSeconds,
               finalThrough < lastVoice - Self.catchUpToleranceSeconds else { return nil }
-        finalizeRequested = true
+        finalizedVoice = lastVoice
         return now
     }
 
@@ -474,7 +494,8 @@ public struct SpokenQuestionPolicy {
             return nil
         }
         let question = currentQuestion() ?? ""
-        let silent = now - lastVoice
+        let voice = voiceEnd
+        let silent = now - voice
         let elapsed = now - phrase.heardAt
         if question.isEmpty {
             if silent >= waitSeconds || elapsed >= maximumSeconds {
@@ -483,12 +504,12 @@ public struct SpokenQuestionPolicy {
             }
             return nil
         }
-        let reached = finalThrough >= lastVoice - Self.catchUpToleranceSeconds
+        let reached = finalThrough >= voice - Self.catchUpToleranceSeconds
         guard (silent >= pauseSeconds && reached)
                 || silent >= pauseSeconds + Self.catchUpSeconds
                 || elapsed >= maximumSeconds else { return nil }
         let spoken = SpokenQuestion(text: question, start: phrase.segmentStart,
-                                    end: min(lastVoice, now), name: phrase.name)
+                                    end: min(voice, now), name: phrase.name)
         reset(ignoring: spoken.end)
         return spoken
     }
@@ -497,12 +518,11 @@ public struct SpokenQuestionPolicy {
         guard let phrase else { return }
         step = .abandoned(.init(cause: cause,
             elapsed_ms: UInt64((max(0, now - phrase.heardAt) * 1_000).rounded()),
-            silent_ms: UInt64((max(0, now - lastVoice) * 1_000).rounded())))
+            silent_ms: UInt64((max(0, now - voiceEnd) * 1_000).rounded())))
     }
 
     private mutating func reset(ignoring time: Double) {
         phrase = nil
-        finalizeRequested = false
         segments.removeAll()
         ignoreBefore = time
     }

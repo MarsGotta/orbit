@@ -363,6 +363,40 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertNil(policy.finalizationDue(), "nothing is listened to any more")
     }
 
+    /// macOS 27.2's Spanish transcriber says nothing while it is fed live:
+    /// «Oye Demos, ¿cuánto cuesta…?» (voice 1.3–7.0 s) first came 5.4 s after
+    /// the voice ended, unless asked to finalize, and then 0.2 s after (probe
+    /// on a test Mac, 2026-11-05). So the pause asks it before the phrase is
+    /// heard too, once per stretch of voice.
+    func testAPauseBeforeAnyResultAsksTheTranscriptionToFinalize() {
+        var policy = SpokenQuestionPolicy()
+        _ = levels(&policy, from: 1.3, to: 7.0, speaking: true)
+        var asked = [Double]()
+        var time = 7.01
+        while time <= 12.0 {
+            XCTAssertNil(policy.voice(at: time, speaking: false))
+            if let through = policy.finalizationDue() { asked.append(through) }
+            time += 0.01
+        }
+        XCTAssertEqual(asked.count, 1, "once for this stretch of voice")
+        XCTAssertEqual(asked.first ?? 0, 8.5, accuracy: 0.02, "at the pause")
+    }
+
+    /// The same transcriber gives its volatile results the range of all the
+    /// audio fed so far ([0–11.6] for words that ended at 7.0). They say
+    /// words, not voice: the microphone says when the voice stopped, and the
+    /// final result that reaches it sends the question at once.
+    func testAVolatileRangeThatRunsOnThroughTheSilenceDoesNotHoldTheQuestion() {
+        var policy = SpokenQuestionPolicy()
+        _ = levels(&policy, from: 1.3, to: 7.0, speaking: true)
+        _ = levels(&policy, from: 7.01, to: 11.6, speaking: false)
+        let text = "Oye Demos, ¿cuánto cuesta el presupuesto de las estanterías?"
+        XCTAssertNil(policy.heard(volatile(text, 0, 11.6)))
+        XCTAssertTrue(policy.listening)
+        let spoken = policy.heard(final(text, 1.26, 7.02))
+        XCTAssertEqual(spoken?.text, "¿cuánto cuesta el presupuesto de las estanterías?")
+    }
+
     /// A final result that never comes does not hold the question for ever:
     /// after the catch-up wait it leaves with what was heard.
     func testAQuestionWhoseFinalResultNeverComesLeavesAfterTheCatchUpWait() {
