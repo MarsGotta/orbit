@@ -1,0 +1,44 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - AXLink "Notas"
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Destilar «Reunión 16/10/26, 10:00» en tus notas"
+    - AXStaticText = "Orbit leyó la transcripción y propone 5 cambios en 2 notas. La reunión se guarda como fuente."
+    - [20] AXLink "Abrir la reunión" [actions=[press]]
+    - [21] AXButton "Descartar" [actions=[press]]
+    - [22] AXButton "Decide Status para aplicar" [actions=[press]]
+    - AXGroup
+      - AXHeading
+        - AXStaticText = "Hay que decidir"
+      - [23] AXButton "startUsar 2026-11-03" [actions=[press]]
+      - [24] AXButton "StatusFalta decidir" [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Cambian · 2 notas"
+      - [25] AXCheckBox "Incluir Reading room review" [actions=[press]]
+      - [26] AXButton "Reading room review · 3 cambios" [actions=[press]]
+      - [27] AXCheckBox "Incluir Reading room works" [actions=[press]]
+      - [28] AXButton "Reading room works · 2 cambios" [actions=[press]]
+      - AXHeading
+        - AXStaticText = "Se guarda como fuente"
+      - AXStaticText = "La reunión, como fuente"
+      - AXStaticText = "Además, Orbit añade la reunión a index.md y deja constancia en log.md."
+    - AXGroup
+      - AXStaticText = "Hay que decidir · Orbit no elige por ti cuando dos fuentes dicen cosas distintas"
+      - AXHeading
+        - AXStaticText = "start"
+      - AXStaticText = "En Reading room works · propiedad start"
+      - AXStaticText = "Lo que dice la nota"
+      - AXStaticText = "2026-11-17"
+      - AXStaticText = "Lo que se dijo en la reunión"
+      - AXStaticText = "2026-11-03"
+      - AXGroup (Hay que decidir)
+        - [30] AXRadioButton "Usar 2026-11-03" [actions=[press]]
+        - [31] AXRadioButton "Mantener 2026-11-17" [actions=[press]]
+        - [32] AXRadioButton "Dejar las dos y marcarlo como pendiente" [actions=[press]]

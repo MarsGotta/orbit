@@ -69,6 +69,10 @@ function catalogue(language: "es" | "en") {
     .slice(0, -copy.shell.assistantName.length)
     .trimEnd();
   result["recordingCard.wakePhrase"] = copy.recordingCard.listening.match(/[«“](.*?)[»”]/)![1]!;
+  // Check 26 presses labels that carry a count or a value.
+  result["distillation.reviewPillPrefix"] = copy.distillation.reviewPill(2).split("2")[0]!;
+  result["distillation.applyPrefix"] = copy.distillation.apply(2).split("2")[0]!;
+  result["distillation.use"] = copy.distillation.use("{value}");
   return result;
 }
 

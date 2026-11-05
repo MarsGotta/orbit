@@ -12,7 +12,8 @@ What is replayed from scripts/e2e-mac/dry-run-examples/<example>/: the Mac's
 system commands, the in-app bridge's semantic trees (screens/), menu reply
 (bridge.json), and transitions of presses, typing, pointer motion and quits
 (transitions.json); the daemon's socket and logs; CuaDriver's two independent
-accessibility snapshots (accessibility-*.md); and what the hub keeps (hub.json).
+accessibility snapshots (accessibility-*.md); what the hub keeps (hub.json);
+and check 26's proposals and vault files (distillation.json).
 The fake CuaDriver refuses every input tool. An example other than good holds
 only the files that differ from good.
 
@@ -271,6 +272,7 @@ class DryRunOrbit:
         self.waits = example.base("ipc.json")["waits"]
         self.next = 0
         self.current: list | None = None
+        self.proposals: list | None = None
 
     def answers(self) -> bool:
         return True
@@ -293,6 +295,8 @@ class DryRunOrbit:
                     },
                 }
             }
+        if body["command"] == "vault":
+            return self.vault(body["call"])
         if body["command"] == "speak_stop":
             return {"ok": True}
         if body["command"] == "speak":
@@ -313,6 +317,20 @@ class DryRunOrbit:
                 "answer": {"state": "present", "value": {"items": value}},
             }
         raise mac_side.MacFailure(f"command the dry run does not expect: {body['command']}")
+
+    def vault(self, call: dict) -> dict:
+        """Check 26: the meeting's proposals in order, the last one staying, and
+        the connection as the hub answers it."""
+        if call["call"] == "list_distillations":
+            if self.proposals is None:
+                self.proposals = list(self.example.json("distillation.json")["proposals"])
+            entry = self.proposals.pop(0) if len(self.proposals) > 1 else self.proposals[0]
+            page = {"entries": [entry], "next_page": None}
+            return {"outcome": {"outcome": "distillations", "page": page}}
+        configuration = {"configured": False}
+        if call["call"] == "configure":
+            configuration = {"configured": True, **call["configuration"]}
+        return {"outcome": {"outcome": "config", "configuration": configuration}}
 
     def subscribe(self, topics: list[str], bound_s: float, beat_s: float | None = None):
         # A wait the example sets to null is one its run never reaches.
@@ -492,7 +510,7 @@ def run(
     # A replayed screen never changes: reading it again could not help. Nor
     # does a replayed hub.
     test.bounds["screen"] = (0, "in the dry run the screens never change by themselves")
-    for wait in ("hub-chunks", "hub-deleted", "silence-hub"):
+    for wait in ("hub-chunks", "hub-deleted", "silence-hub", "distillation", "distillation-write"):
         test.bounds[wait] = (0, "in the dry run the test hub's answers are replayed")
     # Nor does a replayed panel change with time: it is read at once.
     test.bounds["answer-held"] = (0, "in the dry run the panel never changes by itself")
@@ -500,4 +518,6 @@ def run(
     test.hub_kept = DryRunHub(example, test.hub_kept)
     test.hub_audio = lambda ident: example.json("native.json")["hub_audio"]
     test.hub_remote_audio = lambda ident: example.json("remote-audio.json")["stored"]
+    # Nothing writes the dry run's vault: what Apply and Undo leave is replayed.
+    test.vault_files = lambda phase: example.json("distillation.json")["files"][phase]
     return test.run(), run_directory

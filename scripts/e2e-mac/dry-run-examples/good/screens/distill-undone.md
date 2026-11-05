@@ -1,0 +1,21 @@
+- AXWindow "Orbit"
+  - AXWebArea
+    - AXGroup (Principal)
+      - [1] AXButton "Grabar reunión" [actions=[press]]
+      - AXLink "Hoy"
+      - AXLink "Calendario"
+      - [3] AXLink "Reuniones" [actions=[press]]
+      - AXLink "Notas"
+      - [4] AXLink "Asistente" [actions=[press]]
+      - AXLink "Ajustes"
+    - AXHeading
+      - AXStaticText = "Destilar «Reunión 16/10/26, 10:00» en tus notas"
+    - [20] AXLink "Abrir la reunión" [actions=[press]]
+    - AXGroup
+      - AXStaticText = "Deshecho: se han revertido las notas que no cambiaron después. La reunión sigue guardada como fuente."
+      - [42] AXLink "Registro" [actions=[press]]
+    - AXGroup
+      - AXHeading
+        - AXStaticText = "Hay que decidir"
+      - [23] AXButton "startUsar 2026-11-03" [actions=[press]]
+      - [24] AXButton "StatusDejar las dos y marcarlo como pendiente" [actions=[press]]

@@ -2055,7 +2055,10 @@
     "notes.mutedPrefix": "Micrófono silenciado · ",
     "problem.missingPermissionPrefix": "Falta el permiso de ",
     "assistant.composerPrefix": "Mensaje para",
-    "recordingCard.wakePhrase": "Oye Deimos"
+    "recordingCard.wakePhrase": "Oye Deimos",
+    "distillation.reviewPillPrefix": "Revisar el destilado · ",
+    "distillation.applyPrefix": "Aplicar ",
+    "distillation.use": "Usar {value}"
   },
   "en": {
     "editorInline.markdownBadge": "MD",
@@ -4113,6 +4116,9 @@
     "notes.mutedPrefix": "Microphone muted · ",
     "problem.missingPermissionPrefix": "",
     "assistant.composerPrefix": "Message to",
-    "recordingCard.wakePhrase": "Hey Deimos"
+    "recordingCard.wakePhrase": "Hey Deimos",
+    "distillation.reviewPillPrefix": "Review distillation · ",
+    "distillation.applyPrefix": "Apply ",
+    "distillation.use": "Use {value}"
   }
 }

@@ -1,8 +1,8 @@
 """The Mac side of the real test: what runs on the test Mac, over SSH.
 
 The orchestrator on the test server copies this file, the modules it imports
-(mac_bridge.py, mac_controls.py, mac_drafts_panel.py, mac_engine.py, mac_system.py and
-mac_waits.py), the Swift scripts and the meeting script to
+(mac_bridge.py, mac_controls.py, mac_drafts_panel.py, mac_engine.py, mac_system.py,
+mac_vault.py and mac_waits.py), the Swift scripts and the meeting script to
 `~/.orbit-pruebas/harness/` on the Mac and calls one subcommand at a time;
 each prints one JSON object and exits 0, or prints `{"error": …}` and
 exits 1.
@@ -13,6 +13,8 @@ exits 1.
     read detail ID | read sessions
     say PART                  says one part of the script into BlackHole (PARTS)
     remote-audio ACTION       check 25 preflight, fixture player, speech and cleanup
+    vault JSON                one vault call of the app (check 26: connect, disconnect)
+    distillation ID AFTER --max S  waits for meeting ID's proposal to settle past status AFTER
     voice-note                a voice note to Deimos: voice_start, one phrase into BlackHole, voice_end
     command call_start|call_stop  starts or stops a call with Deimos
     restore --max S           closes Orbit Pruebas and puts the previous input back
@@ -66,6 +68,7 @@ from mac_engine import CuaDriver
 from mac_native import NativeChecks
 from mac_remote_audio import RemoteAudio
 from mac_system import System
+from mac_vault import VaultCalls
 from mac_waits import WAITS
 from meeting_language import script_path, voice_note_phrase
 
@@ -318,7 +321,7 @@ def required_voices(listing: str) -> list[str]:
 # ── The steps ───────────────────────────────────────────────────────────────
 
 
-class Mac(DraftsAndPanel, CuaDriver, NativeChecks, RemoteAudio):
+class Mac(DraftsAndPanel, CuaDriver, NativeChecks, RemoteAudio, VaultCalls):
     def __init__(
         self,
         paths: Paths,
