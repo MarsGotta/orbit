@@ -93,7 +93,21 @@ if action == "dock" {
         down.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
         up.keyboardSetUnicodeString(stringLength: units.count, unicodeString: units)
     }
+    // Which kind of Orbit Pruebas window has focus, and whether it is still in
+    // front just after: a key that changes nothing can then be told apart from
+    // one that landed elsewhere. Roles only, never a title.
+    let target = AXUIElementCreateApplication(pid)
+    var focused: CFTypeRef?
+    var subrole: CFTypeRef?
+    if AXUIElementCopyAttributeValue(target, kAXFocusedWindowAttribute as CFString, &focused) == .success,
+       let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() {
+        AXUIElementCopyAttributeValue(focused as! AXUIElement, kAXSubroleAttribute as CFString, &subrole)
+    }
     down.post(tap: .cghidEventTap)
     up.post(tap: .cghidEventTap)
+    RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    let window = (subrole as? String) ?? "none"
+    let front = NSWorkspace.shared.frontmostApplication?.processIdentifier == pid
+    answer("{\"posted\":true,\"window\":\(String(reflecting: window)),\"front_after\":\(front)}", code: 0)
 }
 answer("{\"posted\":true}", code: 0)

@@ -71,6 +71,11 @@ class NativeChecks:
             ) from None
         if "failure" in answer:
             raise MacFailure(f"Orbit Pruebas Teclas: {answer['failure']}")
+        # Said with a key's missing effect: where it went is the first question.
+        self.last_key = {"action": action, **answer}
+
+    def _last_key(self):
+        return getattr(self, "last_key", None)
 
     def audio_state(self, expected, max_s=STATE_S):
         start = self.system.now()
@@ -79,7 +84,9 @@ class NativeChecks:
             if state and all(state.get(k) is v for k, v in expected.items()):
                 return state
             if self.system.now() - start >= max_s:
-                raise MacFailure(f"helper audio state did not become {expected}: {state}")
+                raise MacFailure(
+                    f"helper audio state did not become {expected}: {state}; last key {self._last_key()}"
+                )
             self.system.pause(0.1)
 
     def native(self, action, argument=None):
@@ -224,7 +231,9 @@ class NativeChecks:
             if main.get("visible") is expected:
                 return expected
             if self.system.now() - start >= STATE_S:
-                raise MacFailure(f"main window visibility did not become {expected}")
+                raise MacFailure(
+                    f"main window visibility did not become {expected}; last key {self._last_key()}"
+                )
             self.system.pause(0.1)
 
     def native_edit(self, typing):
@@ -261,5 +270,7 @@ class NativeChecks:
             if values == [expected]:
                 return expected
             if self.system.now() - start >= STATE_S:
-                raise MacFailure(f"native editor expected {expected!r}; observed {values!r}")
+                raise MacFailure(
+                    f"native editor expected {expected!r}; observed {values!r}; last key {self._last_key()}"
+                )
             self.system.pause(0.1)
