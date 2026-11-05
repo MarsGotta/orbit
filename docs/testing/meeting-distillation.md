@@ -80,3 +80,74 @@ performed by Linux tests:
 
 No real model, vault, Hermes service, SSH connection or Mac operation is needed
 for the Linux fixtures and showcase captures.
+
+## Real-test check 26
+
+The real test distills its first meeting (`scripts/e2e-mac/vault_distillation.py`).
+The test hub needs no new setting: its `vault` function uses the operator's
+processing model (`server/orbit_hub/ai/defaults.py`), the test model. The
+run writes an invented vault to `vault/` in its own directory on the test
+server: a `SCHEMA.md` with `owner: maple` and the four roles, a person (Laura
+Cedar, Clara in the English pass, with that first name as alias), a project
+"Reading room works" whose `start` is 2026-11-17, `index.md` and `log.md`.
+The meeting script already names Laura/Clara and starts the reading room's
+works on 3 November, so no line was added to it and no other check's script
+changed.
+
+Once the first meeting's note is ready, and after every other check of that
+meeting has its evidence, the check:
+
+1. connects the folder as a server-folder vault with the app's own call
+   (`orbit_vault` «configure», the body Settings › Notes sends), through
+   Orbit Pruebas's daemon;
+2. waits for the meeting's proposal to settle as `proposed`, reading the hub's
+   list through the daemon every two seconds. The bound is what the hub takes
+   to give up: the notes worker's 5 s idle tick, the model's 300 s and the
+   connector's 120 s background budget, read from the hub's constants. A
+   `failed` preparation ends it earlier, with its cause;
+3. opens the meeting from «Reuniones» and screen 53 from its amber pill,
+   through the test bridge, and decides every contradiction: a property takes
+   the meeting's value («Usar …»), a text keeps both «in discussion»; after
+   each choice it waits for the column to show it, because the review locks
+   its controls while it saves;
+4. presses «Aplicar N cambios», waits for `applied` (bound: the connector's
+   120 s budget) and reads the vault from disk;
+5. presses «Deshacer», waits for `undone` and reads the vault again;
+6. disconnects the vault, also after a failure, so no later meeting of the
+   run is distilled.
+
+It passes when the proposal belongs to the first meeting and has a
+contradiction on a property; the applied proposal carries the decisions; each
+included note was written (created or updated as proposed) with
+`generated.by` of the hub and `verified: human:maple`; one note is the
+meeting's, with its `orbit://meeting/<id>` source; the source exists, its
+`sha256` is its body's and the proposal's, and it is verified too; `index.md`
+lists every written note and the source; `log.md` has exactly one new line
+per written file (notes, source, `index.md`, `log.md`); each property decided
+for the meeting has its value and each text kept «in discussion» has its
+marker; and after undo nothing was skipped, every note is byte for byte as
+before, created notes are gone and the source remains. It never checks what
+the summary, people or tasks say: that depends on the model.
+
+The dry run replays the proposals and the three vault states from
+`dry-run-examples/good/distillation.json`. That example was produced once by
+the real hub's preparation, apply and undo, with a recorded model answer, on
+the vault the check writes. `bad-26` leaves the project with the meeting's
+date after undo; in Spanish and English it fails check 26 only. The check is
+not critical: a failure never stops the run.
+
+On the Mac, the reviewer must:
+
+1. Run the Spanish and English passes. Check 26 must pass, and checks 1–25
+   keep their results.
+2. In `report.json`, read the `distillation` and `distillation-write` waits
+   (seconds against their bounds) and `distillation`: the decisions, the
+   statuses and the three file sets. Open `vault/` in the run's directory:
+   the meeting's note is gone, the project and person are as written, and the
+   source and the undo lines in `log.md` remain.
+3. Look at `trees/*distill-review*`, `*distill-decided*`, `*distill-applied*`
+   and `*distill-undone*`: the pill opened screen 53, each choice was shown in
+   the column, Apply named the count and «Deshacer» was pressed once.
+4. If the test model proposes no contradiction on the project's `start`, the
+   check fails saying so. Record it with the model's name: it is the model's
+   behaviour, not the harness's.

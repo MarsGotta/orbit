@@ -43,7 +43,7 @@ from support_network_fence import install
 
 FENCE = install()
 # Every check can pass or fail, including the menu bar through the bridge.
-ALL = list(range(1, 26))
+ALL = list(range(1, 27))
 SKIPPED = {}
 # A check whose evidence another one's step brings: with no answer of «Oye
 # Deimos» in the panel (7), there is none to hold under the pointer (18).
@@ -933,7 +933,7 @@ def test_bridge_connection_failure_names_the_transport_and_command(capsys):
 
 def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
     results, directory = dry_run.run("good", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 26)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in ALL}
     data = json.loads((directory / "report.json").read_text())
     assert set(data["accessibility"]["trees"]) == {"idle", "recording"}
     assert (directory / "trees/accessibility-idle.txt").is_file()
@@ -947,7 +947,7 @@ def test_good_run_uses_bridge_for_input_and_reconnects_after_quit(tmp_path):
 def test_accessibility_failure_does_not_change_any_other_check(tmp_path):
     results, _ = dry_run.run("bad-21", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 26)
+        n: "fail" if n == 21 else "pass" for n in ALL
     }
 
 
@@ -955,7 +955,7 @@ def test_accessibility_waits_for_webkit_to_build_its_tree(tmp_path):
     # Real run of 2026-10-29: the first macOS read held only the window's own
     # buttons, and check 21 failed although the app named every control.
     results, directory = dry_run.run("accessibility-lazy-tree", tmp_path)
-    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in range(1, 26)}
+    assert {row["number"]: row["status"] for row in results} == {n: "pass" for n in ALL}
     data = json.loads((directory / "report.json").read_text())
     assert data["accessibility"]["reads"] == {"idle": 3, "recording": 3}
     assert "Grabar reunión" in (directory / "trees/accessibility-idle.txt").read_text()
@@ -1151,7 +1151,7 @@ def test_cua_manifest_cannot_press_or_type_and_its_refusal_only_fails_accessibil
     assert "press_key" not in manifest and "type_text" not in manifest and "click" not in manifest
     results, _ = dry_run.run("own-process", tmp_path / "run")
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 26)
+        n: "fail" if n == 21 else "pass" for n in ALL
     }
 
 
@@ -1160,7 +1160,7 @@ def test_a_partially_started_cua_driver_is_stopped_before_the_recording_script(
 ):
     results, _ = dry_run.run("accessibility-start-refused", tmp_path)
     assert {row["number"]: row["status"] for row in results} == {
-        n: "fail" if n == 21 else "pass" for n in range(1, 26)
+        n: "fail" if n == 21 else "pass" for n in ALL
     }
 
 
@@ -1741,3 +1741,201 @@ def test_spoiled_remote_audio_only_fails_check_25(language, tmp_path):
     assert report["remote_audio"]["restored"] is True
     assert report["restored"]["remote_audio"]["restored"] is True
     assert "muted microphone" in next(r["detail"] for r in results if r["number"] == 25)
+
+
+# ── Check 26: the first meeting distilled into an invented vault ──
+
+
+def _distillation(language="es"):
+    """Check 26's evidence as the good example's run collects it."""
+    example = dry_run.Example("good", language)
+    data = example.json("distillation.json")
+    proposed, applied, undone = data["proposals"]
+    row = {
+        "connected": {"configured": True, "kind": "folder"},
+        "proposed": proposed,
+        "decided": {c["id"]: c["choice"] for c in applied["conflicts"]},
+        "applied": applied,
+        "undone": undone,
+        "files": data["files"],
+        "disconnected": True,
+    }
+    return {"language": language, "recording": {"id": proposed["meeting_id"]}, "distillation": row}
+
+
+def _spoil(ev, mutation):
+    import copy
+
+    ev = copy.deepcopy(ev)
+    row = ev["distillation"]
+    files = row["files"]
+    project = next(c["path"] for c in row["proposed"]["conflicts"] if ":property:" in c["id"])
+    created = next(c["path"] for c in row["applied"]["changes"] if c["kind"] == "create")
+    source = row["applied"]["new_source"]["path"]
+    if mutation == "date-not-applied":
+        files["applied"][project] = files["before"][project]
+    elif mutation == "note-not-restored":
+        files["undone"][project] = files["applied"][project]
+    elif mutation == "created-note-survives":
+        files["undone"][created] = files["applied"][created]
+    elif mutation == "source-removed":
+        del files["undone"][source]
+    elif mutation == "source-body-changed":
+        files["applied"][source] += "An edit after hashing.\n"
+    elif mutation == "log-line-missing":
+        files["applied"]["log.md"] = files["before"]["log.md"]
+    elif mutation == "index-missing":
+        files["applied"]["index.md"] = files["before"]["index.md"]
+    elif mutation == "other-reviewer":
+        files["applied"][created] = files["applied"][created].replace("human:", "human:other-")
+    elif mutation == "no-contradiction":
+        row["proposed"]["conflicts"] = []
+    elif mutation == "undo-skipped":
+        row["undone"]["skipped"] = [{"path": project, "code": "content_changed"}]
+    elif mutation == "still-connected":
+        row["disconnected"] = False
+    else:
+        raise AssertionError(mutation)
+    return ev
+
+
+DISTILLATION_SPOILS = (
+    "date-not-applied",
+    "note-not-restored",
+    "created-note-survives",
+    "source-removed",
+    "source-body-changed",
+    "log-line-missing",
+    "index-missing",
+    "other-reviewer",
+    "no-contradiction",
+    "undo-skipped",
+    "still-connected",
+)
+
+
+@pytest.mark.parametrize("language", ("es", "en"))
+def test_check_26_passes_on_what_the_hub_wrote_applied_and_undid(language):
+    import all_checks
+
+    with harness_copy.language_scope(language):
+        ok, detail = all_checks.CHECKS[26](_distillation(language))
+    assert ok, detail
+
+
+@pytest.mark.parametrize("mutation", DISTILLATION_SPOILS)
+def test_check_26_fails_on_each_spoiled_part(mutation):
+    import all_checks
+
+    ok, detail = all_checks.CHECKS[26](_spoil(_distillation(), mutation))
+    assert not ok and detail, (mutation, detail)
+
+
+@pytest.mark.parametrize("language", ("es", "en"))
+def test_spoiled_distillation_only_fails_check_26(language, tmp_path):
+    results, directory = dry_run.run("bad-26", tmp_path, language=language)
+    assert statuses(results) == {n: "fail" if n == 26 else "pass" for n in ALL}
+    report = json.loads((directory / "report.json").read_text())
+    assert report["distillation"]["disconnected"] is True
+    detail = next(r["detail"] for r in results if r["number"] == 26)
+    assert "not restored" in detail, detail
+
+
+def test_check_26_presses_the_pill_decides_applies_and_undoes(good):
+    _, directory = good
+    data = json.loads((directory / "report.json").read_text())
+    row = data["distillation"]
+    assert row["connected"]["kind"] == "folder"
+    assert row["decided"] == {c["id"]: c["choice"] for c in row["applied"]["conflicts"]}
+    assert {"distillation", "distillation-write"} <= {w["wait"] for w in data["waits"]}
+    labels = [r["label"] for r in data["reads"]]
+    assert {"distill-review", "distill-applied", "distill-undone"} <= set(labels)
+
+
+@pytest.mark.parametrize("language", ("es", "en"))
+def test_the_invented_vault_is_one_the_hub_validates(language, tmp_path):
+    import vault_distillation
+
+    from orbit_hub.distillation.validation import validate
+    from orbit_hub.vault.schema import load
+
+    vault_distillation.write_vault(tmp_path / "vault", language)
+    files = vault_distillation.read_vault(tmp_path / "vault")
+    schema = load(files["SCHEMA.md"])
+    assert schema["warnings"] == [] and schema["owner"] == vault_distillation.OWNER
+    roles = {
+        validate(path, text, schema)[0]
+        for path, text in files.items()
+        if path.startswith(("People/", "Projects/"))
+    }
+    assert roles == {"person", "project"}
+    with harness_copy.language_scope(language):
+        script = mac_side.script_path().read_text(encoding="utf-8")
+    # The meeting names the person, and says another start than the project.
+    assert vault_distillation.PERSON[language] in script
+    assert vault_distillation.PROJECT_START not in script
+
+
+def test_the_proposal_wait_ends_past_moving_and_earlier_statuses(tmp_path):
+    pages = [[], [{"status": "queued"}], [{"status": "proposed", "id": "p1"}]]
+    calls = []
+
+    class Orbit:
+        def call(self, body, bound_s=30):
+            calls.append(body)
+            entries = pages.pop(0) if len(pages) > 1 else pages[0]
+            return {"outcome": {"outcome": "distillations", "page": {"entries": entries}}}
+
+    class Clock(mac_side.System):
+        def __init__(self):
+            self.t = 0.0
+
+        def now(self):
+            return self.t
+
+        def pause(self, seconds):
+            self.t += seconds
+
+    mac = mac_side.Mac(mac_side.Paths(tmp_path), Clock(), Orbit())
+    done = mac.distillation("m1", "none", 60)
+    assert done["proposal"]["id"] == "p1"
+    assert calls[0] == {
+        "command": "vault",
+        "call": {"call": "list_distillations", "meeting_id": "m1", "page": 1},
+    }
+    with pytest.raises(mac_side.MacFailure, match="last seen: proposed"):
+        mac.distillation("m1", "proposed", 10)
+
+
+def test_a_failed_distillation_still_disconnects_the_vault(tmp_path):
+    from contextlib import contextmanager
+
+    import vault_distillation
+    from interface import StepFailed
+
+    calls = []
+
+    class Mac:
+        def vault(self, call):
+            calls.append(call["call"])
+            return {"configuration": {"configured": call["call"] == "configure"}}
+
+        def distillation(self, meeting, after, max_s):
+            raise StepFailed("the meeting's proposal did not settle past «none»")
+
+    class Test:
+        def __init__(self):
+            self.language, self.directory, self.mac = "es", tmp_path, Mac()
+            self.bounds = vault_distillation.bounds()
+            self.ev = {"note_phase": {}, "recording": {"id": "m1"}, "waits": []}
+
+        @contextmanager
+        def step(self, *args, **kwargs):
+            with pytest.raises(StepFailed):
+                yield
+
+    test = Test()
+    vault_distillation.exercise(test)
+    assert calls == ["configure", "disconnect"]
+    assert test.ev["distillation"]["disconnected"] is True
+    assert "did not settle" in test.ev["waits"][0]["failure"]

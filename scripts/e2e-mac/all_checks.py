@@ -2,8 +2,8 @@
 
 The checks live by subject: checks.py (1 to 12), meeting_control_checks.py
 (13 to 16), drafts_panel_checks.py (17 and 18), silence_recording.py (19),
-audio_route.py (20), accessibility.py (21), native_checks.py (22 to 24), and
-remote_audio.py (25).
+audio_route.py (20), accessibility.py (21), native_checks.py (22 to 24),
+remote_audio.py (25) and vault_distillation.py (26).
 This runs them in order and says what none of them can see.
 """
 
@@ -17,6 +17,7 @@ import meeting_control_checks
 import native_checks
 import remote_audio
 import silence_recording
+import vault_distillation
 from checks import Unchecked, failure_lines, result
 from harness_copy import language_scope
 
@@ -29,6 +30,7 @@ MODULES = (
     accessibility,
     native_checks,
     remote_audio,
+    vault_distillation,
 )
 CHECKS = {number: check for module in MODULES for number, check in module.CHECKS.items()}
 # What the run cannot see, said in every report.

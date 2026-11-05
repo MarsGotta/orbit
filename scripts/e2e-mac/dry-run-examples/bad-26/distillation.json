@@ -1,0 +1,420 @@
+{
+ "proposals": [
+  {
+   "by": "orbit-hub/0.14.2",
+   "can_prepare_again": true,
+   "changed_paths": [],
+   "changes": [
+    {
+     "base_hash": null,
+     "id": "n0",
+     "include": true,
+     "kind": "create",
+     "lines": [
+      {
+       "after": "## Summary\nThe works begin on 3 November.\n\n## People\n[Laura Cedar](/People/laura-cedar.md).\n\n## Tasks\n- [ ] [Laura Cedar](/People/laura-cedar.md) Send the drawings 📅 2026-11-09\n",
+       "before": "",
+       "quote_ids": [
+        "q1",
+        "q2"
+       ],
+       "section": "Summary"
+      }
+     ],
+     "path": "Meetings/reading-room-review.md",
+     "properties": [
+      {
+       "after": "meeting",
+       "before": null,
+       "key": "type",
+       "quote_ids": [
+        "q1"
+       ]
+      },
+      {
+       "after": "Reading room review",
+       "before": null,
+       "key": "title",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room review",
+     "warnings": []
+    },
+    {
+     "base_hash": "84272a3cb59e6b67c3399122604391c17c8f6cb6faeacf586cd19fdb8e3a3677",
+     "id": "n1",
+     "include": true,
+     "kind": "update",
+     "lines": [
+      {
+       "after": "The signed drawings go to the architect on Monday.",
+       "before": "Waiting for the signed drawings.",
+       "quote_ids": [
+        "q2"
+       ],
+       "section": "Status"
+      }
+     ],
+     "path": "Projects/reading-room-works.md",
+     "properties": [
+      {
+       "after": "2026-11-03",
+       "before": "2026-11-17",
+       "key": "start",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room works",
+     "warnings": []
+    }
+   ],
+   "conflicts": [
+    {
+     "choice": null,
+     "current": "2026-11-17",
+     "id": "n1:property:0",
+     "incoming": "2026-11-03",
+     "path": "Projects/reading-room-works.md",
+     "property": "start",
+     "quote_ids": [
+      "q1"
+     ]
+    },
+    {
+     "choice": null,
+     "current": "Waiting for the signed drawings.",
+     "id": "n1:lines:0",
+     "incoming": "The signed drawings go to the architect on Monday.",
+     "path": "Projects/reading-room-works.md",
+     "property": "Status",
+     "quote_ids": [
+      "q2"
+     ]
+    }
+   ],
+   "created_at": "2026-11-05T09:30:00+00:00",
+   "error": null,
+   "id": "c53ac877-cac5-4f59-a371-911365c56e34",
+   "meeting_id": "9f1c2d3e-0000-4000-8000-000000000001",
+   "new_source": {
+    "path": "Sources/e5cc8b2b0c8eec014923b534.md",
+    "sha256": "5a43d9a5f5270ccb78f64f171b4ddc1edfaaac7dc11a2124f68f9cc26c0e222c",
+    "summary": "The reading room works begin on 3 November; the drawings go out on Monday."
+   },
+   "people": {
+    "Alina Pérez": null
+   },
+   "quotes": [
+    {
+     "at_ms": 0,
+     "id": "q1",
+     "speaker": "Alina Pérez",
+     "text": "The reading room works begin on 2026-11-03."
+    },
+    {
+     "at_ms": 0,
+     "id": "q2",
+     "speaker": "Alina Pérez",
+     "text": "The signed drawings go to the architect on Monday."
+    }
+   ],
+   "revision": 0,
+   "skipped": [],
+   "source_kind": "meeting",
+   "status": "proposed",
+   "summary": "The reading room works begin on 3 November; the drawings go out on Monday.",
+   "title": "Meeting"
+  },
+  {
+   "by": "orbit-hub/0.14.2",
+   "can_prepare_again": true,
+   "changed_paths": [],
+   "changes": [
+    {
+     "base_hash": null,
+     "id": "n0",
+     "include": true,
+     "kind": "create",
+     "lines": [
+      {
+       "after": "## Summary\nThe works begin on 3 November.\n\n## People\n[Laura Cedar](/People/laura-cedar.md).\n\n## Tasks\n- [ ] [Laura Cedar](/People/laura-cedar.md) Send the drawings 📅 2026-11-09\n",
+       "before": "",
+       "quote_ids": [
+        "q1",
+        "q2"
+       ],
+       "section": "Summary"
+      }
+     ],
+     "path": "Meetings/reading-room-review.md",
+     "properties": [
+      {
+       "after": "meeting",
+       "before": null,
+       "key": "type",
+       "quote_ids": [
+        "q1"
+       ]
+      },
+      {
+       "after": "Reading room review",
+       "before": null,
+       "key": "title",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room review",
+     "warnings": []
+    },
+    {
+     "base_hash": "84272a3cb59e6b67c3399122604391c17c8f6cb6faeacf586cd19fdb8e3a3677",
+     "id": "n1",
+     "include": true,
+     "kind": "update",
+     "lines": [
+      {
+       "after": "The signed drawings go to the architect on Monday.",
+       "before": "Waiting for the signed drawings.",
+       "quote_ids": [
+        "q2"
+       ],
+       "section": "Status"
+      }
+     ],
+     "path": "Projects/reading-room-works.md",
+     "properties": [
+      {
+       "after": "2026-11-03",
+       "before": "2026-11-17",
+       "key": "start",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room works",
+     "warnings": []
+    }
+   ],
+   "conflicts": [
+    {
+     "choice": "incoming",
+     "current": "2026-11-17",
+     "id": "n1:property:0",
+     "incoming": "2026-11-03",
+     "path": "Projects/reading-room-works.md",
+     "property": "start",
+     "quote_ids": [
+      "q1"
+     ]
+    },
+    {
+     "choice": "both",
+     "current": "Waiting for the signed drawings.",
+     "id": "n1:lines:0",
+     "incoming": "The signed drawings go to the architect on Monday.",
+     "path": "Projects/reading-room-works.md",
+     "property": "Status",
+     "quote_ids": [
+      "q2"
+     ]
+    }
+   ],
+   "created_at": "2026-11-05T09:30:00+00:00",
+   "error": null,
+   "id": "c53ac877-cac5-4f59-a371-911365c56e34",
+   "meeting_id": "9f1c2d3e-0000-4000-8000-000000000001",
+   "new_source": {
+    "path": "Sources/e5cc8b2b0c8eec014923b534.md",
+    "sha256": "5a43d9a5f5270ccb78f64f171b4ddc1edfaaac7dc11a2124f68f9cc26c0e222c",
+    "summary": "The reading room works begin on 3 November; the drawings go out on Monday."
+   },
+   "people": {
+    "Alina Pérez": null
+   },
+   "quotes": [
+    {
+     "at_ms": 0,
+     "id": "q1",
+     "speaker": "Alina Pérez",
+     "text": "The reading room works begin on 2026-11-03."
+    },
+    {
+     "at_ms": 0,
+     "id": "q2",
+     "speaker": "Alina Pérez",
+     "text": "The signed drawings go to the architect on Monday."
+    }
+   ],
+   "revision": 1,
+   "skipped": [],
+   "source_kind": "meeting",
+   "status": "applied",
+   "summary": "The reading room works begin on 3 November; the drawings go out on Monday.",
+   "title": "Meeting"
+  },
+  {
+   "by": "orbit-hub/0.14.2",
+   "can_prepare_again": true,
+   "changed_paths": [],
+   "changes": [
+    {
+     "base_hash": null,
+     "id": "n0",
+     "include": true,
+     "kind": "create",
+     "lines": [
+      {
+       "after": "## Summary\nThe works begin on 3 November.\n\n## People\n[Laura Cedar](/People/laura-cedar.md).\n\n## Tasks\n- [ ] [Laura Cedar](/People/laura-cedar.md) Send the drawings 📅 2026-11-09\n",
+       "before": "",
+       "quote_ids": [
+        "q1",
+        "q2"
+       ],
+       "section": "Summary"
+      }
+     ],
+     "path": "Meetings/reading-room-review.md",
+     "properties": [
+      {
+       "after": "meeting",
+       "before": null,
+       "key": "type",
+       "quote_ids": [
+        "q1"
+       ]
+      },
+      {
+       "after": "Reading room review",
+       "before": null,
+       "key": "title",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room review",
+     "warnings": []
+    },
+    {
+     "base_hash": "84272a3cb59e6b67c3399122604391c17c8f6cb6faeacf586cd19fdb8e3a3677",
+     "id": "n1",
+     "include": true,
+     "kind": "update",
+     "lines": [
+      {
+       "after": "The signed drawings go to the architect on Monday.",
+       "before": "Waiting for the signed drawings.",
+       "quote_ids": [
+        "q2"
+       ],
+       "section": "Status"
+      }
+     ],
+     "path": "Projects/reading-room-works.md",
+     "properties": [
+      {
+       "after": "2026-11-03",
+       "before": "2026-11-17",
+       "key": "start",
+       "quote_ids": [
+        "q1"
+       ]
+      }
+     ],
+     "title": "Reading room works",
+     "warnings": []
+    }
+   ],
+   "conflicts": [
+    {
+     "choice": "incoming",
+     "current": "2026-11-17",
+     "id": "n1:property:0",
+     "incoming": "2026-11-03",
+     "path": "Projects/reading-room-works.md",
+     "property": "start",
+     "quote_ids": [
+      "q1"
+     ]
+    },
+    {
+     "choice": "both",
+     "current": "Waiting for the signed drawings.",
+     "id": "n1:lines:0",
+     "incoming": "The signed drawings go to the architect on Monday.",
+     "path": "Projects/reading-room-works.md",
+     "property": "Status",
+     "quote_ids": [
+      "q2"
+     ]
+    }
+   ],
+   "created_at": "2026-11-05T09:30:00+00:00",
+   "error": null,
+   "id": "c53ac877-cac5-4f59-a371-911365c56e34",
+   "meeting_id": "9f1c2d3e-0000-4000-8000-000000000001",
+   "new_source": {
+    "path": "Sources/e5cc8b2b0c8eec014923b534.md",
+    "sha256": "5a43d9a5f5270ccb78f64f171b4ddc1edfaaac7dc11a2124f68f9cc26c0e222c",
+    "summary": "The reading room works begin on 3 November; the drawings go out on Monday."
+   },
+   "people": {
+    "Alina Pérez": null
+   },
+   "quotes": [
+    {
+     "at_ms": 0,
+     "id": "q1",
+     "speaker": "Alina Pérez",
+     "text": "The reading room works begin on 2026-11-03."
+    },
+    {
+     "at_ms": 0,
+     "id": "q2",
+     "speaker": "Alina Pérez",
+     "text": "The signed drawings go to the architect on Monday."
+    }
+   ],
+   "revision": 1,
+   "skipped": [],
+   "source_kind": "meeting",
+   "status": "undone",
+   "summary": "The reading room works begin on 3 November; the drawings go out on Monday.",
+   "title": "Meeting"
+  }
+ ],
+ "files": {
+  "before": {
+   "People/laura-cedar.md": "---\ntype: person\ntitle: Laura Cedar\naliases: [Laura]\n---\n# Laura Cedar\n\nHandles the library's suppliers.\n",
+   "Projects/reading-room-works.md": "---\ntype: project\ntitle: Reading room works\nstage: planning\nstart: '2026-11-17'\n---\n# Reading room works\n\nThe public library's reading room is rebuilt.\n\n## Status\nWaiting for the signed drawings.\n",
+   "SCHEMA.md": "---\ntype: schema\nowner: maple\ntypes:\n  person: {role: person, folder: People/}\n  project: {role: project, folder: Projects/}\n  meeting: {role: meeting, folder: Meetings/}\n  source: {role: source, folder: Sources/}\n---\nInvented vault of Orbit's real test. Keep each project's start date current.\n",
+   "index.md": "---\nokf_version: \"0.2\"\n---\n# Maple notes\n\n## Notes\n* [Laura Cedar](/People/laura-cedar.md) - Suppliers\n* [Reading room works](/Projects/reading-room-works.md) - The library's works\n",
+   "log.md": "# Log\n"
+  },
+  "applied": {
+   "Meetings/reading-room-review.md": "---\ntype: meeting\ntitle: Reading room review\ngenerated:\n  by: orbit-hub/0.14.2\n  at: '2026-11-05T09:30:00+00:00'\nsources:\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q1\n  title: Meeting\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q2\n  title: Meeting\n- resource: orbit://meeting/9f1c2d3e-0000-4000-8000-000000000001\n  id: orbit-9f1c2d3e-0000-4000-8000-000000000001\n  title: Meeting\nverified:\n- by: human:maple\n  at: '2026-11-05T09:30:00+00:00'\n---\n## Summary\nThe works begin on 3 November.[^sf8da5933d50e-q1][^sf8da5933d50e-q2]\n\n## People\n[Laura Cedar](/People/laura-cedar.md).[^sf8da5933d50e-q1][^sf8da5933d50e-q2]\n\n## Tasks\n- [ ] [Laura Cedar](/People/laura-cedar.md) Send the drawings 📅 2026-11-09[^sf8da5933d50e-q1][^sf8da5933d50e-q2]\n\n[^sf8da5933d50e-q1]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n\n[^sf8da5933d50e-q2]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n",
+   "People/laura-cedar.md": "---\ntype: person\ntitle: Laura Cedar\naliases: [Laura]\n---\n# Laura Cedar\n\nHandles the library's suppliers.\n",
+   "Projects/reading-room-works.md": "---\ntype: project\ntitle: Reading room works\nstage: planning\nstart: '2026-11-03'\ngenerated:\n  by: orbit-hub/0.14.2\n  at: '2026-11-05T09:30:00+00:00'\nsources:\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q1\n  title: Meeting\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q2\n  title: Meeting\nverified:\n- by: human:maple\n  at: '2026-11-05T09:30:00+00:00'\n---\n# Reading room works\n\nThe public library's reading room is rebuilt.\n\n## Status\nWaiting for the signed drawings.\n\nThe signed drawings go to the architect on Monday.[^sf8da5933d50e-q2]\n\n<!-- in discussion -->\n\n[^sf8da5933d50e-q1]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n\n[^sf8da5933d50e-q2]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n",
+   "SCHEMA.md": "---\ntype: schema\nowner: maple\ntypes:\n  person: {role: person, folder: People/}\n  project: {role: project, folder: Projects/}\n  meeting: {role: meeting, folder: Meetings/}\n  source: {role: source, folder: Sources/}\n---\nInvented vault of Orbit's real test. Keep each project's start date current.\n",
+   "Sources/e5cc8b2b0c8eec014923b534.md": "---\ntype: source\ntitle: Meeting\nresource: orbit://meeting/9f1c2d3e-0000-4000-8000-000000000001\nsha256: 5a43d9a5f5270ccb78f64f171b4ddc1edfaaac7dc11a2124f68f9cc26c0e222c\ngenerated:\n  by: orbit-hub/0.14.2\n  at: '2026-11-05T09:30:00+00:00'\nverified:\n- by: human:maple\n  at: '2026-11-05T09:30:00+00:00'\n---\n# Meeting\n\nThe reading room works begin on 3 November; the drawings go out on Monday.\n\n## Transcript\n\n[0ms] Alina Pérez: The reading room works begin on 2026-11-03. The signed drawings go to the architect on Monday.\n",
+   "index.md": "---\nokf_version: \"0.2\"\n---\n# Maple notes\n\n## Notes\n* [Laura Cedar](/People/laura-cedar.md) - Suppliers\n* [Reading room review](/Meetings/reading-room-review.md) - \n* [Reading room works](/Projects/reading-room-works.md) - \n* [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md) - \n",
+   "log.md": "# Log\n\n## 2026-11-05\n- 09:30 · create · [Reading room review](/Meetings/reading-room-review.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [Reading room works](/Projects/reading-room-works.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · create · [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [index.md](/index.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [log.md](/log.md) · orbit-hub/0.14.2 · Meeting distillation\n\n"
+  },
+  "undone": {
+   "People/laura-cedar.md": "---\ntype: person\ntitle: Laura Cedar\naliases: [Laura]\n---\n# Laura Cedar\n\nHandles the library's suppliers.\n",
+   "Projects/reading-room-works.md": "---\ntype: project\ntitle: Reading room works\nstage: planning\nstart: '2026-11-03'\ngenerated:\n  by: orbit-hub/0.14.2\n  at: '2026-11-05T09:30:00+00:00'\nsources:\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q1\n  title: Meeting\n- resource: /Sources/e5cc8b2b0c8eec014923b534.md\n  id: sf8da5933d50e-q2\n  title: Meeting\nverified:\n- by: human:maple\n  at: '2026-11-05T09:30:00+00:00'\n---\n# Reading room works\n\nThe public library's reading room is rebuilt.\n\n## Status\nWaiting for the signed drawings.\n\nThe signed drawings go to the architect on Monday.[^sf8da5933d50e-q2]\n\n<!-- in discussion -->\n\n[^sf8da5933d50e-q1]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n\n[^sf8da5933d50e-q2]: [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md#t=0ms)\n",
+   "SCHEMA.md": "---\ntype: schema\nowner: maple\ntypes:\n  person: {role: person, folder: People/}\n  project: {role: project, folder: Projects/}\n  meeting: {role: meeting, folder: Meetings/}\n  source: {role: source, folder: Sources/}\n---\nInvented vault of Orbit's real test. Keep each project's start date current.\n",
+   "Sources/e5cc8b2b0c8eec014923b534.md": "---\ntype: source\ntitle: Meeting\nresource: orbit://meeting/9f1c2d3e-0000-4000-8000-000000000001\nsha256: 5a43d9a5f5270ccb78f64f171b4ddc1edfaaac7dc11a2124f68f9cc26c0e222c\ngenerated:\n  by: orbit-hub/0.14.2\n  at: '2026-11-05T09:30:00+00:00'\nverified:\n- by: human:maple\n  at: '2026-11-05T09:30:00+00:00'\n---\n# Meeting\n\nThe reading room works begin on 3 November; the drawings go out on Monday.\n\n## Transcript\n\n[0ms] Alina Pérez: The reading room works begin on 2026-11-03. The signed drawings go to the architect on Monday.\n",
+   "index.md": "---\nokf_version: \"0.2\"\n---\n# Maple notes\n\n## Notes\n* [Laura Cedar](/People/laura-cedar.md) - Suppliers\n* [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md) - \n* [Reading room works](/Projects/reading-room-works.md) - \n",
+   "log.md": "# Log\n\n## 2026-11-05\n- 09:30 · delete · [Reading room review](/Meetings/reading-room-review.md) · orbit-hub/0.14.2 · Undo meeting distillation\n- 09:30 · update · [Reading room works](/Projects/reading-room-works.md) · orbit-hub/0.14.2 · Undo meeting distillation\n- 09:30 · create · [Reading room review](/Meetings/reading-room-review.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [Reading room works](/Projects/reading-room-works.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · create · [Meeting](/Sources/e5cc8b2b0c8eec014923b534.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [index.md](/index.md) · orbit-hub/0.14.2 · Meeting distillation\n- 09:30 · update · [log.md](/log.md) · orbit-hub/0.14.2 · Meeting distillation\n\n"
+  }
+ }
+}

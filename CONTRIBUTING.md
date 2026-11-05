@@ -139,7 +139,9 @@ SSH:
 - `run` (Spanish by default) or `run --language en` is the real test: it records a synthetic meeting in Orbit Pruebas by
   clicking and reading its interface (past a first run's welcome, skipped with
   «Configurarlo más tarde» and said in the report), with part of it muted, sends a voice
-  note, opens a call, throws a second recording away, deletes the first
+  note, opens a call, distills the first meeting into an invented vault in the
+  run's directory and undoes it (check 26, [meeting distillation](docs/testing/meeting-distillation.md#real-test-check-26)),
+  throws a second recording away, deletes the first
   meeting, runs the checks and cleans up, also when something fails. It reads
   the test hub's database to check that a deleted recording left nothing there.
   It moves the system pointer over the floating panel and away, and quits and

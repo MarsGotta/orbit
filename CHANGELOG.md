@@ -25,6 +25,10 @@ English and Spanish; labels quoted below may use either language.
   [the API and connector guarantees](docs/architecture/distillation.md).
 - `SCHEMA.md` may name the vault's `owner`: reviewed changes are verified by
   `human:<owner>`, and Orbit shows them as «Reviewed by you».
+- The real test on the Mac has a 26th check: it distills the first meeting
+  into an invented vault on the test server, decides its contradiction on
+  screen 53, applies, reads the notes, source, index, log and reviewer back
+  from disk, and undoes. It does not judge what the summary says.
 
 ### Fixed
 

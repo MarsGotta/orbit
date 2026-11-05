@@ -61,7 +61,8 @@
   "press:Reactivar micrófono": "recording"
  },
  "assistant-reopened": {
-  "press:Grabar reunión": "dialog"
+  "press:Grabar reunión": "dialog",
+  "press:Reuniones": "distill-meetings"
  },
  "discard-question": {
   "press:Borrar y terminar": "discarded"
@@ -149,5 +150,36 @@
  },
  "remote-saved": {
   "press:Asistente": "native-editor"
+ },
+ "distill-meetings": {
+  "press:Reunión 16/10/26, 10:00 10:00 Se revisó el presupuesto y el calendario de obras": "distill-note",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-note": {
+  "press:Revisar el destilado · 5 cambios": "distill-review",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-review": {
+  "press:Usar 2026-11-03": "distill-start",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-start": {
+  "press:StatusFalta decidir": "distill-status",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-status": {
+  "press:Dejar las dos y marcarlo como pendiente": "distill-decided",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-decided": {
+  "press:Aplicar 5 cambios": "distill-applied",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-applied": {
+  "press:Deshacer": "distill-undone",
+  "press:Grabar reunión": "dialog"
+ },
+ "distill-undone": {
+  "press:Grabar reunión": "dialog"
  }
 }

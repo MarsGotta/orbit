@@ -11,7 +11,8 @@ ORBIT_MAC_SSH_KEY, as the release scripts), records a synthetic meeting in
 Orbit Pruebas clicking and reading its interface through its in-app bridge,
 with CuaDriver scoped to check 21's two read-only accessibility samples, with three lines of it muted
 («Silenciar»), sends Deimos a voice note and opens a call with it over Orbit
-Pruebas's socket, throws a second recording away («Terminar sin guardar»),
+Pruebas's socket, distills the first meeting into an invented vault and undoes it, throws a
+second recording away («Terminar sin guardar»),
 deletes the first meeting («Borrar reunión»), quits Orbit Pruebas right
 after typing a draft (the Dock's quit) and opens it again, runs the
 checks and cleans up, also when something fails. During the meeting it also
@@ -64,6 +65,7 @@ import meeting_language
 import native_checks
 import remote_audio
 import silence_recording
+import vault_distillation
 from interface import InAppBridge, Interface, StepFailed
 
 ROOT = DIRECTORY.parents[1]
@@ -221,6 +223,7 @@ def bounds() -> dict[str, tuple[float, str]]:
         **native_checks.BOUNDS,
         **drafts_panel.bounds(_rust_constant),
         **silence_recording.bounds(_rust_constant),
+        **vault_distillation.bounds(),
     }
 
 
@@ -303,6 +306,7 @@ class RemoteMac:
                 str(DIRECTORY / "mac_silence.py"),
                 str(DIRECTORY / "audio_route.py"),
                 str(DIRECTORY / "mac_remote_audio.py"),
+                str(DIRECTORY / "mac_vault.py"),
                 str(DIRECTORY / "remote-speaker.swift"),
                 str(DIRECTORY / "remote-route.swift"),
                 str(DIRECTORY / "meeting-script.txt"),
@@ -426,6 +430,13 @@ class RemoteMac:
     def remote_audio(self, action):
         return self._call(120, "remote-audio", action)
 
+    def vault(self, call):
+        # One hub call through the daemon, which gives it 8 s (hub_vault.rs).
+        return self._call(30, "vault", json.dumps(call, ensure_ascii=False))
+
+    def distillation(self, meeting, after, max_s):
+        return self._call(max_s, "distillation", meeting, after, "--max", str(max_s))
+
     def listening_choice(self):
         return self._call(30, "listening-choice")
 
@@ -509,6 +520,8 @@ class RealTest:
         self.hub_kept = lambda recording: hub_traces.kept(database, recording)
         self.hub_audio = lambda recording: hub_audio.read(paths.config, recording)
         self.hub_remote_audio = lambda recording: hub_audio.read_remote(paths.config, recording)
+        # Check 26's invented vault, read back from disk (the dry run replays it).
+        self.vault_files = lambda phase: vault_distillation.read_vault(directory / "vault")
         self.processes: list[isolated_hub.Process] = []
         # The codes that are failures though they are silent on screen,
         # read from the one place that decides it (NoticeCode::is_failure).
@@ -888,7 +901,9 @@ class RealTest:
         with self.step("final screen", (9,), critical=False):
             ui.read(self.main, "final", READS["final"])
 
-        # With every check of the first meeting's evidence collected.
+        # With every check of the first meeting's evidence collected, and
+        # before that meeting is deleted.
+        vault_distillation.exercise(self)
         meeting_controls.discard_second_recording(self)
         meeting_controls.delete_first_meeting(self)
         silence_recording.record_without_answer(self)
@@ -1012,6 +1027,7 @@ def write_report(directory: Path, ev: dict, results: list[dict]) -> None:
         "silence": ev.get("silence"),
         "audio_route": ev.get("audio_route"),
         "remote_audio": ev.get("remote_audio"),
+        "distillation": ev.get("distillation"),
         "privacy": ev.get("privacy"),
         "lifecycle": ev.get("lifecycle"),
         "native_edit": ev.get("native_edit"),
