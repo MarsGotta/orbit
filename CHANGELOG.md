@@ -26,6 +26,18 @@ English and Spanish; labels quoted below may use either language.
 - `SCHEMA.md` may name the vault's `owner`: reviewed changes are verified by
   `human:<owner>`, and Orbit shows them as «Reviewed by you».
 
+### Fixed
+
+- Secret discovery for assistant jails searches every depth. The 16-level
+  bound left secret files deeper than that, such as in container layers and
+  package trees, readable by assistants. The search now goes outwards folder
+  by folder, so the 2,000,000-entry bound, when reached, leaves only the
+  deepest folders unread.
+- The hub says an incomplete secret scan once, and again only when a later
+  scan's result differs, instead of every ten minutes.
+- A failed Hermes dictation is logged with the HTTP status Hermes answered, or
+  the time limit that fired, as numbers.
+
 ## [0.14.2] - 2026-10-30
 
 ### Fixed

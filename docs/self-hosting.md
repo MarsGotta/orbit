@@ -284,16 +284,20 @@ neighboring files stay readable. The vendor account home and `/tmp` are excluded
 to preserve sign-in and private temporary files. Directory symlinks are not
 followed; matching file symlinks mask their resolved file when it is not excluded.
 
-Each root is searched to sixteen directory levels below the root and at most
-2,000,000 visited entries, including files, directories and skipped entries.
-These bounds allow room above a measured tree of 592,505 entries with matching
-files at depths 2–8; a names-only walk took 3.7–6.9 seconds. Only files the hub
+Each root is searched at every depth, folder by folder outwards from the root,
+up to 2,000,000 visited entries, including files, directories and skipped
+entries. The bound allows room above a measured tree of 592,505 entries with
+matching files at depths 2–8; a names-only walk took 3.7–6.9 seconds. There is
+no depth bound: an earlier 16-level bound left deeper files, such as those in
+container layers and package trees, readable. Because the search goes outwards,
+reaching the bound leaves only the deepest folders unread. Only files the hub
 user can read are masked; unreadable files are already protected by that user's
 permissions. Deleted files are removed from the mount list at admission.
 `node_modules`, `.git`, `.hg`, `.svn`, `.venv`, `venv`, `virtualenv`, `.cache`,
 `__pycache__`, tool caches, `.tox`, `.nox`, `build` and `dist` are skipped.
-Reaching either bound emits one Spanish hub warning for that root with the
-bound and counts; the assistant still starts with the files found so far hidden.
+Reaching the bound emits one hub warning for that root with the bound and
+counts, said again only when a later scan's result differs; the assistant still
+starts with the files found so far hidden.
 Warm assistant starts use the cached list without walking the tree. Successful
 scans are saved atomically as `secret-scan.json` in the hub's data directory,
 with mode `0600`, paths and per-root completion times, never file contents.

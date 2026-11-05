@@ -95,6 +95,9 @@ class SecretCache:
         self.saving = asyncio.Lock()
         self.failed: set[Path] = set()
         self.attempted: set[Path] = set()
+        # The last incomplete-scan notice said for each root: an unchanged
+        # result is said once, not on every ten-minute refresh.
+        self.notices: dict[Path, str | None] = {}
         self.tasks: list[asyncio.Task] = []
         self.ready = asyncio.Event()
         self.stop = Event()
@@ -108,6 +111,7 @@ class SecretCache:
         self.scanned_at.clear()
         self.failed.clear()
         self.attempted.clear()
+        self.notices.clear()
         self.tasks = [asyncio.create_task(self._run())]
 
     async def _run(self) -> None:
@@ -172,7 +176,7 @@ class SecretCache:
                 asyncio.to_thread(jail_secrets.scan_root, root, self.omitted, self.stop)
             )
             try:
-                paths = await asyncio.shield(scanning)
+                paths, notice = await asyncio.shield(scanning)
             except asyncio.CancelledError:
                 await scanning
                 raise
@@ -181,6 +185,9 @@ class SecretCache:
                     self.failed.add(root)
                 report("assistant_secret_scan_failed", "secret_scan_failed")
             else:
+                if notice is not None and notice != self.notices.get(root):
+                    jail_secrets.warn_incomplete(notice)
+                self.notices[root] = notice
                 self.results[root] = paths
                 self.scanned_at[root] = time.time()
                 self.failed.discard(root)

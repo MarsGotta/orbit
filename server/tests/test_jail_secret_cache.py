@@ -3,6 +3,7 @@
 # ruff: noqa: F811
 
 import asyncio
+import json
 import os
 import threading
 from contextlib import asynccontextmanager
@@ -248,3 +249,50 @@ async def test_launches_use_previous_snapshot_during_a_slow_refresh(
             assert not release.is_set()
         finally:
             release.set()
+
+
+async def test_an_unchanged_incomplete_scan_warns_once(
+    environment, kernel_root, monkeypatch, capsys
+):
+    from orbit_hub.assistant import jail_secret_cache
+
+    settings, _, _, root = fixtures(environment, kernel_root, monkeypatch)
+    secrets = [root / f".env.{number}" for number in range(5)]
+    for secret in secrets:
+        secret.touch()
+    monkeypatch.setattr(jail_secrets, "MAX_SECRET_ENTRIES", 3)
+    finished, proceed = asyncio.Queue(), asyncio.Queue()
+
+    async def delay():
+        await finished.put(None)
+        await proceed.get()
+
+    async def next_scan():
+        proceed.put_nowait(None)
+        await finished.get()
+
+    monkeypatch.setattr(jail_secret_cache, "refresh_delay", delay)
+    async with running_cache(settings):
+        await finished.get()
+        # Production repeated one notice every ten minutes: 861 times in six days.
+        for _ in range(3):
+            await next_scan()
+        monkeypatch.setattr(jail_secrets, "MAX_SECRET_ENTRIES", 4)
+        await next_scan()  # A different result is said once.
+        for secret in secrets:
+            secret.unlink()
+        await next_scan()  # Complete: nothing to say.
+        for secret in secrets:
+            secret.touch()
+        monkeypatch.setattr(jail_secrets, "MAX_SECRET_ENTRIES", 3)
+        await next_scan()  # Incomplete again after a complete scan.
+        await next_scan()
+    notices = [
+        json.loads(line)["message"]
+        for line in capsys.readouterr().err.splitlines()
+        if "assistant_secret_scan_incomplete" in line
+    ]
+    assert len(notices) == 3, notices
+    assert "entries 3/3" in notices[0] and "hiding 3 files" in notices[0]
+    assert "entries 4/4" in notices[1] and "hiding 4 files" in notices[1]
+    assert notices[2] == notices[0]
