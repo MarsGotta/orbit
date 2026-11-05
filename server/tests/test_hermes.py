@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import os
 from dataclasses import replace
 from uuid import uuid4
@@ -411,11 +412,26 @@ async def test_http_failure_names_provider_status(environment, tmp_path, monkeyp
         ),
     )
 
-    with pytest.raises(HubError) as failure:
-        await HermesSpeech(configured, configured.profile).transcribe(b"synthetic wav")
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    logging.getLogger("orbit_hub").addHandler(handler)
+    try:
+        with pytest.raises(HubError) as failure:
+            await HermesSpeech(configured, configured.profile).transcribe(b"synthetic wav")
+    finally:
+        logging.getLogger("orbit_hub").removeHandler(handler)
     assert failure.value.code == "transcription_http_error"
     assert failure.value.numbers == {"provider_status": 503}
     assert "private body" not in str(failure.value)
+    # The log line says which status Hermes answered, as a number.
+    [logged] = [
+        record
+        for record in records
+        if getattr(record, "event", None) == "hermes_transcription_failed"
+    ]
+    assert logged.numbers == {"provider_status": 503}
+    assert all("private body" not in str(record.__dict__) for record in records)
 
 
 async def test_connect_timeout_uses_connection_budget(environment, tmp_path, monkeypatch):

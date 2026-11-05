@@ -2070,24 +2070,10 @@
       }
     ],
     "name": "MAX_SECRET_ENTRIES",
-    "resource": "background secret discovery per root; over three times the measured 592505 entries",
+    "resource": "background secret discovery per root, breadth first with no depth bound; over three times the measured 592505 entries",
     "source": "registry",
     "unit": "entries",
     "value": 2000000
-  },
-  {
-    "copies": [
-      {
-        "file": "server/orbit_hub/assistant/jail_secrets.py",
-        "name": "MAX_SECRET_DEPTH",
-        "unit": "levels"
-      }
-    ],
-    "name": "MAX_SECRET_DEPTH",
-    "resource": "background secret discovery directory depth; twice the measured maximum depth of eight",
-    "source": "registry",
-    "unit": "levels",
-    "value": 16
   },
   {
     "copies": [

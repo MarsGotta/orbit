@@ -54,12 +54,22 @@ class HermesSpeech:
                     raise ValueError("Invalid transcription response")
                 return payload["transcript"]
             except Exception as exc:
-                report(event="hermes_transcription_failed", code="transcription_failed")
-                raise from_provider(
+                failure = from_provider(
                     exc,
                     timeout_ms=TRANSCRIPTION_TIMEOUT_SECONDS * 1000,
                     connect_timeout_ms=TRANSCRIPTION_CONNECT_TIMEOUT_SECONDS * 1000,
-                ) from exc
+                )
+                # The log line and Sentry carry the refusal's numbers (Hermes's
+                # HTTP status, the budget that fired), never its body. Not
+                # retried here: refused audio is refused again, a second 180 s
+                # attempt does not fit the Mac's 250 s request, and the Mac
+                # keeps a failed note for the person to retry.
+                report(
+                    event="hermes_transcription_failed",
+                    code="transcription_failed",
+                    numbers=failure.numbers,
+                )
+                raise failure from exc
 
     async def synthesize(self, text: str) -> SpeechClip:
         try:

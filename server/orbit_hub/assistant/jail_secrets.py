@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from collections import deque
 from dataclasses import dataclass, field
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -10,10 +11,12 @@ from threading import Event
 
 # Names-only operator measurement: 592,505 entries after exclusions, 207
 # matching files (199 readable), at depths 2–8; walking took 3.7–6.9 seconds.
-# Over 3x the measured entries and twice the depth allow growth while bounding
-# background disk work. These discovery budgets do not bound assistant runtime
-# or claim that every host secret is hidden. Registered in constants.json.
-MAX_SECRET_DEPTH = 16
+# Over 3x the measured entries bounds background disk work while allowing
+# growth. There is no depth bound: a secret is not safer for being deep, and
+# the 16-level bound it replaced left deeper files visible. The walk
+# is breadth first, so when this bound is reached every shallower folder has
+# been read. It does not bound assistant runtime or claim that every host
+# secret is hidden. Registered in constants.json.
 MAX_SECRET_ENTRIES = 2_000_000
 SKIP_DIRECTORIES = {
     "node_modules",
@@ -56,7 +59,7 @@ SECRET_NAMES = (
 @dataclass
 class Scan:
     visited: int = 0
-    limits: set[str] = field(default_factory=set)
+    limit: str | None = None
     paths: set[Path] = field(default_factory=set)
 
 
@@ -76,70 +79,84 @@ def excluded(path: Path, work: Path, vendor: Path, hidden: list[Path]) -> bool:
     )
 
 
-def walk(folder: Path, depth: int, scan: Scan, omitted: tuple[Path, ...], stop: Event) -> None:
-    try:
-        listing = os.scandir(folder)
-    except PermissionError:
-        # The jail runs as the hub's user: a folder it can neither list nor
-        # enter exposes nothing. One it can enter could open a guessed name.
-        if os.access(folder, os.X_OK):
-            raise
-        return
-    with listing as entries:
-        while scan.visited < MAX_SECRET_ENTRIES and not stop.is_set():
-            entry = next(entries, None)
-            if entry is None:
-                return
-            scan.visited += 1
-            try:
-                if entry.is_dir(follow_symlinks=False):
-                    if entry.name in SKIP_DIRECTORIES:
-                        continue
-                    path = Path(entry.path)
-                    if any(within(path, root) for root in omitted):
-                        continue
-                    if depth >= MAX_SECRET_DEPTH:
-                        scan.limits.add(f"depth {MAX_SECRET_DEPTH}")
-                    else:
-                        walk(path, depth + 1, scan, omitted, stop)
-                elif any(fnmatchcase(entry.name, pattern) for pattern in SECRET_NAMES):
-                    target = Path(entry.path).resolve()
-                    if (
-                        not any(within(target, root) for root in omitted)
-                        and target.is_file()
-                        and os.access(target, os.R_OK)
-                    ):
-                        scan.paths.add(target)
-            except (FileNotFoundError, RuntimeError):
-                # Deleted entries and Python 3.11 symlink loops carry no payload.
-                continue
-        if scan.visited >= MAX_SECRET_ENTRIES:
-            scan.limits.add(f"entries {scan.visited}/{MAX_SECRET_ENTRIES}")
+def walk(root: Path, scan: Scan, omitted: tuple[Path, ...], stop: Event) -> None:
+    # A queue, not recursion: a chain deeper than Python's recursion limit
+    # would raise inside the loop below and hide its secrets silently. It
+    # holds plain strings, the least memory for the folders still to read.
+    folders = deque([str(root)])
+    while folders and not stop.is_set():
+        folder = folders.popleft()
+        try:
+            listing = os.scandir(folder)
+        except FileNotFoundError:
+            if folder == str(root):
+                raise
+            # Deleted since it was listed: it carries no payload.
+            continue
+        except PermissionError:
+            # The jail runs as the hub's user: a folder it can neither list nor
+            # enter exposes nothing. One it can enter could open a guessed name.
+            if os.access(folder, os.X_OK):
+                raise
+            continue
+        with listing as entries:
+            while not stop.is_set():
+                if scan.visited >= MAX_SECRET_ENTRIES:
+                    scan.limit = f"entries {scan.visited}/{MAX_SECRET_ENTRIES}"
+                    return
+                entry = next(entries, None)
+                if entry is None:
+                    break
+                scan.visited += 1
+                try:
+                    if entry.is_dir(follow_symlinks=False):
+                        path = Path(entry.path)
+                        if entry.name not in SKIP_DIRECTORIES and not any(
+                            within(path, hidden) for hidden in omitted
+                        ):
+                            folders.append(entry.path)
+                    elif any(fnmatchcase(entry.name, pattern) for pattern in SECRET_NAMES):
+                        target = Path(entry.path).resolve()
+                        if (
+                            not any(within(target, hidden) for hidden in omitted)
+                            and target.is_file()
+                            and os.access(target, os.R_OK)
+                        ):
+                            scan.paths.add(target)
+                except (FileNotFoundError, RuntimeError):
+                    # Deleted entries and Python 3.11 symlink loops carry no payload.
+                    continue
 
 
-def warn_incomplete(root: Path, scan: Scan) -> None:
+def incomplete_notice(root: Path, scan: Scan) -> str:
     # The general log formatter deliberately drops free text and paths. This
     # operator notice explicitly carries only the configured root and counts,
-    # never discovered filenames or payloads. JSON keeps each notice on one line.
-    message = f"Secret scan incomplete in {root}: limit of {', '.join(sorted(scan.limits))}; hiding {len(scan.paths)} files found after visiting {scan.visited} entries. The assistant continues; some paths remain unchecked."
+    # never discovered filenames or payloads.
+    return f"Secret scan incomplete in {root}: limit of {scan.limit}; hiding {len(scan.paths)} files found after visiting {scan.visited} entries. The assistant continues; some paths remain unchecked."
+
+
+def warn_incomplete(notice: str) -> None:
+    # JSON keeps each notice on one line.
     print(
         json.dumps(
-            {"level": "WARNING", "event": "assistant_secret_scan_incomplete", "message": message},
+            {"level": "WARNING", "event": "assistant_secret_scan_incomplete", "message": notice},
             ensure_ascii=False,
         ),
         file=sys.stderr,
     )
 
 
-def scan_root(root: Path, omitted: tuple[Path, ...], stop: Event) -> tuple[Path, ...]:
+def scan_root(
+    root: Path, omitted: tuple[Path, ...], stop: Event
+) -> tuple[tuple[Path, ...], str | None]:
+    """The readable secret files under `root`, and the notice when a bound cut the walk."""
     if any(within(root, path) for path in omitted):
-        return ()
+        return (), None
     scan = Scan()
     try:
-        walk(root, 0, scan, omitted, stop)
+        walk(root, scan, omitted, stop)
     except FileNotFoundError:
         # A service root that no longer exists exposes no files.
-        return ()
-    if scan.limits:
-        warn_incomplete(root, scan)
-    return tuple(sorted(scan.paths))
+        return (), None
+    notice = incomplete_notice(root, scan) if scan.limit else None
+    return tuple(sorted(scan.paths)), notice

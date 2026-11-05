@@ -5,6 +5,8 @@
 import asyncio
 import json
 import logging
+import os
+import sys
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -196,30 +198,32 @@ def test_a_looping_file_symlink_does_not_abort_other_masks(environment, kernel_r
     assert str(looping) not in masks(args)
 
 
-@pytest.mark.parametrize(
-    "bound,value,label",
-    [
-        ("MAX_SECRET_ENTRIES", 3, "entries"),
-        ("MAX_SECRET_DEPTH", 1, "depth"),
-    ],
-)
-def test_scan_bounds_keep_partial_masks_and_report_once(
-    environment, kernel_root, monkeypatch, capsys, bound, value, label
+def sorted_listings(monkeypatch):
+    """Folder listings in name order, so a test decides which folder comes first."""
+    from orbit_hub.assistant import jail_secrets
+
+    original_scandir = jail_secrets.os.scandir
+
+    @contextmanager
+    def ordered(folder):
+        with original_scandir(folder) as entries:
+            yield iter(sorted(entries, key=lambda entry: entry.name))
+
+    monkeypatch.setattr(jail_secrets.os, "scandir", ordered)
+
+
+def test_entry_bound_keeps_partial_masks_and_reports_once(
+    environment, kernel_root, monkeypatch, capsys
 ):
     from orbit_hub.assistant import jail_secrets
 
     settings, agent, work, _, _, _, _ = fixture_paths(environment, kernel_root, monkeypatch)
     root = kernel_root / "stacks"
     root.mkdir()
-    deep = root / "service" / "nested"
-    if bound == "MAX_SECRET_ENTRIES":
-        for number in range(10):
-            (root / f".env.{number}").touch()
-    else:
-        (root / ".env").touch()
-        deep.mkdir(parents=True)
-        (deep / "config.toml").touch()
-    monkeypatch.setattr(jail_secrets, bound, value)
+    for number in range(10):
+        (root / f".env.{number}").touch()
+    value = 3
+    monkeypatch.setattr(jail_secrets, "MAX_SECRET_ENTRIES", value)
     original_scandir = jail_secrets.os.scandir
     visited = []
 
@@ -246,18 +250,64 @@ def test_scan_bounds_keep_partial_masks_and_report_once(
     args = asyncio.run(admit())
     assert args[-1] == "--"  # Admission still succeeds after a bounded scan.
     found = [p for p in masks(args) if p.startswith(str(root))]
-    if bound == "MAX_SECRET_ENTRIES":
-        assert len(found) == value
-        assert len(visited) == value
-    else:
-        assert str(root / ".env") in found
-        assert not any(path.parent == deep for path in visited)
-    assert str(deep / "config.toml") not in masks(args)
+    assert len(found) == value
+    assert len(visited) == value
     lines = capsys.readouterr().err.splitlines()
     assert len(lines) == 1
     notice = json.loads(lines[0])["message"]
-    assert str(root) in notice and str(value) in notice and label in notice
+    assert str(root) in notice and f"entries {value}/{value}" in notice
     assert "limit" in notice and "hiding" in notice
+
+
+def test_secrets_are_masked_at_any_depth(environment, kernel_root, monkeypatch, capsys):
+    settings, agent, work, _, _, _, _ = fixture_paths(environment, kernel_root, monkeypatch)
+    root = kernel_root / "stacks"
+    # An invented container layer whose packages sit 20 levels below the root,
+    # past the 16 levels discovery used to stop at.
+    layer = root / (
+        "example-app/volumes/overlay/diff/usr/local/lib/python3/site-packages/"
+        "invented_tool/assets/themes/dark/icons/16/actions/extra/nested/deeper/deepest"
+    )
+    layer.mkdir(parents=True)
+    (layer / ".env").touch()
+    # And a chain deeper than Python's recursion limit, built without recursion.
+    chain = str(root / "chain")
+    os.mkdir(chain)
+    for _ in range(sys.getrecursionlimit() + 20):
+        chain = os.path.join(chain, "d")
+        os.mkdir(chain)
+    deepest = Path(chain) / "credentials.json"
+    deepest.touch()
+    found = masks(prepared_arguments(configured(settings, root), agent, work))
+    assert str(layer / ".env") in found
+    assert str(deepest) in found
+    # The whole tree fits the entry bound: nothing is reported missing.
+    assert "assistant_secret_scan_incomplete" not in capsys.readouterr().err
+
+
+def test_entry_bound_is_spent_on_shallow_folders_before_deep_ones(
+    environment, kernel_root, monkeypatch, capsys
+):
+    from orbit_hub.assistant import jail_secrets
+
+    settings, agent, work, _, _, _, _ = fixture_paths(environment, kernel_root, monkeypatch)
+    root = kernel_root / "stacks"
+    # Listed first: a deep folder holding more entries than the bound.
+    deep = root.joinpath("a-volume", *(["level"] * 30))
+    deep.mkdir(parents=True)
+    for number in range(50):
+        (deep / f"cache-{number}").touch()
+    # Listed last: a service with a secret two levels down.
+    shallow = root / "z-service" / ".env"
+    shallow.parent.mkdir()
+    shallow.touch()
+    sorted_listings(monkeypatch)
+    monkeypatch.setattr(jail_secrets, "MAX_SECRET_ENTRIES", 10)
+    found = masks(prepared_arguments(configured(settings, root), agent, work))
+    # Every folder near the root is read before the bound runs out deep down.
+    assert str(shallow) in found
+    lines = capsys.readouterr().err.splitlines()
+    assert len(lines) == 1 and "entries 10/10" in json.loads(lines[0])["message"]
 
 
 def test_folders_the_hub_cannot_open_are_skipped(environment, kernel_root, monkeypatch):
