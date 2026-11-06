@@ -324,8 +324,10 @@ public struct SpokenQuestionPolicy {
     /// Before the phrase: the voice the transcription was last asked to
     /// finalize through, once per stretch of voice.
     private var finalizedVoice = -Double.infinity
-    /// Where any result with words has reached, volatile or final.
-    private var heardThrough = -Double.infinity
+    /// When the current stretch of voice began (voice after a pause), and
+    /// whether any result with words came during it.
+    private var stretchStart = -Double.infinity
+    private var heardInStretch = false
     /// The voice as the question's finalization has always measured it: the
     /// microphone and every result's end, volatile ones included. Moving
     /// that request to the microphone's pause broke «Hey Deimos» in English
@@ -387,7 +389,7 @@ public struct SpokenQuestionPolicy {
         }
         now = max(now, segment.end)
         if !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            heardThrough = max(heardThrough, segment.end)
+            heardInStretch = true
             anyVoice = max(anyVoice, segment.end)
             if segment.isFinal {
                 lastVoice = max(lastVoice, segment.end)
@@ -438,6 +440,10 @@ public struct SpokenQuestionPolicy {
         step = nil
         now = max(now, time)
         if speaking {
+            if time - lastVoice >= pauseSeconds {
+                stretchStart = time
+                heardInStretch = false
+            }
             lastVoice = max(lastVoice, time)
             anyVoice = max(anyVoice, time)
         }
@@ -466,14 +472,15 @@ public struct SpokenQuestionPolicy {
     /// asks it to finalize through `now`, all the audio fed so far.
     ///
     /// Before the phrase, once per stretch of voice, and only when the
-    /// transcription has said nothing of it: macOS 27.2's Spanish transcriber
+    /// transcription said nothing at all during it: macOS 27.2's Spanish transcriber
     /// says nothing while it is fed live and gave its first result 5.4 s
     /// after the voice ended, or 0.2 s after this request (probe on a Mac,
     /// 2026-11-05); «Oye Deimos» was heard late and its question sent at the
-    /// thirty-second ceiling. A transcriber that speaks live (English) is not
-    /// asked: a final result for an earlier line, asked for at every pause,
-    /// came in over «Hey Deimos» and dropped it as revised (real test,
-    /// 2026-11-06).
+    /// thirty-second ceiling. A transcriber that speaks live is not asked,
+    /// even when it lags: English's results come about 3 s behind the voice,
+    /// and a final result for an earlier line, asked for at the pause before
+    /// «Hey Deimos», came in over the phrase and dropped it as revised (real
+    /// test, 2026-11-06).
     public mutating func finalizationDue() -> Double? {
         if phrase != nil {
             guard !finalizeRequested, !(currentQuestion() ?? "").isEmpty,
@@ -484,8 +491,8 @@ public struct SpokenQuestionPolicy {
         }
         guard now - lastVoice >= pauseSeconds,
               finalThrough < lastVoice - Self.catchUpToleranceSeconds,
-              lastVoice > finalizedVoice,
-              heardThrough < lastVoice - Self.catchUpToleranceSeconds else { return nil }
+              lastVoice > finalizedVoice, lastVoice > stretchStart,
+              !heardInStretch else { return nil }
         finalizedVoice = lastVoice
         return now
     }
