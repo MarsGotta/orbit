@@ -17,6 +17,7 @@ export function proposal(): Distillation {
     error: null,
     changed_paths: [],
     skipped: [],
+    dropped: [],
     people: {},
     new_source: { path: "Sources/cedar-review.md", summary: "Cedar plan", sha256: "invented" },
     quotes: [

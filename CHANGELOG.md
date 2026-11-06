@@ -32,6 +32,17 @@ English and Spanish; labels quoted below may use either language.
 
 ### Fixed
 
+- A distillation proposal is no longer lost whole over one detail. A small
+  local model wrote Obsidian links (`[[Note]]`) and task dates the vault
+  cannot read, and each failed the whole proposal. The hub now turns a
+  `[[Note]]` or `[[Note|label]]` that names one note of the vault, or one the
+  proposal creates, into a Markdown link with its vault path, leaves one that
+  names no note as plain words, and removes an unreadable date from a task
+  while keeping its text. A note that still does not validate is left out
+  with its cause, which the review shows, and the rest is proposed; links to
+  a new note that was left out become plain words. The proposal fails only
+  when no valid meeting note is left, with the cause of the first note left
+  out.
 - «Oye Deimos» opens its question again in Spanish on macOS 27.2. Its
   Spanish transcriber says nothing while it is fed live (its first result
   came 5.4 s after the voice ended) and gives its volatile results the range

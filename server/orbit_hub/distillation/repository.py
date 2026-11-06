@@ -61,6 +61,7 @@ class Proposals:
             "error": None,
             "changed_paths": [],
             "skipped": [],
+            "dropped": [],
             "can_prepare_again": True,
         }
         self.save(value)

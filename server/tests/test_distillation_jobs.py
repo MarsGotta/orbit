@@ -150,13 +150,15 @@ async def test_input_context_note_changed_blocks_every_write(distillation_client
     assert not (root / "Meetings").exists()
 
 
-async def test_duplicate_person_from_alias_is_failed_proposal(distillation_client):
+async def test_duplicate_person_from_alias_is_dropped_from_the_proposal(distillation_client):
     client, _, meeting, responses, _, _, _ = distillation_client
     value = answer()
     value["changes"][2]["properties"][1]["after"] = "Nora"
     responses.append(value)
     proposal = await prepare(client, meeting)
-    assert proposal["status"] == "failed" and proposal["error"]["code"] == "person_already_exists"
+    assert proposal["status"] == "proposed", proposal["error"]
+    assert proposal["dropped"] == [{"path": "People/eli-brook.md", "code": "person_already_exists"}]
+    assert "People/eli-brook.md" not in [c["path"] for c in proposal["changes"]]
 
 
 async def test_undo_twice_is_idempotent(distillation_client):

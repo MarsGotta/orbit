@@ -1,4 +1,4 @@
-import { distillationFailure } from "./distillationFailures";
+import { distillationCause, distillationFailure } from "./distillationFailures";
 
 const noteCount = (n: number) => `${n} ${n === 1 ? "note" : "notes"}`;
 const fixedCopy = {
@@ -76,6 +76,8 @@ const fixedCopy = {
   undone:
     "Undone: notes without later changes have been restored. The meeting is still saved as a source.",
   skipped: (note: string, cause: string) => `${note} was not undone: ${cause}.`,
+  dropped: (note: string, code: string) =>
+    `${note} is not proposed. ${distillationCause(code) ?? `It does not validate (${code}).`}`,
   changedAfter: "it changed after applying",
   outcomeUnknown: "the write outcome is unknown",
   discarded:

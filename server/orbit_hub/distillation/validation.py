@@ -1,15 +1,36 @@
-"""Grounded patches, schema roles, conservative contradictions and strict write checks."""
+"""Grounded patches, schema roles, conservative contradictions and strict write checks.
 
+A model's answer is checked note by note. Obsidian links and unreadable task
+dates are repaired without inventing anything; a note that still fails is left
+out of the proposal with its cause in `dropped`, and the rest is proposed.
+"""
+
+import contextlib
 import re
+from urllib.parse import quote
 
+from ..errors import HubError
 from ..vault.markdown import links
-from ..vault.method import validate_note
+from ..vault.method import file_name, validate_note
 from ..vault.models import MAX_NOTE_BYTES, MAX_SCAN_BYTES, refusal
-from ..vault.paths import checked
+from ..vault.paths import checked, resolve
 from ..vault.schema import frontmatter, load, properties
+from ..vault.syntax import MARKER, valid_date
 from .models import Answer
 from .patches import render
 from .repository import digest
+
+CONTROL_NOTES = frozenset({"SCHEMA.md", "AGENTS.md", "README.md", "index.md", "log.md"})
+# Notes the hub writes itself; a new link may point at them before they exist.
+MANAGED_TARGETS = frozenset({"SCHEMA.md", "index.md", "log.md"})
+WIKILINK = re.compile(r"\[\[([^\]\n]+)\]\]")
+# A Tasks date runs from its marker to the next Tasks marker or the end of the
+# line, as the vault reads it (vault/syntax.py).
+DATE_FIELD = re.compile(
+    r"[ \t]*(📅|⏳|🛫|✅)[ \t]*([^\n]*?)(?=[ \t]*(?:" + MARKER.pattern + r")|[ \t]*$)",
+    re.MULTILINE,
+)
+VAULT_LINK = re.compile(r"\[([^]\n]+)\]\((/[^)]+)\)")
 
 
 def snapshot(connector):
@@ -69,11 +90,11 @@ def build(value, content, snapshot, schema, material):
     quotes = {q["id"]: q for q in data["quotes"]}
     if len(quotes) != len(data["quotes"]):
         raise ValueError("duplicate_quote_id")
-    for quote in quotes.values():
+    for citation in quotes.values():
         if not any(
-            quote["at_ms"] == line["at_ms"]
-            and quote["speaker"] == line["speaker"]
-            and quote["text"] in line["text"]
+            citation["at_ms"] == line["at_ms"]
+            and citation["speaker"] == line["speaker"]
+            and citation["text"] in line["text"]
             for line in material["lines"]
         ):
             raise ValueError("quote_not_in_transcript")
@@ -81,47 +102,135 @@ def build(value, content, snapshot, schema, material):
         title=material["title"],
         quotes=data["quotes"],
         people=people_for(snapshot, schema, material["lines"]),
+        dropped=[],
     )
-    paths, meeting_count = set(), 0
+    targets = _targets(snapshot, data["changes"])
+    seen, roles, failures = set(), {}, []
     for index, incoming in enumerate(data["changes"]):
-        path = checked(incoming["path"])
-        if path in paths or path.rsplit("/", 1)[-1] in {
-            "SCHEMA.md",
-            "AGENTS.md",
-            "README.md",
-            "index.md",
-            "log.md",
-        }:
-            raise ValueError("duplicate_or_control_note")
-        paths.add(path)
-        original = snapshot.get(path, {}).get("raw")
-        change = {
-            **incoming,
-            "id": f"n{index}",
-            "include": True,
-            "kind": "create" if original is None else "update",
-            "original": original,
-            "base_hash": digest(original),
-        }
-        _patches(change, value, quotes)
-        result = render(change, {c["id"]: c for c in value["conflicts"]})
-        role, warnings = validate(path, result, schema)
-        if original is not None:
-            old_fields, _ = frontmatter(original)
-            if properties(path, old_fields, schema)[1] == "source":
-                raise ValueError("source_is_immutable")
-        if role == "meeting":
-            meeting_count += 1
-        _person_identity(role, path, result, value["people"], snapshot, schema)
-        change["warnings"] = warnings
+        conflicts = len(value["conflicts"])
+        try:
+            change, role = _change(index, incoming, value, snapshot, schema, quotes, seen, targets)
+        except (ValueError, HubError) as exc:
+            del value["conflicts"][conflicts:]
+            _drop(value, incoming["path"], exc, failures)
+            continue
+        roles[change["id"]] = role
         value["changes"].append(change)
-    if meeting_count != 1:
+    _drop_broken_links(value, snapshot, failures)
+    meetings = [roles[c["id"]] for c in value["changes"]].count("meeting")
+    if meetings != 1:
+        # The meeting note anchors the proposal: without it nothing valid is left.
+        value.update(changes=[], conflicts=[])
+        if meetings == 0 and failures:
+            raise failures[0]
         raise ValueError("exactly_one_meeting_note_required")
     value["summary"] = data["summary"]
     return value
 
 
-def _patches(change, value, quotes):
+def _change(index, incoming, value, snapshot, schema, quotes, seen, targets):
+    path = checked(incoming["path"])
+    if path in seen or path.rsplit("/", 1)[-1] in CONTROL_NOTES:
+        raise ValueError("duplicate_or_control_note")
+    seen.add(path)
+    original = snapshot.get(path, {}).get("raw")
+    change = {
+        **incoming,
+        "id": f"n{index}",
+        "include": True,
+        "kind": "create" if original is None else "update",
+        "original": original,
+        "base_hash": digest(original),
+    }
+    _patches(change, value, quotes, targets)
+    result = render(change, {c["id"]: c for c in value["conflicts"]})
+    role, warnings = validate(path, result, schema)
+    if original is not None:
+        old_fields, _ = frontmatter(original)
+        if properties(path, old_fields, schema)[1] == "source":
+            raise ValueError("source_is_immutable")
+    _person_identity(role, path, result, value["people"], snapshot, schema)
+    change["warnings"] = warnings
+    return change, role
+
+
+def code(exc):
+    """Only our own validation codes, never provider text or raw input."""
+    if isinstance(exc, HubError):
+        return exc.code
+    reason = str(exc)
+    safe = reason and all(c.isalnum() or c in "_:," for c in reason)
+    return reason[:160] if safe else "invalid_proposal"
+
+
+def _drop(value, path, exc, failures):
+    failures.append(exc)
+    value["dropped"].append({"path": path, "code": code(exc)})
+
+
+def _targets(snapshot, changes):
+    """Vault notes and the notes this answer creates: the only link targets."""
+    paths = set(snapshot)
+    for change in changes:
+        with contextlib.suppress(HubError):
+            paths.add(checked(change["path"]))
+    basenames = {}
+    for path in paths:
+        basenames.setdefault(file_name(path.rsplit("/", 1)[-1][:-3]), []).append(path)
+    return paths, basenames
+
+
+def _repair(text, source, targets):
+    """Obsidian links become Orbit's links, or words; an unreadable task date goes."""
+
+    def link(match):
+        target, _, label = match[1].partition("|")
+        paths, basenames = targets
+        found = resolve(source, target, paths, wiki=True, basenames=basenames)
+        words = (label or target).strip()
+        return f"[{words}](/{quote(found, safe='/')})" if found else words
+
+    def date(match):
+        value = match[2].split()
+        return match[0] if value and valid_date(value[0]) else ""
+
+    return DATE_FIELD.sub(date, WIKILINK.sub(link, text))
+
+
+def _drop_broken_links(value, snapshot, failures):
+    """Links to notes no longer created become words; a link to nothing drops its note."""
+    while True:
+        kept = {c["path"] for c in value["changes"]}
+        gone = {
+            "/" + quote(d["path"], safe="/")
+            for d in value["dropped"]
+            if d["path"] not in snapshot and d["path"] not in kept
+        }
+        conflicts = {c["id"]: c for c in value["conflicts"]}
+        for change in value["changes"]:
+            for number, line in enumerate(change["lines"]):
+                text = _unlink(line["after"], gone)
+                if text != line["after"]:
+                    line["after"] = line["unfiltered_after"] = text
+                    if f"{change['id']}:lines:{number}" in conflicts:
+                        conflicts[f"{change['id']}:lines:{number}"]["incoming"] = text
+        broken = []
+        for change in value["changes"]:
+            try:
+                validate_links([change], set(snapshot) | kept | MANAGED_TARGETS)
+            except ValueError as exc:
+                broken.append((change, exc))
+        if not broken:
+            return
+        for change, exc in broken:
+            value["changes"].remove(change)
+            value["conflicts"] = [
+                c for c in value["conflicts"] if not c["id"].startswith(change["id"] + ":")
+            ]
+            _drop(value, change["path"], exc, failures)
+
+
+def _patches(change, value, quotes, targets):
     fields, body = frontmatter(change["original"] or "")
     keys = set()
     for index, prop in enumerate(change["properties"]):
@@ -145,6 +254,7 @@ def _patches(change, value, quotes):
             )
     spans = []
     for index, line in enumerate(change["lines"]):
+        line["after"] = _repair(line["after"], change["path"], targets)
         _quotes(line, quotes)
         before = line["before"]
         if before:
@@ -196,12 +306,8 @@ def _new_links(text):
             raise ValueError("new_links_must_be_vault_absolute")
     for mark in ("📅", "⏳", "🛫", "✅"):
         for date in re.findall(mark + r"\s*([^\s]*)", text):
-            from datetime import date as calendar_date
-
-            try:
-                calendar_date.fromisoformat(date)
-            except ValueError:
-                raise ValueError("invalid_task_date") from None
+            if not valid_date(date):
+                raise ValueError("invalid_task_date")
 
 
 def _person_identity(role, path, raw, people, snapshot, schema):
@@ -252,8 +358,6 @@ def validate_links(changes, paths):
 
 
 def exclude_links(changes):
-    from urllib.parse import quote
-
     excluded = {
         "/" + quote(c["path"], safe="/")
         for c in changes
@@ -262,11 +366,11 @@ def exclude_links(changes):
     for change in changes:
         if change["include"]:
             for line in change["lines"]:
-                line["after"] = re.sub(
-                    r"\[([^]\n]+)\]\((/[^)]+)\)",
-                    lambda match: match[1] if match[2] in excluded else match[0],
-                    line.get("unfiltered_after", line["after"]),
-                )
+                line["after"] = _unlink(line.get("unfiltered_after", line["after"]), excluded)
+
+
+def _unlink(text, targets):
+    return VAULT_LINK.sub(lambda match: match[1] if match[2] in targets else match[0], text)
 
 
 def validate_source(raw, path, schema):

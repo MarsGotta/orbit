@@ -6,4 +6,8 @@ import type { DistillationSkipped } from "./DistillationSkipped";
 import type { DistillationSource } from "./DistillationSource";
 import type { DistillationStatus } from "./DistillationStatus";
 
-export type Distillation = { id: string, source_kind: string, meeting_id: string, title: string, created_at: string, by: string, summary: string, revision: number, status: DistillationStatus, changes: Array<DistillationChange>, conflicts: Array<DistillationConflict>, quotes: Array<DistillationQuote>, people: { [key in string]?: string | null }, new_source: DistillationSource | null, error: Record<string, unknown> | null, changed_paths: Array<string>, skipped: Array<DistillationSkipped>, can_prepare_again: boolean, };
+export type Distillation = { id: string, source_kind: string, meeting_id: string, title: string, created_at: string, by: string, summary: string, revision: number, status: DistillationStatus, changes: Array<DistillationChange>, conflicts: Array<DistillationConflict>, quotes: Array<DistillationQuote>, people: { [key in string]?: string | null }, new_source: DistillationSource | null, error: Record<string, unknown> | null, changed_paths: Array<string>, skipped: Array<DistillationSkipped>, 
+/**
+ * Notes the model proposed that did not validate, with their cause; not proposed.
+ */
+dropped: Array<DistillationSkipped>, can_prepare_again: boolean, };

@@ -248,6 +248,24 @@ it("keeps a rejected edit in the editor while rereading the authoritative propos
   );
 });
 
+it("names each note left out of the proposal with its cause", async () => {
+  open({
+    ...proposal(),
+    dropped: [
+      { path: "Projects/birch.md", code: "new_link_target_missing" },
+      { path: "People/ivy-marsh.md", code: "type_or_role_not_writable" },
+    ],
+  });
+  expect(
+    await screen.findByText(
+      "No se propone Projects/birch.md. Un enlace nuevo no tiene una nota de destino.",
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText("No se propone People/ivy-marsh.md. No valida (type_or_role_not_writable)."),
+  ).toBeTruthy();
+});
+
 it("reports every undo skip with the note name and a distinct cause", async () => {
   open({
     ...proposal(),
