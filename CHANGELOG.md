@@ -48,12 +48,11 @@ English and Spanish; labels quoted below may use either language.
   out.
 - «Oye Deimos» opens its question again in Spanish on macOS 27.2. Its
   Spanish transcriber says nothing while it is fed live (its first result
-  came 5.4 s after the voice ended) and gives its volatile results the range
-  of all the audio fed so far, so the question was heard late and sent only
-  at its thirty-second ceiling. Orbit now asks it to finalize at every pause
-  in the voice, before the phrase too, and a volatile result stops counting
-  as voice once its final result has come.
-
+  came 5.4 s after the voice ended), so the phrase was heard late and the
+  question sent only at its thirty-second ceiling. In Spanish, when the
+  transcriber has said nothing for 3.5 s of voice, Orbit asks it to finalize
+  at the pause; a volatile result also stops counting as voice once its final
+  result has come. English, whose transcriber speaks live, is unchanged.
 - Secret discovery for assistant jails searches every depth. The 16-level
   bound left secret files deeper than that, such as in container layers and
   package trees, readable by assistants. The search now goes outwards folder
