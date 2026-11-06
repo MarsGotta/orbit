@@ -326,6 +326,11 @@ public struct SpokenQuestionPolicy {
     private var finalizedVoice = -Double.infinity
     /// Where any result with words has reached, volatile or final.
     private var heardThrough = -Double.infinity
+    /// The voice as the question's finalization has always measured it: the
+    /// microphone and every result's end, volatile ones included. Moving
+    /// that request to the microphone's pause broke «Hey Deimos» in English
+    /// (real test, 2026-11-06), so it keeps this measure.
+    private var anyVoice = 0.0
     private var now = 0.0
     /// Results that start before this were already used: a question sent,
     /// or a phrase forgotten with nothing after it.
@@ -383,6 +388,7 @@ public struct SpokenQuestionPolicy {
         now = max(now, segment.end)
         if !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             heardThrough = max(heardThrough, segment.end)
+            anyVoice = max(anyVoice, segment.end)
             if segment.isFinal {
                 lastVoice = max(lastVoice, segment.end)
                 finalThrough = max(finalThrough, segment.end)
@@ -431,7 +437,10 @@ public struct SpokenQuestionPolicy {
     public mutating func voice(at time: Double, speaking: Bool) -> SpokenQuestion? {
         step = nil
         now = max(now, time)
-        if speaking { lastVoice = max(lastVoice, time) }
+        if speaking {
+            lastVoice = max(lastVoice, time)
+            anyVoice = max(anyVoice, time)
+        }
         return decide()
     }
 
@@ -466,14 +475,16 @@ public struct SpokenQuestionPolicy {
     /// came in over «Hey Deimos» and dropped it as revised (real test,
     /// 2026-11-06).
     public mutating func finalizationDue() -> Double? {
-        guard now - lastVoice >= pauseSeconds,
-              finalThrough < lastVoice - Self.catchUpToleranceSeconds else { return nil }
         if phrase != nil {
-            guard !finalizeRequested, !(currentQuestion() ?? "").isEmpty else { return nil }
+            guard !finalizeRequested, !(currentQuestion() ?? "").isEmpty,
+                  now - anyVoice >= pauseSeconds,
+                  finalThrough < anyVoice - Self.catchUpToleranceSeconds else { return nil }
             finalizeRequested = true
             return now
         }
-        guard lastVoice > finalizedVoice,
+        guard now - lastVoice >= pauseSeconds,
+              finalThrough < lastVoice - Self.catchUpToleranceSeconds,
+              lastVoice > finalizedVoice,
               heardThrough < lastVoice - Self.catchUpToleranceSeconds else { return nil }
         finalizedVoice = lastVoice
         return now
