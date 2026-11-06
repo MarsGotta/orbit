@@ -382,6 +382,21 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertEqual(asked.first ?? 0, 8.5, accuracy: 0.02, "at the pause")
     }
 
+    /// A transcriber that speaks live is not asked before the phrase: in
+    /// English a final result for an earlier line, asked for at a pause, came
+    /// in over «Hey Deimos» and dropped it as revised (real test, 2026-11-06).
+    func testAPauseAfterWordsAlreadyHeardAsksNothingBeforeThePhrase() {
+        var policy = SpokenQuestionPolicy(locale: .englishUS)
+        _ = levels(&policy, from: 0, to: 3.0, speaking: true)
+        XCTAssertNil(policy.heard(volatile("we agreed on the budget", 0, 3.1)))
+        var time = 3.01
+        while time <= 6.0 {
+            XCTAssertNil(policy.voice(at: time, speaking: false))
+            XCTAssertNil(policy.finalizationDue(), "the transcription already said this voice")
+            time += 0.01
+        }
+    }
+
     /// The same transcriber gives its volatile results the range of all the
     /// audio fed so far ([0–11.6] for words that ended at 7.0). They say
     /// words, not voice: the microphone says when the voice stopped, and the
