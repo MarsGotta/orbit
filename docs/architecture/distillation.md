@@ -42,8 +42,8 @@ never copied into errors. Read the proposal after a write failure or conflict.
 `Distillation` fields are `id`, `source_kind:"meeting"`, `meeting_id`, `title`,
 `created_at` (UTC ISO 8601), `by` (`orbit-hub/<installed-version>`), `revision`,
 `status`, `changes`, `conflicts`, `quotes`, `people`, `new_source`, `error`,
-`changed_paths`, `skipped`, and `can_prepare_again`. `summary` is the source
-summary. A failed preparation may lack title/summary/source/author; it always
+`changed_paths`, `skipped`, `dropped`, and `can_prepare_again`. `summary` is
+the source summary. A failed preparation may lack title/summary/source/author; it always
 has its cause in `error.code`, plus provider/connector numeric details where
 available. Statuses are `queued`, `preparing`, `proposed`, `failed`, `stale`, `applying`,
 `applied`, `discarded`, `undoing`, `undone`, and `recovery_required`.
@@ -85,8 +85,10 @@ to it in included new text to their plain labels, so excluding an optional
 person does not create broken links. Existing notes remain valid link targets
 when their proposed updates are excluded. Long fiches have a 400-word warning.
 
-`new_source` is `{path, summary, sha256}`. `changed_paths` names stale input
-notes; the proposal becomes `stale` and applying writes nothing.
+`dropped` lists the notes the model proposed that did not validate, as
+`{path, code}` with the validation code; they are not in `changes` and are
+never written. `new_source` is `{path, summary, sha256}`. `changed_paths`
+names stale input notes; the proposal becomes `stale` and applying writes nothing.
 `skipped` entries are `{path, code:"content_changed"|"outcome_unknown"}`.
 Repeat apply/discard/undo after success is idempotent. Re-preparing retains the
 older proposal for inspection. Deleting/discarding a meeting removes its stored
@@ -98,8 +100,27 @@ The recorded model returns a strict JSON object: summary, exact transcript
 quotes, and bounded property/text patches. No missing fields, arbitrary source
 writes, managed provenance edits, unknown schema types, role-folder mismatches,
 duplicate people, overlapping replacements, invalid dates, broken new links or
-new wikilinks are accepted. Existing YAML must parse safely without duplicate
-keys, tags, anchors or aliases. Invalid SCHEMA.md fails preparation instead of
+new wikilinks are written.
+
+The answer's shape and its quotes are checked whole: a malformed answer or an
+invented quote fails the proposal. The notes are then checked one by one
+(`validation.build`). Before a text patch is checked, two slips of small models
+are repaired without inventing anything. A wikilink `[[Note]]` or
+`[[Note|label]]` that the vault's own resolver maps to one note of the vault,
+or to a note the same answer creates, becomes `[label](/vault/path.md)`, as
+Orbit writes links; an unresolved or ambiguous one becomes its plain words.
+A Tasks date (`📅`, `⏳`, `🛫`, `✅`) whose value is not an ISO date is removed,
+from its marker to the next Tasks marker or the end of the line, and the task
+keeps its text. Wikilinks and dates in a reviewer's own edit are still refused,
+not repaired. A note that still fails any check is left out of the proposal,
+with its contradictions, and named in `dropped` with its code. Links in the
+remaining notes to a new note that was left out become plain words, as when a
+reviewer excludes one; a note whose new link names no note at all is left out
+too. The meeting note anchors the proposal: without exactly one valid meeting
+note the proposal fails, with the first dropped note's cause when there is
+one.
+
+Existing YAML must parse safely without duplicate keys, tags, anchors or aliases. Invalid SCHEMA.md fails preparation instead of
 writing against fallback roles. OKF 0.2 provenance and lifecycle are checked;
 project fields use the schema's aliases. Arbitrary schema prose informs the
 model; it is not an executable validation language. Language and factual
@@ -205,6 +226,10 @@ independent YAML comments. The resulting focused suite has 36 passing cases:
   real loopback fake REST server, content/version conflicts, compensation and
   lost receipts and an independent background I/O budget, without inventing
   upstream transaction semantics;
+- [repairs and drops](../../server/tests/test_distillation_repair.py):
+  recorded answers with Obsidian links (Spanish) and unreadable task dates
+  (English), which failed whole before the repair, a note left out with its
+  cause while the rest is applied, and an answer with nothing valid left;
 - [jobs and review](../../server/tests/test_distillation_jobs.py): ready-note
   worker integration, durable on-demand queueing, default/selected models,
   paired-device authorization, restarts, edits and exclusions, source citations,

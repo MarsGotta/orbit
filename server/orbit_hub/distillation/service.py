@@ -123,14 +123,9 @@ class Distillations:
                     error={"code": "invalid_model_shape", "field": field, "rule": problem["type"]},
                 )
             except ValueError as exc:
-                # Only our own validation codes, never provider text or raw input.
-                reason = str(exc)
-                safe = (
-                    reason
-                    if reason and all(c.isalnum() or c in "_:," for c in reason)
-                    else "invalid_proposal"
+                value.update(
+                    status="failed", changes=[], conflicts=[], error={"code": validation.code(exc)}
                 )
-                value.update(status="failed", changes=[], conflicts=[], error={"code": safe[:160]})
             except HubError as exc:
                 value.update(status="failed", error={"code": exc.code, **(exc.numbers or {})})
             except OSError:

@@ -97,6 +97,9 @@ wire! {
         #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown> | null"))]
         pub error: Option<BTreeMap<String, serde_json::Value>>,
         pub changed_paths: Vec<String>, pub skipped: Vec<DistillationSkipped>,
+        /// Notes the model proposed that did not validate, with their cause; not proposed.
+        #[serde(default)]
+        pub dropped: Vec<DistillationSkipped>,
         pub can_prepare_again: bool,
     }
 }

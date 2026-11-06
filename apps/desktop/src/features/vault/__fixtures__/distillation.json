@@ -78,6 +78,7 @@
   "error": null,
   "changed_paths": [],
   "skipped": [],
+  "dropped": [],
   "can_prepare_again": true,
   "title": "Cedar review",
   "summary": "Cedar plan",

@@ -60,8 +60,23 @@ export function DistillationColumn({
           </p>
         </section>
       )}
-      <p className={styles.index}>{copy.alsoIndex}</p>
+      <Footnotes proposal={proposal} />
     </aside>
+  );
+}
+
+/** Notes the hub left out because they did not validate, then what Orbit also writes. */
+function Footnotes({ proposal }: { proposal: Distillation }) {
+  const copy = useCopy().distillation;
+  return (
+    <>
+      {proposal.dropped.map((drop, index) => (
+        <p className={styles.warning} key={`${index}:${drop.path}`}>
+          {copy.dropped(drop.path, drop.code)}
+        </p>
+      ))}
+      <p className={styles.index}>{copy.alsoIndex}</p>
+    </>
   );
 }
 

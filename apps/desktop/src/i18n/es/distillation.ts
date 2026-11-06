@@ -1,4 +1,4 @@
-import { distillationFailure } from "./distillationFailures";
+import { distillationCause, distillationFailure } from "./distillationFailures";
 
 const noteCount = (n: number) => `${n} ${n === 1 ? "nota" : "notas"}`;
 const fixedCopy = {
@@ -77,6 +77,8 @@ const fixedCopy = {
   undone:
     "Deshecho: se han revertido las notas que no cambiaron después. La reunión sigue guardada como fuente.",
   skipped: (note: string, cause: string) => `${note} no se ha deshecho: ${cause}.`,
+  dropped: (note: string, code: string) =>
+    `No se propone ${note}. ${distillationCause(code) ?? `No valida (${code}).`}`,
   changedAfter: "cambió después de aplicar",
   outcomeUnknown: "no se conoce el resultado de la escritura",
   discarded:
