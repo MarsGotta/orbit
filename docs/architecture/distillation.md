@@ -102,8 +102,11 @@ writes, managed provenance edits, unknown schema types, role-folder mismatches,
 duplicate people, overlapping replacements, invalid dates, broken new links or
 new wikilinks are written.
 
-The answer's shape and its quotes are checked whole: a malformed answer or an
-invented quote fails the proposal. The notes are then checked one by one
+The answer's shape is checked whole: a malformed answer or duplicate quote ids
+fail the proposal. A quote that does not match a transcript turn is removed:
+it is never shown or cited, and each patch keeps only its real quotes. A patch
+whose only evidence was invented quotes fails its note with
+`quote_not_in_transcript`. The notes are then checked one by one
 (`validation.build`). Before a text patch is checked, two slips of small models
 are repaired without inventing anything. A wikilink `[[Note]]` or
 `[[Note|label]]` that the vault's own resolver maps to one note of the vault,

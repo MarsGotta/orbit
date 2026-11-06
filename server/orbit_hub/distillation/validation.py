@@ -90,20 +90,24 @@ def people_for(snapshot, schema, lines):
 def build(value, content, snapshot, schema, material):
     answer = Answer.model_validate(content)
     data = answer.model_dump()
-    quotes = {q["id"]: q for q in data["quotes"]}
-    if len(quotes) != len(data["quotes"]):
+    if len({q["id"] for q in data["quotes"]}) != len(data["quotes"]):
         raise ValueError("duplicate_quote_id")
-    for citation in quotes.values():
-        if not any(
-            citation["at_ms"] == line["at_ms"]
-            and citation["speaker"] == line["speaker"]
-            and citation["text"] in line["text"]
+    # An invented quote is never shown; its id maps to None, so what only it
+    # supports is dropped (`_quotes`).
+    quotes = {
+        q["id"]: q
+        if any(
+            q["at_ms"] == line["at_ms"]
+            and q["speaker"] == line["speaker"]
+            and q["text"] in line["text"]
             for line in material["lines"]
-        ):
-            raise ValueError("quote_not_in_transcript")
+        )
+        else None
+        for q in data["quotes"]
+    }
     value.update(
         title=material["title"],
-        quotes=data["quotes"],
+        quotes=[q for q in quotes.values() if q is not None],
         people=people_for(snapshot, schema, material["lines"]),
         dropped=[],
     )
@@ -304,6 +308,9 @@ def _patches(change, value, quotes, targets):
 def _quotes(patch, quotes):
     if any(q not in quotes for q in patch["quote_ids"]):
         raise ValueError("patch_quote_missing")
+    patch["quote_ids"] = [q for q in patch["quote_ids"] if quotes[q] is not None]
+    if not patch["quote_ids"]:
+        raise ValueError("quote_not_in_transcript")
 
 
 def _conflict(value, change, key, label, current, incoming, quote_ids):

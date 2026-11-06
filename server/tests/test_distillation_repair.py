@@ -180,3 +180,31 @@ async def test_an_unsafe_new_note_path_is_still_refused(distillation_client, pat
         "Meetings/cedar-review.md",
         "Projects/cedar-pilot.md",
     ]
+
+
+async def test_an_invented_quote_is_removed_and_what_only_it_supports_dropped(
+    distillation_client,
+):
+    # Recorded: the model cited a sentence nobody said.
+    client, _, meeting, responses, _, _, _ = distillation_client
+    value = answer()
+    value["quotes"].append(
+        {"id": "q9", "at_ms": 1000, "speaker": "Nora", "text": "The pilot is cancelled."}
+    )
+    value["changes"][0]["lines"][0]["quote_ids"] = ["q1", "q9"]
+    for patch in [*value["changes"][1]["properties"], *value["changes"][1]["lines"]]:
+        patch["quote_ids"] = ["q9"]
+    responses.append(value)
+    proposal = await prepare(client, meeting)
+    assert proposal["status"] == "proposed", proposal["error"]
+    assert [q["id"] for q in proposal["quotes"]] == ["q1"]
+    assert proposal["dropped"] == [
+        {"path": "Projects/cedar-pilot.md", "code": "quote_not_in_transcript"}
+    ]
+    assert proposal["conflicts"] == []
+    assert [c["path"] for c in proposal["changes"]] == [
+        "Meetings/cedar-review.md",
+        "People/eli-brook.md",
+    ]
+    assert proposal["changes"][0]["lines"][0]["quote_ids"] == ["q1"]
+    assert "The pilot is cancelled." not in str(proposal)
