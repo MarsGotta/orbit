@@ -116,3 +116,67 @@ async def test_nothing_valid_left_fails_with_the_cause(distillation_client):
         await client.post("/v1/vault/distillations/" + proposal["id"] + "/apply")
     ).status_code == 409
     assert {p: (root / p).read_bytes().decode() for p in FILES} == FILES
+
+
+async def test_a_colon_in_a_new_note_name_becomes_a_hyphen(distillation_client):
+    # Recorded: the model named the meeting note after a title with its time.
+    client, root, meeting, responses, _, _, _ = distillation_client
+    value = answer()
+    value["changes"][0]["path"] = "Meetings/Cedar review 10:30.md"
+    value["changes"][1]["lines"][0]["after"] = (
+        "Nora is preparing the plan ([[Cedar review 10:30]], "
+        "[review](/Meetings/Cedar%20review%2010:30.md))."
+    )
+    responses.append(value)
+    proposal = await prepare(client, meeting)
+    assert proposal["status"] == "proposed", proposal["error"]
+    assert proposal["dropped"] == []
+    paths = [c["path"] for c in proposal["changes"]]
+    assert paths[0] == "Meetings/Cedar review 10-30.md"
+    project = proposal["changes"][1]["lines"][0]["after"]
+    assert project == (
+        "Nora is preparing the plan ([Cedar review 10:30](/Meetings/Cedar%20review%2010-30.md), "
+        "[review](/Meetings/Cedar%20review%2010-30.md))."
+    )
+    decided = await client.patch(
+        "/v1/vault/distillations/" + proposal["id"],
+        json={
+            "revision": proposal["revision"],
+            "decisions": {c["id"]: "incoming" for c in proposal["conflicts"]},
+        },
+    )
+    assert decided.status_code == 200, decided.text
+    applied = await client.post("/v1/vault/distillations/" + proposal["id"] + "/apply")
+    assert applied.status_code == 200 and applied.json()["status"] == "applied", applied.text
+    assert (root / "Meetings/Cedar review 10-30.md").exists()
+    assert "[Cedar review](/Meetings/Cedar%20review%2010-30.md)" in (root / "index.md").read_text()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/People/eli-brook.md",
+        "People/.eli-brook.md",
+        "People/../eli-brook.md",
+        "Peo:ple/eli-brook.md",
+        # Repaired, it would name an existing note: never a new target.
+        "People/nora:vale.md",
+    ],
+)
+async def test_an_unsafe_new_note_path_is_still_refused(distillation_client, path):
+    client, _, meeting, responses, _, _, _ = distillation_client
+    value = answer()
+    value["changes"][2]["path"] = path
+    # Only the path is under test: the meeting names Eli without a link.
+    meeting_lines = value["changes"][0]["lines"][0]
+    meeting_lines["after"] = meeting_lines["after"].replace(
+        "[Eli Brook](/People/eli-brook.md)", "Eli Brook"
+    )
+    responses.append(value)
+    proposal = await prepare(client, meeting)
+    assert proposal["status"] == "proposed", proposal["error"]
+    assert proposal["dropped"] == [{"path": path, "code": "vault_path_refused"}]
+    assert [c["path"] for c in proposal["changes"]] == [
+        "Meetings/cedar-review.md",
+        "Projects/cedar-pilot.md",
+    ]
