@@ -7,6 +7,8 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-06
+
 ### Added
 
 - Notes distills a meeting into the vault, as a proposal you review first. It
