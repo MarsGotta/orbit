@@ -111,7 +111,11 @@ or to a note the same answer creates, becomes `[label](/vault/path.md)`, as
 Orbit writes links; an unresolved or ambiguous one becomes its plain words.
 A Tasks date (`📅`, `⏳`, `🛫`, `✅`) whose value is not an ISO date is removed,
 from its marker to the next Tasks marker or the end of the line, and the task
-keeps its text. Wikilinks and dates in a reviewer's own edit are still refused,
+keeps its text. A note path whose file name has a character the vault refuses
+(`:`, `\` or a control character, as in a title with its time) gets `-` for
+each, unless that would name an existing note; the answer's links to the
+written path follow it. The folder is left as written, so absolute, hidden and
+`..` paths are still refused. Wikilinks and dates in a reviewer's own edit are still refused,
 not repaired. A note that still fails any check is left out of the proposal,
 with its contradictions, and named in `dropped` with its code. Links in the
 remaining notes to a new note that was left out become plain words, as when a

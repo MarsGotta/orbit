@@ -31,6 +31,9 @@ DATE_FIELD = re.compile(
     re.MULTILINE,
 )
 VAULT_LINK = re.compile(r"\[([^]\n]+)\]\((/[^)]+)\)")
+# Characters the vault refuses in a path (vault/paths.checked) that are only
+# characters in a file name, such as the time in «Meeting 10:30».
+REFUSED_IN_NAME = re.compile(r"[:\\\x00-\x1f]")
 
 
 def snapshot(connector):
@@ -129,13 +132,14 @@ def build(value, content, snapshot, schema, material):
 
 
 def _change(index, incoming, value, snapshot, schema, quotes, seen, targets):
-    path = checked(incoming["path"])
+    path = checked(targets[2].get(incoming["path"], incoming["path"]))
     if path in seen or path.rsplit("/", 1)[-1] in CONTROL_NOTES:
         raise ValueError("duplicate_or_control_note")
     seen.add(path)
     original = snapshot.get(path, {}).get("raw")
     change = {
         **incoming,
+        "path": path,
         "id": f"n{index}",
         "include": True,
         "kind": "create" if original is None else "update",
@@ -170,22 +174,37 @@ def _drop(value, path, exc, failures):
 
 def _targets(snapshot, changes):
     """Vault notes and the notes this answer creates: the only link targets."""
-    paths = set(snapshot)
+    paths, renamed = set(snapshot), {}
     for change in changes:
+        path = _safe_name(change["path"], snapshot)
+        if path != change["path"]:
+            renamed[change["path"]] = path
         with contextlib.suppress(HubError):
-            paths.add(checked(change["path"]))
+            paths.add(checked(path))
     basenames = {}
     for path in paths:
         basenames.setdefault(file_name(path.rsplit("/", 1)[-1][:-3]), []).append(path)
-    return paths, basenames
+    return paths, basenames, renamed
+
+
+def _safe_name(path, snapshot):
+    """A new note's file name refused only for its characters gets `-` for each.
+
+    The folder is left as written, so absolute, hidden or `..` paths are still
+    refused; a name that would then be an existing note is not changed.
+    """
+    folder, slash, name = path.rpartition("/")
+    safe = folder + slash + REFUSED_IN_NAME.sub("-", name)
+    return safe if safe not in snapshot else path
 
 
 def _repair(text, source, targets):
     """Obsidian links become Orbit's links, or words; an unreadable task date goes."""
 
+    paths, basenames, renamed = targets
+
     def link(match):
         target, _, label = match[1].partition("|")
-        paths, basenames = targets
         found = resolve(source, target, paths, wiki=True, basenames=basenames)
         words = (label or target).strip()
         return f"[{words}](/{quote(found, safe='/')})" if found else words
@@ -194,6 +213,9 @@ def _repair(text, source, targets):
         value = match[2].split()
         return match[0] if value and valid_date(value[0]) else ""
 
+    for old, new in renamed.items():
+        for written in {old, quote(old, safe="/"), quote(old, safe="/:")}:
+            text = text.replace(f"](/{written})", f"](/{quote(new, safe='/')})")
     return DATE_FIELD.sub(date, WIKILINK.sub(link, text))
 
 
