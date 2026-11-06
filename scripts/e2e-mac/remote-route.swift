@@ -18,18 +18,24 @@ func address(_ selector: AudioObjectPropertySelector,
     AudioObjectPropertyAddress(mSelector: selector, mScope: scope, mElement: kAudioObjectPropertyElementMain)
 }
 
+/// A selector's four characters (`'pdv#'`), so a failure says which property.
+func name(_ selector: AudioObjectPropertySelector) -> String {
+    let bytes = [24, 16, 8, 0].map { UInt8((selector >> UInt32($0)) & 0xff) }
+    return String(bytes: bytes, encoding: .ascii) ?? String(selector)
+}
+
 func numbers(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector,
              _ scope: AudioObjectPropertyScope = kAudioObjectPropertyScopeGlobal) throws -> [UInt32] {
     var key = address(selector, scope)
     var size: UInt32 = 0
     let status = AudioObjectGetPropertyDataSize(object, &key, 0, nil, &size)
     if status == kAudioHardwareBadObjectError { throw Vanished() }
-    guard status == noErr else { throw RouteFailure("CoreAudio size read failed: \(status)") }
+    guard status == noErr else { throw RouteFailure("CoreAudio size read failed: \(status) for '\(name(selector))'") }
     guard size > 0 else { return [] }
     var values = [UInt32](repeating: 0, count: Int(size) / MemoryLayout<UInt32>.size)
     let read = AudioObjectGetPropertyData(object, &key, 0, nil, &size, &values)
     if read == kAudioHardwareBadObjectError { throw Vanished() }
-    guard read == noErr else { throw RouteFailure("CoreAudio read failed: \(read)") }
+    guard read == noErr else { throw RouteFailure("CoreAudio read failed: \(read) for '\(name(selector))'") }
     return Array(values.prefix(Int(size) / MemoryLayout<UInt32>.size))
 }
 
@@ -45,7 +51,7 @@ func string(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) th
     var size = UInt32(MemoryLayout<CFString>.size)
     let status = AudioObjectGetPropertyData(object, &key, 0, nil, &size, &value)
     if status == kAudioHardwareBadObjectError { throw Vanished() }
-    guard status == noErr else { throw RouteFailure("CoreAudio string read failed: \(status)") }
+    guard status == noErr else { throw RouteFailure("CoreAudio string read failed: \(status) for '\(name(selector))'") }
     return value as String
 }
 

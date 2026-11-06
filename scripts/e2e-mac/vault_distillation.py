@@ -170,9 +170,12 @@ def _settled(test, step, meeting, after):
     proposal = done["proposal"]
     if proposal.get("status") != SETTLED[step]:
         error = proposal.get("error") or {}
+        # The notes the hub left out, with why: the invented vault's paths only.
+        dropped = [f"{d.get('path')} ({d.get('code')})" for d in proposal.get("dropped") or []]
         raise StepFailed(
             f"the proposal is «{proposal.get('status')}», not «{SETTLED[step]}»"
             + (f": {json.dumps(error, ensure_ascii=False)[:200]}" if error else "")
+            + (f"; left out: {', '.join(dropped)[:300]}" if dropped else "")
         )
     return proposal
 
