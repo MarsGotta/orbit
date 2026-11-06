@@ -41,7 +41,9 @@ English and Spanish; labels quoted below may use either language.
   while keeping its text. A new note whose file name has a character the
   vault refuses, such as the colon of «Meeting 10:30», gets a hyphen for it
   (links to it follow); absolute, hidden and `..` paths are still refused.
-  A note that still does not validate is left out
+  A quote the model invented is removed, never shown, and a note whose
+  change rests only on invented quotes is left out with
+  `quote_not_in_transcript`. A note that still does not validate is left out
   with its cause, which the review shows, and the rest is proposed; links to
   a new note that was left out become plain words. The proposal fails only
   when no valid meeting note is left, with the cause of the first note left
