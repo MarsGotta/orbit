@@ -394,11 +394,40 @@ final class WakePhraseTests: XCTestCase {
         XCTAssertNil(policy.heard(volatile("we agreed on", 0, 1.2)))
         _ = levels(&policy, from: 2.01, to: 3.0, speaking: true)
         var time = 3.01
-        while time <= 6.0 {
+        while time <= 5.0 {
             XCTAssertNil(policy.voice(at: time, speaking: false))
-            XCTAssertNil(policy.finalizationDue(), "the transcription already said this voice")
+            XCTAssertNil(policy.finalizationDue(), "the transcription is speaking, behind")
             time += 0.01
         }
+        // Its final result comes on its own, about 2 s after the voice.
+        XCTAssertNil(policy.heard(final("we agreed on the budget", 0, 3.0)))
+        while time <= 9.0 {
+            XCTAssertNil(policy.voice(at: time, speaking: false))
+            XCTAssertNil(policy.finalizationDue(), "the voice has its final result")
+            time += 0.01
+        }
+    }
+
+    /// The previous line's results land just after «Oye Deimos» begins; the
+    /// phrase's own voice still gets no result, so its pause asks (real test,
+    /// 2026-11-06, Spanish).
+    func testAnEarlierLinesLateResultsDoNotStopThePhrasesRequest() {
+        var policy = SpokenQuestionPolicy()
+        _ = levels(&policy, from: 0, to: 3.0, speaking: true)
+        _ = levels(&policy, from: 3.01, to: 4.55, speaking: false)
+        XCTAssertNotNil(policy.finalizationDue(), "the first line's pause")
+        _ = levels(&policy, from: 4.56, to: 4.7, speaking: true)
+        XCTAssertNil(policy.heard(final("Revisamos el presupuesto.", 0.2, 2.9)))
+        _ = levels(&policy, from: 4.71, to: 8.0, speaking: true)
+        var asked = [Double]()
+        var time = 8.01
+        while time <= 12.0 {
+            XCTAssertNil(policy.voice(at: time, speaking: false))
+            if let through = policy.finalizationDue() { asked.append(through) }
+            time += 0.01
+        }
+        XCTAssertEqual(asked.count, 1)
+        XCTAssertEqual(asked.first ?? 0, 9.5, accuracy: 0.02)
     }
 
     /// The same transcriber gives its volatile results the range of all the

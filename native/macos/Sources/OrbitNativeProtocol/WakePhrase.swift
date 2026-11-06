@@ -310,6 +310,13 @@ public struct SpokenQuestionPolicy {
     /// voice and still count as reached: the level stays above the threshold
     /// for the fade after the last word. Not a recognition window.
     public static let catchUpToleranceSeconds = 0.3
+    /// How long a transcriber that speaks live may go without a result while
+    /// there is voice. macOS 27.2's English results came about 3 s behind the
+    /// voice (probe on a Mac, 2026-11-05); its Spanish ones never came live.
+    /// Counting results by stretch instead failed: the previous line's
+    /// results, landing just after «Oye Deimos» began, made the phrase's own
+    /// stretch look answered (real test, 2026-11-06).
+    public static let liveResultsSeconds = 3.5
 
     private var segments = [HeardSegment]()
     /// Where the result with the phrase starts, when it was heard, and the
@@ -324,10 +331,8 @@ public struct SpokenQuestionPolicy {
     /// Before the phrase: the voice the transcription was last asked to
     /// finalize through, once per stretch of voice.
     private var finalizedVoice = -Double.infinity
-    /// When the current stretch of voice began (voice after a pause), and
-    /// whether any result with words came during it.
-    private var stretchStart = -Double.infinity
-    private var heardInStretch = false
+    /// When the last result with words came, on the audio timeline.
+    private var lastResultAt = -Double.infinity
     /// The voice as the question's finalization has always measured it: the
     /// microphone and every result's end, volatile ones included. Moving
     /// that request to the microphone's pause broke «Hey Deimos» in English
@@ -389,7 +394,7 @@ public struct SpokenQuestionPolicy {
         }
         now = max(now, segment.end)
         if !segment.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            heardInStretch = true
+            lastResultAt = now
             anyVoice = max(anyVoice, segment.end)
             if segment.isFinal {
                 lastVoice = max(lastVoice, segment.end)
@@ -440,10 +445,6 @@ public struct SpokenQuestionPolicy {
         step = nil
         now = max(now, time)
         if speaking {
-            if time - lastVoice >= pauseSeconds {
-                stretchStart = time
-                heardInStretch = false
-            }
             lastVoice = max(lastVoice, time)
             anyVoice = max(anyVoice, time)
         }
@@ -472,7 +473,8 @@ public struct SpokenQuestionPolicy {
     /// asks it to finalize through `now`, all the audio fed so far.
     ///
     /// Before the phrase, once per stretch of voice, and only when the
-    /// transcription said nothing at all during it: macOS 27.2's Spanish transcriber
+    /// transcription has said nothing for longer than a live one lags
+    /// ([`liveResultsSeconds`]) while there was voice: macOS 27.2's Spanish transcriber
     /// says nothing while it is fed live and gave its first result 5.4 s
     /// after the voice ended, or 0.2 s after this request (probe on a Mac,
     /// 2026-11-05); «Oye Deimos» was heard late and its question sent at the
@@ -491,8 +493,9 @@ public struct SpokenQuestionPolicy {
         }
         guard now - lastVoice >= pauseSeconds,
               finalThrough < lastVoice - Self.catchUpToleranceSeconds,
-              lastVoice > finalizedVoice, lastVoice > stretchStart,
-              !heardInStretch else { return nil }
+              lastVoice > finalizedVoice,
+              lastVoice > lastResultAt,
+              now - lastResultAt >= Self.liveResultsSeconds else { return nil }
         finalizedVoice = lastVoice
         return now
     }
