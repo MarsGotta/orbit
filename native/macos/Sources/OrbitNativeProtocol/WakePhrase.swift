@@ -478,11 +478,10 @@ public struct SpokenQuestionPolicy {
     /// says nothing while it is fed live and gave its first result 5.4 s
     /// after the voice ended, or 0.2 s after this request (probe on a Mac,
     /// 2026-11-05); «Oye Deimos» was heard late and its question sent at the
-    /// thirty-second ceiling. A transcriber that speaks live is not asked,
-    /// even when it lags: English's results come about 3 s behind the voice,
-    /// and a final result for an earlier line, asked for at the pause before
-    /// «Hey Deimos», came in over the phrase and dropped it as revised (real
-    /// test, 2026-11-06).
+    /// thirty-second ceiling. Spanish only: English's transcriber speaks
+    /// live, about 3 s behind the voice, and every early request tried for
+    /// it broke «Hey Deimos» in the real test (the phrase dropped as revised,
+    /// or its first word lost, 2026-11-06), while it never needed one.
     public mutating func finalizationDue() -> Double? {
         if phrase != nil {
             guard !finalizeRequested, !(currentQuestion() ?? "").isEmpty,
@@ -491,7 +490,8 @@ public struct SpokenQuestionPolicy {
             finalizeRequested = true
             return now
         }
-        guard now - lastVoice >= pauseSeconds,
+        guard locale == .spanish,
+              now - lastVoice >= pauseSeconds,
               finalThrough < lastVoice - Self.catchUpToleranceSeconds,
               lastVoice > finalizedVoice,
               lastVoice > lastResultAt,
