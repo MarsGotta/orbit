@@ -170,7 +170,9 @@ async fn a_hub_that_does_not_answer_leaves_the_closure_queued_within_the_budget(
     runtime.settings.hub_url = Some(format!("http://{}", listener.local_addr()?));
     runtime.link.token = Some("synthetic-not-a-credential".into());
     let (_closing, _) = quit_while_recording(&mut runtime, &mut helper).await?;
-    let deadline = Instant::now() + Duration::from_millis(300);
+    // Two seconds: the local closure (a store write) fits in it on a loaded
+    // Mac, where 300 ms once did not; the silent hub then holds the rest.
+    let deadline = Instant::now() + Duration::from_secs(2);
     // A jam guard, not a measured budget: the delivery must stop at the
     // deadline, far under the hub client's own thirty-second timeout.
     tokio::time::timeout(
