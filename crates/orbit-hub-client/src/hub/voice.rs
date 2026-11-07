@@ -9,14 +9,14 @@ struct SpeechResponse {
 }
 
 pub async fn transcribe(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     wav: Vec<u8>,
     op: &Op,
 ) -> std::result::Result<String, Failure> {
     let base = validate_hub_url(
-        settings
+        endpoint
             .hub_url
             .as_deref()
             .ok_or_else(|| failure("transcription_hub_not_configured", None))?,
@@ -135,18 +135,18 @@ mod voice_transport_tests {
 
     #[tokio::test]
     async fn missing_and_invalid_hub_urls_have_distinct_causes() -> Result<()> {
-        let missing = Settings::default();
-        let invalid = Settings {
+        let missing = HubEndpoint::default();
+        let invalid = HubEndpoint {
             hub_url: Some("not a hub URL".into()),
-            ..Settings::default()
+            ..HubEndpoint::default()
         };
         let Err(missing_failure) =
-            transcribe(&missing, "synthetic", true, vec![0], &orbit_ipc::new_op()).await
+            transcribe(&missing, "synthetic", true, vec![0], &new_op()).await
         else {
             anyhow::bail!("missing hub URL unexpectedly transcribed voice")
         };
         let Err(invalid_failure) =
-            transcribe(&invalid, "synthetic", true, vec![0], &orbit_ipc::new_op()).await
+            transcribe(&invalid, "synthetic", true, vec![0], &new_op()).await
         else {
             anyhow::bail!("invalid hub URL unexpectedly transcribed voice")
         };
@@ -160,12 +160,11 @@ mod voice_transport_tests {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let url = format!("http://{}", listener.local_addr()?);
         drop(listener);
-        let settings = Settings {
+        let endpoint = HubEndpoint {
             hub_url: Some(url),
-            ..Settings::default()
+            ..HubEndpoint::default()
         };
-        let Err(failure) =
-            transcribe(&settings, "synthetic", true, vec![0], &orbit_ipc::new_op()).await
+        let Err(failure) = transcribe(&endpoint, "synthetic", true, vec![0], &new_op()).await
         else {
             bail!("the closed loopback port unexpectedly accepted the request");
         };

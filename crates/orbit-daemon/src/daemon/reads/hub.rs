@@ -32,7 +32,7 @@ impl HubReadContext {
     /// is no chat (a product decision of 2026-10-15): offline, the read says so.
     fn refused_before_asking(&self) -> Result<String, Refusal> {
         crate::hub::access(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             self.token.as_deref(),
             self.privacy_stopped,
             self.connection.clone(),
@@ -74,7 +74,7 @@ impl HubReadContext {
         let listing = match tokio::time::timeout(
             SESSION_READ_DEADLINE,
             crate::hub::sessions_page(
-                &self.settings,
+                &crate::config::hub_endpoint(&self.settings),
                 &token,
                 self.development,
                 before.as_deref(),
@@ -162,7 +162,7 @@ impl HubReadContext {
         let page = match tokio::time::timeout(
             SESSION_READ_DEADLINE,
             crate::hub::session_messages_page(
-                &self.settings,
+                &crate::config::hub_endpoint(&self.settings),
                 &token,
                 self.development,
                 &session_id,

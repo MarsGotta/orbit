@@ -153,7 +153,7 @@ fn attachment_unanswered(error: &reqwest::Error) -> anyhow::Error {
 /// One file for the composer, uploaded whole (`POST /v1/attachments`); the
 /// hub classifies it and answers with what it keeps.
 pub async fn upload_attachment(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     name: &str,
@@ -165,7 +165,7 @@ pub async fn upload_attachment(
         attachment: orbit_core::attachments::Attachment,
     }
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub missing")?,
+        endpoint.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let sha256 = format!("{:x}", <sha2::Sha256 as sha2::Digest>::digest(&bytes));
@@ -193,7 +193,7 @@ pub async fn upload_attachment(
 /// «Adjuntar ventana»: the capture uploaded for `request_id`
 /// (`PUT /v1/captures`) kept as an attachment named `name`.
 pub async fn attachment_from_capture(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     capture_id: &str,
@@ -206,7 +206,7 @@ pub async fn attachment_from_capture(
         attachment: orbit_core::attachments::Attachment,
     }
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub missing")?,
+        endpoint.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let response = request(
@@ -230,14 +230,14 @@ pub async fn attachment_from_capture(
 /// One attachment's bytes as the hub keeps them, at most
 /// `MAX_ATTACHMENT_BYTES` (`GET /v1/attachments/{id}`).
 pub async fn fetch_attachment(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     attachment_id: &str,
     op: &Op,
 ) -> Result<orbit_core::protocol::AttachmentContent> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub missing")?,
+        endpoint.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/attachments/")?;

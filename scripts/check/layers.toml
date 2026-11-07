@@ -15,7 +15,8 @@ orbit-core = []
 orbit-store = ["orbit-core"]
 orbit-ipc = ["orbit-core"]
 orbit-control = ["orbit-core"]
-orbit-daemon = ["orbit-control", "orbit-core", "orbit-ipc", "orbit-store"]
+orbit-hub-client = ["orbit-core"]
+orbit-daemon = ["orbit-control", "orbit-core", "orbit-hub-client", "orbit-ipc", "orbit-store"]
 orbit-app-core = ["orbit-core", "orbit-ipc"]
 orbit-desktop = ["orbit-app-core", "orbit-core", "orbit-daemon", "orbit-ipc"]
 
@@ -25,7 +26,7 @@ orbit-desktop = ["orbit-app-core", "orbit-core", "orbit-daemon", "orbit-ipc"]
 # (appkit). Each list holds the files that still do it; the four keys are
 # always here, even when a list is empty.
 [engine]
-packages = ["orbit-daemon", "orbit-ipc", "orbit-store"]
+packages = ["orbit-daemon", "orbit-hub-client", "orbit-ipc", "orbit-store"]
 command_new = ["crates/orbit-daemon/src/daemon/recording_notes/owner.rs", "crates/orbit-daemon/src/native.rs"]
 cfg_macos = ["crates/orbit-daemon/src/config.rs", "crates/orbit-daemon/src/daemon/recording_notes/owner.rs"]
 keyring = ["crates/orbit-daemon/src/config.rs"]

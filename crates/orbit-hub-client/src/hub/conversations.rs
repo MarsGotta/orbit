@@ -10,7 +10,7 @@ use orbit_core::refusal::HubSessionField;
 #[error(
     "Session {position} of {rows} rows on the hub page: {field} is {bytes} bytes; allowed range is 1 to {max_bytes}"
 )]
-pub(crate) struct HubSessionInvalidRow {
+pub struct HubSessionInvalidRow {
     pub position: u64,
     pub rows: u64,
     pub field: HubSessionField,
@@ -20,7 +20,7 @@ pub(crate) struct HubSessionInvalidRow {
 
 #[derive(Debug, thiserror::Error)]
 #[error("The cursor for the list of {rows} sessions does not match its last row")]
-pub(crate) struct HubSessionsCursorMismatch {
+pub struct HubSessionsCursorMismatch {
     pub rows: u64,
 }
 
@@ -120,21 +120,21 @@ pub struct HubMessages {
 /// one, the size and ceiling of what did not fit.
 #[derive(Debug, thiserror::Error)]
 #[error("The hub read returned HTTP {status}")]
-pub(crate) struct HubReadStatus {
+pub struct HubReadStatus {
     pub status: u16,
     pub bytes: Option<u64>,
     pub max_bytes: Option<u64>,
 }
 
 pub async fn sessions_page(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     before: Option<&str>,
     op: &Op,
 ) -> Result<HubSessions> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub missing")?,
+        endpoint.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/sessions")?;
@@ -146,7 +146,7 @@ pub async fn sessions_page(
 
 /// One page of a conversation, the newest one without `before`.
 pub async fn session_messages_page(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
     session_id: &str,
@@ -154,7 +154,7 @@ pub async fn session_messages_page(
     op: &Op,
 ) -> Result<HubMessages> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub missing")?,
+        endpoint.hub_url.as_deref().context("Hub missing")?,
         development,
     )?;
     let mut url = base.join("v1/sessions/")?;

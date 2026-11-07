@@ -1,7 +1,7 @@
 //! The daemon's link to the hub: the device's WebSocket (`link`) and the
 //! HTTP calls made with its credential (pairing, the conversations, the
 //! attachments, a voice turn). This adapter never retries a submitted prompt.
-use crate::config::{Settings, validate_hub_url};
+use crate::{HubEndpoint, validate_hub_url};
 use anyhow::{Context, Result, bail};
 use orbit_core::limits::{MAX_HUB_HTTP_BODY_BYTES, MAX_HUB_OUTGOING_FRAME_BYTES};
 use orbit_core::notice::Op;
@@ -20,9 +20,9 @@ pub use attachments::{
 pub use conversations::{
     HubMessage, HubMessages, HubSession, HubSessions, session_messages_page, sessions_page,
 };
-pub(crate) use conversations::{HubReadStatus, HubSessionInvalidRow, HubSessionsCursorMismatch};
+pub use conversations::{HubReadStatus, HubSessionInvalidRow, HubSessionsCursorMismatch};
 pub use link::{Events, HubEvent, run};
-pub(crate) use link::{invalid_event_name, unsent_count};
+pub use link::{invalid_event_name, unsent_count};
 pub use voice::transcribe;
 
 /// Hard cap on an outgoing hub frame, matched to the server's `max_frame_bytes`
@@ -43,7 +43,7 @@ pub(crate) const TYPED_REFUSAL_HUB_PROTOCOL: u64 = 1;
 pub(crate) const MAX_HUB_CODE_BYTES: usize = 64;
 // Existing shared deadlines for ordinary hub calls. They do not govern voice:
 // the transcription endpoint has its own ordered budget below.
-pub(crate) const HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(HUB_HTTP_TIMEOUT_SECONDS);
+pub const HUB_HTTP_TIMEOUT: Duration = Duration::from_secs(HUB_HTTP_TIMEOUT_SECONDS);
 /// In seconds, as the interface reads it: how long it keeps a choice the hub
 /// confirms (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
 const HUB_HTTP_TIMEOUT_SECONDS: u64 = 90;
@@ -63,7 +63,7 @@ const _: () = assert!(VOICE_HUB_HTTP_TIMEOUT.as_secs() == HUB_VOICE_DEADLINE_SEC
 
 #[derive(Debug, thiserror::Error)]
 #[error("The HTTP response is {bytes} bytes; the maximum is {max_bytes}")]
-pub(crate) struct HubBodyTooLarge {
+pub struct HubBodyTooLarge {
     pub bytes: u64,
     pub max_bytes: u64,
 }
@@ -85,8 +85,8 @@ pub fn command(id: &str, method: &str, params: Value) -> Result<Value> {
 pub const OP_HEADER: &str = "X-Orbit-Op";
 
 /// Admission for a paired, online device; a privacy stop always wins.
-pub(crate) fn access<'a>(
-    settings: &Settings,
+pub fn access<'a>(
+    endpoint: &HubEndpoint,
     token: Option<&'a str>,
     privacy_stopped: bool,
     connection: orbit_core::Connection,
@@ -96,7 +96,7 @@ pub(crate) fn access<'a>(
         return Err(Refusal::PrivacyStopped { since_ms: None });
     }
     let token = token
-        .filter(|_| settings.device_id.is_some())
+        .filter(|_| endpoint.device_id.is_some())
         .ok_or(Refusal::NotPaired)?;
     match connection {
         orbit_core::Connection::Online => Ok(token),
@@ -121,7 +121,7 @@ fn client() -> Result<&'static reqwest::Client> {
         .map_err(|error| anyhow::anyhow!("Could not prepare the HTTP client: {error}"))
 }
 
-pub(crate) fn request(
+pub fn request(
     method: reqwest::Method,
     url: reqwest::Url,
     token: Option<&str>,
@@ -200,14 +200,14 @@ pub async fn bounded_json(response: reqwest::Response) -> Result<Value> {
 /// One hub error envelope. Keep its unsigned facts separate from free text;
 /// each caller retains its own status policy and error-body ceiling.
 #[derive(Default)]
-pub(crate) struct HubRefusal {
+pub struct HubRefusal {
     pub code: Option<String>,
     pub message: Option<String>,
     pub details: Value,
     pub numbers: std::collections::BTreeMap<String, u64>,
 }
 
-pub(crate) async fn read_refusal(response: reqwest::Response, limit: usize) -> Result<HubRefusal> {
+pub async fn read_refusal(response: reqwest::Response, limit: usize) -> Result<HubRefusal> {
     let envelope = json_body(response, limit).await?;
     let details = envelope["refusal"].clone();
     let numbers = details
@@ -237,7 +237,7 @@ pub(crate) async fn read_refusal(response: reqwest::Response, limit: usize) -> R
 }
 
 /// A hub code is snake_case ASCII; never echo arbitrary content as a code.
-pub(crate) fn hub_code(code: &str) -> Option<&str> {
+pub fn hub_code(code: &str) -> Option<&str> {
     Some(code).filter(|code| {
         !code.is_empty()
             && code.len() <= MAX_HUB_CODE_BYTES
@@ -248,7 +248,7 @@ pub(crate) fn hub_code(code: &str) -> Option<&str> {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) enum TransportCause {
+pub enum TransportCause {
     ConnectionTimeout,
     Timeout,
     Connection,
@@ -256,7 +256,7 @@ pub(crate) enum TransportCause {
 }
 
 impl TransportCause {
-    pub(crate) fn of(error: &reqwest::Error) -> Self {
+    pub fn of(error: &reqwest::Error) -> Self {
         match (error.is_timeout(), error.is_connect()) {
             (true, true) => Self::ConnectionTimeout,
             (true, false) => Self::Timeout,
@@ -267,17 +267,17 @@ impl TransportCause {
 }
 
 pub async fn pair(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     code: &str,
     development: bool,
     op: &Op,
 ) -> Result<(String, String)> {
     let base = validate_hub_url(
-        settings.hub_url.as_deref().context("Hub URL missing")?,
+        endpoint.hub_url.as_deref().context("Hub URL missing")?,
         development,
     )?;
     let response = request(reqwest::Method::POST, base.join("v1/pair")?, None, op)?
-        .json(&json!({"code":code,"name":settings.device_name}))
+        .json(&json!({"code":code,"name":endpoint.device_name}))
         .send()
         .await?;
     if !response.status().is_success() {
@@ -288,17 +288,25 @@ pub async fn pair(
     Ok((value.device_id, value.token))
 }
 
+/// A new op for one test action, as the daemon makes them.
+#[cfg(test)]
+fn new_op() -> Op {
+    uuid::Uuid::new_v4().into()
+}
+
 #[cfg(test)]
 mod http_client_tests {
     use super::*;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::sync::mpsc;
 
-    async fn reply_once(wire: String) -> Result<(Settings, tokio::task::JoinHandle<Result<()>>)> {
+    async fn reply_once(
+        wire: String,
+    ) -> Result<(HubEndpoint, tokio::task::JoinHandle<Result<()>>)> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let settings = Settings {
+        let endpoint = HubEndpoint {
             hub_url: Some(format!("http://{}", listener.local_addr()?)),
-            ..Settings::default()
+            ..HubEndpoint::default()
         };
         let server = tokio::spawn(async move {
             let (socket, _) = listener.accept().await?;
@@ -315,7 +323,7 @@ mod http_client_tests {
             socket.write_all(wire.as_bytes()).await?;
             Ok(())
         });
-        Ok((settings, server))
+        Ok((endpoint, server))
     }
 
     #[tokio::test]
@@ -340,14 +348,14 @@ mod http_client_tests {
             ),
         ] {
             for notes in [false, true] {
-                let (settings, server) = reply_once(wire.clone()).await?;
+                let (endpoint, server) = reply_once(wire.clone()).await?;
                 if notes {
                     let hub = NoteHub {
                         base: reqwest::Url::parse(
-                            settings.hub_url.as_deref().context("fixture URL missing")?,
+                            endpoint.hub_url.as_deref().context("fixture URL missing")?,
                         )?,
                         token: "synthetic".into(),
-                        op: orbit_ipc::new_op(),
+                        op: new_op(),
                     };
                     let answer = hub.document("synthetic").await;
                     if cut {
@@ -365,11 +373,10 @@ mod http_client_tests {
                         );
                     }
                 } else {
-                    let error =
-                        sessions_page(&settings, "synthetic", true, None, &orbit_ipc::new_op())
-                            .await
-                            .err()
-                            .context("oversized or cut body was admitted")?;
+                    let error = sessions_page(&endpoint, "synthetic", true, None, &new_op())
+                        .await
+                        .err()
+                        .context("oversized or cut body was admitted")?;
                     if cut {
                         assert!(
                             error.downcast_ref::<reqwest::Error>().is_some(),
@@ -394,9 +401,9 @@ mod http_client_tests {
     #[tokio::test]
     async fn successive_reads_reuse_connection_without_sharing_op_or_credential() -> Result<()> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
-        let settings = Settings {
+        let endpoint = HubEndpoint {
             hub_url: Some(format!("http://{}", listener.local_addr()?)),
-            ..Settings::default()
+            ..HubEndpoint::default()
         };
         let (sent, mut received) = mpsc::channel(2);
         let server = tokio::spawn(async move {
@@ -432,10 +439,10 @@ mod http_client_tests {
                 });
             }
         });
-        let first_op = orbit_ipc::new_op();
-        let second_op = orbit_ipc::new_op();
-        sessions_page(&settings, "first-token", true, None, &first_op).await?;
-        sessions_page(&settings, "second-token", true, None, &second_op).await?;
+        let first_op = new_op();
+        let second_op = new_op();
+        sessions_page(&endpoint, "first-token", true, None, &first_op).await?;
+        sessions_page(&endpoint, "second-token", true, None, &second_op).await?;
         let first = received.recv().await.context("first request missing")?;
         let second = received.recv().await.context("second request missing")?;
         server.abort();

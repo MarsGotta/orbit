@@ -174,7 +174,7 @@ impl Runtime {
                 cause: AttachmentCause::Unsupported,
             })
         } else if let Err(refusal) = crate::hub::access(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             self.link.token.as_deref(),
             self.state.privacy_stopped() || self.closing,
             self.state.connection(),

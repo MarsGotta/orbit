@@ -755,7 +755,7 @@ def test_silence_waits_follow_the_rust_constants(monkeypatch):
         + original("crates/orbit-core/src/audio_signal.rs", "SAMPLE_DELIVERY_TIMEOUT_MS") / 1000
     )
     finalizing = original("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
-    http = original("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
+    http = original("crates/orbit-hub-client/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
     assert (
         waits["silence-saved"][0]
         == 2 * 47

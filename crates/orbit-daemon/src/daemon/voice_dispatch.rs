@@ -303,7 +303,7 @@ impl Runtime {
         token: String,
         announce: bool,
     ) -> Result<()> {
-        let settings = self.settings.clone();
+        let endpoint = crate::config::hub_endpoint(&self.settings);
         let development = self.development;
         let generation = self.state.generation();
         let events = self.work_events.clone();
@@ -322,7 +322,7 @@ impl Runtime {
             move |ticket| {
                 tokio::spawn(async move {
                     let event =
-                        match hub::transcribe(&settings, &token, development, wav, ticket.op())
+                        match hub::transcribe(&endpoint, &token, development, wav, ticket.op())
                             .await
                         {
                             Ok(text) => {

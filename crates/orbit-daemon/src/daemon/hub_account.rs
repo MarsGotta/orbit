@@ -33,7 +33,7 @@ impl Runtime {
             }
             let commands = self.link.outbound.open(16);
             let run = hub::run(
-                self.settings.clone(),
+                crate::config::hub_endpoint(&self.settings),
                 token.clone(),
                 self.development,
                 commands,
@@ -41,6 +41,7 @@ impl Runtime {
                     generation: self.state.generation(),
                     sender: self.link.events.clone(),
                 },
+                orbit_ipc::new_op,
             );
             // A panic ends this task with a failure and marks it down; the
             // loop's upkeep connects again (`supervise_workers`).
@@ -54,7 +55,7 @@ impl Runtime {
 
     pub(super) fn hub_access(&self) -> Result<&str, orbit_core::refusal::Refusal> {
         crate::hub::access(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             self.link.token.as_deref(),
             self.state.privacy_stopped(),
             self.state.connection(),
@@ -88,8 +89,13 @@ impl Runtime {
         let mut settings = self.paths.load_settings()?;
         settings.hub_url = Some(hub_url);
         settings.device_name = device_name;
-        let (device_id, token) =
-            crate::hub::pair(&settings, &code, self.development, self.op()).await?;
+        let (device_id, token) = crate::hub::pair(
+            &crate::config::hub_endpoint(&settings),
+            &code,
+            self.development,
+            self.op(),
+        )
+        .await?;
         // Retire the old conversation durably before installing another identity.
         self.apply(orbit_core::Event::DeviceChanged).await?;
         crate::config::set_secret(&self.paths, "device", &token, self.development)?;

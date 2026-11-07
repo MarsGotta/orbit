@@ -1355,7 +1355,7 @@
         "unit": "version"
       },
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "TYPED_REFUSAL_HUB_PROTOCOL",
         "unit": "version"
       }
@@ -1374,7 +1374,7 @@
         "unit": "seconds"
       },
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "HUB_VOICE_DEADLINE_SECONDS",
         "unit": "seconds"
       },
@@ -1772,7 +1772,7 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "HUB_HTTP_TIMEOUT_SECONDS",
         "unit": "seconds"
       },

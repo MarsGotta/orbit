@@ -59,13 +59,13 @@ impl fmt::Display for UnsentFrames {
 
 impl std::error::Error for UnsentFrames {}
 
-pub(crate) fn unsent_count(error: &anyhow::Error) -> Option<usize> {
+pub fn unsent_count(error: &anyhow::Error) -> Option<usize> {
     error
         .downcast_ref::<UnsentFrames>()
         .map(|failure| failure.count)
 }
 
-pub(crate) fn invalid_event_name(reason: &str) -> &str {
+pub fn invalid_event_name(reason: &str) -> &str {
     let name = reason
         .split_once(".data")
         .or_else(|| reason.split_once(".id"))
@@ -94,20 +94,23 @@ pub(crate) fn invalid_event_name(reason: &str) -> &str {
 /// A closed command sender ends the task after the connected socket drains.
 /// `Ok` confirms local writes and closure, not that Hermes processed a frame;
 /// a queued frame or socket error is returned to the stopping daemon.
+/// `new_op` gives each connection attempt its own op.
 pub async fn run(
-    settings: Settings,
+    endpoint: HubEndpoint,
     token: String,
     development: bool,
     mut commands: mpsc::Receiver<Value>,
     events: Events,
+    new_op: fn() -> Op,
 ) -> Result<()> {
     let mut delay = 1u64;
     let mut unsent = 0usize;
     loop {
         let result = connect(
-            &settings,
+            &endpoint,
             &token,
             development,
+            &new_op(),
             &mut commands,
             &events,
             &mut unsent,
@@ -202,9 +205,10 @@ fn timed_out(origin: &str) -> String {
 }
 
 async fn connect(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
+    op: &Op,
     commands: &mut mpsc::Receiver<Value>,
     events: &Events,
     // Frames lost since the last one written. A later write resets it: the
@@ -212,7 +216,7 @@ async fn connect(
     // what is still unwritten, above all the stop's interrupt.
     unsent: &mut usize,
 ) -> Result<()> {
-    let (request, origin) = upgrade_request(settings, token, development)?;
+    let (request, origin) = upgrade_request(endpoint, token, development, op)?;
     let mut socket = open(request, &origin, events).await?;
     events.send(HubEvent::Connected).await?;
     let mut ping = tokio::time::interval(Duration::from_secs(10));
@@ -256,17 +260,18 @@ type Socket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 /// The upgrade request to the hub's `/v1/ws`, with the device's credential
-/// and a new op, and the hub's host and port to name it by.
+/// and the op of the attempt, and the hub's host and port to name it by.
 fn upgrade_request(
-    settings: &Settings,
+    endpoint: &HubEndpoint,
     token: &str,
     development: bool,
+    op: &Op,
 ) -> Result<(
     tokio_tungstenite::tungstenite::handshake::client::Request,
     String,
 )> {
     let mut url = validate_hub_url(
-        settings.hub_url.as_deref().context("Device not paired")?,
+        endpoint.hub_url.as_deref().context("Device not paired")?,
         development,
     )?;
     let scheme = if url.scheme() == "https" { "wss" } else { "ws" };
@@ -280,10 +285,9 @@ fn upgrade_request(
     );
     // Each connection attempt is an action of its own: its upgrade
     // request names a new op; the frames sent on it carry their own.
-    request.headers_mut().insert(
-        OP_HEADER,
-        HeaderValue::from_str(orbit_ipc::new_op().as_str())?,
-    );
+    request
+        .headers_mut()
+        .insert(OP_HEADER, HeaderValue::from_str(op.as_str())?);
     let origin = format!(
         "{}:{}",
         url.host_str().unwrap_or("?"),
@@ -526,12 +530,12 @@ mod watchdog_tests {
     async fn client(address: std::net::SocketAddr) -> Harness {
         let (commands, commands_rx) = mpsc::channel(16);
         let (sender, events) = mpsc::channel(64);
-        let settings = Settings {
+        let endpoint = HubEndpoint {
             hub_url: Some(format!("http://{address}")),
-            ..Settings::default()
+            ..HubEndpoint::default()
         };
         let task = tokio::spawn(run(
-            settings,
+            endpoint,
             CREDENTIAL.into(),
             true,
             commands_rx,
@@ -539,6 +543,7 @@ mod watchdog_tests {
                 generation: 0,
                 sender,
             },
+            new_op,
         ));
         Harness {
             commands,

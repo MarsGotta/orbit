@@ -104,7 +104,7 @@ def bounds() -> dict[str, tuple[float, str]]:
 
     ready_s = _rust_constant("apps/desktop/src-tauri/src/daemon_thread.rs", "DAEMON_READY_WAIT")
     exit_s = _rust_constant("apps/desktop/src-tauri/src/daemon_thread.rs", "DAEMON_EXIT_WAIT")
-    voice_s = _rust_constant("crates/orbit-daemon/src/hub.rs", "VOICE_HUB_HTTP_TIMEOUT")
+    voice_s = _rust_constant("crates/orbit-hub-client/src/hub.rs", "VOICE_HUB_HTTP_TIMEOUT")
     turn_s = 180  # Orbit does not bound a Hermes turn: the test's patience
     live_wait_s = _rust_constant("crates/orbit-core/src/silence.rs", "RECORDING_SILENCE_MS") / 2000
     # The script lasts about two minutes, and the panel is held over a minute

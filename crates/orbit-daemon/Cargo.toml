@@ -15,6 +15,7 @@ orbit-core = { path = "../orbit-core" }
 orbit-store = { path = "../orbit-store" }
 orbit-ipc = { path = "../orbit-ipc" }
 orbit-control = { path = "../orbit-control" }
+orbit-hub-client = { path = "../orbit-hub-client" }
 anyhow.workspace = true
 thiserror.workspace = true
 base64.workspace = true
@@ -26,7 +27,6 @@ uuid.workspace = true
 sha2.workspace = true
 tokio = { version = "1.48", features = ["full"] }
 futures-util = "0.3"
-tokio-tungstenite = { version = "0.28", features = ["rustls-tls-native-roots"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "stream"] }
 toml = "0.9"
 directories = "6.0"
@@ -51,6 +51,7 @@ orbit-control = { path = "../orbit-control", features = ["test-support"] }
 png = "=0.18.1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 tokio = { version = "1.48", features = ["test-util"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-native-roots"] }
 
 [lints]
 workspace = true
