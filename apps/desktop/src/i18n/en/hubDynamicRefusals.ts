@@ -1,7 +1,11 @@
 import { formatQuantity } from "../locale";
 import type { Numbers } from "./refusalNumbers";
 
+export const ASSISTANT_JAIL_UNAVAILABLE =
+  "Claude and Codex only work on a hub running Linux. On this hub, choose another assistant.";
+
 const messages: Record<import("../es/hubDynamicRefusals").HubDynamicCode, string> = {
+  assistant_jail_unavailable: ASSISTANT_JAIL_UNAVAILABLE,
   agent_adapter_missing:
     "The assistant is unavailable on your hub; publish the hub again to install it.",
   agent_folder_invalid: "The agent folder is not a directory.",
@@ -42,7 +46,7 @@ const messages: Record<import("../es/hubDynamicRefusals").HubDynamicCode, string
   invalid_turn_transition: "Turn transition not allowed.",
   note_revision_changed: "The note changed since you started editing it.",
   quota_exceeded:
-    "Server quota reached; raise storage_quota_bytes or free space. The Mac retains its copy.",
+    "The hub's quota is reached; raise storage_quota_bytes or free space. The Mac retains its copy.",
   session_not_found:
     "The session is not connected to the assistant; another message will attempt to resume if the previous turn is closed.",
   session_resume_connection_replaced:

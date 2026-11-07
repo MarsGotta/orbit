@@ -7,13 +7,14 @@ import wave
 from dataclasses import dataclass, field
 
 from . import meeting_transcript_integrity as integrity
-from .final_pass_audio import encode_window, memory_file, prepare_track, silence_report
+from .final_pass_audio import encode_window, prepare_track, silence_report
 from .group_storage import GroupRepository
 from .log import report, supervised
 from .meeting_diarization import separate
 from .meeting_transcription import REQUEST_TIMEOUT_SECONDS
 from .meeting_voice_identity import publish_voices, speaker_bound
 from .meetings import muted, open_recordings, repository, turns
+from .private_audio import private_file
 from .protocol import HubError
 
 # Second real measurement (October 2026): at most 45 s, selecting the longest pause
@@ -385,7 +386,7 @@ class FinalPassWorker:
         try:
             return await asyncio.shield(future)
         except asyncio.CancelledError:
-            # memfd ownership cannot end while an encoder still uses it.
+            # A private audio file is not closed while an encoder still uses it.
             await future
             raise
 
@@ -466,7 +467,7 @@ class FinalPassWorker:
         job["terms"] = [term["correct"] for term in terms]
         for track in TRACKS:
             run.phase = f"audio_{track}"
-            with memory_file() as audio:
+            with private_file() as audio:
                 if not await self.run(prepare_track, self.repository, job, track, audio):
                     run.lengths.pop(track, None)
                     continue
@@ -491,7 +492,7 @@ class FinalPassWorker:
         if not frames:
             return
         run.phase = f"windows_{track}"
-        ends = window_ends(frames, await self.run(silence_report, audio.fileno()))
+        ends = window_ends(frames, await self.run(silence_report, audio))
         # CPU worst observed, encode/request budgets for the
         # ACTUAL number of windows, and lock/model startup.
         # Diagnostic ffmpeg has its own existing 300 s budget.
@@ -515,7 +516,7 @@ class FinalPassWorker:
                 result.update(
                     await separate(
                         self.configuration,
-                        audio.fileno(),
+                        audio,
                         duration_ms,
                         **({"max_speakers": bound} if bound is not None else {}),
                     )

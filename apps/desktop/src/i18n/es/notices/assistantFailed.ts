@@ -1,5 +1,6 @@
 import { numberFormat } from "../../locale";
 import { ATTACHMENT_NOT_FOUND, fileSize, sessionCeilingText, tooManyText } from "../attachments";
+import { ASSISTANT_JAIL_UNAVAILABLE } from "../hubDynamicRefusals";
 import type { Entries, NoticeData } from "./types";
 
 type Value = NoticeData[keyof NoticeData];
@@ -155,6 +156,8 @@ function rejected(data: NoticeData, name: string): string {
  */
 function agentFailure(data: NoticeData, name: string): string | undefined {
   switch (data.code) {
+    case "assistant_jail_unavailable":
+      return ASSISTANT_JAIL_UNAVAILABLE;
     case "agent_auth_required":
       return `${name} no tiene la sesión iniciada en el hub, o caducó. Inicia sesión otra vez en sus ajustes; si tu hub no lo permite, pídeselo a quien lo gestiona.`;
     case "agent_rejected":

@@ -19,13 +19,15 @@ from ..protocol import HubError
 # left free. The other half is room for one whole copy of the database beside
 # it: `scripts/hub/activate.sh` takes a consistent copy on the server before
 # every activation, and a database grown into that room could never be copied
-# again. The floor protects the rest of the server, which keeps writing after
-# the hub stops admitting audio: a full root filesystem stops journald,
-# package updates and logins. Why 5 GiB: journald alone keeps up to 4 GiB by
-# default (`SystemMaxUse`, 10 % of the filesystem capped at 4 GiB), and 1 GiB
-# more covers a package update. What it is not: a retention rule. Nothing is
-# ever deleted to stay under it; the hub refuses new content with its numbers
-# and the Mac keeps its copy.
+# again. The floor protects the rest of the computer the hub runs on, which
+# keeps writing after the hub stops admitting audio. Why 5 GiB, on the Linux
+# server: a full root filesystem stops journald, package updates and logins;
+# journald alone keeps up to 4 GiB by default (`SystemMaxUse`, 10 % of the
+# filesystem capped at 4 GiB), and 1 GiB more covers a package update. On a
+# Mac the same floor protects the rest of that Mac, whose system and apps also
+# stop writing on a full disk; the figure is the same. What it is not: a
+# retention rule. Nothing is ever deleted to stay under it; the hub refuses
+# new content with its numbers and the Mac keeps its copy.
 STORAGE_FREE_FLOOR_BYTES = 5 * 1024**3
 # From this share of the limit on, the hub tells the Macs that it is nearly
 # full (`ready.storage`, `storage.status`). What it protects: time to act
@@ -105,7 +107,7 @@ class SpaceRepository:
             numbers["free_bytes"] = free
         return HubError(
             "storage_full",
-            "The server disk is full and nothing was saved; free space on the server",
+            "The hub's disk is full and nothing was saved; free space on the hub's disk",
             numbers=numbers,
         )
 
@@ -138,9 +140,9 @@ class SpaceRepository:
             # admission reserves for it, what the database already uses, the
             # limit, what is left of it and what sets it (`disk` or `quota`).
             message = (
-                "Server quota reached; raise storage_quota_bytes or free space. "
+                "The hub's quota is reached; raise storage_quota_bytes or free space. "
                 if status["limit"] == "quota"
-                else "Server space exhausted; free space on the server. "
+                else "The hub's disk has no room left; free space on the hub's disk. "
             )
             raise HubError(
                 "quota_exceeded",

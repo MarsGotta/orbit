@@ -553,7 +553,7 @@ async def test_cancelling_the_separator_kills_and_reaps_its_process(tmp_path, mo
     import asyncio
 
     from orbit_hub import meeting_diarization as separation
-    from orbit_hub.meeting_final_pass import memory_file
+    from orbit_hub.private_audio import private_file
 
     configuration = fake_separator(tmp_path)
     configuration.python.write_text("#!/usr/bin/python3\nimport signal\nsignal.pause()\n")
@@ -567,8 +567,8 @@ async def test_cancelling_the_separator_kills_and_reaps_its_process(tmp_path, mo
         return process
 
     monkeypatch.setattr(separation.asyncio, "create_subprocess_exec", spawn)
-    with memory_file() as audio:
-        task = asyncio.create_task(separation.separate(configuration, audio.fileno(), 30000))
+    with private_file() as audio:
+        task = asyncio.create_task(separation.separate(configuration, audio, 30000))
         await spawned.wait()
         task.cancel()
         with pytest.raises(asyncio.CancelledError):

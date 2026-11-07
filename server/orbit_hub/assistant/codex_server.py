@@ -40,7 +40,7 @@ class CodexProcess(VendorProcess):
                 "config": {
                     **thread_config(self.workspace),
                     # The outer jail is the only kernel sandbox. Codex cannot
-                    # create a nested bwrap namespace under Ubuntu AppArmor.
+                    # create a nested bubblewrap namespace under Ubuntu AppArmor.
                     # Replace the map, including any servers in CODEX_HOME.
                     "mcp_servers": {"orbit": {**self.backend.mcp_server(), "required": True}},
                 },

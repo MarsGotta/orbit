@@ -87,7 +87,7 @@ export const hubRequestRefusals = {
       : `Las notas privadas cambiaron: revisión ${formatQuantity(n.revision)}, el cambio partía de ${formatQuantity(n.base_revision)}`,
   stale_turn: () => "El control no pertenece al turno actual",
   storage_full: () =>
-    "El disco del servidor está lleno y no se guardó nada; libera espacio en el servidor",
+    "El disco del hub está lleno y no se guardó nada; libera espacio en el disco del hub",
   too_large: () => "Mensaje demasiado grande",
   too_many: () => "Demasiadas capturas pendientes",
   too_many_agents: (n) =>

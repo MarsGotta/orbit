@@ -43,8 +43,8 @@ function hubStorage(data: NoticeData): string {
         : "El hub está casi lleno.";
   const fix =
     cause === "quota"
-      ? "Libera espacio en el servidor o sube storage_quota_bytes en la configuración del hub."
-      : "Libera espacio en el disco del servidor.";
+      ? "Libera espacio en el hub o sube storage_quota_bytes en su configuración."
+      : "Libera espacio en el disco del hub.";
   return `${state} ${fix} Si se llena, las reuniones nuevas se quedan en este Mac sin transcribir hasta que haya sitio. El hub no borra nada por su cuenta.`;
 }
 

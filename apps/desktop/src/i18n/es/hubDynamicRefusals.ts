@@ -1,7 +1,11 @@
 import { formatQuantity } from "../locale";
 import type { Numbers } from "./refusalNumbers";
 
+export const ASSISTANT_JAIL_UNAVAILABLE =
+  "Claude y Codex solo funcionan en un hub con Linux. En este hub, elige otro asistente.";
+
 const messages = {
+  assistant_jail_unavailable: ASSISTANT_JAIL_UNAVAILABLE,
   agent_adapter_missing:
     "El asistente no está disponible en tu hub; publica de nuevo el hub para instalarlo.",
   agent_folder_invalid: "La carpeta del agente no es un directorio.",
@@ -41,7 +45,7 @@ const messages = {
   invalid_turn_transition: "Transición de turno no permitida.",
   note_revision_changed: "La nota cambió desde que empezaste a editarla.",
   quota_exceeded:
-    "Cuota del servidor alcanzada; sube storage_quota_bytes o libera espacio. El Mac conserva su copia.",
+    "El hub llegó a su cuota; sube storage_quota_bytes o libera espacio. El Mac conserva su copia.",
   session_not_found:
     "La sesión no está conectada con el asistente; se intentará reanudar la conversación al enviar otro mensaje si el turno anterior está cerrado.",
   session_resume_connection_replaced:

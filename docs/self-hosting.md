@@ -285,7 +285,9 @@ children, sign-in/out processes and Orbit's MCP translator. Install `bubblewrap`
 on the Linux hub. Publication probes namespace creation and refuses to publish
 if it fails. Assistant startup also probes its complete mount list and fails
 closed with Spanish installation or Ubuntu AppArmor guidance, retaining the
-`agent_adapter_missing` code understood by older Macs.
+`agent_adapter_missing` code understood by older Macs. A hub that does not run
+on Linux has no jail: it refuses Claude and Codex with
+`assistant_jail_unavailable`; Hermes and OpenAI-compatible agents still work there.
 
 The jail exposes the server root read-only, a fresh `/dev`, a private `/tmp`
 (`TMPDIR=/tmp`), and a PID namespace with its own `/proc`: the hub's processes

@@ -1,5 +1,9 @@
 """Linux kernel boundary for every official vendor process and its children.
 
+Bubblewrap is the only jail, and it is Linux's: a hub on another system (a
+Mac) refuses Claude Code and Codex with `assistant_jail_unavailable` before
+looking for it or starting anything.
+
 Network stays shared. /run/systemd/resolve stays readable for Ubuntu DNS;
 user-session and container control sockets are masked separately instead.
 """
@@ -14,6 +18,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from .. import host_system
 from ..errors import HubError
 from .jail_secret_cache import INITIAL_SCAN_WAIT_SECONDS, SecretScanUnavailable
 from .jail_secrets import excluded
@@ -199,7 +204,21 @@ def unavailable(cause, status=None):
     return HubError("agent_adapter_missing", message, numbers=numbers)
 
 
+def no_jail(service):
+    """Not `agent_adapter_missing`: neither publishing again nor installing
+    anything gives this hub a jail. Hermes and the other assistants still work."""
+    return HubError(
+        "assistant_jail_unavailable",
+        "This assistant cannot run on this hub: Orbit isolates Claude Code and Codex "
+        "only on a Linux hub. Choose another assistant for this hub",
+        http_status=409,
+        numbers={"service": service},
+    )
+
+
 async def launch(settings, agent, working_folder, configs=None, *, vendor_home=None):
+    if not host_system.linux():
+        raise no_jail(agent.kind)
     try:
         await settings.assistant_jail_cache.wait_ready()
     except SecretScanUnavailable as error:

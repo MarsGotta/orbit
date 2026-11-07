@@ -82,7 +82,7 @@ export const hubRequestRefusals: Record<HubRequestCode, (n: Numbers) => string |
       ? undefined
       : `Private notes changed: revision ${formatQuantity(n.revision)}, the change started from ${formatQuantity(n.base_revision)}`,
   stale_turn: () => "The control does not belong to the current turn",
-  storage_full: () => "The server disk is full and nothing was saved; free space on the server",
+  storage_full: () => "The hub's disk is full and nothing was saved; free space on the hub's disk",
   too_large: () => "Message too large",
   too_many: () => "Too many pending captures",
   too_many_agents: (n) =>

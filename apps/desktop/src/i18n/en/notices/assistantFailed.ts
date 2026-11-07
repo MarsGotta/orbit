@@ -1,5 +1,6 @@
 import { numberFormat } from "../../locale";
 import { ATTACHMENT_NOT_FOUND, fileSize, sessionCeilingText, tooManyText } from "../attachments";
+import { ASSISTANT_JAIL_UNAVAILABLE } from "../hubDynamicRefusals";
 import type { Entries, NoticeData } from "./types";
 
 type Value = NoticeData[keyof NoticeData];
@@ -155,6 +156,8 @@ function rejected(data: NoticeData, name: string): string {
  */
 function agentFailure(data: NoticeData, name: string): string | undefined {
   switch (data.code) {
+    case "assistant_jail_unavailable":
+      return ASSISTANT_JAIL_UNAVAILABLE;
     case "agent_auth_required":
       return `${name} isn’t signed in on the hub, or its session expired. Sign in again in its settings; if your hub doesn’t allow it, ask whoever manages it.`;
     case "agent_rejected":

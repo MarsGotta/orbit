@@ -1770,6 +1770,7 @@ Nothing to carry is
 | 409 | `agent_primary_required` | `agent_id` |
 | 403 | `agent_add_unsupported` | `service` (`hermes`, `openai`: added on the hub; Hermes uses a Hermes profile) |
 | 409 | `agent_adapter_missing` | `service`, `path`, `cause`: the bundled/shipped or overridden executable is missing or cannot run; republish the hub (older hubs send only `service`) |
+| 409 | `assistant_jail_unavailable` | `service`: the hub's system has no jail for official vendors (only Linux, with bubblewrap); older hubs never send it |
 | 409 | `too_many_agents` | `count`, `max` |
 | 403 | `agent_not_removable` | `agent_id`: from the hub's configuration |
 | 500 | `agent_folder_not_removed` | `agent_id`, `errno`; the agent stays |
