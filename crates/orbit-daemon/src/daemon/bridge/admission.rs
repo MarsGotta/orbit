@@ -175,6 +175,8 @@ impl Runtime {
             calendar: orbit_core::device_bridge::CalendarPermission::from_authorization(
                 self.calendar.view.authorization,
             ),
+            // What the helper's last `ready` said this device handles.
+            device: self.helper.device(),
         }
     }
 

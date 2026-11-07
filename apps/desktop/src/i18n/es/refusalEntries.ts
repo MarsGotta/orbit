@@ -174,4 +174,7 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   },
   file_unavailable: failed,
   file_too_large: failed,
+  // A device that does not handle an order's group; no screen of the app
+  // asks such a device yet, and the bridge's notice is silent.
+  device_capability_missing: failed,
 };

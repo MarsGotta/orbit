@@ -103,6 +103,20 @@ impl Capability {
         }
     }
 
+    /// The group of orders a device must handle for this to reach it; the
+    /// hub's `DEVICE_GROUP` says the same. The selected text is its own
+    /// group here, though an agent's access groups put it under the screen.
+    pub const fn device_group(self) -> crate::device::DeviceGroup {
+        use crate::device::DeviceGroup;
+        match self {
+            Self::Screenshot | Self::ScreenSources => DeviceGroup::Screen,
+            Self::SelectedText => DeviceGroup::SelectedText,
+            Self::ControlTools | Self::PerformAction => DeviceGroup::Control,
+            Self::CalendarRead => DeviceGroup::Calendar,
+            Self::FilesList | Self::FilesSearch | Self::FilesRead => DeviceGroup::Folders,
+        }
+    }
+
     /// Which permission of macOS this capability answers to.
     ///
     /// A picture of a window and the list of windows read the screen. The
@@ -505,6 +519,8 @@ pub struct Conditions {
     pub screen_recording: crate::PermissionState,
     /// What macOS grants Orbit for the calendar, as the Mac last said.
     pub calendar: CalendarPermission,
+    /// What the device is and which groups it handles, as its helper said.
+    pub device: crate::device::DeviceProfile,
 }
 
 /// Whether this Mac will serve a remote request, and why not when it will not.
@@ -524,6 +540,16 @@ pub fn admits(
         parameter: Parameter::Request,
         expected: Expected::ValidIdentifier,
     })?;
+    // Before the permissions: an order this device cannot answer is neither
+    // unknown nor withheld, and no permission would change that.
+    let group = capability.device_group();
+    if !conditions.device.handles(group) {
+        return Err(Refusal::DeviceCapabilityMissing {
+            kind: conditions.device.kind(),
+            capability: capability.wire_name().to_owned(),
+            group,
+        });
+    }
     match capability.class() {
         Class::Computer(required) => {
             crate::computer_control::engine::admits(
@@ -580,11 +606,40 @@ mod tests {
             accessibility,
             screen_recording,
             calendar: CalendarPermission::Granted,
+            device: crate::device::DeviceProfile::default(),
         }
     }
 
     fn everything() -> Conditions {
         granted(PermissionState::Granted, PermissionState::Granted)
+    }
+
+    /// An order this device does not handle is refused with that cause,
+    /// before any permission is asked: none would change the answer.
+    #[test]
+    fn a_device_without_the_group_is_refused_before_its_permissions() {
+        use crate::device::{DeviceGroup, DeviceKind, DeviceProfile};
+        let phone = Conditions {
+            device: DeviceProfile::declared(Some(DeviceKind::Phone), Some(&[DeviceGroup::Screen])),
+            ..granted(PermissionState::NotGranted, PermissionState::Granted)
+        };
+        assert_eq!(admits("screenshot", phone), Ok(Capability::Screenshot));
+        assert_eq!(
+            admits("selected_text", phone),
+            Err(Refusal::DeviceCapabilityMissing {
+                kind: DeviceKind::Phone,
+                capability: "selected_text".into(),
+                group: DeviceGroup::SelectedText,
+            })
+        );
+        let stopped = Conditions {
+            privacy_stopped: true,
+            ..phone
+        };
+        assert_eq!(
+            admits("files_list", stopped),
+            Err(Refusal::PrivacyStopped { since_ms: None })
+        );
     }
 
     /// The user's macOS calendar permission is the only decision.

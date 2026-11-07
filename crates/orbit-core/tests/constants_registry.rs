@@ -40,6 +40,14 @@ fn registry_matches_rust() {
                         })
                     })
             })
+        } else if entry["unit"] == "groups" {
+            // Each name's group: a non-empty name for every key.
+            entry["value"].as_object().is_some_and(|groups| {
+                !groups.is_empty()
+                    && groups
+                        .values()
+                        .all(|group| group.as_str().is_some_and(|group| !group.is_empty()))
+            })
         } else {
             entry["value"].as_u64().is_some_and(|value| value > 0)
         };

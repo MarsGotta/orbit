@@ -81,6 +81,11 @@ impl HelperHandle {
         self.host.identity()
     }
 
+    /// What the device is and which groups it handles, as its helper said.
+    pub(super) fn device(&self) -> orbit_core::device::DeviceProfile {
+        self.host.device()
+    }
+
     /// Whether the helper running now has a calendar reader.
     pub(super) fn calendar_backend_available(&self) -> bool {
         self.host.calendar_backend_available()

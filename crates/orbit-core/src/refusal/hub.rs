@@ -49,6 +49,15 @@ macro_rules! hub_refusals {
                 service: Service,
                 status: Option<u16>,
             }, retry Retry::CheckOutcome;
+            // This device does not handle the group the order belongs to, as
+            // its helper said: the hub's refusal of the same name without
+            // `device_id`, since the device speaks of itself. `capability`
+            // is the order's wire name.
+            DeviceCapabilityMissing = 48 => "device_capability_missing" {
+                kind: crate::device::DeviceKind,
+                capability: String,
+                group: crate::device::DeviceGroup,
+            }, retry Retry::Never;
         }
     };
 }

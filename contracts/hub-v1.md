@@ -487,6 +487,12 @@ and the connection (an unknown device is still `device_unavailable`) and before
 anything is opened, queued on the device or journaled, `perform_action`
 included. An order of no group is relayed as before.
 
+A device may refuse such an order itself, as its helper said (`native-v1.md`,
+«What the device is»): its `device.reply` carries the refusal
+`device_capability_missing` with `kind`, `capability` (the order's wire name)
+and `group`, `retry:{"kind":"never"}`, and no `device_id`, since the device
+speaks of itself. A Mac whose helper says nothing handles every group.
+
 ## Private meetings for the assistant
 
 Meetings have no sharing switch. Retired `PUT /v1/meetings-sharing` is no longer

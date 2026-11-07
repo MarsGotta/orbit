@@ -16,6 +16,7 @@ pub mod calendar_control;
 pub mod call_detection;
 mod catalogue;
 pub mod computer_control;
+pub mod device;
 pub mod device_bridge;
 pub mod failure;
 pub mod hub_storage;

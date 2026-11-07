@@ -64,6 +64,37 @@ explicit local rearm. `ready` reports version, launch mode and observed audio/
 selection availability, not implementation negotiation: the daemon launches
 the helper from its own bundle.
 
+### What the device is
+
+`ready` may also say what the device is, with the names a device says when it
+pairs with the hub (`hub-v1.md`, «Device groups»): `kind` (`mac`|`phone`) and
+`capabilities`, the groups it handles (the names of `DEVICE_GROUPS` in
+`constants.json`). Without `kind`, or with `"kind": null`, it is a Mac;
+without `capabilities`, or with `"capabilities": null`, it handles every
+group; `[]` is a device that handles none. Today's helper says
+neither: it is a Mac that handles everything. An unknown kind or group makes
+the `ready` invalid (`native_event_invalid`): the helper and the daemon come
+from the same build, and the helper is not taken as ready.
+
+| group | what of this protocol belongs to it |
+|---|---|
+| `system_audio` | `audio_start` with `source:"remote_app"` |
+| `screen` | `screen_sources`, `screenshot` |
+| `selected_text` | `selected_text` |
+| `folders` | the five `assistant_*` commands |
+| `calendar` | the `calendar_*` commands |
+| `call_detection` | the `microphone_activity` event |
+| `shortcuts` | the `hotkey` event |
+| `control` | none: the engine acts, not the helper |
+
+What the hub asks of a group the device does not handle is refused with
+`device_capability_missing {kind,capability,group}`, `retry:{"kind":"never"}`,
+before any permission is consulted, and nothing reaches the helper. Without
+`calendar` the daemon reads no calendar and the agenda is `Unavailable`. The
+orders the app itself starts (attaching a window, the folder panel and the
+check of saved folders at start-up, `audio_start` with `remote_app`) are not
+yet compared with the device.
+
 ## Commands
 
 Full shapes: [commands](fixtures/native/commands/) and

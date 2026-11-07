@@ -17,6 +17,14 @@ pub enum NativeEvent {
         launch_mode: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         fixture: Option<bool>,
+        /// What the device is; without it, a Mac. An unknown kind makes the
+        /// `ready` invalid: the helper and the engine are built together.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        kind: Option<crate::device::DeviceKind>,
+        /// The groups of orders it handles; without them, every group, and
+        /// an empty list, none. An unknown group makes the `ready` invalid.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        capabilities: Option<Vec<crate::device::DeviceGroup>>,
     },
     #[serde(rename = "state")]
     State {

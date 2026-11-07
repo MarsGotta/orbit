@@ -1740,7 +1740,7 @@
       }
     ],
     "name": "DEVICE_GROUPS",
-    "resource": "the groups of orders a paired device says it handles, in the order the hub's inventory lists them; a device that says none handles every one. Not an agent's access groups. A new group is added here",
+    "resource": "the groups of orders a paired device says it handles, in the order the hub's inventory lists them; a device that says none handles every one. Not an agent's access groups. A new group is added here. Its Rust copy is orbit_core::device::DeviceGroup::ALL, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
     "source": "python",
     "unit": "texts",
     "value": [
@@ -1753,6 +1753,47 @@
       "shortcuts",
       "control"
     ]
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_KINDS",
+        "unit": "texts"
+      }
+    ],
+    "name": "DEVICE_KINDS",
+    "resource": "what a device says it is, at pairing (hub-v1) and in its helper's ready (native-v1); a device that says nothing is a Mac. Its Rust copy is orbit_core::device::DeviceKind::ALL, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
+    "source": "python",
+    "unit": "texts",
+    "value": [
+      "mac",
+      "phone"
+    ]
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_GROUP",
+        "unit": "groups"
+      }
+    ],
+    "name": "DEVICE_CAPABILITY_GROUPS",
+    "resource": "the device group of each order the hub relays to a device (device.request), which the hub and the device refuse as device_capability_missing when the device does not handle it. Its Rust copy is orbit_core::device_bridge::Capability::device_group, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
+    "source": "python",
+    "unit": "groups",
+    "value": {
+      "calendar_read": "calendar",
+      "control_tools": "control",
+      "files_list": "folders",
+      "files_read": "folders",
+      "files_search": "folders",
+      "perform_action": "control",
+      "screen_sources": "screen",
+      "screenshot": "screen",
+      "selected_text": "selected_text"
+    }
   },
   {
     "copies": [
