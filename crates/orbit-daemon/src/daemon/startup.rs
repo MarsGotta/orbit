@@ -96,7 +96,6 @@ impl Drop for ListenerCleanup {
 }
 
 pub(super) struct PreparedEnvironment {
-    pub helper_path: Option<std::path::PathBuf>,
     pub token: Option<String>,
     pub diagnostics: crate::diagnostics::DiagnosticLog,
 }
@@ -109,7 +108,7 @@ pub(super) struct RecoveryCheckpoint {
 pub(super) struct RecoveryIo<'a> {
     pub log_root: std::path::PathBuf,
     pub calls: &'a mut mpsc::Receiver<Call>,
-    pub signals: &'a mut shutdown::Signals,
+    pub signals: &'a mut dyn StopSignals,
     pub listener: &'a mut Option<JoinHandle<Result<()>>>,
 }
 
@@ -133,29 +132,17 @@ pub(super) fn needs_runtime_stop(checkpoint: &State, runtime: &State) -> bool {
 
 pub(super) fn prepare_environment(
     paths: Paths,
-    development: bool,
-    helper_override: Option<std::path::PathBuf>,
+    secrets: Arc<dyn crate::platform::Secrets>,
+    native: bool,
 ) -> Result<PreparedEnvironment> {
-    let helper_path = helper_override;
-    let token = get_secret(&paths, "device", development)?;
+    let token = secrets.get("device")?;
     // This diagnostic is durable before the first connection attempt.
     let diagnostics = crate::diagnostics::DiagnosticLog::in_root(&paths.root);
     diagnostics.record(
         "daemon_starting",
-        &[(
-            "native",
-            if helper_path.is_some() {
-                "true"
-            } else {
-                "false"
-            },
-        )],
+        &[("native", if native { "true" } else { "false" })],
     );
-    Ok(PreparedEnvironment {
-        helper_path,
-        token,
-        diagnostics,
-    })
+    Ok(PreparedEnvironment { token, diagnostics })
 }
 
 pub(super) async fn recover(
@@ -402,7 +389,7 @@ mod tests {
                     .await
                 });
                 ready_rx.await.context("fixture socket did not bind")?;
-                let mut signals = shutdown::Signals::install()?;
+                let mut signals = crate::platform::system::UnixSignals::install()?;
                 let gate = paths.root.join("final-save-gate");
                 let status = std::process::Command::new("mkfifo")
                     .arg("-m")
@@ -555,7 +542,7 @@ mod tests {
                     let diagnostic_root = paths.root.clone();
                     let mut listener = Some(listener);
                     let mut save = tokio::task::spawn_local(async move {
-                        let mut signals = shutdown::Signals::install()?;
+                        let mut signals = crate::platform::system::UnixSignals::install()?;
                         let (progress_tx, progress) = watch::channel(RecoveryStep::Snapshot);
                         let _progress_tx = progress_tx;
                         let (stop_result_tx, stop_result_rx) = mpsc::channel(1);

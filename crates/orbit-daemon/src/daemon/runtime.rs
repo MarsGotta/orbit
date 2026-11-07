@@ -196,6 +196,10 @@ pub(super) struct Runtime {
     pub(super) paths: Paths,
     pub(super) settings: Settings,
     pub(super) development: bool,
+    /// The store key and the device token, where the platform keeps them.
+    pub(super) secrets: std::sync::Arc<dyn crate::platform::Secrets>,
+    /// The account's full name, read once for the hub (`recording_notes`).
+    pub(super) owner: std::sync::Arc<dyn crate::platform::OwnerName>,
     pub(super) state: State,
     /// The loop's synchronous reads, each timed into `turn_watch`.
     pub(super) reader: timed_reader::TimedReader,

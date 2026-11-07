@@ -1,9 +1,10 @@
 //! Single state owner. Native, network and IPC feed facts into this actor.
 use crate::{
-    config::{Paths, Settings, get_secret, storage_key},
+    config::{Paths, Settings, storage_key},
     hub::{self, HubEvent},
     ipc::{self, Call},
     native,
+    platform::{HelperLink, Platform, StopSignals},
 };
 use anyhow::{Context, Result, bail};
 use orbit_core::{

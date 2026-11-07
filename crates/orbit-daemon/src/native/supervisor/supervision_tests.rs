@@ -56,7 +56,12 @@ async fn a_supervision_that_panics_is_relaunched_with_a_new_helper() -> Result<(
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
     let supervision = Supervision::default();
-    let helper = Supervisor::spawn(Some(script.clone()), commands, events, supervision.clone());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script.clone())?),
+        commands,
+        events,
+        supervision.clone(),
+    );
     assert_eq!(next(&mut observed).await?, "ready");
     std::fs::write(script.with_extension("panic"), "")?;
     assert_eq!(
@@ -82,7 +87,12 @@ async fn a_supervision_past_its_budget_stays_down() -> Result<()> {
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
     let supervision = Supervision::default();
-    let helper = Supervisor::spawn(Some(script.clone()), commands, events, supervision.clone());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script.clone())?),
+        commands,
+        events,
+        supervision.clone(),
+    );
     assert_eq!(next(&mut observed).await?, "ready");
     for panic in 1..=RESTART_BUDGET + 1 {
         std::fs::write(script.with_extension("panic"), "")?;

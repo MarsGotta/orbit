@@ -242,7 +242,8 @@ async fn embedded_channel_serves_commands_reads_and_the_same_topic_revisions() -
         let (connected, client) = tokio::sync::oneshot::channel();
         let (ended, end) = tokio::sync::watch::channel(None);
         let task = tokio::task::spawn_local(async move {
-            let result = daemon::run_embedded(daemon_paths, true, None, connected, end).await;
+            let platform = orbit_daemon::platform::Platform::system(&daemon_paths, true, None)?;
+            let result = daemon::run_embedded(daemon_paths, true, platform, connected, end).await;
             ended.send_replace(Some(match &result {
                 Ok(()) => ipc::DaemonEnded::Closed,
                 Err(error) => ipc::DaemonEnded::Failed(format!("{error:#}")),

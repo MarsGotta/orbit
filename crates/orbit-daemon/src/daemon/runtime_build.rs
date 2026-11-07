@@ -5,7 +5,9 @@ use super::*;
 pub(super) struct Boot {
     pub(super) paths: Paths,
     pub(super) development: bool,
-    pub(super) helper_override: Option<std::path::PathBuf>,
+    pub(super) helper: Option<Box<dyn HelperLink>>,
+    pub(super) secrets: std::sync::Arc<dyn crate::platform::Secrets>,
+    pub(super) owner: std::sync::Arc<dyn crate::platform::OwnerName>,
     pub(super) settings: Settings,
     pub(super) error_reports: crate::error_reports::ErrorReports,
     pub(super) key: [u8; 32],
@@ -22,18 +24,20 @@ pub(super) struct Recovered<'a> {
     pub(super) restart_recording: Option<&'a orbit_core::Recording>,
 }
 
+/// What [`build_runtime`] hands back.
+pub(super) type Built = (Runtime, run::Channels, Option<Box<dyn HelperLink>>);
+
 /// The runtime, the loop's channels and the helper to launch.
-pub(super) fn build_runtime(
-    boot: Boot,
-    recovered: Recovered<'_>,
-) -> Result<(Runtime, run::Channels, Option<std::path::PathBuf>)> {
+pub(super) fn build_runtime(boot: Boot, recovered: Recovered<'_>) -> Result<Built> {
     let Boot {
         paths,
         development,
+        helper,
+        secrets,
+        owner,
         settings,
         error_reports,
         key,
-        ..
     } = boot;
     let Recovered {
         mut store_actor,
@@ -44,11 +48,7 @@ pub(super) fn build_runtime(
         work_rx,
         restart_recording,
     } = recovered;
-    let startup::PreparedEnvironment {
-        helper_path,
-        token,
-        diagnostics,
-    } = prepared;
+    let startup::PreparedEnvironment { token, diagnostics } = prepared;
     let (ends, mut channels) = loop_channels(work_rx);
     channels.capture_reader = Some(store_actor.runtime_reader(&paths.store, key)?);
     let mut state = checkpoint.state.clone();
@@ -65,7 +65,7 @@ pub(super) fn build_runtime(
         store_actor.runtime_reader(&paths.store, key)?,
     ));
     let report_log = orbit_ipc::report::ReportLog::daemon(&paths.root);
-    let recovery = cut_recovery::recovery_after_restart(restart_recording, helper_path.is_some());
+    let recovery = cut_recovery::recovery_after_restart(restart_recording, helper.is_some());
     let runtime = Runtime {
         closing: false,
         online_at_close: false,
@@ -73,6 +73,8 @@ pub(super) fn build_runtime(
         paths,
         settings,
         development,
+        secrets,
+        owner,
         work_events,
         persisted: kernel::Persisted::new(&state),
         transfers: transfers::TransfersHandle::default(),
@@ -102,7 +104,7 @@ pub(super) fn build_runtime(
         files: assistant_files::FilesHandle::default(),
         reads: InFlightReads::default(),
     };
-    Ok((runtime, channels, helper_path))
+    Ok((runtime, channels, helper))
 }
 
 /// The runtime's ends of the loop's channels.

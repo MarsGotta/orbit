@@ -12,6 +12,7 @@ pub use orbit_hub_client::{hub, hub_agents, hub_notes, hub_vault};
 pub use orbit_ipc as ipc;
 pub mod native;
 pub use orbit_ipc::permissions;
+pub mod platform;
 pub mod retry;
 pub mod speech;
 pub mod supervision;

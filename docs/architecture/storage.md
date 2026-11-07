@@ -30,7 +30,7 @@ logs/                     daemon.log, report-daemon.log, report-app.log, updates
 ```
 
 Keychain holds the storage key and device token in accounts `storage` and `device`.
-The service is identity-specific (`crates/orbit-daemon/src/config.rs`).
+The service is identity-specific (`crates/orbit-daemon/src/platform/system.rs`).
 Explicit `--dev` mode uses `development-<account>.key` files in the data root;
 non-macOS development requires that mode. There is no production fallback.
 

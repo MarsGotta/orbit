@@ -59,10 +59,10 @@ mod supervised;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+use crate::platform::system::read_account_name;
 pub(super) use library::LibraryRuntime;
 pub(super) use outbox::{Lane, Outbox};
-#[cfg(test)]
-use owner::read_account_name;
 
 /// Answers waiting for the daemon loop: at most one owner name, one profile,
 /// one deletion on this Mac and [`outbox::MAX_LANES_IN_FLIGHT`] lanes are in

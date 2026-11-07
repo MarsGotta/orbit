@@ -98,7 +98,7 @@ impl Runtime {
         .await?;
         // Retire the old conversation durably before installing another identity.
         self.apply(orbit_core::Event::DeviceChanged).await?;
-        crate::config::set_secret(&self.paths, "device", &token, self.development)?;
+        self.secrets.set("device", &token)?;
         settings.device_id = Some(device_id);
         self.paths.save_settings(&settings)?;
         self.settings = settings;

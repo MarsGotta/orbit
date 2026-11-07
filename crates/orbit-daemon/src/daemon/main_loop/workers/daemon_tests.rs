@@ -43,7 +43,10 @@ fn daemon(paths: crate::config::Paths, helper: Option<PathBuf>) -> Result<Daemon
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .build()?
-                .block_on(run_with_helper_inner(paths, true, helper, None))
+                .block_on(async {
+                    let platform = crate::platform::Platform::system(&paths, true, helper)?;
+                    run_with_helper_inner(paths, true, platform, None).await
+                })
         })?)
 }
 

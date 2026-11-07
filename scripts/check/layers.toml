@@ -27,9 +27,9 @@ orbit-desktop = ["orbit-app-core", "orbit-core", "orbit-daemon", "orbit-ipc"]
 # always here, even when a list is empty.
 [engine]
 packages = ["orbit-daemon", "orbit-hub-client", "orbit-ipc", "orbit-store"]
-command_new = ["crates/orbit-daemon/src/daemon/recording_notes/owner.rs", "crates/orbit-daemon/src/native.rs"]
-cfg_macos = ["crates/orbit-daemon/src/config.rs", "crates/orbit-daemon/src/daemon/recording_notes/owner.rs"]
-keyring = ["crates/orbit-daemon/src/config.rs"]
+command_new = ["crates/orbit-daemon/src/platform/system.rs"]
+cfg_macos = ["crates/orbit-daemon/src/platform/system.rs"]
+keyring = ["crates/orbit-daemon/src/platform/system.rs"]
 appkit = []
 
 # The ratchet of the coordinator: the methods of `impl Runtime` in the
