@@ -295,11 +295,14 @@ run_rust_zone() {
 # server/.venv is there: without it, a fresh machine failed 11 guards with
 # "Network connectivity is disabled" (CI, 2026-10-21).
 run_guards_zone() {
-  # The source's own limits: they read text only and need no environment.
+  # The source's own limits: they read text only and need no environment,
+  # except guards-layers, which reads the workspace with cargo metadata.
   check_run guards-sizes "guards · 500 lines per file, 80 per function, and their ratchet" --cwd "$ROOT" -- \
     python3 -B "$CHECK_DIR/sizes.py"
   check_run guards-boundaries "guards · a domain uses another only through its handle and types" \
     --cwd "$ROOT" -- python3 -B "$CHECK_DIR/boundaries.py"
+  check_run guards-layers "guards · each package uses only what its layer allows, and Runtime only shrinks" \
+    --needs env-rust --cwd "$ROOT" -- python3 -B "$CHECK_DIR/layers.py"
   check_run guards "guards" --needs env-rust --needs env-hub --cwd "$ROOT" --report "unittest:$LOG_DIR/guards.json" -- \
     python3 -B "$CHECK_DIR/unittest_runner.py" scripts/tests "$LOG_DIR/guards.json"
 }
