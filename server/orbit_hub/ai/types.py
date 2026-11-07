@@ -16,7 +16,10 @@ FUNCTIONS = {
     "assistants": "tools",
 }
 # Local catalogs are probed, four requests per model. 32 bounds the work;
-# cloud catalogs use metadata instead. Neither limits inference requests.
+# cloud catalogs use metadata instead, and an `api` provider's catalogue is only
+# read to check the models the person names: a paid API is never sent test
+# requests. 2048 bounds the catalogue read and the models stored for one
+# provider. Neither limits inference requests.
 MAX_LOCAL_MODELS = 32
 MAX_CLOUD_MODELS = 2048
 OPENROUTER_URL = "https://openrouter.ai/api/v1"
@@ -40,7 +43,9 @@ class Model(Input):
 
 class Provider(Input):
     name: str = Field(min_length=1, max_length=MAX_AI_PROVIDER_NAME_CHARS)
-    kind: Literal["local", "openrouter"]
+    # `local`: a server whose models are probed; `openrouter`: OpenRouter, at
+    # its own URL; `api`: any OpenAI-compatible API, whose models are named.
+    kind: Literal["local", "openrouter", "api"]
     base_url: str = Field(min_length=1, max_length=MAX_AI_PROVIDER_URL_CHARS)
     api_key: str | None = Field(
         default=None, min_length=1, max_length=MAX_AI_PROVIDER_KEY_CHARS, repr=False

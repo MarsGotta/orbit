@@ -160,8 +160,10 @@ def _meetings(hub: Hub, processing_client) -> None:
     hub.final_passes = FinalPassWorker(
         store, meeting_transcriber, settings.diarization, notes_signal, changed, hub.store_executor
     )
-    # Dictation is the default agent's: it is input for any agent, and the
-    # route names none (contracts/hub-v1.md).
+    # Dictation is the hub's: input for any agent, and the route names none
+    # (contracts/hub-v1.md). Without a `listening` choice the default agent's
+    # own dictation hears it, or `[meeting_transcription]` for one without
+    # (`Transcriber.interactive`).
     hub.transcriptions = TranscriptionWorker(
         store,
         hub.agents.default.speech,

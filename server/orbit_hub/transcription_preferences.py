@@ -83,12 +83,6 @@ class Transcriber:
         self.configuration = self.whisper.configuration
 
     @property
-    def requires_default_speech(self):
-        from .ai.registry import Registry
-
-        return "listening" not in Registry(self.preferences.store).read()["functions"]
-
-    @property
     def model(self):
         from .ai.registry import Registry
 
@@ -134,13 +128,18 @@ class Transcriber:
         from .assistant.hermes_speech import TRANSCRIPTION_TIMEOUT_SECONDS
 
         registry = Registry(self.preferences.store)
-        if registry.read()["functions"].get("listening", {}).get("provider_id") == "hub":
+        chosen = registry.read()["functions"].get("listening", {}).get("provider_id")
+        provider = registry.selected("listening")
+        # Without a choice, the default agent dictates when it has dictation of
+        # its own (Hermes); one without (Claude Code, Codex) is heard by the
+        # hub's `[meeting_transcription]`, as when the hub is chosen.
+        unheard = provider is None and (speech is None or getattr(speech, "no_dictation", False))
+        if chosen == "hub" or unheard:
             return (
                 await MeetingTranscriber(
                     self.configuration, timeout=TRANSCRIPTION_TIMEOUT_SECONDS
                 ).transcribe(audio)
             ).text
-        provider = registry.selected("listening")
         if provider is None:
             return await speech.transcribe(audio)
         if provider["kind"] != "openrouter" or provider["model"] != "microsoft/mai-transcribe-2":

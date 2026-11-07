@@ -1,9 +1,11 @@
 # Self-host Orbit
 
-An Orbit installation has a Mac app, an Orbit hub, a Hermes assistant profile,
-and a meeting transcription service. The hub owns conversations, meetings,
-transcripts and notes. Hermes owns the assistant's models, identity and provider
-credentials. `orbit-mcp` is a stdio translator launched by Hermes or by a vendor
+An Orbit installation has a Mac app, an Orbit hub, one or more agents and a
+meeting transcription service. The hub owns conversations, meetings,
+transcripts, notes and dictation. An agent is a Hermes profile, Claude Code,
+Codex or any model behind an OpenAI-compatible API; Hermes is optional, and a
+Hermes agent keeps its models, identity and provider credentials in Hermes.
+`orbit-mcp` is a stdio translator launched by Hermes, by the hub or by a vendor
 agent; it reaches the Mac through the hub, never directly.
 
 All hostnames, paths and model names below are examples. Keep your actual
@@ -14,9 +16,10 @@ meeting wake phrase; the default is Deimos.
 
 - A server with Python 3.11 or later and `uv`, durable local storage, and a TLS
   certificate trusted by the Mac. The native app requires HTTPS/WSS.
-- A Hermes installation exposing the WebSocket `/api/ws` JSON-RPC interface and
-  HTTP audio endpoints `/api/audio/transcribe` and `/api/audio/speak`. Configure
-  the profile's models, STT and TTS in Hermes.
+- Only for a Hermes agent: a Hermes installation exposing the WebSocket
+  `/api/ws` JSON-RPC interface and HTTP audio endpoints `/api/audio/transcribe`
+  and `/api/audio/speak`. Configure the profile's models, STT and TTS in Hermes.
+  A hub with only Claude Code, Codex or `openai` agents needs no Hermes.
 - An OpenAI-compatible transcription service accepting
   `POST /v1/audio/transcriptions` with `verbose_json`. Final-pass transcription
   also requires word timestamps and `vad_filter=true` support.
@@ -31,10 +34,17 @@ versions. Passing tests against synthetic peers does not establish that a live
 Hermes profile, audio device or provider works.
 
 Meeting transcription defaults to the existing hub Whisper service. In
-Ajustes › IA, a paired person can add OpenRouter or multiple OpenAI-compatible
-endpoints and choose a provider/model independently for each function.
+Ajustes › IA, a paired person can add OpenRouter, local OpenAI-compatible
+servers (kind `local`, whose models the hub probes, at most 32) or any
+OpenAI-compatible API (kind `api`: a base URL and its key; the hub reads its
+`/models` catalogue, up to 2048 models, sends no test request, and keeps only
+the models the person names with what each one does) and choose a
+provider/model independently for each function. An `api` provider with no
+named models is refused with `ai_models_missing` before its catalogue is read;
+one naming a model its catalogue does not list, with `ai_models_invalid`.
 Provider keys are validated and encrypted on the hub and never returned to a
-Mac. Existing transcription preferences migrate at hub startup, including
+Mac. An `api` provider's key is only checked by reading its catalogue: if
+its `/models` is public, a wrong key is saved and fails at first use. Existing transcription preferences migrate at hub startup, including
 MAI listening when previously selected. New meeting choices do not change
 voice-note or call listening. `orbit.toml` remains the operator's default.
 See [AI settings](architecture/ai-settings.md) and
@@ -98,10 +108,10 @@ uv sync --frozen
 Choose private directories, for example `/opt/orbit/config`,
 `/opt/orbit/secrets` and `/opt/orbit/data`, owned by the service user. Create the
 configuration and credential files with mode `0600` and private parent directories
-(`0700`). Provision the Hermes session token through your own Hermes deployment;
-Orbit neither discovers nor copies it.
+(`0700`). For a Hermes agent, provision the Hermes session token through your
+own Hermes deployment; Orbit neither discovers nor copies it.
 
-A minimal `/opt/orbit/config/orbit.toml`:
+A minimal `/opt/orbit/config/orbit.toml` with the implicit Hermes agent:
 
 ```toml
 data_dir = "/opt/orbit/data"
@@ -118,6 +128,35 @@ allowed_hosts = ["localhost", "127.0.0.1", "hub.example"]
 endpoint = "http://127.0.0.1:6394"
 model = "openai/whisper-large-v3"
 language = "es"
+```
+
+`hermes_url` and `hermes_credential_file` are required only when an agent is
+of kind `hermes`; the implicit agent of a file without `[[agents]]` is one. The
+hub refuses a missing one naming the key and the agent, for example
+`hermes_url is required: agent "default" is of kind hermes`. Without a Hermes
+agent they may be left out; a leftover `hermes_url` is accepted and not used.
+
+A hub without Hermes, with one OpenAI-compatible agent (see
+[An assistant without Hermes](#an-assistant-without-hermes-kind--openai)):
+
+```toml
+data_dir = "/opt/orbit/data"
+key_file = "/opt/orbit/secrets/storage.key"
+allowed_hosts = ["localhost", "127.0.0.1", "hub.example"]
+
+[meeting_transcription]
+endpoint = "http://127.0.0.1:6394"
+model = "openai/whisper-large-v3"
+language = "es"
+
+[[agents]]
+id = "lyra"
+name = "Lyra"
+kind = "openai"
+base_url = "https://models.example.test/v1"
+model = "example-model"
+orbit_mcp_config = "/opt/orbit/config/mcp.toml"
+api_key_file = "/opt/orbit/secrets/lyra.key"
 ```
 
 Set `assistant_name` at the TOML root, or set `ORBIT_HUB_ASSISTANT_NAME` in the
@@ -201,12 +240,17 @@ agent `default` of a hub without `[[agents]]`, belong to the default agent
 or as `default_agent`, with the same `profile`, so they resume where they were
 kept.
 
-Dictation and read-aloud use the default agent's voice, because neither audio
-request names a conversation: a `hermes` agent's profile; an `openai` agent's
-`[meeting_transcription]` for dictation and its `[agents.speech]` for
-read-aloud; a Claude Code or Codex agent has no voice. Without one, the hub refuses the
-request with `speech_not_configured`, naming the agent and why, and `ready`
-does not list `voice` among that agent's capabilities.
+Dictation is the hub's, because its request names no conversation. With a
+`listening` model chosen in Ajustes › IA, that model hears it. Without a choice,
+a default `hermes` agent dictates through its profile, and any other default
+agent (Claude Code, Codex, `openai`) is heard by the hub's
+`[meeting_transcription]`.
+
+Read-aloud is the `speech` model chosen in Ajustes › IA, or else the agent's own
+voice: a `hermes` agent's profile, an `openai` agent's `[agents.speech]`; a
+Claude Code or Codex agent has none. Without one, the hub refuses the request
+with `speech_not_configured`, naming the agent and why, and `ready` does not
+list `voice` among that agent's capabilities.
 
 ### Host tools and working folders
 
@@ -410,7 +454,8 @@ An activation can restart the hub and shared Hermes gateway, so coordinate it
 with users. Rendering a unit alone does not install or start services.
 
 `GET /health` checks liveness; `GET /health/deps` reports dependency failures
-without credentials. A live HTTP process alone does not verify chat, transcription
+without credentials: `whisper` (`[meeting_transcription]`), `hermes` only when
+an agent is of kind `hermes`, and `processing` when configured. A live HTTP process alone does not verify chat, transcription
 or TTS. Errors carry stable codes, operation IDs and relevant counts.
 
 ## Transcription and notes

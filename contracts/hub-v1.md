@@ -431,13 +431,16 @@ uses the voice of the agent `agent_id` names (one of `ready.agents`): the Mac
 sends the open conversation's agent, for «Escuchar» and for spoken replies,
 to a hub that listed its agents. Without the field (a 0.9.0 Mac) it is the
 default agent's voice. An unknown id yields `404 agent_not_found` with
-`agent_id` and `agent_ids`. Dictation (`/v1/audio/transcribe`) stays the
-default agent's: it is the user's input to whichever agent they talk to, not
-an agent's voice, and an agent of kind `claude-code` or `codex` has none of its own. An agent
+`agent_id` and `agent_ids`. Dictation (`/v1/audio/transcribe`) is the hub's:
+it is the user's input to whichever agent they talk to, not an agent's voice.
+The `listening` model chosen in Settings › AI hears it; without a choice, the
+default agent's own dictation (a `hermes` agent's profile), or the hub's
+`[meeting_transcription]` for a default agent without one (`claude-code`,
+`codex`, `openai`). It is never refused for want of a voice. An agent
 without a voice of its own (`voice` absent from its `capabilities` in `ready`)
 is read aloud in the default agent's voice. When neither has one, read-aloud
 yields `503 speech_not_configured` naming the agent asked for (`agent_id` among
-the refusal's numbers), and dictation the same for the default agent.
+the refusal's numbers).
 
 ## Private meetings for the assistant
 

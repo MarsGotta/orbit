@@ -1,6 +1,7 @@
 # Adjust paths and URLs to your server. Never keep secrets in this file.
 data_dir = "/opt/orbit/data"
 key_file = "/opt/orbit/secrets/storage.key"
+# Only for a Hermes agent; without [[agents]] the implicit agent is one.
 hermes_url = "http://127.0.0.1:8643"
 hermes_credential_file = "/opt/orbit/secrets/hermes-token"
 hermes_ws_auth = "token"

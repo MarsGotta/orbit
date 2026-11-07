@@ -22,6 +22,8 @@ import pytest
 from conftest import device
 from fastapi.testclient import TestClient
 from support_audio import wav_bytes
+from support_openai_compatible import serve
+from support_synthetic_stt import SyntheticStt
 
 from orbit_hub.app import create_app
 from orbit_hub.assistant import openai
@@ -357,18 +359,29 @@ def test_read_aloud_without_any_voice_names_the_agent_asked_for(environment, tmp
     assert "Vega" in body["message"]
 
 
-@pytest.mark.parametrize("route", ["/v1/audio/speech", "/v1/audio/transcribe"])
-def test_a_default_agent_without_a_voice_refuses_both_routes_naming_it(
-    environment, tmp_path, route
+def test_a_default_agent_without_a_voice_refuses_read_aloud_naming_it_but_dictates(
+    environment, tmp_path
 ):
     settings, store, _ = environment
-    configured = replace(settings, agents=every_kind(tmp_path), default_agent="vega")
+    stt = SyntheticStt("Compra pan de centeno")
     headers = {"Authorization": "Bearer " + device(store)["token"]}
-    with hub(configured, store) as http:
-        if route.endswith("speech"):
-            response = http.post(route, headers=headers, json={"text": "frase"})
-        else:
-            response = http.post(route, headers=headers, content=wav_bytes(b"\x00\x00" * 160))
+    with serve(stt.app) as stt_url:
+        configured = replace(
+            settings,
+            agents=every_kind(tmp_path),
+            default_agent="vega",
+            meeting_transcription=stt.configuration(stt_url),
+        )
+        with hub(configured, store) as http:
+            response = http.post("/v1/audio/speech", headers=headers, json={"text": "frase"})
+            dictated = http.post(
+                "/v1/audio/transcribe", headers=headers, content=wav_bytes(b"\x10\x00" * 16000)
+            )
+    # Dictation is the hub's; a Claude Code default without dictation of its
+    # own is heard by the meeting transcriber, here a synthetic one.
+    assert dictated.status_code == 200, dictated.text
+    assert dictated.json() == {"text": "Compra pan de centeno"}
+    assert len(stt.audio) == 1
     assert response.status_code == 503
     body = response.json()
     assert body["code"] == "speech_not_configured"

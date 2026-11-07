@@ -107,7 +107,13 @@ async def catalog(client, kind):
         model = entry["id"]
         if not isinstance(model, str) or not 1 <= len(model) <= 256:
             raise ValueError("Invalid model ID")
-        capabilities = await probe(client, model) if kind == "local" else cloud_capabilities(entry)
+        if kind == "local":
+            capabilities = await probe(client, model)
+        elif kind == "openrouter":
+            capabilities = cloud_capabilities(entry)
+        else:
+            # An `api` provider's models do what the person says they do.
+            capabilities = []
         models.append({"id": model, "capabilities": capabilities})
     if kind == "openrouter":
         # /models is public: validate the credential with the existing MAI

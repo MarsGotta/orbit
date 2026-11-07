@@ -1,7 +1,8 @@
 # Orbit architecture
 
-Orbit is a macOS companion for a personal assistant running in Hermes. This
-document describes the current implementation; where code and documentation
+Orbit is a macOS companion for a personal assistant: a Hermes profile, Claude
+Code, Codex or an OpenAI-compatible model, as the hub's agents (Hermes is
+optional). This document describes the current implementation; where code and documentation
 disagree, correct the documentation against the code.
 
 - **The hub is the single source** of meetings, transcripts, notes and conversations.
@@ -29,8 +30,8 @@ hub's encrypted working copy, its reading index and the `notes` tool group.
 | Native helper | `native/macos`, `OrbitNative --stdio --managed` | macOS effects and global shortcuts | Network, launch a daemon, or create another managed-mode icon/login item/instance lock |
 | Control engine | Bundled `cua-driver` 0.28.2 | Its declared computer-use tools | Network access or arbitrary executable/socket selection |
 | Hub | `server/orbit_hub`, Python/FastAPI | Pairing, devices, chat, durable audio, transcription, turns, notes/templates, dictionaries, voices, titles/languages, private notes, transient screenshots and assistant bridge | Keep a calendar copy or expose remote administration |
-| Hermes | Outside this repository | Assistant identity, sessions, interactive STT and TTS, models and provider credentials | Receive the Mac's device credentials |
-| Translator | `server/orbit_mcp`, launched by Hermes over stdio | Assistant tools, signed private hub requests and result validation | Contact the Mac directly |
+| Hermes (optional) | Outside this repository; only for an agent of kind `hermes` | That agent's identity, sessions, own STT and TTS, models and provider credentials | Receive the Mac's device credentials |
+| Translator | `server/orbit_mcp`, launched over stdio by Hermes, by the hub for an `openai` agent, or by a vendor agent | Assistant tools, signed private hub requests and result validation | Contact the Mac directly |
 | Meeting transcriber | Operator-configured OpenAI-compatible service | Recognize meeting audio | Receive plaintext HTTP audio outside loopback |
 | Note model | Operator-configured `[processing]` service | Write notes from transcript, private notes and meeting metadata | Receive meeting audio |
 | Update origin | Optional build configuration | `latest.txt`, packages and `install.sh` | Assume a shared operator's download host |
@@ -109,7 +110,7 @@ Orbit.app/Contents/MacOS/Orbit
  ├─ Contents/MacOS/OrbitNative --stdio --managed
  ├─ Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver serve --socket <data>/cua/driver.sock
  └─ Contents/Helpers/Orbit Engine.app/Contents/MacOS/cua-driver mcp --embedded --socket <data>/cua/driver.sock
- daemon ── HTTPS + WSS ── hub ── Hermes profile ── orbit-mcp
+ daemon ── HTTPS + WSS ── hub ── agent (Hermes profile, Claude Code, Codex or OpenAI-compatible model) ── orbit-mcp
 ```
 
 Startup waits up to 15 seconds for daemon readiness; `daemon.lock` prevents two
@@ -184,12 +185,15 @@ it was spoken in and is shown and sent only there; one spoken in a new
 conversation belongs to the conversation that new one becomes. A failed note
 can be discarded («Descartar», after a question in place), which deletes its
 audio (`Store::discard_voice_note`).
-The hub asks Hermes; text events return to the Mac. `POST /v1/audio/speech` gets
+The hub asks the conversation's agent; text events return to the Mac. `POST /v1/audio/speech` gets
 the spoken response for native playback, and «Escuchar» reads an answer the same
 way. The request names the conversation's agent (`agent_id`, to a hub that lists
 its agents); the hub reads in that agent's voice, or in the default agent's when
 it has none of its own (`voice` absent from its `capabilities` in `ready`).
-Dictation stays the default agent's. The daemon remembers whether the last
+Dictation is the hub's: the `listening` model chosen in Ajustes › IA when
+there is one; otherwise the default agent's own dictation (a Hermes profile's),
+or the hub's `[meeting_transcription]` for a default agent without one (Claude
+Code, Codex, an `openai` agent). The daemon remembers whether the last
 reading worked per voice that read, so one agent's failed voice is not reported
 for another, and the chat offers «Escuchar» only when the conversation's agent
 or the default agent has a voice; a hub without agents is offered it as before.

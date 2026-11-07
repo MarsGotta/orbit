@@ -1,9 +1,10 @@
 # Orbit Hub
 
-Private bridge between Orbit devices and existing assistant profiles in Hermes.
-Importing it does not install another agent, change the profile or start services.
-`orbit.toml` may list several agents (`[[agents]]`, one Hermes profile each);
-without them the hub is one agent, `default`. The kinds of agent and how a new
+Private bridge between Orbit devices and their assistants: Hermes profiles,
+Claude Code, Codex or OpenAI-compatible models. Importing it does not install
+another agent, change a profile or start services.
+`orbit.toml` may list several agents (`[[agents]]`, each of one kind); without
+them the hub is one Hermes agent, `default`. The kinds of agent and how a new
 kind plugs in are in `orbit_hub/assistant/agents.py`.
 
 The hub keeps no calendar copy. The assistant reads it directly from
@@ -36,8 +37,10 @@ uv run orbit-hub --config /path/to/orbit.toml serve --host 0.0.0.0 --tls-cert /p
 `init` creates an AES-256 key with mode 0600 and a private SQLite database.
 It is an explicit one-time operation: it never replaces an existing key, and
 it refuses a data directory that already holds a database.
-The administrator must provision the Hermes backend credential in the mode-0600
-file specified by `hermes_credential_file`; it is not obtained or copied automatically.
+With a Hermes agent, the administrator must provision the Hermes backend
+credential in the mode-0600 file specified by `hermes_credential_file`; it is
+not obtained or copied automatically. A hub without Hermes agents needs neither
+`hermes_url` nor that file.
 The Mac receives only its revocable device token.
 
 The pairing code expires after five minutes, allows one use and appears only

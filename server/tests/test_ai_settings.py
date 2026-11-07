@@ -508,9 +508,8 @@ def test_listening_and_speech_are_independent_without_an_operator_voice(environm
             == b"fake-mp3"
         )
         audio = wav_bytes(b"\x10\x00" * 16000)
-        before = http.post("/v1/audio/transcribe", headers=headers, content=audio)
-        assert before.status_code == 503, before.text
-        assert before.json()["refusal"]["agent_id"] == "vega"
+        # Before a choice, a Claude Code default is heard by the hub's
+        # `[meeting_transcription]` (test_hub_without_hermes); here, the choice.
         selected = http.put(
             "/v1/settings/ai/functions/listening",
             headers=headers,

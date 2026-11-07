@@ -41,17 +41,17 @@ def describe(registry, function):
     elif function == "speech":
         descriptions = [speech(settings, a) for a in agents]
         descriptions = [d for d in descriptions if d is not None]
-    elif default.kind == "openai":
+    elif default.kind == "hermes":
+        descriptions = [("Hermes listening", hermes_destination(settings, "audio"))]
+    else:
+        # A default agent without dictation of its own is heard by the hub's
+        # `[meeting_transcription]` (`Transcriber.interactive`).
         descriptions = [
             (
                 settings.meeting_transcription.model,
                 endpoint_privacy(function, settings.meeting_transcription.endpoint, ""),
             )
         ]
-    elif default.kind == "hermes":
-        descriptions = [("Hermes listening", hermes_destination(settings, "audio"))]
-    else:
-        descriptions = []
     if not descriptions:
         return unconfigured()
     return (
