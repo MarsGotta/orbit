@@ -127,6 +127,8 @@ def ready(services: Services, socket: Socket) -> dict:
             "device_id": socket.device,
             "hub_protocol": HUB_PROTOCOL,
             "hub_version": services.hub_version(),
+            # Which hub answers (`storage.schema.hub_id`), as `/health` says it.
+            "hub_id": services.store.hub_id,
             # The primary's, for Macs from before agents (0.9.0), whose turns
             # name none and so go to it.
             "assistant_name": agents.by_id[agents.primary_id].name,

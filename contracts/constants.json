@@ -1734,6 +1734,29 @@
   {
     "copies": [
       {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_GROUPS",
+        "unit": "texts"
+      }
+    ],
+    "name": "DEVICE_GROUPS",
+    "resource": "the groups of orders a paired device says it handles, in the order the hub's inventory lists them; a device that says none handles every one. Not an agent's access groups. A new group is added here",
+    "source": "python",
+    "unit": "texts",
+    "value": [
+      "system_audio",
+      "screen",
+      "selected_text",
+      "folders",
+      "calendar",
+      "call_detection",
+      "shortcuts",
+      "control"
+    ]
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-ipc/src/ipc.rs",
         "name": "CALL_TIMEOUT_SECONDS",
         "unit": "seconds"

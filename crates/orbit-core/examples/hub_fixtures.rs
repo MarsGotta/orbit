@@ -139,6 +139,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 device_id: Some("device-1".into()),
                 hub_protocol: Some(1),
                 hub_version: Some("0.3.12".into()),
+                hub_id: None,
                 device_version: None,
             })),
         ),

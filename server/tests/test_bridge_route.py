@@ -339,6 +339,17 @@ async def test_signed_device_inventory_is_decrypted_live_and_excludes_revoked(br
             "connected": False,
             "assistant_turn_active": False,
             "last_seen": 850.0,
+            "kind": "mac",
+            "capabilities": [
+                "system_audio",
+                "screen",
+                "selected_text",
+                "folders",
+                "calendar",
+                "call_detection",
+                "shortcuts",
+                "control",
+            ],
         },
         connected["device_id"]: {
             "id": connected["device_id"],
@@ -347,6 +358,17 @@ async def test_signed_device_inventory_is_decrypted_live_and_excludes_revoked(br
             "connected": True,
             "assistant_turn_active": False,
             "last_seen": 1001.0,
+            "kind": "mac",
+            "capabilities": [
+                "system_audio",
+                "screen",
+                "selected_text",
+                "folders",
+                "calendar",
+                "call_detection",
+                "shortcuts",
+                "control",
+            ],
         },
     }
     assert revoked["device_id"] not in rows

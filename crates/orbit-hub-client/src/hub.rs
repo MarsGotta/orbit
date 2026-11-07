@@ -276,8 +276,16 @@ pub async fn pair(
         endpoint.hub_url.as_deref().context("Hub URL missing")?,
         development,
     )?;
+    // A Mac says neither `kind` nor `capabilities`: the hub takes a device
+    // that says nothing as a Mac that handles everything, which it is.
+    let mut body = serde_json::Map::new();
+    body.insert("code".into(), json!(code));
+    body.insert("name".into(), json!(endpoint.device_name));
+    if let Some(installation_id) = &endpoint.installation_id {
+        body.insert("installation_id".into(), json!(installation_id));
+    }
     let response = request(reqwest::Method::POST, base.join("v1/pair")?, None, op)?
-        .json(&json!({"code":code,"name":endpoint.device_name}))
+        .json(&body)
         .send()
         .await?;
     if !response.status().is_success() {

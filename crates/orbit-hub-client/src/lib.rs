@@ -20,6 +20,9 @@ pub struct HubEndpoint {
     pub hub_url: Option<String>,
     pub device_id: Option<String>,
     pub device_name: String,
+    /// This Orbit installation's own id, said only when pairing; every other
+    /// call leaves it out.
+    pub installation_id: Option<String>,
 }
 
 pub fn validate_hub_url(raw: &str, development: bool) -> Result<reqwest::Url> {

@@ -1,10 +1,12 @@
-"""orbit_devices: the Macs the hub knows, their connection and when they were seen."""
+"""orbit_devices: the devices the hub knows, what each is and handles, their
+connection and when they were seen."""
 
 from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 from mcp.types import CallToolResult
 
+from orbit_hub.device_groups import DEVICE_GROUPS, handled
 from orbit_hub.protocol import DeviceSummary
 
 from ..config import Config
@@ -32,6 +34,15 @@ def _default_id(config: Config, devices: list[DeviceSummary]) -> str | None:
     return None
 
 
+def _handles(device: DeviceSummary) -> str:
+    """What the device is and its groups in the inventory's order; a group
+    this translator does not know yet goes last, as the hub said it."""
+    groups = handled(device.capabilities)
+    known = [group for group in DEVICE_GROUPS if group in groups]
+    ordered = known + [group for group in groups if group not in DEVICE_GROUPS]
+    return f"{device.kind}, handles {', '.join(ordered) or 'nothing'}"
+
+
 def _device_line(config: Config, device: DeviceSummary, default_id: str | None) -> str:
     aliases = [name for name, device_id in config.devices.items() if device_id == device.id]
     markers = []
@@ -42,7 +53,7 @@ def _device_line(config: Config, device: DeviceSummary, default_id: str | None) 
     suffix = f" — {', '.join(markers)}" if markers else ""
     return (
         f"- {device.name} — connected {'yes' if device.connected else 'no'} — "
-        f"last seen {seen_ago(device.last_seen)}{suffix}"
+        f"last seen {seen_ago(device.last_seen)} — {_handles(device)}{suffix}"
     )
 
 
@@ -50,7 +61,10 @@ def register(server: MCPServer, runner: ToolRunner) -> None:
     hub_client = runner.hub_client
 
     @server.tool(
-        description="Lists the Macs known to the hub, their connection state and when they were last seen.",
+        description=(
+            "Lists the devices known to the hub, what each one is (mac or phone) and what it "
+            "handles, their connection state and when they were last seen."
+        ),
         structured_output=False,
     )
     async def orbit_devices() -> CallToolResult:

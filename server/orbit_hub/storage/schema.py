@@ -7,6 +7,7 @@ writes a row of a domain; the repositories do.
 """
 
 from collections.abc import Callable
+from uuid import uuid4
 
 from cryptography.exceptions import InvalidTag
 
@@ -36,6 +37,12 @@ _KEY_CHECK_SCHEMA = """
 _LEGACY_KEY_PROBES = (
     ("devices", "SELECT id, name FROM devices ORDER BY rowid LIMIT 1", "device:{0}"),
 )
+# The hub's own id: one row, written with a new UUID the first time the hub
+# opens this database and never changed. A restored copy keeps it, because it
+# is the same hub. A hub from before the table neither knows nor touches it.
+_HUB_IDENTITY_SCHEMA = """
+    CREATE TABLE IF NOT EXISTS hub_identity (id TEXT PRIMARY KEY);
+"""
 WRONG_KEY = (
     "The storage key is not the one this database was written with; opening it "
     "would leave it with two keys. Put back the key this data directory was "
@@ -159,12 +166,34 @@ def migrate(db, encrypt: Callable[[bytes, str], bytes]) -> None:
         "INSERT OR IGNORE INTO storage_key_check(id, body) VALUES (1, ?)",
         (encrypt(KEY_CHECK_PLAINTEXT, KEY_CHECK_CONTEXT),),
     )
+    db.executescript(_HUB_IDENTITY_SCHEMA)
+    db.execute(
+        "INSERT INTO hub_identity(id) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM hub_identity)",
+        (str(uuid4()),),
+    )
+
+
+def hub_id(db) -> str:
+    """The hub's own id (`_HUB_IDENTITY_SCHEMA`), which `migrate` wrote."""
+    return db.execute("SELECT id FROM hub_identity").fetchone()[0]
 
 
 def _migrate_core(db) -> None:
     if "last_seen" not in _columns(db, "devices"):
         db.execute("ALTER TABLE devices ADD COLUMN last_seen REAL NOT NULL DEFAULT 0")
         db.execute("UPDATE devices SET last_seen=created")
+    # What each device is, the groups it handles and its installation's id
+    # (`DeviceRepository.pair`); none is encrypted, none is personal. A row
+    # without them, also one today's hub writes into this database, is a Mac
+    # that handles every group (`capabilities` NULL) of an unknown installation.
+    device_columns = _columns(db, "devices")
+    for column, definition in (
+        ("kind", "TEXT NOT NULL DEFAULT 'mac'"),
+        ("capabilities", "TEXT"),
+        ("installation_id", "TEXT"),
+    ):
+        if column not in device_columns:
+            db.execute(f"ALTER TABLE devices ADD COLUMN {column} {definition}")
     # The agent each conversation belongs to. Conversations stored before
     # agents existed have none and belong to the default agent
     # (`assistant.agents.Agents.owner`).

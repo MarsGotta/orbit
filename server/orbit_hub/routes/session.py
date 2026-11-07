@@ -25,13 +25,17 @@ PAIR_ATTEMPT_RETENTION_SECONDS = 60
 #   not limit devices already paired.
 # - 2,048 bytes of body hold every valid request: a code of at most 160
 #   characters and a name of at most 80 encode, in the Mac's JSON (control
-#   characters as \u00XX), to at most 1,461 bytes (computed 2026-10-21).
+#   characters as \u00XX), to at most 1,461 bytes (computed 2026-10-21); a
+#   device's kind, all eight groups and an installation id add 189 more, 1,650
+#   in all (computed 2026-11-07).
 
 
 def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_executor):
     @app.get("/health")
     async def health():
-        return {"ok": True, "protocol": HUB_PROTOCOL}
+        # Anonymous, and the hub's id is no secret: it only says which hub
+        # answers at this address.
+        return {"ok": True, "protocol": HUB_PROTOCOL, "hub_id": store.hub_id}
 
     @app.post("/v1/pair")
     async def pair(request: Request):
@@ -42,7 +46,14 @@ def mount(app, store, agents, identity, bounded_body, now, pair_attempts, store_
             payload = PairRequest.model_validate_json(await bounded_body(request, 2048))
         except ValidationError as exc:
             raise HubError("invalid_request", "Invalid pairing request") from exc
-        return store.devices.pair(payload.code, payload.name, timestamp)
+        return store.devices.pair(
+            payload.code,
+            payload.name,
+            timestamp,
+            kind=payload.kind,
+            capabilities=payload.capabilities,
+            installation_id=payload.installation_id,
+        )
 
     @app.get("/v1/sessions")
     async def sessions(request: Request, before: str | None = None, limit: int | None = None):

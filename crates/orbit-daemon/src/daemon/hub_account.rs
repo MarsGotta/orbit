@@ -89,13 +89,25 @@ impl Runtime {
         let mut settings = self.paths.load_settings()?;
         settings.hub_url = Some(hub_url);
         settings.device_name = device_name;
-        let (device_id, token) = crate::hub::pair(
-            &crate::config::hub_endpoint(&settings),
-            &code,
-            self.development,
-            self.op(),
-        )
-        .await?;
+        // Made before the hub answers: a refused pairing keeps it as well.
+        let installation_id = match crate::config::installation_id(&self.paths)? {
+            Ok(id) => Some(id),
+            Err(cause) => {
+                // Not a reason to refuse pairing: the hub takes a device
+                // without one as it took every Orbit before it.
+                self.log(
+                    "installation_id_unusable",
+                    &[("error", &format!("{cause:#}"))],
+                );
+                None
+            }
+        };
+        let endpoint = orbit_hub_client::HubEndpoint {
+            installation_id,
+            ..crate::config::hub_endpoint(&settings)
+        };
+        let (device_id, token) =
+            crate::hub::pair(&endpoint, &code, self.development, self.op()).await?;
         // Retire the old conversation durably before installing another identity.
         self.apply(orbit_core::Event::DeviceChanged).await?;
         self.secrets.set("device", &token)?;

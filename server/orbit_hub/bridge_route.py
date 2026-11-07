@@ -14,6 +14,9 @@ Three decisions worth naming:
   identities the hub knows.
 - The wait is bounded and the failure is named. A caller that cannot tell
   "refused" from "nobody answered" will retry a refusal forever.
+- An order of a group the device does not handle (`device_groups`) is refused
+  here, after the connection check, so that unknown still reads as
+  disconnected, and before anything is opened, queued or journaled.
 """
 
 import asyncio
@@ -42,6 +45,7 @@ from .device_bridge import (
     REQUEST_TIMEOUT_SECONDS,
     BridgeRefused,
 )
+from .device_groups import DEVICE_GROUP
 from .errors import PrivateError as BridgeError
 from .errors import render
 from .log import report
@@ -237,6 +241,7 @@ class BridgeService:
         # key does not entitle a caller to enumerate this hub's devices.
         if runtime is None or runtime.revoked or not runtime.listeners:
             raise BridgeError(404, "device_unavailable")
+        self._require_device_group(request)
         request_id = str(uuid.uuid4())
         waiter: asyncio.Future = asyncio.get_running_loop().create_future()
         try:
@@ -248,6 +253,15 @@ class BridgeService:
             return await self._start_action(request, request_id, runtime, waiter)
         answer = await self._question(request, request_id, runtime, waiter)
         return self._answered(request, request_id, answer)
+
+    def _require_device_group(self, request) -> None:
+        """Refuse an order of a group the device said it does not handle."""
+        group = DEVICE_GROUP.get(request.capability)
+        handling = self.store.devices.handling(request.device_id) if group else None
+        if handling is not None and group not in handling[1]:
+            numbers = {"device_id": request.device_id, "kind": handling[0]}
+            numbers |= {"capability": request.capability, "group": group}
+            raise BridgeError(403, "device_capability_missing", numbers)
 
     def _request(self, body) -> BridgeRequest:
         """The request's envelope, refused with the field that is wrong."""

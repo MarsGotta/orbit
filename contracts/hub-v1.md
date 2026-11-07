@@ -3,8 +3,24 @@
 TLS is mandatory except explicit localhost development. Tokens are device-scoped;
 server-side settings choose the Hermes profile. Never trust a client device ID.
 
-`POST /v1/pair` accepts `{code,name}` and returns `{device_id,token}`. Codes are
-one-use and short-lived; create/revoke through the hub's local admin CLI.
+`POST /v1/pair` accepts `{code,name,kind?,capabilities?,installation_id?}` and
+returns `{device_id,token}`. Codes are one-use and short-lived; create/revoke
+through the hub's local admin CLI. `kind` is `mac` or `phone` (absent: `mac`).
+`capabilities` lists, without repeats, the device groups it handles (below,
+[Device groups](#device-groups)); absent is every group, whatever the kind, and
+`[]` is none. `installation_id` is the Orbit installation's own canonical UUID
+(36 lowercase hexadecimal characters with hyphens); absent is unknown. The hub
+keeps it and reads nothing from it: the same installation pairing again is
+another device. An unknown kind or group, a repeated group or a malformed
+installation id is `400 invalid_request`, checked before the code is spent. A
+hub before these fields ignores them, and the device is a Mac that handles
+every group.
+
+`GET /health` is anonymous and answers `{"ok":true,"protocol":1,"hub_id":<uuid>}`.
+`hub_id` is the hub's own id, made the first time it opens its database and
+never changed (a restored copy keeps it); it is no secret, it only says which
+hub answers at that address. `ready` says the same `hub_id`. Absent from an
+older hub, in both: the Mac keeps none.
 
 `GET /v1/sessions?before=&limit=` uses the device bearer token and returns
 `{"sessions":[{"id":string,"agent_id"?:string,"created_at_ms":integer,"last_at_ms":integer,
@@ -147,7 +163,7 @@ The server rejects a control for another device, session or stale turn. Legacy
 positive approvals may omit it but still require an exact live pending request.
 
 Server: `{v:1,id:<request uuid or null>,event:<event>,data:{...}}`.
-Events: `ready` (`device_id`, `assistant_name`, `agents`, `default_agent_id`,
+Events: `ready` (`device_id`, `hub_id`, `assistant_name`, `agents`, `default_agent_id`,
 `attachments`, `storage`), `storage.status`, `chat.session` (`session_id`), `chat.delta`
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
@@ -441,6 +457,35 @@ without a voice of its own (`voice` absent from its `capabilities` in `ready`)
 is read aloud in the default agent's voice. When neither has one, read-aloud
 yields `503 speech_not_configured` naming the agent asked for (`agent_id` among
 the refusal's numbers).
+
+### Device groups
+
+What a device handles, as it said when pairing. These are not an agent's
+access groups (Settings › Assistants): those say what an agent may use, these
+what a device can answer. The microphone is not a group; every device has one.
+
+| group | what it is | refused by the hub for |
+|---|---|---|
+| `system_audio` | system and app audio | — (the device's own work) |
+| `screen` | windows and screenshots | `screen_sources`, `screenshot` |
+| `selected_text` | the selected text | `selected_text` |
+| `folders` | the assistant's folders | `files_list`, `files_search`, `files_read` |
+| `calendar` | local calendars | `calendar_read` |
+| `call_detection` | microphone activity | — (the device's own work) |
+| `shortcuts` | global shortcuts | — (the device's own work) |
+| `control` | acting on the Mac | `control_tools`, `perform_action` |
+
+`GET /internal/v1/devices` gives each device `kind` and `capabilities`, the
+groups in the order of this table for a device that said none; never its
+installation id. A translator reading an older hub, which says neither, takes
+each device as a Mac that handles every group.
+
+A device request whose order belongs to a group the device does not handle is
+`403 device_capability_missing` with `device_id`, `kind`, `capability` and
+`group`, `retry:{"kind":"never"}`. It is checked after the agent's access group
+and the connection (an unknown device is still `device_unavailable`) and before
+anything is opened, queued on the device or journaled, `perform_action`
+included. An order of no group is relayed as before.
 
 ## Private meetings for the assistant
 

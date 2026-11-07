@@ -103,6 +103,7 @@ class Store:
             raise
         self.space = SpaceRepository(path, quota_bytes, free_space)
         schema.migrate(self._db, self.encrypt)
+        self.hub_id = schema.hub_id(self._db)
         self.devices = DeviceRepository(self)
         self.chat = ChatRepository(self)
         self.operations = OperationRepository(
