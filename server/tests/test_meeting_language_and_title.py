@@ -477,4 +477,6 @@ async def test_a_rename_and_a_language_change_are_announced_to_the_owner(environ
                 assert answer.status_code == 200, answer.text
                 frame = json.loads(await wait_for(mine.recv(), f"el aviso de {path}"))
                 assert frame["event"] == "recording.changed", frame
-                assert frame["data"] == {"recording_id": recording}
+                assert frame["data"].keys() == {"recording_id", "change"}, frame
+                assert frame["data"]["recording_id"] == recording, frame
+                assert type(frame["data"]["change"]) is int, frame

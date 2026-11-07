@@ -9,6 +9,7 @@ from ..protocol import emit
 from ..storage import Store
 from .device import DeviceRuntime
 from .inputs import TurnInputTracker
+from .recording_changes import RecordingChanges
 
 
 class Runtimes(dict[str, DeviceRuntime]):
@@ -29,6 +30,7 @@ class Runtimes(dict[str, DeviceRuntime]):
         super().__init__()
         self.store, self.agents, self.now = store, agents, now
         self.store_executor, self.inputs = store_executor, inputs
+        self.changes = RecordingChanges()
 
     def of(self, device: str) -> DeviceRuntime:
         """The device's runtime, whichever authenticated socket asks first."""
@@ -54,8 +56,12 @@ class Runtimes(dict[str, DeviceRuntime]):
         self.offer_all(emit("agents.changed", self.agents.listing()))
 
     def recording_changed(self, device: str, recording: str) -> None:
-        """Every connected Mac reads the person's changed meeting again."""
-        self.offer_all(emit("recording.changed", {"recording_id": recording}))
+        """Every connected Mac reads the person's changed meeting again.
+
+        Noted first, so that once the notice arrives `since` already names
+        the meeting; every caller has saved its change before calling."""
+        change = self.changes.note(recording)
+        self.offer_all(emit("recording.changed", {"recording_id": recording, "change": change}))
 
     async def close(self) -> None:
         await asyncio.gather(*(runtime.close() for runtime in self.values()))

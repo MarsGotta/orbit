@@ -309,5 +309,7 @@ async def test_ready_says_it_deletes_and_the_owner_is_told_to_read_again(environ
             for socket in (mine, second):
                 frame = json.loads(await wait_for(socket.recv(), "el aviso del borrado"))
                 assert frame["event"] == "recording.changed"
-                assert frame["data"] == {"recording_id": recording}
+                assert frame["data"].keys() == {"recording_id", "change"}, frame
+                assert frame["data"]["recording_id"] == recording, frame
+                assert type(frame["data"]["change"]) is int, frame
     assert all(ready["data"]["recording_delete"] is True for ready in readies)

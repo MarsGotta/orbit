@@ -164,7 +164,8 @@ positive approvals may omit it but still require an exact live pending request.
 
 Server: `{v:1,id:<request uuid or null>,event:<event>,data:{...}}`.
 Events: `ready` (`device_id`, `hub_id`, `assistant_name`, `agents`, `default_agent_id`,
-`attachments`, `storage`), `storage.status`, `chat.session` (`session_id`), `chat.delta`
+`attachments`, `storage`, `change`: see [Changed meetings](#changed-meetings)),
+`storage.status`, `chat.session` (`session_id`), `chat.delta`
 (`session_id`,`text`), `chat.completed` (`session_id`,`text`,`status`,
 `persisted`,`warning`), `approval.required`
 (`session_id`,`request_id`,`description`), `clarify.required`
@@ -1011,9 +1012,10 @@ Pairing, upload and finalization remain device-specific. See the
   answers 404 without a code; the Mac names it `hub_route_missing`.
 - `DELETE /v1/recordings/{uuid}` → `{recording_id,deleted:true}`: «Borrar
   reunión» and «Terminar sin guardar». See [Deleting a recording](#deleting-a-recording).
-- WebSocket `recording.changed {recording_id}` reaches every connected Mac after closure, group completion/failure, note state/edit changes,
+- WebSocket `recording.changed {recording_id, change}` reaches every connected Mac after closure, group completion/failure, note state/edit changes,
   names, private notes, title or language changes, or its deletion;
-  retranscribed groups notify on return. Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
+  retranscribed groups notify on return. `change` is the change's number:
+  see [Changed meetings](#changed-meetings). Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
   consumed as `HubEventKind::RecordingChanged`.
 
 **Edits at the same time.** Two Macs may edit the same meeting; nothing is
@@ -1036,6 +1038,43 @@ Unknown recordings yield `404 recording_not_found`. A legacy UUID shared
 by two recording devices yields `409 recording_id_ambiguous` with
 `matches_at_least`, rather than selecting an arbitrary meeting.
 Template content never enters logs.
+
+#### Changed meetings
+
+The hub numbers every change it announces as `recording.changed`, so that a
+Mac that was away reads again only the meetings that changed.
+
+- Each notice carries `change`, an integer that grows with every notice, in
+  the order the notices are sent; `ready` carries `change` too, the latest
+  number this start gave (its first, before any change, which no notice
+  carried), read once that socket already listens, so a later change reaches
+  it as a notice. A change is numbered just before its notice is sent, after it was
+  saved.
+- The numbers are this start of the hub's: each start begins at a random
+  number below 2⁵² (every number stays exact in a JSON reader), and the log is
+  kept in memory only. Nothing of it is written to the database.
+- `GET /v1/recordings/changes?since=N`, with the device token →
+  `{"latest": M, "recordings": [recording_id…] | null}`: the meetings that
+  changed after `N`, each once, by its last change, the oldest first.
+  - `[]`: nothing changed after `N`.
+  - `null`: unknown, never «nothing»; read the list again. It answers a
+    number from another start of the hub (a restart, or a restored database),
+    one older than what the log still holds, and one above `latest` (another
+    hub's, or one this hub never gave). A number from another start falls in
+    this start's range with a chance of one in 2⁵² per change.
+  - The log holds each meeting once, by its last change, up to 1,000
+    meetings (`MAX_CHANGED_RECORDINGS`). With one more, the meeting changed
+    longest ago leaves and a number from before its change is `null`. The
+    longest answer stays well within the 1 MiB the Mac reads.
+  - The token is checked first: without it, or with a revoked or unknown one,
+    `401` whatever `since` says, and no `latest`. `since` missing, empty, or
+    anything but ASCII digits (no sign, spaces, `_` or other digits), or more
+    than 4,300 of them →
+    `400 invalid_parameters` `{field: "since"}`.
+- Absent from an older hub: its notices and `ready` carry no `change`, and the
+  Mac reads the list as before. Such a hub answers this route
+  `400 invalid_parameters` `{field: "recording_id"}`, so the Mac asks only a
+  hub whose `ready` said `change`.
 
 ### Deleting a recording
 

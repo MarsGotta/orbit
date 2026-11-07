@@ -110,6 +110,7 @@ def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> 
         changed,
         hub.prepare_signal,
         hub.settings.diarization is not None,
+        hub.runtimes.changes,
     )
     mount_device_bridge(app, hub.device_bridge, transport)
     mount_meetings_bridge(app, hub.meetings_bridge, transport)
@@ -154,5 +155,5 @@ def _mount_devices(app: FastAPI, hub: composition.Hub, identity) -> None:
     reminders.mount(app, store, identity, bounded_body, executor)
     mount_ws(
         app, settings, hub.agents, identity, allowed_transport, hub.runtimes.of, store, now,
-        hub.bridge, hub.bridge_waiters, hub_version,
+        hub.bridge, hub.bridge_waiters, hub_version, hub.runtimes.changes,
     )  # fmt: skip

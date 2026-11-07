@@ -786,7 +786,9 @@ async def test_c5_each_change_reaches_every_paired_device(environment, tmp_path)
                     for socket in (mine, theirs):
                         frame = json.loads(await wait_for(socket.recv(), what))
                         assert frame["event"] == "recording.changed", frame
-                        assert frame["data"] == {"recording_id": recording}
+                        assert frame["data"].keys() == {"recording_id", "change"}, frame
+                        assert frame["data"]["recording_id"] == recording, frame
+                        assert type(frame["data"]["change"]) is int, frame
                     return (
                         await http.get(f"/v1/recordings/{recording}", headers=bearer(paired))
                     ).json()
