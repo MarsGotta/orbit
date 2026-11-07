@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { receive } from "./interceptor";
+import { receive } from "../state/interceptor";
 
 it("names the calendar permission as Rust does and opens its pane", () => {
   const result = receive([], {

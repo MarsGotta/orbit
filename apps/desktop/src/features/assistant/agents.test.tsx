@@ -12,7 +12,7 @@ import { applyFrame } from "../../state/feature-frame";
 import AssistantView from "./AssistantView";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
-import { conversationAgentName, primaryAgentName } from "./agents";
+import { conversationAgentName, primaryAgentName } from "../../state/agents";
 
 /** The window's list column, where the conversations are drawn. */
 function ColumnHost() {

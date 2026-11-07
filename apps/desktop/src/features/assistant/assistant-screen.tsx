@@ -11,7 +11,7 @@ import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AssistantComposer } from "./AssistantComposer";
 import { goTo, parseAssistantRoute, type AssistantRoute } from "./assistant-route";
 import { colorOf, composerBlock } from "./assistants";
-import { agentFor, agentsOf } from "./agents";
+import { agentFor, agentsOf } from "../../state/agents";
 import { useHandedOverFrom } from "./handover";
 import type { With } from "./thread-extras";
 import styles from "./AssistantView.module.css";

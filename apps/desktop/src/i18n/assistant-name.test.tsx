@@ -4,7 +4,7 @@ import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
 import type { DaemonPort, FrameListener } from "../bridge/port";
 import { spanish } from "./es";
 import { english } from "./en";
-import { receive } from "../app/interceptor";
+import { receive } from "../state/interceptor";
 import { PanelApp } from "../features/call-panel/PanelApp";
 
 it("uses the hub name in the panel and wake status as frames arrive", async () => {

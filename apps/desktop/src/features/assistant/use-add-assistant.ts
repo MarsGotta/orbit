@@ -10,7 +10,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";
 import { colorOf, profileProblem } from "./assistants";
-import { agentsOf } from "./agents";
+import { agentsOf } from "../../state/agents";
 import { useSignIn } from "./use-sign-in";
 
 export type Kind = "claude-code" | "codex" | "hermes";

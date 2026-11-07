@@ -49,7 +49,8 @@ interface FrameProps {
 export function OnboardingFrame({ action, children, goTo, onSkipAll, step, steps }: FrameProps) {
   const es = useCopy();
   const copy = es.onboarding;
-  const mac = navigator.userAgent.includes("Mac");
+  // An iPhone says «like Mac OS X» too; only a Mac says «Macintosh».
+  const mac = navigator.userAgent.includes("Macintosh");
   const overlay = useCoveredInert();
   return (
     <div className={styles.overlay} ref={overlay}>

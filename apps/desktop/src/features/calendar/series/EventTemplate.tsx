@@ -1,7 +1,7 @@
 import { useCopy } from "../../../i18n/CopyProvider";
 import type { AppCommand } from "../../../bridge/generated";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import { refusalText, seriesRefusals } from "../../../app/library-refusal";
+import { refusalText, seriesRefusals } from "../../../state/library-refusal";
 
 import styles from "./EventTemplate.module.css";
 import { useHeldChoice } from "../../../state/use-held-choice";

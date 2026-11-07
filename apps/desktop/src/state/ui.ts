@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { NoteTab } from "../features/notes/note-tabs";
+
+export type NoteTab = "actions" | "private" | "summary" | "transcript";
 
 export type ViewId = "briefing" | "calendar" | "notes" | "vault" | "assistant" | "settings";
 

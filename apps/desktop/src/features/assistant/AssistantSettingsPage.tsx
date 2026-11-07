@@ -16,7 +16,7 @@ import { callAgent } from "./agent-calls";
 import { assistantHash, goTo } from "./assistant-route";
 import { colorOf } from "./assistants";
 import { Connection } from "./AssistantConnection";
-import { agentsOf } from "./agents";
+import { agentsOf } from "../../state/agents";
 import { AssistantIdentity } from "./AssistantIdentity";
 import styles from "./AssistantPages.module.css";
 

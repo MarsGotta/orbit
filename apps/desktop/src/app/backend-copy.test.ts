@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { configureCopy, getCopy } from "../i18n";
-import { receive } from "./interceptor";
+import { receive } from "../state/interceptor";
 import { request } from "../features/vault/api";
 import type { Refusal } from "../bridge/refusal";
 

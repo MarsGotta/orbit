@@ -16,7 +16,7 @@ import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { AssistantSessions } from "./AssistantSessions";
 import AssistantView from "./AssistantView";
-import { conversationAgentName } from "./agents";
+import { conversationAgentName } from "../../state/agents";
 
 // Wednesday 21 October 2026, 12:00 on the Mac's clock.
 export const NOW = new Date(2026, 9, 21, 12, 0).getTime();

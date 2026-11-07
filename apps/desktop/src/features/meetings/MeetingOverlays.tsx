@@ -2,7 +2,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AppCommand } from "../../bridge/generated";
 import { MeetingStartDialog } from "./MeetingStartDialog";
 import { Toast } from "../../design/Toast";
-import type { VisibleClass } from "../../app/interceptor";
+import type { VisibleClass } from "../../state/interceptor";
 
 export interface MeetingOverlaysProps {
   error: string | null;

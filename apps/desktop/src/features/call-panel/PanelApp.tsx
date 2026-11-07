@@ -12,7 +12,7 @@ import { CopyProvider, useCopy } from "../../i18n/CopyProvider";
 import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
 import { OrbitStoreProvider } from "../../state/use-in-flight";
 import { voiceStatusText } from "../../app/meeting-question/copy";
-import { primaryAgentName } from "../assistant/agents";
+import { primaryAgentName } from "../../state/agents";
 import { EndingCard, OfferCard, RecordingCard } from "./CallPanel";
 import { PanelAnswer } from "./PanelAnswer";
 import { PanelAsk } from "./PanelAsk";

@@ -1,14 +1,7 @@
 import type { FeatureFrame } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
-import {
-  freshNotices,
-  newOp,
-  receive,
-  uiReport,
-  type Context,
-  type Incoming,
-} from "../app/interceptor";
-import { conversationAgentName } from "../features/assistant/agents";
+import { freshNotices, newOp, receive, uiReport, type Context, type Incoming } from "./interceptor";
+import { conversationAgentName } from "./agents";
 import { watchFailures } from "./state-failures";
 import type { Get, Set, StoreOptions } from "./orbit-store";
 

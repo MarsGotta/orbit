@@ -1,7 +1,8 @@
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 import { isRecording } from "./note-progress";
+import type { NoteTab } from "../../state/ui";
 
-export type NoteTab = "actions" | "private" | "summary" | "transcript";
+export type { NoteTab };
 
 /**
  * The tab a note opens on: while recording, the private notes; once

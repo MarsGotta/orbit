@@ -8,7 +8,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { assistantHash } from "./assistant-route";
 import { colorOf } from "./assistants";
-import { agentsOf } from "./agents";
+import { agentsOf } from "../../state/agents";
 import { ProfileMenu } from "./ProfileMenu";
 import styles from "./AssistantView.module.css";
 

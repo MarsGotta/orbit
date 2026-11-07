@@ -9,7 +9,7 @@ import { NotResponding, Starting } from "./AppStates";
 import type { useAppStore } from "./use-app-store";
 import { useErrorSelection } from "./error-selection";
 import { Main } from "./Main";
-import type { Message } from "./interceptor";
+import type { Message } from "../state/interceptor";
 import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
 import { Overlays, useCommandDispatch } from "./AppOverlays";

@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Notice } from "../../../bridge/generated/Notice";
-import { receive } from "../../../app/interceptor";
+import { receive } from "../../../state/interceptor";
 import { NoticeBanner } from "../../../app/NoticeBanner";
 
 function recovered(elapsedMs?: number) {

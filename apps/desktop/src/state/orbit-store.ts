@@ -16,7 +16,7 @@ import {
   type CrashCode,
   type ErrorOrigin,
   type Message,
-} from "../app/interceptor";
+} from "./interceptor";
 import { applyFrame, newer } from "./feature-frame";
 import { composeView, type AppView } from "./app-view";
 import { CONNECT_CEILING_MS } from "./ceilings";
@@ -24,7 +24,7 @@ import type { Wait } from "./in-flight";
 import { sender } from "./sender";
 import { firstStateFollower, WaitRegistry, workingFollower } from "./wait-registry";
 
-export type { ErrorOrigin } from "../app/interceptor";
+export type { ErrorOrigin } from "./interceptor";
 
 export interface OrbitState {
   snapshot: AppView | null;

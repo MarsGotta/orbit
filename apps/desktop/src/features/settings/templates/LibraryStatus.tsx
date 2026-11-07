@@ -1,7 +1,7 @@
 import { useCopy } from "../../../i18n/CopyProvider";
 import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
 
-import { refusalText } from "../../../app/library-refusal";
+import { refusalText } from "../../../state/library-refusal";
 import styles from "./Templates.module.css";
 
 /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { genericFailure, receive } from "../../../app/interceptor";
+import { genericFailure, receive } from "../../../state/interceptor";
 import type { Notice } from "../../../bridge/generated/Notice";
 
 // A turn the hub refused for its files says which rule and its numbers;

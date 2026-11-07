@@ -11,7 +11,7 @@ import type { AgentPort } from "../settings/agents/use-agent-config";
 import { Group, List } from "../settings/layout";
 import { callAgent } from "./agent-calls";
 import { healthOf, type Health } from "./assistants";
-import { agentsOf } from "./agents";
+import { agentsOf } from "../../state/agents";
 import { SignInNotice } from "./SignInNotice";
 import styles from "./AssistantPages.module.css";
 

@@ -9,7 +9,7 @@ import type { MessagesPage } from "../../bridge/reads";
 import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import AssistantView from "./AssistantView";
-import { conversationAgentName } from "./agents";
+import { conversationAgentName } from "../../state/agents";
 
 vi.mock("../../bridge/clipboard", () => ({ copyText: () => Promise.resolve() }));
 

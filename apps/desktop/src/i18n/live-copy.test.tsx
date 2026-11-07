@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { CopyProvider, useCopy } from "./CopyProvider";
 import { getCopy } from ".";
 import { NoticeBanner } from "../app/NoticeBanner";
-import { receive } from "../app/interceptor";
+import { receive } from "../state/interceptor";
 import { LanguageSetting } from "../features/settings/LanguageSetting";
 
 function ReadCopy() {

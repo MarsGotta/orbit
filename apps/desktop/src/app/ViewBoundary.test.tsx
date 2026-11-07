@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { genericFailure, receive } from "./interceptor";
+import { genericFailure, receive } from "../state/interceptor";
 import { ViewBoundary } from "./ViewBoundary";
 
 const OP = "c0ffee00-0000-4000-8000-000000000003";

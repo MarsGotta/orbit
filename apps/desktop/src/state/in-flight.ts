@@ -20,7 +20,7 @@
  */
 import type { FeatureFrame, FeatureId, FrameRevision } from "../bridge/generated";
 import type { FeatureAvailability } from "../bridge/generated/FeatureAvailability";
-import type { ErrorOrigin } from "../app/interceptor";
+import type { ErrorOrigin } from "./interceptor";
 
 export type WaitKind = "order" | "call" | "first_state";
 

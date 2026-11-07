@@ -1,5 +1,5 @@
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AppView } from "../../state/app-view";
+import type { Agent } from "../bridge/generated/Agent";
+import type { AppView } from "./app-view";
 
 /**
  * The agents a conversation can be with, in the hub's order. A hub without

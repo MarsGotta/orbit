@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "../../bridge/generated";
 import type { ChatMessage } from "../../bridge/generated/ChatMessage";
 import type { VoiceNote } from "../../bridge/generated/VoiceNote";
-import { genericFailure, receive } from "../../app/interceptor";
+import { genericFailure, receive } from "../../state/interceptor";
 import { MessageList } from "./MessageList";
 
 // «Reintentar transcripción» on a voice note whose transcription failed asks

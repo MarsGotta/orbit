@@ -10,7 +10,7 @@ import { CopyProvider } from "../../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
-import { conversationAgentName } from "./agents";
+import { conversationAgentName } from "../../state/agents";
 import { rememberFirstLine } from "./first-lines";
 import { sessionWhen } from "./session-title";
 

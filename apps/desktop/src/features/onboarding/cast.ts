@@ -2,7 +2,7 @@ import { getCopy } from "../../i18n";
 import type { Agent } from "../../bridge/generated/Agent";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { agentsOf } from "../assistant/agents";
+import { agentsOf } from "../../state/agents";
 
 /**
  * Who is who in the first run: the hub's own assistant (the one Orbit does

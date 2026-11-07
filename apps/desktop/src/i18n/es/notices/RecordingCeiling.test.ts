@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { receive } from "../../../app/interceptor";
+import { receive } from "../../../state/interceptor";
 
 it("accepts retired ceiling notices from old Macs silently", () => {
   for (const code of [

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Notice } from "../bridge/generated/Notice";
-import { receive } from "./interceptor";
+import { receive } from "../state/interceptor";
 
 it.each([
   ["engine", "exit", 0, "El motor de control terminó sin que Orbit lo pidiera (código 0)."],

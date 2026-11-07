@@ -2,7 +2,7 @@ import { getCopy } from "../../i18n";
 import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
 
 import type { AppView } from "../../state/app-view";
-import { agentFor } from "../assistant/agents";
+import { agentFor } from "../../state/agents";
 import { insertIntoComposer } from "../assistant/composer-insert";
 import { quoteFragment } from "../assistant/conversation-markdown";
 import type { EditorAssistant } from "../editor/MarkdownEditor";

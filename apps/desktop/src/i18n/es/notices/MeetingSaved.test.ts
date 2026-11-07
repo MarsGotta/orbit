@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Notice } from "../../../bridge/generated/Notice";
-import { receive } from "../../../app/interceptor";
+import { receive } from "../../../state/interceptor";
 
 function said(code: Notice["code"], data: Notice["data"] = {}) {
   const notice = { code, op: "meeting-end", sequence: 1, data } as Notice;

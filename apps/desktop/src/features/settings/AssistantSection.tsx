@@ -11,7 +11,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useNow } from "../../use-now";
 import { assistantHash } from "../assistant/assistant-route";
 import { colorOf } from "../assistant/assistants";
-import { agentsOf } from "../assistant/agents";
+import { agentsOf } from "../../state/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantFolders } from "./AssistantFolders";
 import { ControlHistory } from "./ControlHistory";

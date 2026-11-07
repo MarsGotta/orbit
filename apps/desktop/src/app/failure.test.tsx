@@ -7,7 +7,7 @@ import { ViewError } from "../design/ViewError";
 import { es } from "../i18n/es";
 import { createOrbitStore } from "../state/orbit-store";
 import { FailureActionsProvider } from "./FailureActions";
-import { receive, type Message } from "./interceptor";
+import { receive, type Message } from "../state/interceptor";
 import { NoticeBanner } from "./NoticeBanner";
 
 const copyText = vi.hoisted(() => vi.fn(() => Promise.resolve()));

@@ -12,7 +12,7 @@ import type { FailedNoticeCode } from "../i18n";
 import { failureCode, genericFailure, repeatable, failure, worded, type Failure } from "./failure";
 
 import { closedData, timeoutData, token } from "./report-data";
-import type { ViewId } from "../state/ui";
+import type { ViewId } from "./ui";
 
 /** Where a command's refusal is shown: the view, overlay or panel that sent it. */
 export type ErrorOrigin = ViewId | "onboarding" | "recording";

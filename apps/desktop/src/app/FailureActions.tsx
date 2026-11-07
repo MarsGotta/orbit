@@ -5,7 +5,7 @@ import { Button } from "../design/Button";
 import { useFeedback } from "../design/feedback";
 import { ViewErrorActions } from "../design/ViewError";
 
-import { localizeMessage, type Failure, type Message } from "./interceptor";
+import { localizeMessage, type Failure, type Message } from "../state/interceptor";
 import styles from "./FailureActions.module.css";
 
 /** «Copiar el código» → «✓ Copiado»: only the code goes to the clipboard. */

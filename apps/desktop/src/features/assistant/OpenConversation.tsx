@@ -10,7 +10,7 @@ import { speakingShown, turnInFlight } from "./conversation";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
 import { ActivityLine, turnFailure, turnQuestion } from "./ThreadParts";
-import { readsAloud } from "./agents";
+import { readsAloud } from "../../state/agents";
 import { ThreadHead, TurnEnd, type With } from "./thread-extras";
 import { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";

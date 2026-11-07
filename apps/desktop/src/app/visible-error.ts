@@ -1,4 +1,4 @@
-import { localizeMessage, type ErrorOrigin, type Message } from "./interceptor";
+import { localizeMessage, type ErrorOrigin, type Message } from "../state/interceptor";
 
 /** The message of a refused order sent from `place`, the newest if several. */
 export function messageFor(place: ErrorOrigin, messages: readonly Message[]): Message | undefined {

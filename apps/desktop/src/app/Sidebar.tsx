@@ -2,7 +2,7 @@ import type { AppCommand } from "../bridge/generated";
 import { BrandMark } from "../design/Brand";
 import { RecordButton } from "../design/Button";
 import { SidebarItem } from "../design/SidebarItem";
-import { agentFor } from "../features/assistant/agents";
+import { agentFor } from "../state/agents";
 import { noteRowState } from "../features/notes/note-row";
 import { useCopy } from "../i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";

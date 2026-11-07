@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { receive } from "./interceptor";
+import { receive } from "../state/interceptor";
 import { NoticeBanner } from "./NoticeBanner";
 
 afterEach(cleanup);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { genericFailure, receive } from "../../app/interceptor";
+import { genericFailure, receive } from "../../state/interceptor";
 import { accessGroups } from "./agents";
 import { es, globalShortcuts, spanish } from "./index";
 

@@ -8,7 +8,7 @@ import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useHeldChoice } from "../../state/use-held-choice";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { colorOf } from "./assistants";
-import { agentFor, agentsOf } from "./agents";
+import { agentFor, agentsOf } from "../../state/agents";
 import { StatusLine } from "./AssistantHome";
 import { SignInNotice } from "./SignInNotice";
 import styles from "./AssistantPages.module.css";

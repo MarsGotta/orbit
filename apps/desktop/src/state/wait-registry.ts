@@ -1,7 +1,7 @@
 import { getCopy } from "../i18n";
 import type { FeatureId, FrameRevision } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
-import { newOp, type Context, type ErrorOrigin } from "../app/interceptor";
+import { newOp, type Context, type ErrorOrigin } from "./interceptor";
 
 import {
   callCeilingMs,

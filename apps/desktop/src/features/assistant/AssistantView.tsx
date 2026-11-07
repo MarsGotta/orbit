@@ -10,7 +10,7 @@ import { CopyProvider, useCopy } from "../../i18n/CopyProvider";
 import { useNow } from "../../use-now";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AddAssistant } from "./AddAssistant";
-import { conversationAgentName } from "./agents";
+import { conversationAgentName } from "../../state/agents";
 import { UnknownAssistant, useAssistantCall } from "./AssistantAvailability";
 import { AssistantSettingsPage } from "./AssistantSettingsPage";
 import { goTo, useAssistantRoute, type AssistantRoute } from "./assistant-route";

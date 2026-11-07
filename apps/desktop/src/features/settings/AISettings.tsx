@@ -1,7 +1,7 @@
 import { useCopy } from "../../i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
 
-import { agentsOf } from "../assistant/agents";
+import { agentsOf } from "../../state/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AIFunctions } from "./AIFunctions";
 import { AIProviders } from "./AIProviders";

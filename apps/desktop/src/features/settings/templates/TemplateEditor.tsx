@@ -4,7 +4,7 @@ import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibraryS
 import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
 import { Button } from "../../../design/Button";
 
-import { refusalText } from "../../../app/library-refusal";
+import { refusalText } from "../../../state/library-refusal";
 import { MarkdownEditor } from "../../editor/MarkdownEditor";
 import { type RemovedTemplate, type TemplateDraft, removedTemplate } from "./template-draft";
 import { TemplateSections } from "./TemplateSections";

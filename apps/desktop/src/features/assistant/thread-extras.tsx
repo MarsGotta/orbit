@@ -7,7 +7,7 @@ import { Loading } from "../../design/Spinner";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
-import { agentsOf } from "./agents";
+import { agentsOf } from "../../state/agents";
 import { AssistantHome } from "./AssistantHome";
 import { healthOf } from "./assistants";
 import { ChooseAssistant } from "./ChooseAssistant";

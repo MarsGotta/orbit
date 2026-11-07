@@ -3,7 +3,7 @@ import type { ReadPage } from "../bridge/reads";
 import { refusalOf } from "../bridge/refusal";
 import type { OrbitState } from "../state/orbit-store";
 import type { DirectCall } from "../state/ceilings";
-import { newOp, refusalReport } from "./interceptor";
+import { newOp, refusalReport } from "../state/interceptor";
 
 /** Runs a call through the registry of what is in flight; as is, without one. */
 type Track = OrbitState["track"];
