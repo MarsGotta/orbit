@@ -1,9 +1,9 @@
 //! What a transfer's outcome means: for its job, for the retry gate and for
 //! the person. One rule for every transfer, whether the loop or the capture
 //! task ran it.
-use anyhow::{Result, bail};
+use anyhow::Result;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
-use orbit_store::{ChunkReceipt, Job, JobState, Store};
+use orbit_store::{Job, JobState, Store};
 
 /// The one retry gate of every transfer, shared by the loop's closures and
 /// the capture task's chunks: a hub that refuses or has no room holds both.
@@ -76,52 +76,6 @@ pub(super) fn settle(job: &Job, result: &Result<()>) -> Settlement {
             .then(|| job.payload["metadata"]["id"].as_str().map(str::to_owned))
             .flatten(),
     }
-}
-
-/// Where a chunk goes and who sends it.
-pub(super) struct ChunkPut {
-    pub(super) base: reqwest::Url,
-    pub(super) token: String,
-    pub(super) receipt: ChunkReceipt,
-    pub(super) bytes: Vec<u8>,
-}
-
-/// One chunk to the hub, confirmed only by a durable receipt for the same
-/// bytes.
-pub(super) async fn put_chunk(put: ChunkPut, op: &orbit_core::notice::Op) -> Result<()> {
-    let ChunkPut {
-        base,
-        token,
-        receipt,
-        bytes,
-    } = put;
-    let metadata = &receipt.metadata;
-    let mut request = crate::hub::request(
-        reqwest::Method::PUT,
-        base.join(&format!("v1/chunks/{}", metadata.id))?,
-        Some(&token),
-        op,
-    )?
-    .header("Content-Type", "audio/wav")
-    .header("X-Orbit-Recording", &metadata.recording_id)
-    .header("X-Orbit-Track", &metadata.track)
-    .header("X-Orbit-Sequence", metadata.sequence)
-    .header("X-Orbit-Started-At-Ms", metadata.started_at_ms)
-    .header("X-Orbit-Monotonic-Ns", metadata.monotonic_ns)
-    .header("X-Orbit-First-Sample", metadata.first_sample)
-    .header("X-Orbit-Frames", metadata.frames)
-    .header("X-Orbit-Sample-Rate", metadata.sample_rate)
-    .header("X-Orbit-Channels", metadata.channels)
-    .header("X-Orbit-SHA256", &receipt.sha256);
-    if let Some(epoch) = &metadata.capture_epoch_id {
-        request = request.header("X-Orbit-Capture-Epoch-Id", epoch);
-    }
-    let response = crate::retry::check_response(request.body(bytes).send().await?).await?;
-    let ack = crate::hub::bounded_json(response).await?;
-    if ack["durable"] != true || ack["sha256"] != receipt.sha256 || ack["chunk_id"] != metadata.id {
-        bail!("The server did not confirm a valid durable receipt");
-    }
-    Ok(())
 }
 
 /// The job's new state and, for a confirmed chunk, its audio pruned: one

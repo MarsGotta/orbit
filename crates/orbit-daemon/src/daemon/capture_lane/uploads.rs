@@ -4,7 +4,8 @@
 //! waited for.
 use super::CaptureLane;
 use crate::daemon::store_actor::CapturePort;
-use crate::daemon::upload_outcome::{self, ChunkPut, HUB_FULL_RETRY, SharedGate};
+use crate::daemon::upload_outcome::{self, HUB_FULL_RETRY, SharedGate};
+use crate::hub::ChunkPut;
 use crate::supervision::{Actor, Supervision};
 use anyhow::{Context, Result};
 use futures_util::FutureExt;
@@ -248,7 +249,7 @@ impl Transfer {
             receipt,
             bytes,
         };
-        let result = upload_outcome::put_chunk(put, &orbit_ipc::new_op()).await;
+        let result = crate::hub::put_chunk(put, &orbit_ipc::new_op()).await;
         // A privacy stop, a closure or another hub meanwhile: the job stays
         // running and is reconciled by an idempotent PUT later.
         {

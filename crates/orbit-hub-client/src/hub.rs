@@ -1,6 +1,7 @@
 //! The daemon's link to the hub: the device's WebSocket (`link`) and the
 //! HTTP calls made with its credential (pairing, the conversations, the
-//! attachments, a voice turn). This adapter never retries a submitted prompt.
+//! attachments, a voice turn, a meeting's chunks and closure). This adapter
+//! never retries a submitted prompt.
 use crate::{HubEndpoint, validate_hub_url};
 use anyhow::{Context, Result, bail};
 use orbit_core::limits::{MAX_HUB_HTTP_BODY_BYTES, MAX_HUB_OUTGOING_FRAME_BYTES};
@@ -12,6 +13,7 @@ use std::time::Duration;
 mod attachments;
 mod conversations;
 mod link;
+mod recordings;
 mod voice;
 
 pub use attachments::{
@@ -23,6 +25,9 @@ pub use conversations::{
 pub use conversations::{HubReadStatus, HubSessionInvalidRow, HubSessionsCursorMismatch};
 pub use link::{Events, HubEvent, run};
 pub use link::{invalid_event_name, unsent_count};
+pub use recordings::{
+    ChunkPut, HubCode, OutOfSpace, Refused, check_response, check_status, post_closure, put_chunk,
+};
 pub use voice::transcribe;
 
 /// Hard cap on an outgoing hub frame, matched to the server's `max_frame_bytes`

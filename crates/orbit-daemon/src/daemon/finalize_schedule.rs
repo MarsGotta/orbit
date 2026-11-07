@@ -6,36 +6,8 @@ use super::*;
 /// hub receives, with the chunks it refused for good declared.
 pub(in crate::daemon) struct Closure {
     pub(in crate::daemon) job: Job,
-    recording_id: String,
-    manifest: Value,
-}
-
-/// The closure to the hub, confirmed only by its durable receipt.
-pub(in crate::daemon) async fn post_closure(
-    base: &reqwest::Url,
-    token: &str,
-    closure: &Closure,
-    op: &orbit_core::notice::Op,
-) -> Result<()> {
-    let recording_id = &closure.recording_id;
-    let response = crate::hub::request(
-        reqwest::Method::POST,
-        base.join(&format!("v1/recordings/{recording_id}/finalize"))?,
-        Some(token),
-        op,
-    )?
-    .json(&closure.manifest)
-    .send()
-    .await?;
-    let response = crate::retry::check_response(response).await?;
-    let receipt: Value = crate::hub::bounded_json(response).await?;
-    if receipt["durable"] != true
-        || receipt["finalized"] != true
-        || receipt["recording_id"] != recording_id.as_str()
-    {
-        bail!("Invalid finalization receipt");
-    }
-    Ok(())
+    pub(in crate::daemon) recording_id: String,
+    pub(in crate::daemon) manifest: Value,
 }
 
 impl Runtime {
@@ -145,7 +117,14 @@ impl Runtime {
             .worker
             .start_logical(generation, job_op, (), move |ticket| {
                 tokio::spawn(async move {
-                    let result = post_closure(&base, &token, &closure, ticket.op()).await;
+                    let result = crate::hub::post_closure(
+                        &base,
+                        &token,
+                        &closure.recording_id,
+                        &closure.manifest,
+                        ticket.op(),
+                    )
+                    .await;
                     crate::daemon::deliver_work(
                         &events,
                         WorkResult::Store(crate::daemon::StoreWork::Uploaded {
