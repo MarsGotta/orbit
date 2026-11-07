@@ -1016,6 +1016,22 @@ Pairing, upload and finalization remain device-specific. See the
   retranscribed groups notify on return. Fixture: `contracts/fixtures/hub/events/recording.changed.json`,
   consumed as `HubEventKind::RecordingChanged`.
 
+**Edits at the same time.** Two Macs may edit the same meeting; nothing is
+merged but the task marks:
+
+- The note (`PUT …/note/edits`): the last edit to reach the hub wins, not the
+  one with the later Mac clock. An edit on an old revision is refused with
+  `409 note_revision_changed`, and the Mac reads the note again and sends the
+  same edit on the current revision. The note's title, and its sections as one
+  list, are each replaced whole when sent; task marks (`done`) are merged task
+  by task. The other Mac is not told that its edit was replaced.
+- The private notes: the same, with `409 stale_revision`.
+- The meeting's title (`PUT …/title`) carries no revision: the last one to
+  reach the hub replaces it.
+- Reminders: the latest `edited_at_ms` wins, as their paragraph says.
+
+Merging edits made in two places is left for a later version.
+
 Unknown recordings yield `404 recording_not_found`. A legacy UUID shared
 by two recording devices yields `409 recording_id_ambiguous` with
 `matches_at_least`, rather than selecting an arbitrary meeting.

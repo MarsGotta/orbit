@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from threading import RLock
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from ..attachments import AttachmentRepository
@@ -29,6 +30,17 @@ from .operations import OperationRepository
 from .recordings import RecordingRepository
 from .reminders import ReminderRepository
 from .space import SpaceRepository, is_storage_full
+
+# A sealed value may begin with the mark of the key that sealed it: "OHK1",
+# then the key id (the first 8 bytes of an HMAC of the key, so it is derived,
+# never stored, and says nothing of the key), the nonce and the ciphertext,
+# with the header bound into the associated data before the context. This hub
+# reads that form and still writes today's (nonce and ciphertext, context
+# alone), which every earlier hub reads. See server/README.md.
+KEY_MARK = b"OHK1"
+KEY_ID_LABEL = b"orbit.storage.key-id.v1"
+NONCE_BYTES = 12
+TAG_BYTES = 16
 
 
 def initialize(data_dir: Path, key_file: Path) -> None:
@@ -79,6 +91,7 @@ class Store:
         if info.st_uid != os.getuid() or info.st_mode & 0o077:
             raise ValueError("Data directory must belong to this user and have mode 0700")
         self._cipher = AESGCM(key)
+        self._key_header = KEY_MARK + hmac.digest(key, KEY_ID_LABEL, "sha256")[:8]
         self._lock = RLock()
         # Counts the commits of this connection: a cache of rows read before
         # the last one (`DeviceRepository.is_active`) is not used again.
@@ -200,4 +213,21 @@ class Store:
         return nonce + self._cipher.encrypt(nonce, data, context.encode())
 
     def decrypt(self, data: bytes, context: str) -> bytes:
-        return self._cipher.decrypt(data[:12], data[12:], context.encode())
+        """Read a value sealed in either form (see `KEY_MARK`).
+
+        Only a value that begins with this key's header and is long enough to
+        hold an empty marked one (header, nonce and tag) is tried as marked.
+        Whatever that does not open is read as today's form: a random nonce
+        of today's form may begin with the header, one in 2**96. A mark of
+        another key is today's form to this hub, and fails as today does."""
+        header = self._key_header
+        marked_floor = len(header) + NONCE_BYTES + TAG_BYTES
+        if len(data) >= marked_floor and data[: len(header)] == header:
+            nonce_end = len(header) + NONCE_BYTES
+            try:
+                return self._cipher.decrypt(
+                    data[len(header) : nonce_end], data[nonce_end:], header + context.encode()
+                )
+            except InvalidTag:
+                pass
+        return self._cipher.decrypt(data[:NONCE_BYTES], data[NONCE_BYTES:], context.encode())
