@@ -25,26 +25,20 @@ function renderCard(value = call(), agentName = "Deimos") {
 }
 
 describe("the call card", () => {
-  it("says who you talk to, for how long, what it sees and what is left", () => {
+  it("says who you talk to, for how long and what it sees", () => {
     renderCard();
     const card = screen.getByRole("region", { name: "Llamada en curso" });
     expect(card.textContent).toContain("En llamada");
     expect(screen.getByRole("timer", { name: "Tiempo de llamada" }).textContent).toBe("04:12");
     expect(card.textContent).toContain("Deimos");
-    expect(card.textContent).toContain("Ve tu pantalla · quedan 55 min");
-  });
-
-  it("says the hours left of a call that has them", () => {
-    renderCard(call({ expires_at_ms: Date.now() + 239 * 60_000 + 30_000 }));
-    const card = screen.getByRole("region", { name: "Llamada en curso" });
-    expect(card.textContent).toContain("Ve tu pantalla · quedan 3 h 59 min");
+    expect(card.textContent).toContain("Ve tu pantalla");
   });
 
   it("names the agent of the call and what it cannot see", () => {
-    renderCard(call({ seeing_screen: false, expires_at_ms: Date.now() + 30_000 }), "Vega");
+    renderCard(call({ seeing_screen: false }), "Vega");
     const card = screen.getByRole("region", { name: "Llamada en curso" });
     expect(card.textContent).toContain("Vega");
-    expect(card.textContent).toContain("No ve tu pantalla · queda 1 min");
+    expect(card.textContent).toContain("No ve tu pantalla");
   });
 
   it("«Colgar» ends the call", async () => {

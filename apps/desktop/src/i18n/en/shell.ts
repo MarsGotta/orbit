@@ -2,7 +2,6 @@ import { pluralRules } from "../locale";
 import { numberFormat } from "../locale";
 // The window: the sidebar with its recording and call cards, the top bar
 // with its notices, and what the window says before Orbit answers.
-import { duration } from "./duration";
 
 /** The already-localized time the recording runs until. */
 function until(time: string): string {
@@ -97,7 +96,6 @@ const callCopy = {
     elapsed: "Call duration",
     seesScreen: "Can see your screen",
     noScreen: "Can’t see your screen",
-    left: (minutes: number) => (minutes <= 1 ? "1 min left" : `${duration(minutes)} left`),
     hangUp: "Hang up",
   },
 } as const;

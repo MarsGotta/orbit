@@ -6,16 +6,10 @@ import { mmss } from "../time-format";
 import { useNow } from "../use-now";
 import styles from "./SidebarCard.module.css";
 
-/** Whole minutes until the call hangs up by itself, rounded down as the
- *  call view counts them; the last minute reads «queda 1 min». */
-function minutesLeft(expiresAtMs: number, now: number): number {
-  return Math.max(1, Math.floor((expiresAtMs - now) / 60_000));
-}
-
 /**
  * The call with the agent, at the top of the sidebar in every view,
  * however it began (in the app or with ⌃⌥D): who, for how long, whether it
- * sees the screen, how long it may last, and «Colgar».
+ * sees the screen, and «Colgar».
  */
 export function CallCard({
   agentName,
@@ -40,9 +34,7 @@ export function CallCard({
         </span>
       </div>
       <div className={styles.title}>{agentName}</div>
-      <div className={styles.meta}>
-        {screen} · {es.callCard.left(minutesLeft(call.expires_at_ms, now))}
-      </div>
+      <div className={styles.meta}>{screen}</div>
       <Button
         className={styles.wide}
         onClick={() => send({ command: "call_stop" })}
