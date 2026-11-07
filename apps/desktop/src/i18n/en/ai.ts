@@ -29,6 +29,11 @@ export const aiCopy = {
   local: "Local AI",
   cloud: "Cloud, with a key",
   operator: "Operator configuration",
+  api: "OpenAI-compatible API",
+  model: "Model",
+  modelsHelp:
+    "Write each model as the API lists it and mark what it does. The hub checks it is in the catalogue but doesn’t try it.",
+  addModel: "Add another model",
 };
 
 const aiRefusals: Record<string, string> = {
@@ -50,6 +55,10 @@ export function aiRefusalText(
   refusal: import("../../bridge/generated/AgentRefusal").AgentRefusal,
 ): string | undefined {
   const n = refusal.numbers;
+  // With numbers, an API's named models missing from its catalogue; without them,
+  // a capability correction of a detected provider (local or OpenRouter).
+  if (refusal.code === "ai_models_invalid" && n.count !== undefined)
+    return `Models not in this API’s catalogue: ${formatQuantity(n.count)} of ${formatQuantity(n.named)}. The catalogue has ${formatQuantity(n.catalogue)}; write them as it lists them.`;
   switch (refusal.code) {
     case "ai_provider_timeout":
       return `The provider didn’t finish checking within ${formatQuantity(n.timeout_ms)} ms.`;

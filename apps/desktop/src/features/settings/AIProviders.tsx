@@ -6,12 +6,12 @@ import { Button } from "../../design/Button";
 
 import { Group, List, Row } from "./layout";
 import { AIProviderEditor } from "./AIProviderEditor";
+import { CapabilityChecks } from "./ApiModels";
 import type { useAISettings } from "./use-ai-settings";
 
 type View = ReturnType<typeof useAISettings>;
 function ModelCorrection({ provider, view }: { provider: AiProvider; view: View }) {
   const inlineCopy = useCopy().settingsInline;
-  const copy = useCopy().extras.aiCopy;
   const [models, setModels] = useState<AiModel[]>(provider.models);
   return (
     <details>
@@ -19,29 +19,12 @@ function ModelCorrection({ provider, view }: { provider: AiProvider; view: View 
       {models.map((model, index) => (
         <fieldset key={model.id}>
           <legend>{model.id}</legend>
-          {Object.entries(copy.capabilities).map(([id, label]) => (
-            <label key={id}>
-              <input
-                type="checkbox"
-                checked={model.capabilities.includes(id)}
-                onChange={(e) =>
-                  setModels(
-                    models.map((item, at) =>
-                      at !== index
-                        ? item
-                        : {
-                            ...item,
-                            capabilities: e.target.checked
-                              ? [...item.capabilities, id]
-                              : item.capabilities.filter((c) => c !== id),
-                          },
-                    ),
-                  )
-                }
-              />
-              {label}
-            </label>
-          ))}
+          <CapabilityChecks
+            capabilities={model.capabilities}
+            onChange={(capabilities) =>
+              setModels(models.map((item, at) => (at !== index ? item : { ...item, capabilities })))
+            }
+          />
         </fieldset>
       ))}
       <Button
@@ -89,7 +72,10 @@ export function AIProviders({ view, initiallyOpen = false }: AIProvidersProps) {
               <Button disabled={view.busy} onClick={() => setEditing(p)}>
                 {inlineCopy.edit} {p.name}
               </Button>
-              <ModelCorrection key={JSON.stringify(p.models)} provider={p} view={view} />
+              {/* An API's models are named, not detected: its editor changes them. */}
+              {p.kind !== "api" && (
+                <ModelCorrection key={JSON.stringify(p.models)} provider={p} view={view} />
+              )}
             </Row>
           ))}
         <Row title={copy.local} help={inlineCopy.localHelp} />

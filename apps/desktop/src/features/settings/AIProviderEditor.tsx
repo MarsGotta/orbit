@@ -1,6 +1,7 @@
 import { getCopy } from "../../i18n";
 import { useCopy } from "../../i18n/CopyProvider";
 import { useState } from "react";
+import type { AiModel } from "../../bridge/generated/AiModel";
 import type { AiProvider } from "../../bridge/generated/AiProvider";
 import { Button } from "../../design/Button";
 import { Field } from "../../design/Field";
@@ -10,6 +11,7 @@ import {
   MAX_AI_PROVIDER_URL_CHARS,
   MAX_AI_PROVIDER_KEY_CHARS,
 } from "./ai-limits";
+import { ApiModels } from "./ApiModels";
 import { List, Row } from "./layout";
 import type { useAISettings } from "./use-ai-settings";
 import styles from "./SettingsView.module.css";
@@ -19,29 +21,56 @@ const routerUrl = "https://openrouter.ai/api/v1";
 
 type Props = { view: View; existing?: AiProvider; onClose: () => void };
 
+function newProviderId(kind: string): string {
+  if (kind === "openrouter") return "openrouter";
+  return `${kind === "api" ? "api" : "local"}-${window.crypto.randomUUID()}`;
+}
+
 function useProviderForm({ view, existing, onClose }: Props) {
   const [name, setName] = useState(existing?.name ?? "");
   const [url, setUrl] = useState(existing?.base_url ?? "");
   const [key, setKey] = useState("");
   const [kind, setKind] = useState(existing?.kind ?? "local");
+  const [models, setModels] = useState<AiModel[]>(
+    existing?.kind === "api" ? existing.models : [{ id: "", capabilities: [] }],
+  );
+  const endpoint = kind === "local" || kind === "api";
+  const named = models
+    .map((model) => ({ ...model, id: model.id.trim() }))
+    .filter((model) => model.id.length > 0);
+  const ready =
+    !endpoint ||
+    (name.trim().length > 0 && url.trim().length > 0 && (kind !== "api" || named.length > 0));
   const save = async () => {
-    const providerId =
-      existing?.id ??
-      (kind === "openrouter" ? "openrouter" : `local-${window.crypto.randomUUID()}`);
     const ok = await view.call({
       call: "ai_provider_save",
-      provider_id: providerId,
+      provider_id: existing?.id ?? newProviderId(kind),
       provider: {
         name: kind === "openrouter" ? getCopy().settingsInline.openRouter : name,
         kind,
         base_url: kind === "openrouter" ? routerUrl : url,
         ...(key.length > 0 ? { api_key: key } : {}),
+        ...(kind === "api" ? { models: named } : {}),
       },
     });
     setKey("");
     if (ok) onClose();
   };
-  return { name, setName, url, setUrl, key, setKey, kind, setKind, save };
+  return {
+    name,
+    setName,
+    url,
+    setUrl,
+    key,
+    setKey,
+    kind,
+    setKind,
+    models,
+    setModels,
+    endpoint,
+    ready,
+    save,
+  };
 }
 type Form = ReturnType<typeof useProviderForm>;
 
@@ -73,7 +102,7 @@ export function AIProviderEditor(props: Props) {
   const copy = useCopy().extras.aiCopy;
   const { view, existing, onClose } = props;
   const form = useProviderForm(props);
-  const { name, url, key, setKey, kind, setKind, save } = form;
+  const { key, setKey, kind, setKind, save } = form;
   return (
     <List busy={view.busy}>
       <Row title={inlineCopy.provider}>
@@ -86,9 +115,10 @@ export function AIProviderEditor(props: Props) {
           >
             <option value="local">{copy.local}</option>
             <option value="openrouter">{inlineCopy.openRouter}</option>
+            <option value="api">{copy.api}</option>
           </select>
         </div>
-        {kind === "local" && <EndpointFields form={form} busy={view.busy} />}
+        {form.endpoint && <EndpointFields form={form} busy={view.busy} />}
         <Field
           disabled={view.busy}
           label={copy.key}
@@ -99,12 +129,10 @@ export function AIProviderEditor(props: Props) {
           maxLength={MAX_AI_PROVIDER_KEY_CHARS}
           onChange={(e) => setKey(e.target.value)}
         />
-        <Button
-          disabled={
-            view.busy || (kind === "local" && (name.trim().length === 0 || url.trim().length === 0))
-          }
-          onClick={() => void save()}
-        >
+        {kind === "api" && (
+          <ApiModels models={form.models} onChange={form.setModels} busy={view.busy} />
+        )}
+        <Button disabled={view.busy || !form.ready} onClick={() => void save()}>
           {view.busy ? copy.saving : copy.save}
         </Button>
         <Button

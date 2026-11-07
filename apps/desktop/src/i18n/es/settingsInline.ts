@@ -21,7 +21,7 @@ export const settingsInline = {
   edit: "Editar",
   localHelp:
     "Añade varios endpoints compatibles con OpenAI. Aunque estén en tu red, los datos salen del hub si la URL no es loopback.",
-  cloudHelp: "OpenRouter · Gemini, OpenAI, Mistral y Azure llegarán más adelante.",
+  cloudHelp: "OpenRouter, o cualquier API compatible con OpenAI con su URL y su clave.",
   subscriptions: "Suscripciones",
   subscriptionsHelp:
     "Claude y ChatGPT sólo sirven a sus asistentes. Sus cuentas se gestionan en Asistentes.",
