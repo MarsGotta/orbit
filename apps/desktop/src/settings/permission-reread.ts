@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 /**
  * Asks the helper what macOS grants without asking macOS for anything: a

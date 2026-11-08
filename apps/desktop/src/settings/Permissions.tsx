@@ -1,15 +1,15 @@
-import { getCopy, type Catalogue } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy, type Catalogue } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand, PermissionState } from "../../bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Switch } from "../../design/Switch";
+import type { AppCommand, PermissionState } from "orbit-ui/bridge/generated";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { NotificationPermission } from "./NativeSettings";
-import { Group, List, Row } from "./layout";
+import { Group, List, Row } from "orbit-ui/features/settings/layout";
 import { useRereadOnReturn } from "./permission-reread";
-import styles from "./SettingsView.module.css";
+import styles from "orbit-ui/features/settings/SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
 type Settings = AppSnapshot["settings"];

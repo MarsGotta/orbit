@@ -1,10 +1,10 @@
 import { useState } from "react";
-import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Skeleton } from "../../design/Skeleton";
-import { useCopy } from "../../i18n/CopyProvider";
-import { Row } from "./layout";
-import styles from "./SettingsView.module.css";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { Button } from "orbit-ui/design/Button";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Row } from "orbit-ui/features/settings/layout";
+import styles from "orbit-ui/features/settings/SettingsView.module.css";
 
 type Settings = AppSnapshot["settings"];
 

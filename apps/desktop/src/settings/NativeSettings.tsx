@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { AppView } from "../../state/app-view";
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import { Switch } from "../../design/Switch";
-import { Row } from "./layout";
-import styles from "./SettingsView.module.css";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { AppView } from "orbit-ui/state/app-view";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
+import { Row } from "orbit-ui/features/settings/layout";
+import styles from "orbit-ui/features/settings/SettingsView.module.css";
 
 type Props = { send: (command: AppCommand) => unknown; settings: AppView["settings"] };
 

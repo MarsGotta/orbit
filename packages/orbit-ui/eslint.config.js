@@ -65,7 +65,6 @@ export const PHOTO = [
   "settings/agents/AgentCards",
   "settings/agents/use-agent-config",
   "settings/layout",
-  "settings/permission-reread",
   "settings/use-ai-settings",
   "settings/use-primary",
   "vault/VaultSettingsView",

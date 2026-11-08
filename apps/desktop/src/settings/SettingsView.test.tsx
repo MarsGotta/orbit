@@ -1,10 +1,11 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppView } from "../../state/app-view";
-import { CopyProvider } from "../../i18n/CopyProvider";
-import { TEST_NOW_MS } from "../../test-clock";
-import SettingsView, { type SettingsViewProps } from "./SettingsView";
-import type { SettingsSection } from "../../state/ui";
+import type { AppView } from "orbit-ui/state/app-view";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import { TEST_NOW_MS } from "orbit-ui/test-clock";
+import SettingsView, { type SettingsViewProps } from "orbit-ui/features/settings/SettingsView";
+import type { SettingsSection } from "orbit-ui/state/ui";
+import { macSettingsSections as frame } from "../app/Main";
 
 // Settings in five sections. Only the view fields Settings reads; names,
 // hosts and contents are invented.
@@ -60,6 +61,7 @@ function renderSettings(props: Partial<SettingsViewProps> & { overrides?: Overri
   const onReopenOnboarding = vi.fn();
   const view = render(
     <SettingsView
+      frame={frame}
       error={null}
       onReopenOnboarding={onReopenOnboarding}
       send={send}
@@ -204,7 +206,7 @@ describe("General", () => {
     expect(screen.getByText("Orbit busca versiones nuevas al abrirse y cada 6 horas")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Buscar actualización" }));
     expect(send).toHaveBeenCalledWith({ command: "update_check" });
-    const props = { error: null, onReopenOnboarding: vi.fn(), send };
+    const props = { error: null, onReopenOnboarding: vi.fn(), send, frame };
     rerender(
       <SettingsView
         {...props}
@@ -245,6 +247,7 @@ describe("Privacidad y permisos", () => {
     );
     const { rerender } = render(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -257,6 +260,7 @@ describe("Privacidad y permisos", () => {
     expect(send).toHaveBeenCalledWith({ command: "privacy_stop" });
     rerender(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -314,6 +318,7 @@ describe("Privacidad y permisos", () => {
     send.mockClear();
     rerender(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -366,6 +371,7 @@ describe("Privacidad y permisos", () => {
     expect(screen.getByText("Esperando a macOS…")).toBeTruthy();
     rerender(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -383,6 +389,7 @@ describe("Privacidad y permisos", () => {
     ).toBeNull();
     rerender(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -413,6 +420,7 @@ describe("Grabación y llamadas", () => {
     expect(send).toHaveBeenCalledWith({ command: "call_preference", preference: "record" });
     rerender(
       <SettingsView
+        frame={frame}
         error={null}
         onReopenOnboarding={vi.fn()}
         send={send}
@@ -434,6 +442,7 @@ describe("Grabación y llamadas", () => {
     render(
       <CopyProvider choice={language}>
         <SettingsView
+          frame={frame}
           error={null}
           onReopenOnboarding={vi.fn()}
           send={vi.fn()}

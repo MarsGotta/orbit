@@ -11,6 +11,20 @@ import { Breadcrumbs, TopBarLeading } from "orbit-ui/shell/shell-slots";
 import { ViewBoundary } from "./ViewBoundary";
 
 import BriefingView from "orbit-ui/features/briefing/BriefingView";
+import type { SettingsFrameSections } from "orbit-ui/features/settings/frame-sections";
+import { LoginItem } from "../settings/NativeSettings";
+import { missingPermissions, SystemPermissions } from "../settings/Permissions";
+import { ThisMac } from "../settings/ThisMac";
+import { Updates } from "../settings/Updates";
+
+/** The pieces of Settings only this Mac can show (see `frame-sections`). */
+export const macSettingsSections: SettingsFrameSections = {
+  missingPermissions,
+  thisDevice: (props) => <ThisMac {...props} />,
+  loginItem: (props) => <LoginItem {...props} />,
+  updates: (props) => <Updates {...props} />,
+  systemPermissions: (props) => <SystemPermissions {...props} />,
+};
 
 /** The loader of every view below that is loaded on demand. */
 const lazyViewLoaders: Array<() => Promise<unknown>> = [];
@@ -152,6 +166,7 @@ function SettingsRoute({
   const settings = {
     agent,
     vault,
+    frame: macSettingsSections,
     error,
     onReopenOnboarding,
     send,

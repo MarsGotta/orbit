@@ -4,7 +4,7 @@ import { inlineCopy } from "../../scripts/inline-copy-scan.mjs";
 const sources = import.meta.glob<string>(
   [
     "./**/*.{ts,tsx}",
-    "../{app,design,state}/**/*.{ts,tsx}",
+    "../{app,design,state,settings}/**/*.{ts,tsx}",
     "../../../../packages/orbit-ui/{design,state,features,shell}/**/*.{ts,tsx}",
   ],
   {

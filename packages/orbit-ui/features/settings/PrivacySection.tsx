@@ -6,8 +6,8 @@ import { Button } from "../../design/Button";
 import { Switch } from "../../design/Switch";
 
 import { useHeldChoice } from "../../state/use-held-choice";
+import type { SettingsFrameSections } from "./frame-sections";
 import { Group, List, Row, SectionHeading } from "./layout";
-import { SystemPermissions } from "./Permissions";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -79,7 +79,15 @@ function ErrorReports({ enabled, send }: { enabled: boolean; send: Send }) {
 }
 
 /** Settings › Privacidad y permisos: stop everything, the four macOS permissions, reports. */
-export function PrivacySection({ send, snapshot }: { send: Send; snapshot: AppSnapshot }) {
+export function PrivacySection({
+  frame,
+  send,
+  snapshot,
+}: {
+  frame?: SettingsFrameSections;
+  send: Send;
+  snapshot: AppSnapshot;
+}) {
   const base = useCopy();
   const settings = snapshot.settings;
   return (
@@ -89,7 +97,7 @@ export function PrivacySection({ send, snapshot }: { send: Send; snapshot: AppSn
         title={base.shell.settingsSections.privacy}
       />
       <StopCard send={send} stopped={settings.privacy_stopped} />
-      <SystemPermissions send={send} settings={settings} />
+      {frame?.systemPermissions({ send, settings })}
       {/* Only a build that carries a Sentry address offers it. */}
       {settings.error_reports !== undefined && (
         <ErrorReports enabled={settings.error_reports} send={send} />

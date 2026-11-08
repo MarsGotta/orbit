@@ -8,11 +8,9 @@ import { Segmented } from "../../design/Segmented";
 import { Skeleton } from "../../design/Skeleton";
 import { chooseTheme, useThemeChoice, type ThemeChoice } from "../../design/theme";
 
-import { LoginItem } from "./NativeSettings";
 import { Group, List, SectionHeading } from "./layout";
 import { LanguageSetting } from "./LanguageSetting";
-import { ThisMac } from "./ThisMac";
-import { Updates } from "./Updates";
+import type { SettingsFrameSections } from "./frame-sections";
 import styles from "./SettingsView.module.css";
 
 type Send = (command: AppCommand) => unknown;
@@ -77,10 +75,12 @@ function Appearance() {
 
 /** Settings › General: the account, this Mac, the look, the start and the updates. */
 export function GeneralSection({
+  frame,
   onReopenOnboarding,
   send,
   snapshot,
 }: {
+  frame?: SettingsFrameSections;
   onReopenOnboarding: (mode?: "pair") => void;
   send: Send;
   snapshot: AppSnapshot;
@@ -89,6 +89,14 @@ export function GeneralSection({
   const settings = snapshot.settings;
   const availability = snapshot.status_availability?.state;
   const statusKnown = availability !== "unknown" && availability !== "absent";
+  const frameGroups = frame && (
+    <>
+      <Group label={base.settings.startup}>
+        <List>{frame.loginItem({ send, settings })}</List>
+      </Group>
+      <Group label={base.settings.updates}>{frame.updates({ send, settings })}</Group>
+    </>
+  );
   return (
     <>
       <SectionHeading
@@ -98,7 +106,7 @@ export function GeneralSection({
       <Group label={base.settings.account}>
         <List>
           <NameField send={send} settings={settings} />
-          <ThisMac onReopen={onReopenOnboarding} settings={settings} statusKnown={statusKnown} />
+          {frame?.thisDevice({ onReopen: onReopenOnboarding, settings, statusKnown })}
           <div className={styles.padded}>
             <button className={styles.link} onClick={() => onReopenOnboarding()} type="button">
               {base.settings.reopenOnboarding}
@@ -110,14 +118,7 @@ export function GeneralSection({
       <Group label={base.settings.appearance}>
         <Appearance />
       </Group>
-      <Group label={base.settings.startup}>
-        <List>
-          <LoginItem send={send} settings={settings} />
-        </List>
-      </Group>
-      <Group label={base.settings.updates}>
-        <Updates send={send} settings={settings} />
-      </Group>
+      {frameGroups}
     </>
   );
 }

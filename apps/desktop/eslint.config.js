@@ -121,7 +121,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/features/**/*.{ts,tsx}", "src/state/**/*.{ts,tsx}"],
+    // The Mac's own pieces of Settings; a comment cannot switch these rules off.
+    files: ["src/settings/**/*.{ts,tsx}"],
+    linterOptions: { noInlineConfig: true },
+  },
+  {
+    files: ["src/features/**/*.{ts,tsx}", "src/settings/**/*.{ts,tsx}", "src/state/**/*.{ts,tsx}"],
     languageOptions: { parserOptions: { projectService: true } },
     rules: {
       "@typescript-eslint/switch-exhaustiveness-check": "error",

@@ -10,8 +10,8 @@ import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantSection } from "./AssistantSection";
 import { GeneralSection } from "./GeneralSection";
 import { SectionHeading } from "./layout";
+import type { SettingsFrameSections } from "./frame-sections";
 import { MeetingDictionaries } from "./MeetingDictionaries";
-import { missingPermissions } from "./Permissions";
 import { PrivacySection } from "./PrivacySection";
 import { AISettings } from "./AISettings";
 import { RecordingSection } from "./RecordingSection";
@@ -24,6 +24,8 @@ export interface SettingsViewProps {
   /** The assistants' call to the hub (the primary); absent where it cannot be made. */
   agent?: AgentPort;
   vault?: VaultPort;
+  /** What only this device's frame shows; without it, those pieces do not appear. */
+  frame?: SettingsFrameSections;
   error: string | null;
   onReopenOnboarding: (mode?: "pair") => void;
   send: (command: AppCommand) => unknown;
@@ -37,6 +39,7 @@ export interface SettingsViewProps {
 function Section({
   agent,
   vault,
+  frame,
   error,
   onReopenOnboarding,
   send,
@@ -47,10 +50,15 @@ function Section({
   switch (section) {
     case "general":
       return (
-        <GeneralSection onReopenOnboarding={onReopenOnboarding} send={send} snapshot={snapshot} />
+        <GeneralSection
+          frame={frame}
+          onReopenOnboarding={onReopenOnboarding}
+          send={send}
+          snapshot={snapshot}
+        />
       );
     case "privacidad":
-      return <PrivacySection send={send} snapshot={snapshot} />;
+      return <PrivacySection frame={frame} send={send} snapshot={snapshot} />;
     case "grabacion":
       return <RecordingSection send={send} snapshot={snapshot} />;
     case "asistentes":
@@ -88,7 +96,7 @@ export default function SettingsView(props: SettingsViewProps) {
   const [own, setOwn] = useState<SettingsSection>(props.section ?? "general");
   const current = props.section ?? own;
   const open = props.onSection ?? setOwn;
-  const missing = missingPermissions(props.snapshot.settings);
+  const missing = props.frame?.missingPermissions(props.snapshot.settings) ?? 0;
   return (
     <div className={styles.page}>
       <div className={styles.index}>
