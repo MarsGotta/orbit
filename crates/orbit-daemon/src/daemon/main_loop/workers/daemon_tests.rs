@@ -141,12 +141,20 @@ impl Relay {
             anyhow::ensure!(made.success(), "mkfifo failed");
         }
         let source = directory.join(format!("{name}.txt"));
+        // The watchdog of `tests/support/helper_relay.rs`, which a unit test
+        // under `src/` cannot include: a test killed where no `Drop` runs must
+        // not leave the relay, or the `cat` next to it, holding what they
+        // inherited.
         std::fs::write(
             &source,
             format!(
-                "#!/bin/sh\n/bin/cat '{}' &\nexec /bin/cat > '{}'\n",
+                "#!/bin/sh\n/bin/cat '{}' &\nrelay_cat=$!\n\
+                 (while kill -0 {test}; do kill -0 $$ || exit 0; /bin/sleep 0.2; done; \
+                 kill -9 \"$relay_cat\" $$) </dev/null >/dev/null 2>&1 &\n\
+                 exec /bin/cat > '{}'\n",
                 relay.events.display(),
-                relay.commands.display()
+                relay.commands.display(),
+                test = std::process::id(),
             ),
         )?;
         // Written by `cp`, never held open for writing here (`ETXTBSY`).

@@ -7,28 +7,14 @@ use orbit_daemon::{
     config::{Paths, set_secret},
     daemon, ipc,
 };
-use std::{fs::OpenOptions, io::Write, os::unix::fs::PermissionsExt, time::Duration};
+use std::{fs::OpenOptions, io::Write, time::Duration};
+
+#[path = "support/helper_relay.rs"]
+mod helper_relay;
+
+use helper_relay::hotkey_helper;
 
 const STORAGE_KEY: [u8; 32] = [0x42; 32];
-
-fn hotkey_helper(
-    directory: &std::path::Path,
-    trigger: &std::path::Path,
-) -> Result<std::path::PathBuf> {
-    let helper = directory.join("fake-helper.sh");
-    // A background cat reads /dev/null without job control and exits. Keep
-    // both protocol pipes open in the helper itself until daemon EOF, with
-    // no grandchild to orphan and no inherited gate stderr.
-    std::fs::write(
-        &helper,
-        format!(
-            "#!/bin/sh\nexec 2>/dev/null\nIFS= read -r line < '{}'\nprintf '%s\\n' '{{\"v\":1,\"event\":\"hotkey\",\"action\":\"privacy_stop\",\"phase\":\"pressed\"}}'\nwhile IFS= read -r line; do :; done\n",
-            trigger.display()
-        ),
-    )?;
-    std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700))?;
-    Ok(helper)
-}
 
 #[tokio::test]
 async fn hotkey_helper_reads_commands_until_its_input_closes() -> Result<()> {

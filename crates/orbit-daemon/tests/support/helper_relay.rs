@@ -18,6 +18,9 @@
 //!   the end of its input and `SIGTERM`. Only `SIGKILL` ends it, which is what
 //!   the daemon must fall back to when its helper does not leave in time.
 //!
+//! Every script carries the [`watchdog`]: a test killed where no `Drop` runs
+//! does not leave its helper holding what it inherited.
+//!
 //! Every daemon started through [`std_daemon`] or [`tokio_daemon`] gets a
 //! process group of its own, as the app gives it, and `--parent-pid` of this
 //! test process, as the app passes its own: a test binary that is interrupted
@@ -79,6 +82,29 @@ pub fn ready_line() -> Result<String> {
     Ok(line)
 }
 
+/// One line of `sh` that ties a fake helper to the process of this test: every
+/// 0.2 s it checks that the test is still there, and when it is not it sends
+/// `SIGKILL` to the script and to `others` (more pids, or nothing). If the
+/// script ends first it leaves. Its three streams are `/dev/null`, so it does
+/// not keep the protocol pipes or the gate's output open.
+///
+/// A killed test runs no `Drop`, and a helper waiting on a FIFO whose other end
+/// was that test waits forever, holding every descriptor it inherited, such as
+/// a build lock or the gate's output. The bound is per test process, not per
+/// test: a test that only panics stays in a live process, where its `Drop` runs.
+///
+/// Only POSIX `sh`, `kill` and `sleep`, the same on Linux and macOS. It costs
+/// five short `sleep`s a second for as long as a helper lives; 0.2 s is what a
+/// killed test's helper may outlive it by, well inside the seconds a daemon
+/// takes to close its own.
+fn watchdog(others: &str) -> String {
+    format!(
+        "(while kill -0 {test}; do kill -0 $$ || exit 0; /bin/sleep 0.2; done; \
+         kill -9 {others} $$) </dev/null >/dev/null 2>&1 &\n",
+        test = std::process::id()
+    )
+}
+
 /// The helper stand-in and the two FIFOs it relays.
 pub struct Relay {
     pub script: PathBuf,
@@ -112,6 +138,8 @@ impl Relay {
         // The background `cat` gets /dev/null as its stdin (no job control) and
         // keeps the helper's stdout; the foreground one becomes the helper's
         // pid and ends at the end of its input, which is the daemon closing it.
+        // The watchdog gets the `cat`'s pid from a variable: `$!` inside a
+        // background subshell is not the same pid in every `sh`.
         write_script(
             &relay.script,
             &format!(
@@ -119,9 +147,12 @@ impl Relay {
                  # Stands where OrbitNative stands for a test; no native effect of any kind.\n\
                  printf '%s\\n' \"$*\" >> '{arguments}'\n\
                  /bin/cat '{events}' &\n\
+                 relay_cat=$!\n\
+                 {watchdog}\
                  exec /bin/cat > '{commands}'\n",
                 arguments = relay.arguments.display(),
                 events = relay.events.display(),
+                watchdog = watchdog("\"$relay_cat\""),
                 commands = relay.commands.display(),
             ),
         )?;
@@ -180,13 +211,36 @@ pub fn stubborn_helper(directory: &Path, name: &str) -> Result<PathBuf> {
              # Ignores shutdown, EOF and SIGTERM on purpose; no native effect of any kind.\n\
              trap '' TERM\n\
              printf '%s\\n' \"$$\" > '{pid}'\n\
+             {watchdog}\
              printf '%s\\n' '{ready}'\n\
              exec /bin/sleep 3600\n",
             pid = pid.display(),
+            watchdog = watchdog(""),
             ready = ready_line()?
         ),
     )?;
     Ok(script)
+}
+
+/// A helper that waits on `trigger` before it says anything, then presses the
+/// privacy-stop hotkey and reads its commands until the daemon closes them.
+pub fn hotkey_helper(directory: &Path, trigger: &Path) -> Result<PathBuf> {
+    use std::os::unix::fs::PermissionsExt;
+    let helper = directory.join("fake-helper.sh");
+    // A background cat reads /dev/null without job control and exits. Keep
+    // both protocol pipes open in the helper itself until daemon EOF, with
+    // no grandchild to orphan and no inherited gate stderr. The watchdog is
+    // the one background process, and it holds neither.
+    std::fs::write(
+        &helper,
+        format!(
+            "#!/bin/sh\nexec 2>/dev/null\n{watchdog}IFS= read -r line < '{}'\nprintf '%s\\n' '{{\"v\":1,\"event\":\"hotkey\",\"action\":\"privacy_stop\",\"phase\":\"pressed\"}}'\nwhile IFS= read -r line; do :; done\n",
+            trigger.display(),
+            watchdog = watchdog(""),
+        ),
+    )?;
+    std::fs::set_permissions(&helper, std::fs::Permissions::from_mode(0o700))?;
+    Ok(helper)
 }
 
 /// `orbit --dev --data-dir <path> daemon --helper <helper> --parent-pid <parent>`.
