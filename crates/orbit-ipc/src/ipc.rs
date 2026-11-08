@@ -82,7 +82,7 @@ pub const ATTACHMENT_CALL_TIMEOUT_SECONDS: u64 = 100;
 /// How long the app waits for one call to the daemon, its queue included: the
 /// ten-second confirmation window every order and read has. The interface
 /// waits this, then the frames the reply published, before it calls the wait
-/// a failure (`apps/desktop/src/state/ceilings.ts`). Never a retry.
+/// a failure (`packages/orbit-ui/state/ceilings.ts`). Never a retry.
 pub const CALL_TIMEOUT_SECONDS: u64 = 10;
 
 impl From<Response> for Reply {

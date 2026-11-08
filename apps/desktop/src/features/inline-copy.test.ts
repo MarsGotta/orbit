@@ -5,7 +5,7 @@ const sources = import.meta.glob<string>(
   [
     "./**/*.{ts,tsx}",
     "../{app,design,state}/**/*.{ts,tsx}",
-    "../../../../packages/orbit-ui/{design,state}/**/*.{ts,tsx}",
+    "../../../../packages/orbit-ui/{design,state,features,shell}/**/*.{ts,tsx}",
   ],
   {
     query: "?raw",

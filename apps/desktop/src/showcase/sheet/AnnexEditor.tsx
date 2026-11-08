@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { MarkdownEditor } from "../../features/editor/MarkdownEditor";
-import type { Suggestion } from "../../features/editor/suggestion";
+import { MarkdownEditor } from "orbit-ui/features/editor/MarkdownEditor";
+import type { Suggestion } from "orbit-ui/features/editor/suggestion";
 import sheet from "./DesignSheet.module.css";
 
 const NOTE =

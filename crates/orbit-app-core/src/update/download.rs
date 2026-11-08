@@ -29,7 +29,7 @@ pub const INSTALLER_CEILING_BYTES: usize =
 /// bounds an unavailable origin, not the installer process or user consent.
 pub const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(DOWNLOAD_TIMEOUT_SECONDS);
 /// In seconds, as the interface reads it for the update orders' ceilings
-/// (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
+/// (`packages/orbit-ui/state/ceilings.ts`, `contracts/constants.json`).
 pub const DOWNLOAD_TIMEOUT_SECONDS: u64 = 60;
 
 /// Bounds redirect loops and request amplification. Ten preserves reqwest's

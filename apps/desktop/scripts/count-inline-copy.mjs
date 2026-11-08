@@ -26,7 +26,7 @@ function walk(base, dir) {
   }
 }
 for (const base of [root, packageRoot])
-  for (const folder of ["features", "app", "design", "state"]) {
+  for (const folder of ["features", "app", "design", "state", "shell"]) {
     const dir = path.join(base, folder);
     if (fs.existsSync(dir)) walk(base, dir);
   }

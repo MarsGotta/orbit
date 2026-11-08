@@ -8,9 +8,9 @@ import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
 import type { WorkItem } from "orbit-ui/bridge/generated/WorkItem";
 import type { DaemonPort } from "orbit-ui/bridge/port";
 import { PanelApp } from "../call-panel/PanelApp";
-import { AgentWorkView, workSummary } from "./AgentWork";
-import { MessageList } from "./MessageList";
-import { PendingCard } from "./PendingCard";
+import { AgentWorkView, workSummary } from "orbit-ui/features/assistant/AgentWork";
+import { MessageList } from "orbit-ui/features/assistant/MessageList";
+import { PendingCard } from "orbit-ui/features/assistant/PendingCard";
 
 // What the agent does in a turn (hub-v1 chat.item), and its questions with
 // the choices it offered.

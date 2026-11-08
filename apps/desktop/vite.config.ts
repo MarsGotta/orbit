@@ -1,7 +1,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
-import { TEST_BUDGET_MS } from "./src/test-budgets";
-import { TEST_TIMEZONE } from "./src/test-clock";
+import { TEST_BUDGET_MS } from "../../packages/orbit-ui/test-budgets";
+import { TEST_TIMEZONE } from "../../packages/orbit-ui/test-clock";
 
 const PACKAGE = "../../packages/orbit-ui";
 const EXCLUDED = ["node_modules/**", "dist/**", `${PACKAGE}/node_modules/**`];
@@ -22,9 +22,9 @@ export default defineConfig({
     env: { TZ: TEST_TIMEZONE },
     environment: "jsdom",
     restoreMocks: true,
-    setupFiles: ["./src/test-setup.ts"],
+    setupFiles: [`${PACKAGE}/test-setup.ts`],
     // Derived from how long a test takes under load, not Vitest's
-    // default 5 s, which was below the measured p99. See `src/test-budgets.ts`.
+    // default 5 s, which was below the measured p99. See `packages/orbit-ui/test-budgets.ts`.
     testTimeout: TEST_BUDGET_MS,
     exclude: EXCLUDED,
     // Only the design system's tests read styles from the stylesheets, so only

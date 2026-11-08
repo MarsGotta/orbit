@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppView } from "orbit-ui/state/app-view";
-import { SystemPermissions } from "./Permissions";
+import { SystemPermissions } from "orbit-ui/features/settings/Permissions";
 import { PermissionsStep } from "../onboarding/OnboardingAccessSteps";
 
 afterEach(cleanup);

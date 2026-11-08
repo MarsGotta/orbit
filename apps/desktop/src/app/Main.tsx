@@ -7,10 +7,10 @@ import type { DaemonPort } from "orbit-ui/bridge/port";
 
 import { routeFor, useUiStore, type SettingsSection, type ViewId } from "orbit-ui/state/ui";
 import styles from "./Main.module.css";
-import { Breadcrumbs, TopBarLeading } from "./shell-slots";
+import { Breadcrumbs, TopBarLeading } from "orbit-ui/shell/shell-slots";
 import { ViewBoundary } from "./ViewBoundary";
 
-import BriefingView from "../features/briefing/BriefingView";
+import BriefingView from "orbit-ui/features/briefing/BriefingView";
 
 /** The loader of every view below that is loaded on demand. */
 const lazyViewLoaders: Array<() => Promise<unknown>> = [];
@@ -25,17 +25,17 @@ const lazy: typeof reactLazy = (load) => {
   return reactLazy(load);
 };
 
-const CalendarView = lazy(() => import("../features/calendar/CalendarView"));
-const NotesView = lazy(() => import("../features/notes/NotesView"));
-const VaultView = lazy(() => import("../features/vault/VaultView"));
-const AssistantView = lazy(() => import("../features/assistant/AssistantView"));
-const SettingsView = lazy(() => import("../features/settings/SettingsView"));
+const CalendarView = lazy(() => import("orbit-ui/features/calendar/CalendarView"));
+const NotesView = lazy(() => import("orbit-ui/features/notes/NotesView"));
+const VaultView = lazy(() => import("orbit-ui/features/vault/VaultView"));
+const AssistantView = lazy(() => import("orbit-ui/features/assistant/AssistantView"));
+const SettingsView = lazy(() => import("orbit-ui/features/settings/SettingsView"));
 
 /**
  * Loads the module of every lazy view now, instead of when each is first shown.
  *
  * The app never calls this: loading on demand is the point of `lazy`. The unit
- * suite does, before the first test of each file (`src/test-setup.ts`), so a test that renders one of these views waits for what it asks
+ * suite does, before the first test of each file (`packages/orbit-ui/test-setup.ts`), so a test that renders one of these views waits for what it asks
  * about and not for an import racing the query's budget.
  */
 export async function loadLazyViews(): Promise<void> {

@@ -5,7 +5,7 @@ import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSna
 import { Button } from "orbit-ui/design/Button";
 import { Loading } from "orbit-ui/design/Spinner";
 
-import { useRereadOnReturn } from "../settings/permission-reread";
+import { useRereadOnReturn } from "orbit-ui/features/settings/permission-reread";
 import { Step } from "./OnboardingSteps";
 import styles from "./OnboardingView.module.css";
 

@@ -4,7 +4,7 @@ import { Icon } from "orbit-ui/design/Icon";
 import { toggleTheme, useTheme } from "orbit-ui/design/theme";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
-import { useShellSlots } from "./shell-slots";
+import { useShellSlots } from "orbit-ui/shell/shell-slots";
 import { settleHub, topBarNotices } from "./status-problem";
 import { TopBarNotices, NoticeActions } from "./TopBarNotices";
 import styles from "./TopBar.module.css";

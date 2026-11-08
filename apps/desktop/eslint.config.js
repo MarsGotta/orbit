@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs";
 import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
+import { PHOTO } from "../../packages/orbit-ui/eslint.config.js";
 
 const sourceRules = {
   "@typescript-eslint/no-explicit-any": "error",
@@ -13,51 +14,19 @@ const tauri = {
   message: "Tauri may only be imported from src/bridge/.",
 };
 
-// Zones. A view is a folder of src/features/, read here so that a new view
-// joins the zones without touching this file. The panel and the welcome
-// belong to the Mac's frame; every other view is shared. Each block repeats
-// the Tauri pattern: for a file, the last block naming a rule decides it.
-// The zones also set noInlineConfig, so no comment can switch them off; that
-// ignores comments for every rule in those folders (their tests stay outside).
-const views = readdirSync(`${import.meta.dirname}/src/features`, { withFileTypes: true })
+// Zones. Only the panel and the welcome are views of the Mac's frame; the
+// shared views live in the package, which owns their list of entries. Each
+// block repeats the Tauri pattern: for a file, the last block naming a rule
+// decides it. The zones also set noInlineConfig, so no comment can switch them
+// off; that ignores comments for every rule in those folders (their tests stay
+// outside).
+const frameViews = ["call-panel", "onboarding"];
+const sharedViews = readdirSync(`${import.meta.dirname}/../../packages/orbit-ui/features`, {
+  withFileTypes: true,
+})
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name);
-const frameViews = ["call-panel", "onboarding"];
 const UP = String.raw`^(?:\.\./)+(?:features/)?`;
-
-// Modules inside a view that other views import today, as if they were its
-// entry. A view has no entry yet; this list may only shrink.
-const PHOTO = [
-  "assistant/PendingCard",
-  "assistant/SignInNotice",
-  "assistant/agent-calls",
-  "assistant/assistant-route",
-  "assistant/assistants",
-  "assistant/composer-insert",
-  "assistant/conversation-markdown",
-  "assistant/use-sign-in",
-  "calendar/date",
-  "editor/MarkdownEditor",
-  "editor/menus",
-  "notes/DictionaryPicker",
-  "notes/MarkdownView",
-  "notes/markdown",
-  "settings/AIProviderEditor",
-  "settings/ControlHistory",
-  "settings/TranscriptionModelChoice",
-  "settings/agents/AgentCards",
-  "settings/agents/use-agent-config",
-  "settings/layout",
-  "settings/permission-reread",
-  "settings/use-ai-settings",
-  "settings/use-primary",
-  "vault/VaultSettingsView",
-  "vault/api",
-  "vault/distillation-format",
-  "vault/route",
-  "vault/use-distillations",
-  "vault/use-vault-read",
-];
 
 const testFiles = ["**/*.test.{ts,tsx}", "**/test-*.{ts,tsx}", "**/__fixtures__/**"];
 
@@ -75,8 +44,7 @@ const packageByPath = {
 };
 
 function viewZone(view) {
-  const shared = !frameViews.includes(view);
-  const others = views.filter((other) => other !== view && !(shared && frameViews.includes(other)));
+  const others = frameViews.filter((other) => other !== view);
   const patterns = [
     tauri,
     unnormalized,
@@ -85,19 +53,11 @@ function viewZone(view) {
       regex: `(?!${UP}(?:${PHOTO.join("|")})$)${UP}(?:${others.join("|")})/(?!index$).+`,
       message: "A view may use another view only through its entry (features/<view>).",
     },
+    {
+      regex: `^orbit-ui/features/(?!(?:${PHOTO.join("|")})$)(?:${sharedViews.join("|")})/(?!index$).+`,
+      message: "A view of the frame may use a shared view only through its entry.",
+    },
   ];
-  if (shared) {
-    patterns.push(
-      {
-        regex: String.raw`^(?:\.\./)+app(?:/(?!shell-slots$)|$)`,
-        message: "A shared view may not import the Mac's frame (src/app/).",
-      },
-      {
-        regex: `${UP}(?:${frameViews.join("|")})(?:/|$)`,
-        message: "A shared view may not import the floating panel or the welcome.",
-      },
-    );
-  }
   return {
     files: [`src/features/${view}/**/*.{ts,tsx}`],
     ignores: testFiles,
@@ -110,6 +70,9 @@ export default tseslint.config(
   { ignores: ["dist", "node_modules", "src-tauri/gen"] },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
+  // Importing the package's list above makes typescript-eslint see two config
+  // roots; this one is the app's.
+  { languageOptions: { parserOptions: { tsconfigRootDir: import.meta.dirname } } },
   {
     files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
@@ -128,7 +91,7 @@ export default tseslint.config(
     ignores: ["src/bridge/**/*"],
     rules: { "no-restricted-imports": ["error", { patterns: [tauri] }] },
   },
-  ...views.map(viewZone),
+  ...frameViews.map(viewZone),
   {
     // The showcase (`showcase.html`) is the app with an invented daemon: it
     // installs that daemon behind Tauri's IPC, so it imports Tauri's mocks.

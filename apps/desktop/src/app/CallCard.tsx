@@ -3,7 +3,7 @@ import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
 import { Button } from "orbit-ui/design/Button";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { mmss } from "orbit-ui/time-format";
-import { useNow } from "../use-now";
+import { useNow } from "orbit-ui/use-now";
 import styles from "./SidebarCard.module.css";
 
 /**

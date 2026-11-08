@@ -6,11 +6,11 @@ import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 import { Button } from "orbit-ui/design/Button";
 import { Loading } from "orbit-ui/design/Spinner";
 
-import { colorOf } from "../assistant/assistants";
-import { SignInWaiting } from "../assistant/SignInNotice";
-import { useSignIn } from "../assistant/use-sign-in";
-import type { AgentPort } from "../settings/agents/use-agent-config";
-import { usePrimary } from "../settings/use-primary";
+import { colorOf } from "orbit-ui/features/assistant/assistants";
+import { SignInWaiting } from "orbit-ui/features/assistant/SignInNotice";
+import { useSignIn } from "orbit-ui/features/assistant/use-sign-in";
+import type { AgentPort } from "orbit-ui/features/settings/agents/use-agent-config";
+import { usePrimary } from "orbit-ui/features/settings/use-primary";
 import { readyAgents, type Cast } from "./cast";
 import { Step } from "./OnboardingSteps";
 import styles from "./OnboardingView.module.css";

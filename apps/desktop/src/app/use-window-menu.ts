@@ -6,7 +6,7 @@ import type { AppView } from "orbit-ui/state/app-view";
 import { useUiStore } from "orbit-ui/state/ui";
 import { followWindowPreferences, useWindowPreferences } from "orbit-ui/state/window-preferences";
 import { useWindowActions } from "orbit-ui/state/window-actions";
-import { goTo } from "../features/assistant/assistant-route";
+import { goTo } from "orbit-ui/features/assistant/assistant-route";
 
 function menuState(snapshot: AppView | null, find: boolean, recoverTemplate: boolean): MenuState {
   const { sidebar, scale } = useWindowPreferences.getState();

@@ -2,7 +2,7 @@
    stylesheet of the app already uses (`--ink2` in the design is `--o-ink2`
    here). The dark theme is the default; the light one applies when the system
    asks for it and nothing is fixed, or when `data-theme="light"` is on <html>.
-   `src/design/theme.ts` fixes and remembers the choice. Both themes define the
+   `design/theme.ts` fixes and remembers the choice. Both themes define the
    same names; every pair of text and background holds 4.5:1. */
 :root {
   --o-bg: #131316;

@@ -4,7 +4,7 @@ import { CopyProvider, useCopy } from "orbit-ui/i18n/CopyProvider";
 import { getCopy } from "orbit-ui/i18n";
 import { NoticeBanner } from "../app/NoticeBanner";
 import { receive } from "orbit-ui/state/interceptor";
-import { LanguageSetting } from "../features/settings/LanguageSetting";
+import { LanguageSetting } from "orbit-ui/features/settings/LanguageSetting";
 
 function ReadCopy() {
   const copy = useCopy();

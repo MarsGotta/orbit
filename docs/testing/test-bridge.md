@@ -184,7 +184,7 @@ refresh the exports after changing copy, from the repository root:
 
 ```sh
 ORBIT_UPDATE_TEST_CATALOGUES=1 cargo test -p orbit-desktop real_test_native_catalogue_export_is_current
-(cd apps/desktop && ORBIT_UPDATE_TEST_CATALOGUES=1 pnpm exec vitest run src/i18n/harness-export.test.ts)
+(cd apps/desktop && ORBIT_UPDATE_TEST_CATALOGUES=1 pnpm exec vitest run ../../packages/orbit-ui/i18n/harness-export.test.ts)
 ```
 
 Then run the normal gate without that update variable. The updater is explicit;

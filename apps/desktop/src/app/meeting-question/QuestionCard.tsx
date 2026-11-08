@@ -3,7 +3,7 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { MeetingQuestionSnapshot } from "orbit-ui/bridge/generated/MeetingQuestionSnapshot";
 import { Button } from "orbit-ui/design/Button";
 import { TextLink } from "orbit-ui/design/TextLink";
-import { MarkdownView } from "../../features/notes/MarkdownView";
+import { MarkdownView } from "orbit-ui/features/notes/MarkdownView";
 
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { answerPieces, causeText, linkText } from "./copy";

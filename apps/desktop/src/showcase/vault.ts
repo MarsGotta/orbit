@@ -4,7 +4,7 @@ import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
 import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
 import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
 import type { VaultTaskPage } from "orbit-ui/bridge/generated/VaultTaskPage";
-import fixture from "../features/vault/__fixtures__/reading.json";
+import fixture from "orbit-ui/features/vault/__fixtures__/reading.json";
 
 export function vaultAnswer(call: VaultCall, empty: boolean): VaultOutcome {
   const configuration = {

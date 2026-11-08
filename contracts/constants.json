@@ -391,7 +391,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/notes/private-notes-draft.ts",
+        "file": "packages/orbit-ui/features/notes/private-notes-draft.ts",
         "name": "MAX_PRIVATE_NOTES_CHARS",
         "unit": "characters"
       }
@@ -1012,7 +1012,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "PERMISSION_LIFETIME_MS",
         "unit": "milliseconds"
       }
@@ -1031,7 +1031,7 @@
         "unit": "days"
       },
       {
-        "file": "apps/desktop/src/features/calendar/range.ts",
+        "file": "packages/orbit-ui/features/calendar/range.ts",
         "name": "MAX_GRID_DAYS",
         "unit": "days"
       }
@@ -1112,7 +1112,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "WRITE_LIFETIME_MS",
         "unit": "milliseconds"
       }
@@ -1936,7 +1936,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "DEADLINE_MARGIN_MS",
         "unit": "milliseconds"
       }
@@ -1974,7 +1974,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/briefing/PersonalReminder.tsx",
+        "file": "packages/orbit-ui/features/briefing/PersonalReminder.tsx",
         "name": "MAX_REMINDER_CHARS",
         "unit": "characters"
       }
@@ -2348,7 +2348,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_NAME_CHARS",
         "unit": "characters"
       }
@@ -2367,7 +2367,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_URL_CHARS",
         "unit": "characters"
       }
@@ -2386,7 +2386,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_KEY_CHARS",
         "unit": "characters"
       }

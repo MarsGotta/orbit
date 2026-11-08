@@ -50,7 +50,7 @@ meetings.
 | `routes/reminders.py` / `storage/reminders.py` | Already shared by title digest; authentication stays per device. No change needed. |
 | `crates/orbit-daemon/src/hub_notes.rs:249,263,269,324,455,465` list/document/turns/previous-meeting/library reads | Already address the hub using a device bearer token and recording/series IDs, with no device query filter. Keep request paths and credentials. Additive provenance survives deserialization. |
 | `crates/orbit-daemon/src/daemon/recording_notes/reads.rs:73,255,277,324,407` local rows, document overlays and local transcript fallback | Keep local capture, unuploaded audio, pending private notes/outbox and pending calendar context scoped to this Mac. They supplement shared history. Preserve hub provenance when local progress replaces a list row; do not erase another Mac's shared event. |
-| `crates/orbit-app-core/src/client/note_read.rs`, projections and `apps/desktop/src/features/notes/` | No device filter exists. Preserve `recorded_on` in the typed projections and generated TypeScript, show it in the list/detail, and explain the recording Mac's pending upload. Commands still address recordings by UUID. |
+| `crates/orbit-app-core/src/client/note_read.rs`, projections and `packages/orbit-ui/features/notes/` | No device filter exists. Preserve `recorded_on` in the typed projections and generated TypeScript, show it in the list/detail, and explain the recording Mac's pending upload. Commands still address recordings by UUID. |
 | Pairing, device credentials, active-device views and owner-profile publication | Retain existing device scope. Revoked tokens remain refused; reading a revoked recorder's meeting does not reactivate it. |
 
 The retained storage predicates were checked individually:

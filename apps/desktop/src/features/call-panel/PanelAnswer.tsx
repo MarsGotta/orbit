@@ -7,9 +7,9 @@ import { Icon } from "orbit-ui/design/Icon";
 import { Loading } from "orbit-ui/design/Spinner";
 import { TextLink } from "orbit-ui/design/TextLink";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import { useNow } from "../../use-now";
-import { PendingCard } from "../assistant/PendingCard";
-import { MarkdownView } from "../notes/MarkdownView";
+import { useNow } from "orbit-ui/use-now";
+import { PendingCard } from "orbit-ui/features/assistant/PendingCard";
+import { MarkdownView } from "orbit-ui/features/notes/MarkdownView";
 import { Remaining } from "./CallPanel";
 import styles from "./CallPanel.module.css";
 

@@ -3,7 +3,7 @@ import { BrandMark } from "orbit-ui/design/Brand";
 import { RecordButton } from "orbit-ui/design/Button";
 import { SidebarItem } from "orbit-ui/design/SidebarItem";
 import { agentFor } from "orbit-ui/state/agents";
-import { noteRowState } from "../features/notes/note-row";
+import { noteRowState } from "orbit-ui/features/notes/note-row";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { routeFor, type ViewId } from "orbit-ui/state/ui";

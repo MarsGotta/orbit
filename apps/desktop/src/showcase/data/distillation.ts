@@ -2,7 +2,7 @@
 import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
 import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
-import fixture from "../../features/vault/__fixtures__/distillation.json";
+import fixture from "orbit-ui/features/vault/__fixtures__/distillation.json";
 import { vaultAnswer } from "../vault";
 export function distillationPort(status: Distillation["status"] = "proposed", holdApply = false) {
   let current = { ...(structuredClone(fixture) as Distillation), status };

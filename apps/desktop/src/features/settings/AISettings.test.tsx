@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AgentPort } from "./agents/use-agent-config";
-import { AISettings } from "./AISettings";
+import type { AgentPort } from "orbit-ui/features/settings/agents/use-agent-config";
+import { AISettings } from "orbit-ui/features/settings/AISettings";
 import { AIStep } from "../onboarding/OnboardingAIStep";
 
 afterEach(() => {

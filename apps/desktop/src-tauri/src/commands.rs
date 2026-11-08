@@ -178,7 +178,7 @@ pub struct Attachments {
 }
 
 /// A refused attachment order, as the interface reads every refusal
-/// (`refusalOf` in `src/bridge/refusal.ts`).
+/// (`refusalOf` in `packages/orbit-ui/bridge/refusal.ts`).
 #[derive(Debug, serde::Serialize)]
 pub struct AttachmentRefusal {
     refusal: Refusal,

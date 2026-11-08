@@ -2,7 +2,7 @@ import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useEffect, useMemo, useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "orbit-ui/bridge/port";
-import { AssistantSessions } from "../features/assistant/AssistantSessions";
+import { AssistantSessions } from "orbit-ui/features/assistant/AssistantSessions";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
 import {
   initializeUiStore,
@@ -19,7 +19,7 @@ import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
 import { Overlays, useCommandDispatch } from "./AppOverlays";
 import { Palette } from "./Palette";
-import { ShellSlots, useShellSlots } from "./shell-slots";
+import { ShellSlots, useShellSlots } from "orbit-ui/shell/shell-slots";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import styles from "./Shell.module.css";

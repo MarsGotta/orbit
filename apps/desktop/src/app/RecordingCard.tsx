@@ -4,10 +4,10 @@ import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot"
 import { Button } from "orbit-ui/design/Button";
 import { Spinner } from "orbit-ui/design/Spinner";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import { effectiveTimezone } from "../local-time";
+import { effectiveTimezone } from "orbit-ui/local-time";
 import { settingsRoute } from "orbit-ui/state/ui";
 import { mmss } from "orbit-ui/time-format";
-import { useNow } from "../use-now";
+import { useNow } from "orbit-ui/use-now";
 import { endingLabel } from "./call-countdown";
 import { DiscardButton, DiscardQuestion, useDiscardQuestion } from "./DiscardRecording";
 import { AskMenu } from "./meeting-question/AskMenu";

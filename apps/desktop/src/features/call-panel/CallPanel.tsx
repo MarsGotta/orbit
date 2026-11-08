@@ -9,7 +9,7 @@ import { Button } from "orbit-ui/design/Button";
 import { useFeedback } from "orbit-ui/design/feedback";
 
 import { mmss } from "orbit-ui/time-format";
-import { useNow } from "../../use-now";
+import { useNow } from "orbit-ui/use-now";
 import styles from "./CallPanel.module.css";
 
 /** A panel order; its promise settles with the daemon's receipt. */
