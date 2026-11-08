@@ -98,9 +98,11 @@ function viewZone(view) {
   };
 }
 
-// The state may not depend on the views.
-const stateZone = {
-  files: ["state/**/*.{ts,tsx}"],
+// What the views stand on may not depend on them. The copy's tests are the
+// exception: they mount real screens to read their words.
+const belowViewsZone = {
+  files: ["state", "design", "bridge", "shell", "i18n"].map((folder) => `${folder}/**/*.{ts,tsx}`),
+  ignores: ["i18n/**/*.test.{ts,tsx}"],
   linterOptions: { noInlineConfig: true },
   rules: {
     "no-restricted-imports": [
@@ -110,7 +112,7 @@ const stateZone = {
           ...boundaries.patterns,
           {
             regex: String.raw`^(?:\.\./)+features(?:/|$)`,
-            message: "The state may not import a view.",
+            message: "The state, design, bridge, shell and copy may not import a view.",
           },
         ],
       },
@@ -144,7 +146,7 @@ export default tseslint.config(
     },
   },
   ...views.map(viewZone),
-  stateZone,
+  belowViewsZone,
   {
     files: ["features/**/*.{ts,tsx}", "state/**/*.{ts,tsx}"],
     languageOptions: { parserOptions: { projectService: true } },

@@ -2,10 +2,12 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppView } from "orbit-ui/state/app-view";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import { english } from "orbit-ui/i18n/en";
+import { spanish } from "orbit-ui/i18n/es";
 import { TEST_NOW_MS } from "orbit-ui/test-clock";
 import SettingsView, { type SettingsViewProps } from "orbit-ui/features/settings/SettingsView";
 import type { SettingsSection } from "orbit-ui/state/ui";
-import { macSettingsSections as frame } from "../app/Main";
+import { Main, macSettingsSections as frame } from "../app/Main";
 
 // Settings in five sections. Only the view fields Settings reads; names,
 // hosts and contents are invented.
@@ -510,5 +512,67 @@ describe("Asistentes", () => {
     renderSettings({ section: "asistentes" });
     const history = screen.getByRole("region", { name: "Lo que han hecho en este Mac" });
     expect(history.querySelector("[aria-busy='true']")).toBeTruthy();
+  });
+});
+
+function catalogueStrings(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (value === null || typeof value !== "object") return [];
+  return Object.values(value).flatMap(catalogueStrings);
+}
+
+/** What `container` shows, as text or label, that only the Spanish catalogue has. */
+function spanishCatalogueText(container: HTMLElement): string[] {
+  const englishStrings = new Set(catalogueStrings(english("Atlas")));
+  const onlySpanish = new Set(
+    catalogueStrings(spanish("Atlas")).filter((text) => !englishStrings.has(text)),
+  );
+  const shown: string[] = [];
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) shown.push(walker.currentNode.textContent?.trim() ?? "");
+  for (const node of container.querySelectorAll("*"))
+    for (const attribute of ["aria-label", "title", "placeholder"])
+      shown.push(node.getAttribute(attribute) ?? "");
+  return shown.filter((text) => onlySpanish.has(text));
+}
+
+describe("the Mac's pieces of Settings", () => {
+  it.each([
+    ["general", "button", "Check for updates"],
+    ["privacidad", "region", "macOS permissions"],
+  ] as const)("paint %s in English, with no Spanish catalogue text", (section, role, piece) => {
+    const view = render(
+      <CopyProvider choice="en" name="Atlas">
+        <SettingsView
+          frame={frame}
+          error={null}
+          onReopenOnboarding={vi.fn()}
+          send={vi.fn()}
+          section={section}
+          snapshot={snapshot()}
+        />
+      </CopyProvider>,
+    );
+    expect(screen.getByRole(role, { name: piece })).toBeTruthy();
+    expect(spanishCatalogueText(view.container)).toEqual([]);
+  });
+
+  it("reach Settings through the app's route", async () => {
+    render(
+      <Main
+        crash={() => "fallo"}
+        error={null}
+        onRecord={vi.fn()}
+        onReopenOnboarding={vi.fn()}
+        send={vi.fn(() => Promise.resolve())}
+        snapshot={snapshot()}
+        view="settings"
+        settingsSection="general"
+      />,
+    );
+    // The title first: it says the lazy view has arrived, so a route without
+    // the frame fails on the next line at once and not at the query's budget.
+    await screen.findByRole("heading", { level: 2, name: "General" });
+    expect(screen.getByRole("button", { name: "Buscar actualización" })).toBeTruthy();
   });
 });
