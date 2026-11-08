@@ -12,14 +12,18 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
     sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
 
+#[path = "support/harness.rs"]
+mod harness;
 #[path = "support/ipc.rs"]
 mod ipc;
+
+use harness::real_daemon;
 
 const CODE: &str = "codigo-sintetico-3";
 const NAME: &str = "Estudio Lira";
@@ -43,10 +47,7 @@ fn data_folder() -> Result<tempfile::TempDir> {
 /// recovery is refused before it reaches the hub.
 fn start(folder: &Path) -> Result<Daemon> {
     let mut daemon = Daemon(
-        Command::new(env!("CARGO_BIN_EXE_orbit"))
-            .args(["--dev", "--data-dir"])
-            .arg(folder)
-            .arg("daemon")
+        real_daemon(folder)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .spawn()?,

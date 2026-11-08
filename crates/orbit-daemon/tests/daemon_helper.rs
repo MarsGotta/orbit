@@ -10,8 +10,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "support/harness.rs"]
+mod harness;
 #[path = "support/ipc.rs"]
 mod ipc;
+use harness::{real_daemon, real_daemon_at};
 
 struct Daemon(Child);
 impl Drop for Daemon {
@@ -20,12 +23,6 @@ impl Drop for Daemon {
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
-}
-
-fn daemon(path: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_orbit"));
-    command.args(["--dev", "--data-dir"]).arg(path);
-    command
 }
 
 /// A fake helper that records the arguments the daemon launched it with,
@@ -134,8 +131,7 @@ fn daemon_helper_flag_launches_the_helper_with_stdio_managed_and_supervises_it()
         .tempdir_in("/tmp")?;
     let helper = fake_helper(directory.path(), "helper")?;
     let mut daemon = Daemon(
-        daemon(directory.path())
-            .arg("daemon")
+        real_daemon(directory.path())
             .arg("--helper")
             .arg(&helper)
             .stdin(Stdio::null())
@@ -194,10 +190,7 @@ fn configured_helper_never_launches_with_or_without_a_symlink() -> Result<()> {
             ),
         )?;
         let mut daemon = Daemon(
-            Command::new(executable)
-                .args(["--dev", "--data-dir"])
-                .arg(&data)
-                .arg("daemon")
+            real_daemon_at(executable, &data)
                 .stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::inherit())

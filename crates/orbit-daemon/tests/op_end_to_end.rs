@@ -11,14 +11,18 @@ use std::{
     io::{Read, Write},
     net::TcpListener,
     path::Path,
-    process::{Child, Command},
+    process::Child,
     sync::mpsc,
     thread,
     time::{Duration, Instant},
 };
 
+#[path = "support/harness.rs"]
+mod harness;
 #[path = "support/ipc.rs"]
 mod ipc;
+
+use harness::real_daemon;
 
 struct Daemon(Child);
 impl Drop for Daemon {
@@ -93,13 +97,7 @@ fn an_orders_op_reaches_the_hub_header_its_notice_and_the_report_log() -> Result
     let directory = tempfile::Builder::new()
         .prefix("orbit-op-")
         .tempdir_in("/tmp")?;
-    let mut daemon = Daemon(
-        Command::new(env!("CARGO_BIN_EXE_orbit"))
-            .args(["--dev", "--data-dir"])
-            .arg(directory.path())
-            .arg("daemon")
-            .spawn()?,
-    );
+    let mut daemon = Daemon(real_daemon(directory.path()).spawn()?);
     wait_for_status(directory.path(), &mut daemon.0)?;
     let (hub, heads) = refusing_hub()?;
     let op = Op::parse("7f3a2c9e-op-end-to-end").context("op")?;

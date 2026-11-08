@@ -9,13 +9,17 @@ use serde_json::{Value, json};
 use std::{
     error::Error,
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
     time::Duration,
 };
 use tokio::{
     io::{AsyncWriteExt, BufReader},
     net::UnixStream,
 };
+
+#[path = "support/harness.rs"]
+mod harness;
+use harness::real_daemon;
 
 // Preserve the app-core fixtures' measured cold-start guard (3,969 ms worst).
 // It bounds a hung process, not startup latency.
@@ -30,10 +34,7 @@ struct TestDaemon {
 }
 impl TestDaemon {
     async fn start(root: &Path, paths: &Paths) -> Result<Self, Box<dyn Error>> {
-        let child = Command::new(env!("CARGO_BIN_EXE_orbit"))
-            .args(["--dev", "--data-dir"])
-            .arg(root)
-            .arg("daemon")
+        let child = real_daemon(root)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
