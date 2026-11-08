@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The generated TypeScript does not change when the tests run.
 
-ts-rs writes `apps/desktop/src/bridge/generated/` as a side effect of
+ts-rs writes `packages/orbit-ui/bridge/generated/` as a side effect of
 `cargo test`. A snapshot taken right before the tests and compared right after
 says whether the files in the tree are the ones the Rust types produce; if
 they are not, the interface was type-checked against stale types.

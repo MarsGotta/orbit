@@ -1,5 +1,5 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Switch } from "../../design/Switch";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { Group, List, Row } from "../settings/layout";
 export function LaterSettings() {

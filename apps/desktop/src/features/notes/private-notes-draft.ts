@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import { asTextOver, useLocalDraft } from "../../state/local-drafts";
 import { useFlushOnQuit } from "../../state/quit-flush";
 import { SAVE_AFTER_MS, SAVE_AT_LEAST_EVERY_MS } from "./use-debounced-commit";

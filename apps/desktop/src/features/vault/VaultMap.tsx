@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { COLORS, typeLabel } from "./type-colors";
 import { MapNode } from "./MapNode";
 import { useState } from "react";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
 
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";

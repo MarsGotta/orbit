@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingAskSnapshot } from "orbit-ui/bridge/generated/MeetingAskSnapshot";
 import { questionBytes } from "../../app/meeting-question/copy";
-import { moveWithArrows } from "../../design/roving";
-import { Button } from "../../design/Button";
-import { useCopy } from "../../i18n/CopyProvider";
+import { moveWithArrows } from "orbit-ui/design/roving";
+import { Button } from "orbit-ui/design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import styles from "./CallPanel.module.css";
 
 /** A pending question keeps the form; refusal is displayed by PanelApp. */

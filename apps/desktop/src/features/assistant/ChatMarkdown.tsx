@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { createContext, memo, useContext, type ComponentProps } from "react";
 import Markdown, { type Components, type ExtraProps, type Options } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { TextLink } from "../../design/TextLink";
+import { TextLink } from "orbit-ui/design/TextLink";
 
 import { safeHref } from "../notes/markdown";
 import { CodeBlock } from "./CodeBlock";

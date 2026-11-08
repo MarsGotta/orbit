@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { Agent } from "../../bridge/generated/Agent";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { IconButton } from "../../design/IconButton";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { IconButton } from "orbit-ui/design/IconButton";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";

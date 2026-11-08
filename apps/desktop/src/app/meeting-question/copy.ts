@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
-import type { MeetingQuestionCause } from "../../bridge/generated/MeetingQuestionCause";
-import type { VoiceOffCause } from "../../bridge/generated/VoiceOffCause";
-import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { MeetingQuestionCause } from "orbit-ui/bridge/generated/MeetingQuestionCause";
+import type { VoiceOffCause } from "orbit-ui/bridge/generated/VoiceOffCause";
+import type { VoiceStatusSnapshot } from "orbit-ui/bridge/generated/VoiceStatusSnapshot";
 
 /** Each cause of a question without answer, as what to do. */
 export function causeText(cause: MeetingQuestionCause, copy = getCopy()): string {

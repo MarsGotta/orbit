@@ -1,13 +1,13 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { Agent } from "../../bridge/generated/Agent";
-import { AssistantAvatar, type AssistantColor } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { EditMenu } from "../../design/EditMenu";
-import type { Feedback } from "../../design/feedback";
-import { Icon } from "../../design/Icon";
-import { Switch } from "../../design/Switch";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { AssistantAvatar, type AssistantColor } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { EditMenu } from "orbit-ui/design/EditMenu";
+import type { Feedback } from "orbit-ui/design/feedback";
+import { Icon } from "orbit-ui/design/Icon";
+import { Switch } from "orbit-ui/design/Switch";
 
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";

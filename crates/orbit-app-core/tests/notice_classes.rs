@@ -6,7 +6,7 @@
 //! committed as this test writes it and the gate checks it is up to date.
 use orbit_core::notice::NoticeCode;
 
-const TARGET: &str = "../../apps/desktop/src/bridge/generated/noticeClasses.ts";
+const TARGET: &str = "../../packages/orbit-ui/bridge/generated/noticeClasses.ts";
 
 fn render() -> String {
     let mut out = String::from(

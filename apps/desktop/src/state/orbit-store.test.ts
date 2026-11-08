@@ -1,7 +1,7 @@
-import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
+import type { AppBootstrap, FeatureFrame } from "orbit-ui/bridge/generated";
 import { describe, expect, it, vi } from "vitest";
 import type { DaemonPort } from "../bridge/port";
-import type { Notice } from "../bridge/generated/Notice";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import { freshNotices, receive, type Message } from "./interceptor";
 import { createOrbitStore } from "./orbit-store";
 

@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
-import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
-import { Button } from "../../design/Button";
+import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
+import type { VoiceStatusSnapshot } from "orbit-ui/bridge/generated/VoiceStatusSnapshot";
+import { Button } from "orbit-ui/design/Button";
 
-import { mmss } from "../../time-format";
+import { mmss } from "orbit-ui/time-format";
 import { useNow } from "../../use-now";
 import { timeLabel } from "../calendar/date";
 import { meetingWhen } from "./NextMeetingCard";

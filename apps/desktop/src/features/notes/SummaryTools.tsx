@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { ConfirmCard } from "../../design/ConfirmCard";
-import { Icon } from "../../design/Icon";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { ConfirmCard } from "orbit-ui/design/ConfirmCard";
+import { Icon } from "orbit-ui/design/Icon";
 
 import { CopyButton } from "./copy-button";
 import { isPreparing, isRecording, templateOf } from "./note-progress";

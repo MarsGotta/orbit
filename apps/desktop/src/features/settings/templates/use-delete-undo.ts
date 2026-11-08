@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../../bridge/generated";
-import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DaemonConnection } from "orbit-ui/bridge/generated/DaemonConnection";
 import { HUB_CONFIRMATION_MS } from "../../../state/ceilings";
 import { useWindowActions } from "../../../state/window-actions";
 import type { Restoring } from "./restore-notice";

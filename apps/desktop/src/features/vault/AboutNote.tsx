@@ -1,11 +1,11 @@
 import { logAction, logDetail } from "./log-presentation";
 import { actorName, useVaultOwner } from "./provenance";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { NoteFacts } from "./NoteFacts";
 import { useState } from "react";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import type { VaultNote } from "../../bridge/generated/VaultNote";
-import { Button } from "../../design/Button";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
+import { Button } from "orbit-ui/design/Button";
 
 import { readFilter, type VaultPort } from "./api";
 import { internalTarget } from "./markdown-tree";

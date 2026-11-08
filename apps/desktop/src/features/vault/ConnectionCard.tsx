@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { VaultConnection } from "../../bridge/generated/VaultConnection";
-import type { VaultSettings } from "../../bridge/generated/VaultSettings";
-import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
+import type { VaultConnection } from "orbit-ui/bridge/generated/VaultConnection";
+import type { VaultSettings } from "orbit-ui/bridge/generated/VaultSettings";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 import { Group } from "../settings/layout";
 import { message, request, type VaultPort } from "./api";
 import styles from "./Vault.module.css";

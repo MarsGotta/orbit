@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { AppView } from "../state/app-view";
 import SettingsView from "../features/settings/SettingsView";
-import { CopyProvider } from "./CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 
 it("changes the visible Settings copy immediately and sends the Mac's choice", async () => {
   const send = vi.fn(async () => true);

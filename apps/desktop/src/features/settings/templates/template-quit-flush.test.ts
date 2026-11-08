@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../../bridge/generated";
-import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
 import { flushBeforeQuit } from "../../../state/quit-flush";
 import { useTemplateEditor } from "./use-template-editor";
 

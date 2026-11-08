@@ -1,6 +1,6 @@
-import { getCopy } from "../../../i18n";
-import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { DaemonConnection } from "orbit-ui/bridge/generated/DaemonConnection";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 
 import type { RemovedTemplate } from "./template-draft";
 

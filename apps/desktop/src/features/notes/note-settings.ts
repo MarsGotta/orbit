@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
-import type { AppCommand } from "../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 
 import { meetingDictionaries, takesLists } from "./dictionary-choice";
 import { templateOf } from "./note-progress";

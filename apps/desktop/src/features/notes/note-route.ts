@@ -1,4 +1,4 @@
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 /** The meeting the route names (`#/notes/<id>`), or "" when none. */
 export function routeRecordingId(): string {

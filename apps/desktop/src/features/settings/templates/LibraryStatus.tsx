@@ -1,5 +1,5 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 
 import { refusalText } from "../../../state/library-refusal";
 import styles from "./Templates.module.css";

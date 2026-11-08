@@ -3,14 +3,17 @@ import { defineConfig } from "vitest/config";
 import { TEST_BUDGET_MS } from "./src/test-budgets";
 import { TEST_TIMEZONE } from "./src/test-clock";
 
-const EXCLUDED = ["node_modules/**", "dist/**"];
-const DESIGN_TESTS = "src/design/**/*.test.{ts,tsx}";
+const PACKAGE = "../../packages/orbit-ui";
+const EXCLUDED = ["node_modules/**", "dist/**", `${PACKAGE}/node_modules/**`];
+const DESIGN_TESTS = `${PACKAGE}/design/**/*.test.{ts,tsx}`;
 
 export default defineConfig({
   clearScreen: false,
   plugins: [react()],
   server: {
     strictPort: true,
+    // Vitest serves the package's files; without this it denies them and finds no tests.
+    fs: { allow: [".", PACKAGE] },
   },
   test: {
     // The zone is pinned too, so a run in another zone reads the same
@@ -32,7 +35,7 @@ export default defineConfig({
     // a paging test went from 11 s to 64 s on its own, past its budget. Measured
     // on 2026-10-15: the whole suite takes 149 s with the stylesheets and 17 s
     // without, and without them only these ten tests fail
-    // (`src/design/{tokens,primitives}.test.tsx`; the second was removed since).
+    // (`design/{tokens,primitives}.test.tsx`; the second was removed since).
     projects: [
       {
         extends: true,
@@ -42,7 +45,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "app",
-          include: ["src/**/*.test.{ts,tsx}"],
+          include: ["src/**/*.test.{ts,tsx}", `${PACKAGE}/**/*.test.{ts,tsx}`],
           exclude: [...EXCLUDED, DESIGN_TESTS],
           css: { include: [] },
         },

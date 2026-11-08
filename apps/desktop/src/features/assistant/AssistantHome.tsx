@@ -1,12 +1,12 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
 import type { DaemonPort } from "../../bridge/port";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Icon } from "../../design/Icon";
-import { Skeleton } from "../../design/Skeleton";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Icon } from "orbit-ui/design/Icon";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";

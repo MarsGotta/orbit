@@ -1,8 +1,8 @@
-import { dateTime } from "../../i18n/locale";
-import { getCopy } from "../../i18n";
-import type { ComputerControlSnapshot } from "../../bridge/generated/ComputerControlSnapshot";
-import type { EngineSnapshot } from "../../bridge/generated/EngineSnapshot";
-import { useCopy } from "../../i18n/CopyProvider";
+import { dateTime } from "orbit-ui/i18n/locale";
+import { getCopy } from "orbit-ui/i18n";
+import type { ComputerControlSnapshot } from "orbit-ui/bridge/generated/ComputerControlSnapshot";
+import type { EngineSnapshot } from "orbit-ui/bridge/generated/EngineSnapshot";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 
 import { List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";

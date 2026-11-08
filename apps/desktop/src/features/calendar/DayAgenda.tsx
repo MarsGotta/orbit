@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Skeleton } from "../../design/Skeleton";
+import { Button } from "orbit-ui/design/Button";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import { dayAndMonth, dayOf, longDay, startOfDay, timeLabel, weekdayName } from "./date";
 import { type CalendarEvent, eventsByDay, inAllDayLane, toneOf, toneStyle } from "./eventLook";

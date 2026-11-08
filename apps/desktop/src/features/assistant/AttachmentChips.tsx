@@ -1,9 +1,9 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 
-import { Button } from "../../design/Button";
-import { Tooltip } from "../../design/Tooltip";
-import { Icon } from "../../design/Icon";
+import { Button } from "orbit-ui/design/Button";
+import { Tooltip } from "orbit-ui/design/Tooltip";
+import { Icon } from "orbit-ui/design/Icon";
 import { attachmentFailure, type DraftAttachment } from "./attachment-drafts";
 import styles from "./Attachments.module.css";
 

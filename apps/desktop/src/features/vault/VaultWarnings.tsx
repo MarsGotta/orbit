@@ -1,5 +1,5 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultDiagnostic } from "../../bridge/generated/VaultDiagnostic";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultDiagnostic } from "orbit-ui/bridge/generated/VaultDiagnostic";
 
 /** Older hubs supply prose only; current hubs also supply stable diagnostics. */
 export function VaultWarnings({

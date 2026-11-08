@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { CallSnapshot } from "../bridge/generated/CallSnapshot";
-import { CopyProvider } from "../i18n/CopyProvider";
+import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { CallCard } from "./CallCard";
 
 // A call has no time limit: it ends when the person hangs up or when nobody

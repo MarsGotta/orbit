@@ -1,9 +1,9 @@
-import { getCopy } from "../../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { useCallback, useRef, useState } from "react";
-import type { AppCommand } from "../../../bridge/generated";
-import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CalendarEventChanges } from "orbit-ui/bridge/generated/CalendarEventChanges";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 
 import type { CalendarEvent } from "../eventLook";
 import {

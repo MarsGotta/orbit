@@ -1,13 +1,13 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated/AppCommand";
-import type { VoiceNote as VoiceNoteSnapshot } from "../../bridge/generated/VoiceNote";
-import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
-import { Button } from "../../design/Button";
-import { ConfirmCard } from "../../design/ConfirmCard";
-import { Icon } from "../../design/Icon";
-import { mmss } from "../../time-format";
+import type { AppCommand } from "orbit-ui/bridge/generated/AppCommand";
+import type { VoiceNote as VoiceNoteSnapshot } from "orbit-ui/bridge/generated/VoiceNote";
+import type { VoiceNoteAudioSnapshot } from "orbit-ui/bridge/generated/VoiceNoteAudioSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { ConfirmCard } from "orbit-ui/design/ConfirmCard";
+import { Icon } from "orbit-ui/design/Icon";
+import { mmss } from "orbit-ui/time-format";
 
 import styles from "./AssistantView.module.css";
 

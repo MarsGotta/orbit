@@ -8,10 +8,10 @@
  * A saved write stays drawn where it went until the read the daemon starts
  * after every write shows it there (or `APPLIED_WAIT_MS` passes).
  */
-import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
-import type { WriteTarget } from "../../../bridge/generated/WriteTarget";
+import type { CalendarEventChanges } from "orbit-ui/bridge/generated/CalendarEventChanges";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
+import type { WriteTarget } from "orbit-ui/bridge/generated/WriteTarget";
 import type { CalendarEvent } from "../eventLook";
 import { DELIVERY_MS } from "../../../state/ceilings";
 import { sameTarget, type Target, targetOf, updatedTarget } from "./commands";

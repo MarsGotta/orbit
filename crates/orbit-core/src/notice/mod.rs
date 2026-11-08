@@ -48,7 +48,7 @@ pub use log::{CAPACITY, NoticeLog, Report, ReportSource, lenient_notice, lenient
 #[cfg_attr(
     feature = "ts",
     derive(ts_rs::TS),
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum NoticeClass {

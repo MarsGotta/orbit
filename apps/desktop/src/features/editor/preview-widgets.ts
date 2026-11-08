@@ -1,4 +1,4 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { type EditorView, WidgetType } from "@codemirror/view";
 
 /** What the formatted view draws in place of Markdown: a task's box, a bullet, a rule. */

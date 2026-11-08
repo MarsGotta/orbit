@@ -1,6 +1,6 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { SkillsConfig } from "../../../bridge/generated/SkillsConfig";
+import type { SkillsConfig } from "orbit-ui/bridge/generated/SkillsConfig";
 import { Group, List } from "../layout";
 import styles from "./Agents.module.css";
 import { NewSkill } from "./NewSkill";

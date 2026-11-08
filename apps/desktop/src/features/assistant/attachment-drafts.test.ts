@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AddedAttachment } from "../../bridge/generated/AddedAttachment";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
+import type { AddedAttachment } from "orbit-ui/bridge/generated/AddedAttachment";
+import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
 import { settled, type DraftAttachment } from "./attachment-drafts";
 
 const MIB = 1024 * 1024;

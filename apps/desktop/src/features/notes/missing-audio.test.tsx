@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { MissingAudio, MutedMicrophone } from "./TranscriptTools";
 
 afterEach(cleanup);

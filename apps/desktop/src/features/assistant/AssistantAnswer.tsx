@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Suspense, lazy, useEffect, useRef, useState, type RefObject } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { Button } from "../../design/Button";
-import { IconButton } from "../../design/IconButton";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import { Button } from "orbit-ui/design/Button";
+import { IconButton } from "orbit-ui/design/IconButton";
 
 import { ChatMarkdown } from "./ChatMarkdown";
 import { insertIntoComposer } from "./composer-insert";

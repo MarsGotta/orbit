@@ -1,10 +1,10 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { PersonalityConfig } from "../../../bridge/generated/PersonalityConfig";
+import type { PersonalityConfig } from "orbit-ui/bridge/generated/PersonalityConfig";
 
 import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
-import { Button } from "../../../design/Button";
-import type { useFeedback } from "../../../design/feedback";
+import { Button } from "orbit-ui/design/Button";
+import type { useFeedback } from "orbit-ui/design/feedback";
 import { Group } from "../layout";
 import styles from "./Agents.module.css";
 import { ByteCount, FeedbackLine, NotEditable, type OrderProps } from "./parts";

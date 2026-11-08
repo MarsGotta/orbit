@@ -1,9 +1,9 @@
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 import { assistantSnapshot, NOW, renderAssistant, THREE } from "./test-assistants";
 
 // «Añadir un asistente» (annex 40, 40a–40c): what it works with, signing

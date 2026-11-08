@@ -1,5 +1,5 @@
-import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
+import type { NoteSpeakerSnapshot } from "orbit-ui/bridge/generated/NoteSpeakerSnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
 import { MINUTE } from "./time";
 
 export const speakers: NoteSpeakerSnapshot[] = [

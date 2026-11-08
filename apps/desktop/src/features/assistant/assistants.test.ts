@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Agent } from "../../bridge/generated/Agent";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import {
   colorOf,
   composerBlock,

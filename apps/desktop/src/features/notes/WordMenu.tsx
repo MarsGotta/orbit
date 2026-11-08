@@ -1,12 +1,12 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Icon } from "../../design/Icon";
-import { EditMenu } from "../../design/EditMenu";
-import { Field } from "../../design/Field";
-import { MultiSelect } from "../../design/MultiSelect";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Icon } from "orbit-ui/design/Icon";
+import { EditMenu } from "orbit-ui/design/EditMenu";
+import { Field } from "orbit-ui/design/Field";
+import { MultiSelect } from "orbit-ui/design/MultiSelect";
 
 import {
   chosen,

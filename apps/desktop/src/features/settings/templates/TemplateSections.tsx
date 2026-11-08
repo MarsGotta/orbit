@@ -1,9 +1,9 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useRef } from "react";
-import type { NoteTemplateBoundsSnapshot } from "../../../bridge/generated/NoteTemplateBoundsSnapshot";
-import type { TemplateSection } from "../../../bridge/generated/TemplateSection";
-import { Button } from "../../../design/Button";
-import { Icon } from "../../../design/Icon";
+import type { NoteTemplateBoundsSnapshot } from "orbit-ui/bridge/generated/NoteTemplateBoundsSnapshot";
+import type { TemplateSection } from "orbit-ui/bridge/generated/TemplateSection";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
 
 import { moveSection } from "./template-draft";
 import styles from "./Templates.module.css";

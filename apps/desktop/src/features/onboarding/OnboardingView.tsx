@@ -1,7 +1,7 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useId, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import { useCopy } from "../../i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { PermissionsStep } from "./OnboardingAccessSteps";
 import { castOf } from "./cast";

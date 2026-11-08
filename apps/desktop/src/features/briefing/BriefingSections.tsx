@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
-import type { CalendarReadingBlocker } from "../../bridge/generated/CalendarReadingBlocker";
-import { TextLink } from "../../design/TextLink";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
+import type { CalendarReadingBlocker } from "orbit-ui/bridge/generated/CalendarReadingBlocker";
+import { TextLink } from "orbit-ui/design/TextLink";
 
 import { AgendaRows } from "./AgendaRows";
 import { DayTimeline } from "./DayTimeline";

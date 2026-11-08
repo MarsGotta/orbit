@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum TranscriptionModel {
     Whisper,
@@ -17,7 +17,7 @@ pub enum TranscriptionModel {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct TranscriptionSettings {
     pub model: TranscriptionModel,
@@ -30,7 +30,7 @@ pub struct TranscriptionSettings {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct TranscriptionKey(pub String);
 

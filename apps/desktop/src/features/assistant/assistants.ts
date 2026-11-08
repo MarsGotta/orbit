@@ -1,6 +1,6 @@
-import { getCopy } from "../../i18n";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AssistantColor } from "../../design/AssistantAvatar";
+import { getCopy } from "orbit-ui/i18n";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { AssistantColor } from "orbit-ui/design/AssistantAvatar";
 
 /**
  * What an assistant can do now, from what the hub last said of it

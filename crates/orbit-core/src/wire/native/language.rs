@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum SpeechLocale {
     #[serde(rename = "es_ES")]

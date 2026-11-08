@@ -1,11 +1,11 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useRef, useState } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { type Feedback, useFeedback } from "../../design/feedback";
-import { Icon } from "../../design/Icon";
-import { Popover } from "../../design/Popover";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { type Feedback, useFeedback } from "orbit-ui/design/feedback";
+import { Icon } from "orbit-ui/design/Icon";
+import { Popover } from "orbit-ui/design/Popover";
 
 import { languageName } from "./notes-format";
 import {

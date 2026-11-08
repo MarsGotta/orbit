@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 import { AssistantComposer } from "./AssistantComposer";
 
 // With the focus on the chat box, a modifier on its way to another

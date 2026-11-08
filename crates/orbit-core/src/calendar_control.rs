@@ -20,7 +20,7 @@ use crate::calendar::{
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum CalendarCommand {
     RequestPermission,
@@ -107,7 +107,7 @@ impl CalendarCommand {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum CalendarWriteOperation {
     Create,
@@ -123,7 +123,7 @@ pub enum CalendarWriteOperation {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum CalendarWriteStage {
     /// Accepted by the daemon, waiting for the single EventKit slot.

@@ -18,8 +18,8 @@
  * The selectors below are the whole reading API; `use-in-flight.ts` wraps them
  * as hooks.
  */
-import type { FeatureFrame, FeatureId, FrameRevision } from "../bridge/generated";
-import type { FeatureAvailability } from "../bridge/generated/FeatureAvailability";
+import type { FeatureFrame, FeatureId, FrameRevision } from "orbit-ui/bridge/generated";
+import type { FeatureAvailability } from "orbit-ui/bridge/generated/FeatureAvailability";
 import type { ErrorOrigin } from "./interceptor";
 
 export type WaitKind = "order" | "call" | "first_state";

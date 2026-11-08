@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { VoiceNote } from "../../bridge/generated/VoiceNote";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { VoiceNote } from "orbit-ui/bridge/generated/VoiceNote";
 import { genericFailure, receive } from "../../state/interceptor";
 import { MessageList } from "./MessageList";
 

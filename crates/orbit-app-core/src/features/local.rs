@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct LocalView {
     pub profile: Option<ProfileSettingsSnapshot>,
     pub login_item: LoginItemState,
@@ -47,7 +47,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "command", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum LocalCommand {
     LoginItem { on: bool },
     DesktopStatus,

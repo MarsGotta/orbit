@@ -75,7 +75,7 @@ and in `orbit-core`'s `transition/`, and the gate refuses new ones.
 
 | Boundary | Transport | Contract |
 |---|---|---|
-| UI ↔ shell | Tauri `orbit_snapshot`, `orbit_read_sessions_page`, `orbit_read_session_messages`, `orbit_agent`, `orbit_send`, `orbit_panel_send`, `orbit_report`; `orbit://feature/<feature>` events | ts-rs types from app-core in `apps/desktop/src/bridge/generated/` |
+| UI ↔ shell | Tauri `orbit_snapshot`, `orbit_read_sessions_page`, `orbit_read_session_messages`, `orbit_agent`, `orbit_send`, `orbit_panel_send`, `orbit_report`; `orbit://feature/<feature>` events | ts-rs types from app-core in `packages/orbit-ui/bridge/generated/` |
 | app-core ↔ daemon | In-process `Call`/oneshot and a `watch` per topic | `orbit-core/src/topics/`, `reads.rs`, `protocol.rs`, three-valued `Knowledge` and typed `Refusal` |
 | Daemon ↔ helper | Two private inherited pipes, NDJSON | [Native protocol](../../contracts/native-v1.md) |
 | Daemon ↔ engine | MCP JSON-RPC via `cua-driver mcp --embedded` stdio, proxy to a private socket | [CUA](../../contracts/cua-v1.md), [control policy](../../contracts/control-policy-v1.md) |

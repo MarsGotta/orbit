@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { BrandMark } from "../../design/Brand";
-import { Button } from "../../design/Button";
-import { useCopy } from "../../i18n/CopyProvider";
+import { BrandMark } from "orbit-ui/design/Brand";
+import { Button } from "orbit-ui/design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { PairingState } from "./OnboardingView";
 import styles from "./OnboardingView.module.css";
 

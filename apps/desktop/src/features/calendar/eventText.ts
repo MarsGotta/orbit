@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { CalendarRecurrence } from "../../bridge/generated/CalendarRecurrence";
+import { getCopy } from "orbit-ui/i18n";
+import type { CalendarRecurrence } from "orbit-ui/bridge/generated/CalendarRecurrence";
 
 import { dayOf, shortDay, timeLabel } from "./date";
 import type { Repeat } from "./edit/form";

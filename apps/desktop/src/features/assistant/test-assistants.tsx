@@ -3,16 +3,16 @@
 // bar and its list column) for the Assistant to fill.
 import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AgentAnswer } from "../../bridge/generated/AgentAnswer";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
-import type { Notice } from "../../bridge/generated/Notice";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import type { MessagesPage, SessionPage } from "../../bridge/reads";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { AssistantSessions } from "./AssistantSessions";
 import AssistantView from "./AssistantView";

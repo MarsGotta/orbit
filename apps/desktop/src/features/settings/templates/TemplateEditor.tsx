@@ -1,8 +1,8 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { AppCommand } from "../../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
-import { Button } from "../../../design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
+import { Button } from "orbit-ui/design/Button";
 
 import { refusalText } from "../../../state/library-refusal";
 import { MarkdownEditor } from "../../editor/MarkdownEditor";

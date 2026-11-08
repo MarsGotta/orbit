@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { EditorView } from "@codemirror/view";
-import { Icon } from "../../design/Icon";
-import { Tooltip } from "../../design/Tooltip";
+import { Icon } from "orbit-ui/design/Icon";
+import { Tooltip } from "orbit-ui/design/Tooltip";
 
 import { toggleWrap } from "./editing";
 import type { EditorAssistant } from "./MarkdownEditor";

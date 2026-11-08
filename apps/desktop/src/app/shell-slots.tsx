@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import styles from "./Shell.module.css";
 
 /**

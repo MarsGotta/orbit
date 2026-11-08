@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Checkbox } from "../../design/Checkbox";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Checkbox } from "orbit-ui/design/Checkbox";
 
 import { actionsMarkdown, groupActions } from "./action-groups";
 import { CopyButton } from "./copy-button";

@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useId, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import { Button } from "../../design/Button";
-import { Dialog } from "../../design/Dialog";
-import { Field } from "../../design/Field";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { Button } from "orbit-ui/design/Button";
+import { Dialog } from "orbit-ui/design/Dialog";
+import { Field } from "orbit-ui/design/Field";
 
 import { AudioSourceField } from "./AudioSourceField";
 import { StartBlocker } from "./StartBlocker";

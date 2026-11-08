@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
 import { copyImage, openAttachment } from "../../bridge/attachments";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import { refusalOf } from "../../bridge/refusal";
-import { Button } from "../../design/Button";
-import { useFeedback } from "../../design/feedback";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import { refusalOf } from "orbit-ui/bridge/refusal";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
 import { useTrack } from "../../state/use-in-flight";
 
 import { attachmentFailure } from "./attachment-drafts";

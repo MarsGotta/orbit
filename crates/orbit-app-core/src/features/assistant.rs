@@ -149,7 +149,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "command", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum AssistantCommand {
     VoiceNoteAudio { message_id: String },
 }

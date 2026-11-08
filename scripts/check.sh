@@ -15,7 +15,7 @@ source "$CHECK_DIR/runner.sh"
 
 DEFAULT_ZONES=(rust guards hub ui)
 KNOWN_ZONES=(rust guards hub ui)
-GENERATED_TYPES="$ROOT/apps/desktop/src/bridge/generated"
+GENERATED_TYPES="$ROOT/packages/orbit-ui/bridge/generated"
 # The daemon as a process of its own, target/debug/orbit: what the hub's e2e,
 # app-core's tests and the daemon's process tests start. It is not shipped:
 # the published daemon is compiled inside orbit-desktop.

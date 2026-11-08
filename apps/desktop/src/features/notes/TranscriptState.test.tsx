@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { es } from "../../i18n/es";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { es } from "orbit-ui/i18n/es";
 import { TranscriptTab } from "./TranscriptTab";
 
 function note(transcript: Partial<OpenNoteSnapshot["transcript"]>): OpenNoteSnapshot {

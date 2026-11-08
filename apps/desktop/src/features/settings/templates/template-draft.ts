@@ -1,7 +1,7 @@
-import type { AppCommand } from "../../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
-import type { TemplateSection } from "../../../bridge/generated/TemplateSection";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
+import type { TemplateSection } from "orbit-ui/bridge/generated/TemplateSection";
 
 /** What the user edits of a template. */
 export interface TemplateDraft {

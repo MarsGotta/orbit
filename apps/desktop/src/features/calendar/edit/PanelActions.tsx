@@ -1,10 +1,10 @@
-import { getCopy } from "../../../i18n";
-import { useCopy } from "../../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import { Button } from "../../../design/Button";
-import { Popover } from "../../../design/Popover";
-import { Spinner } from "../../../design/Spinner";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import { Button } from "orbit-ui/design/Button";
+import { Popover } from "orbit-ui/design/Popover";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { isSeries } from "./commands";
 import { type Editing, isDirty, saveChoices } from "./useEventEditor";

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import { es } from "../../i18n/es";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { es } from "orbit-ui/i18n/es";
 import { VoiceNote } from "./VoiceNote";
 
 // «Reproducir nota de voz» asks the app for the note's audio. A request that

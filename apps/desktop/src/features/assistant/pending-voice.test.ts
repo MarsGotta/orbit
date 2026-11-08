@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { VoiceTranscriptionFailure } from "../../bridge/generated/VoiceTranscriptionFailure";
-import { es } from "../../i18n/es";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { VoiceTranscriptionFailure } from "orbit-ui/bridge/generated/VoiceTranscriptionFailure";
+import { es } from "orbit-ui/i18n/es";
 import { withPendingVoice } from "./conversation";
 
 function failure(code: string): VoiceTranscriptionFailure {

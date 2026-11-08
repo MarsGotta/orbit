@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import { copyText } from "../../bridge/clipboard";
-import { IconButton } from "../../design/IconButton";
+import { IconButton } from "orbit-ui/design/IconButton";
 
 import styles from "./CopyButton.module.css";
 

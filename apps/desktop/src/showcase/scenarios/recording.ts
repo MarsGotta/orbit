@@ -1,4 +1,4 @@
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import type { Views } from "../scenario";
 
 /** `views` with the meeting changed, and the briefing saying it records. */

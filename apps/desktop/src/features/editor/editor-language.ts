@@ -1,5 +1,5 @@
 import { Facet } from "@codemirror/state";
-import { getCopy, type Catalogue } from "../../i18n";
+import { getCopy, type Catalogue } from "orbit-ui/i18n";
 
 /** CodeMirror's widgets follow copy changes without recreating the editor,
  * losing its undo history or moving its selection. */

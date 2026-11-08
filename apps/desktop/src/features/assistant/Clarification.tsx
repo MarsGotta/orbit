@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatPending } from "../../bridge/generated/ChatPending";
-import { Button } from "../../design/Button";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
+import { Button } from "orbit-ui/design/Button";
 
 import { useHeldChoice } from "../../state/use-held-choice";
 import styles from "./AssistantView.module.css";

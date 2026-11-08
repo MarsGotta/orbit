@@ -1,9 +1,9 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentConfig } from "../../bridge/generated/AgentConfig";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 import {
   ARES,
   assistantSnapshot,

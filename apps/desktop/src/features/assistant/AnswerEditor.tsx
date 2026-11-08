@@ -1,9 +1,9 @@
 import { useId, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { useModalFocus } from "../../design/use-modal-focus";
-import { useCopy } from "../../i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { useModalFocus } from "orbit-ui/design/use-modal-focus";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { asTextOver, useLocalDraft } from "../../state/local-drafts";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { useClipboardCopy, copyStatus } from "./CopyButton";

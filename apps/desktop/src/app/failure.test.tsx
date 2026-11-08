@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../bridge/port";
-import type { Refusal } from "../bridge/refusal";
-import { ViewError } from "../design/ViewError";
-import { es } from "../i18n/es";
+import type { Refusal } from "orbit-ui/bridge/refusal";
+import { ViewError } from "orbit-ui/design/ViewError";
+import { es } from "orbit-ui/i18n/es";
 import { createOrbitStore } from "../state/orbit-store";
 import { FailureActionsProvider } from "./FailureActions";
 import { receive, type Message } from "../state/interceptor";

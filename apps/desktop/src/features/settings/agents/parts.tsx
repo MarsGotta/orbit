@@ -1,4 +1,4 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 
 import styles from "./Agents.module.css";
 import type { Feedback, Place, useAgentConfig } from "./use-agent-config";

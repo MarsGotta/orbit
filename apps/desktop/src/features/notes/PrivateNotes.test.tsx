@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { flushBeforeQuit } from "../../state/quit-flush";
 import { blur, editorNamed, focusAt, typeText } from "../editor/test-editor";
 import { PrivateNotes } from "./PrivateNotes";

@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import { MeetingOverlays } from "../features/meetings/MeetingOverlays";
 import type { AppContentProps } from "./App";
 import { AppNotices } from "./AppNotices";

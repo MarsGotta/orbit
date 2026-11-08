@@ -1,5 +1,5 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
 import { COLORS, typeLabel } from "./type-colors";
 export function MapNode({
   note,

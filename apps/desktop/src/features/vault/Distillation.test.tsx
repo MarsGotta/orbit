@@ -1,7 +1,7 @@
 import type { VaultPort } from "./api";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import VaultView from "./VaultView";
 import { fixturePort } from "./test-port";
 import { proposal, proposalPort } from "./test-distillation";

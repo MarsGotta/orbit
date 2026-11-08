@@ -1,9 +1,9 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { Button } from "../../design/Button";
-import { Skeleton } from "../../design/Skeleton";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import { Button } from "orbit-ui/design/Button";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import styles from "./AssistantView.module.css";

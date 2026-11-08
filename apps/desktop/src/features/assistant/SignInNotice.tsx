@@ -1,10 +1,10 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import { Button } from "../../design/Button";
-import { ViewNotice } from "../../design/ViewNotice";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { Button } from "orbit-ui/design/Button";
+import { ViewNotice } from "orbit-ui/design/ViewNotice";
 
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { healthOf } from "./assistants";

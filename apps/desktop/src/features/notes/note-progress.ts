@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import type { NoteProgressSnapshot } from "../../bridge/generated/NoteProgressSnapshot";
-import type { NoteStepSnapshot } from "../../bridge/generated/NoteStepSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { AppCommand } from "../../bridge/generated";
+import { getCopy } from "orbit-ui/i18n";
+import type { NoteProgressSnapshot } from "orbit-ui/bridge/generated/NoteProgressSnapshot";
+import type { NoteStepSnapshot } from "orbit-ui/bridge/generated/NoteStepSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 export type StepKey = keyof NoteProgressSnapshot;
 export const STEP_KEYS: StepKey[] = ["upload", "transcript", "summary"];

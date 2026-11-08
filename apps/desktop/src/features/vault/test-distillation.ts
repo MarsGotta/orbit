@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { Distillation } from "../../bridge/generated/Distillation";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import type { VaultPort } from "./api";
 import { fixturePort } from "./test-port";
 export function proposal(): Distillation {

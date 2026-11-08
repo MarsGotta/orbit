@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { BriefingPreviousActions } from "../../bridge/generated/BriefingPreviousActions";
-import { Checkbox } from "../../design/Checkbox";
-import { Loading } from "../../design/Spinner";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { BriefingPreviousActions } from "orbit-ui/bridge/generated/BriefingPreviousActions";
+import { Checkbox } from "orbit-ui/design/Checkbox";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";

@@ -1,12 +1,12 @@
-import type { AppCommand } from "../bridge/generated";
-import { BrandMark } from "../design/Brand";
-import { RecordButton } from "../design/Button";
-import { SidebarItem } from "../design/SidebarItem";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { BrandMark } from "orbit-ui/design/Brand";
+import { RecordButton } from "orbit-ui/design/Button";
+import { SidebarItem } from "orbit-ui/design/SidebarItem";
 import { agentFor } from "../state/agents";
 import { noteRowState } from "../features/notes/note-row";
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
-import { routeFor, type ViewId } from "../state/ui";
+import { routeFor, type ViewId } from "orbit-ui/state/ui";
 import { CallCard } from "./CallCard";
 import { RecordingCard } from "./RecordingCard";
 import styles from "./Sidebar.module.css";

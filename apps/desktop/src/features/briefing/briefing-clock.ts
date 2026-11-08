@@ -1,6 +1,6 @@
-import { dateTime } from "../../i18n/locale";
+import { dateTime } from "orbit-ui/i18n/locale";
 import { useEffect, useState } from "react";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 
 export function localHour(nowMs: number, timezone: string): number {
   const hour = new Intl.DateTimeFormat("en-US", {

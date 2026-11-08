@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { CSSProperties } from "react";
-import type { BriefingAgendaSnapshot } from "../../bridge/generated/BriefingAgendaSnapshot";
+import type { BriefingAgendaSnapshot } from "orbit-ui/bridge/generated/BriefingAgendaSnapshot";
 
 import { timeLabel } from "../calendar/date";
 import { localMinutes } from "./briefing-clock";

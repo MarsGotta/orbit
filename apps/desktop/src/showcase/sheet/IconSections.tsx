@@ -1,6 +1,6 @@
-import { Icon, iconNames } from "../../design/Icon";
-import { Skeleton } from "../../design/Skeleton";
-import { Loading, Spinner } from "../../design/Spinner";
+import { Icon, iconNames } from "orbit-ui/design/Icon";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { Loading, Spinner } from "orbit-ui/design/Spinner";
 import styles from "./DesignSheet.module.css";
 
 export function IconsSection() {

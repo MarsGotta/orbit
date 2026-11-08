@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { currentHubConnection } from "../bridge/hub-state";
-import { Icon } from "../design/Icon";
-import { toggleTheme, useTheme } from "../design/theme";
-import { useCopy } from "../i18n/CopyProvider";
+import { Icon } from "orbit-ui/design/Icon";
+import { toggleTheme, useTheme } from "orbit-ui/design/theme";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { useShellSlots } from "./shell-slots";
 import { settleHub, topBarNotices } from "./status-problem";

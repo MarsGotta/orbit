@@ -1,11 +1,11 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppBootstrap, AppCommand, FeatureFrame } from "../../bridge/generated";
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { ChatPending } from "../../bridge/generated/ChatPending";
-import type { WorkItem } from "../../bridge/generated/WorkItem";
+import type { AppBootstrap, AppCommand, FeatureFrame } from "orbit-ui/bridge/generated";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
+import type { WorkItem } from "orbit-ui/bridge/generated/WorkItem";
 import type { DaemonPort } from "../../bridge/port";
 import { PanelApp } from "../call-panel/PanelApp";
 import { AgentWorkView, workSummary } from "./AgentWork";

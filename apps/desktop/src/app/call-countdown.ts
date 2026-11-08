@@ -1,4 +1,4 @@
-import { getCopy } from "../i18n";
+import { getCopy } from "orbit-ui/i18n";
 
 // The countdown of a recording a call started, once the call ended.
 // Shared by the floating panel and the recording card of the sidebar.

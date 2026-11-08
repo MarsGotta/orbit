@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import VaultView from "./VaultView";
 import { proposal, proposalPort } from "./test-distillation";
 

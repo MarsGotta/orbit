@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
-import type { TranscriptionSettings as Settings } from "../../bridge/generated/TranscriptionSettings";
+import type { TranscriptionModel } from "orbit-ui/bridge/generated/TranscriptionModel";
+import type { TranscriptionSettings as Settings } from "orbit-ui/bridge/generated/TranscriptionSettings";
 
 import type { AgentPort } from "./agents/use-agent-config";
 

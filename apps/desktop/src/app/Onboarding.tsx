@@ -1,5 +1,5 @@
 import type { AppView as AppSnapshot } from "../state/app-view";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { OnboardingView } from "../features/onboarding/OnboardingView";
 

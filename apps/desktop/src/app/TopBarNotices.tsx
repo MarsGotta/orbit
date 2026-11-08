@@ -1,8 +1,8 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../bridge/generated";
-import { Popover } from "../design/Popover";
-import { Spinner } from "../design/Spinner";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { Popover } from "orbit-ui/design/Popover";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import type { NoticeFix, TopBarNotice } from "./status-problem";
 import styles from "./TopBar.module.css";

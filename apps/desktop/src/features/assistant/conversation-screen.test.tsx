@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { Notice } from "../../bridge/generated/Notice";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import type { MessagesPage } from "../../bridge/reads";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import AssistantView from "./AssistantView";
 import { conversationAgentName } from "../../state/agents";

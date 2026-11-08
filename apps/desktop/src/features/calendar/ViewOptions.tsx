@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import { Icon } from "../../design/Icon";
-import { Popover } from "../../design/Popover";
+import { Icon } from "orbit-ui/design/Icon";
+import { Popover } from "orbit-ui/design/Popover";
 
 import { MAX_ZOOM, MIN_ZOOM } from "./preferences";
 import { MAX_GRID_DAYS } from "./range";

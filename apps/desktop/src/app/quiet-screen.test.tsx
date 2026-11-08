@@ -1,8 +1,8 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AppCommand } from "../bridge/generated";
-import type { ChatSnapshot } from "../bridge/generated/ChatSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 import { AssistantComposer } from "../features/assistant/AssistantComposer";
 import { UnknownAssistant } from "../features/assistant/AssistantAvailability";
 import { briefingAgendaStatus } from "../features/briefing/BriefingSections";

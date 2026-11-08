@@ -68,12 +68,19 @@ const unnormalized = {
   message: 'Write the import\'s path without "./.." or "<folder>/..".',
 };
 
+// From the app the package is named, never reached by path.
+const packageByPath = {
+  regex: String.raw`(?:^|/)packages/orbit-ui(?:/|$)`,
+  message: 'Import the shared package by its name ("orbit-ui/..."), not by a path.',
+};
+
 function viewZone(view) {
   const shared = !frameViews.includes(view);
   const others = views.filter((other) => other !== view && !(shared && frameViews.includes(other)));
   const patterns = [
     tauri,
     unnormalized,
+    packageByPath,
     {
       regex: `(?!${UP}(?:${PHOTO.join("|")})$)${UP}(?:${others.join("|")})/(?!index$).+`,
       message: "A view may use another view only through its entry (features/<view>).",
@@ -110,6 +117,7 @@ const stateZone = {
         patterns: [
           tauri,
           unnormalized,
+          packageByPath,
           {
             regex: String.raw`^(?:\.\./)+(?:features|app)(?:/|$)`,
             message: "src/state/ may not import a view (src/features/) or the frame (src/app/).",
@@ -121,7 +129,7 @@ const stateZone = {
 };
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "src/bridge/generated", "src-tauri/gen"] },
+  { ignores: ["dist", "node_modules", "src-tauri/gen"] },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {

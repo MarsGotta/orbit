@@ -1,5 +1,5 @@
-import { getCopy } from "../i18n";
-import type { NoteLibraryRefusalSnapshot } from "../bridge/generated/NoteLibraryRefusalSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { NoteLibraryRefusalSnapshot } from "orbit-ui/bridge/generated/NoteLibraryRefusalSnapshot";
 
 /** The hub's refusal of an order, as what the user can do about it. */
 export function refusalText(refusal: NoteLibraryRefusalSnapshot): string {

@@ -1,7 +1,7 @@
-import type { AppCommand } from "../../bridge/generated";
-import type { CalendarRangeSnapshot } from "../../bridge/generated/CalendarRangeSnapshot";
-import type { CalendarViewKind } from "../../bridge/generated/CalendarViewKind";
-import type { CalendarWeekStart } from "../../bridge/generated/CalendarWeekStart";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CalendarRangeSnapshot } from "orbit-ui/bridge/generated/CalendarRangeSnapshot";
+import type { CalendarViewKind } from "orbit-ui/bridge/generated/CalendarViewKind";
+import type { CalendarWeekStart } from "orbit-ui/bridge/generated/CalendarWeekStart";
 import { civil, dayOf, startOfDay } from "./date";
 
 export type Range = CalendarRangeSnapshot;

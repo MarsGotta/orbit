@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { AssistantComposer } from "./AssistantComposer";
 import AssistantView from "./AssistantView";

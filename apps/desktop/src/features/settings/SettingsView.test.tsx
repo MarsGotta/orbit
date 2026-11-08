@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppView } from "../../state/app-view";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { TEST_NOW_MS } from "../../test-clock";
 import SettingsView, { type SettingsViewProps } from "./SettingsView";
-import type { SettingsSection } from "../../state/ui";
+import type { SettingsSection } from "orbit-ui/state/ui";
 
 // Settings in five sections. Only the view fields Settings reads; names,
 // hosts and contents are invented.

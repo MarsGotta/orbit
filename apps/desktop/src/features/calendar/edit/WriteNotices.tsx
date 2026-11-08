@@ -1,7 +1,7 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import { Button } from "../../../design/Button";
-import { Icon } from "../../../design/Icon";
-import { Toast } from "../../../design/Toast";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Toast } from "orbit-ui/design/Toast";
 
 import type { useCalendarWrites } from "./useCalendarWrites";
 import styles from "./EventPanel.module.css";

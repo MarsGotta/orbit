@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { ReactNode } from "react";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Icon } from "../../design/Icon";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Icon } from "orbit-ui/design/Icon";
 
 import { CopyButton } from "./copy-button";
 import { transcriptText } from "./notes-format";

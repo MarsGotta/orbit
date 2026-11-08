@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { CalendarViewKind } from "../../bridge/generated/CalendarViewKind";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { Segmented } from "../../design/Segmented";
-import { Loading } from "../../design/Spinner";
+import type { CalendarViewKind } from "orbit-ui/bridge/generated/CalendarViewKind";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Segmented } from "orbit-ui/design/Segmented";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import { CalendarFilter } from "./CalendarFilter";
 import { dayOf, dayRange, longDay, monthTitle, weekNumber } from "./date";

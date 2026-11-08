@@ -1,5 +1,5 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import type { Distillation } from "../../bridge/generated/Distillation";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import { message, request, type VaultPort } from "./api";
 type Page = {
   entries: Distillation[];

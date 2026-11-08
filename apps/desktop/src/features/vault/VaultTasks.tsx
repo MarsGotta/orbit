@@ -1,10 +1,10 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { VaultTask } from "../../bridge/generated/VaultTask";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import { Button } from "../../design/Button";
-import { Segmented } from "../../design/Segmented";
+import type { VaultTask } from "orbit-ui/bridge/generated/VaultTask";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
+import { Button } from "orbit-ui/design/Button";
+import { Segmented } from "orbit-ui/design/Segmented";
 
 import { readFilter, type VaultPort } from "./api";
 import { localToday, TaskRows, taskTitle } from "./TaskRows";

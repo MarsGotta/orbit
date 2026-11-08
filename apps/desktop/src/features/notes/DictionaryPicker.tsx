@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DictionaryRequest } from "orbit-ui/bridge/generated/DictionaryRequest";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 
 // What Settings › Meetings still takes from here: the note itself chooses
 // its dictionary in «Cómo escribe Orbit esta nota» (NoteSettingsMenu.tsx).

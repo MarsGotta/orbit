@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from "react";
 import {
   addAttachment,
@@ -7,8 +7,8 @@ import {
   onFilesDropped,
   type AttachmentSource,
 } from "../../bridge/attachments";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
-import { refusalOf } from "../../bridge/refusal";
+import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
+import { refusalOf } from "orbit-ui/bridge/refusal";
 
 import { useTrack } from "../../state/use-in-flight";
 import { localRefusal, settled, type DraftAttachment } from "./attachment-drafts";

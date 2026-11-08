@@ -1,4 +1,4 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { actorName } from "./provenance";
 export function logAction(action: string) {
   const copy = getCopy().distillation;

@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 import { blur, editorNamed, focusAt, typeText } from "../../editor/test-editor";
 import { NoteTemplates } from "./NoteTemplates";
 

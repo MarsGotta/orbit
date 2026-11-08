@@ -1,6 +1,6 @@
 import { useStore } from "zustand";
 import type { OrbitStore } from "../state/orbit-store";
-import type { ViewId } from "../state/ui";
+import type { ViewId } from "orbit-ui/state/ui";
 import { messageFor } from "./visible-error";
 
 /** The refusals shown inside the view, onboarding and launcher that sent them. */

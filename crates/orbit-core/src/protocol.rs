@@ -10,7 +10,7 @@ pub use crate::features::FeatureId;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum MeetingAudio {
@@ -26,7 +26,7 @@ pub enum MeetingAudio {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Command {

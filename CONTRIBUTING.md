@@ -93,7 +93,7 @@ one and on entries the code no longer has.
 A skipped test is not a passed test. The gate fails on any skip that is not
 listed, with its reason, in `scripts/check/allowed-skips.toml`. Never weaken,
 skip or delete a test to get green. The TypeScript in
-`apps/desktop/src/bridge/generated/` is written by `cargo test` of
+`packages/orbit-ui/bridge/generated/` is written by `cargo test` of
 `orbit-app-core`; commit it exactly as the test writes it.
 
 Every pull request and every push to `main` runs the whole gate on Linux in

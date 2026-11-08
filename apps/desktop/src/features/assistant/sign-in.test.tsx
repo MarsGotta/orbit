@@ -1,9 +1,9 @@
 import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
-import type { SignInAttempt } from "../../bridge/generated/SignInAttempt";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
+import type { SignInAttempt } from "orbit-ui/bridge/generated/SignInAttempt";
 import { ARES, assistantSnapshot, DEIMOS, NOW, PHOBOS, renderAssistant } from "./test-assistants";
 
 // An expired session (annex 36, 36a, 36b) and signing in from Orbit: the hub

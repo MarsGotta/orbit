@@ -1,12 +1,12 @@
 import { afterEach, expect, it } from "vitest";
 import { render, cleanup } from "@testing-library/react";
-import { configureCopy, getCopy } from "../index";
+import { configureCopy, getCopy } from "orbit-ui/i18n/index";
 import { AgentWorkView, workSummary } from "../../features/assistant/AgentWork";
 import { AIFunctions } from "../../features/settings/AIFunctions";
-import type { ActivityCopy } from "../../bridge/generated/ActivityCopy";
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { PrivacyCopy } from "../../bridge/generated/PrivacyCopy";
-import { CopyProvider } from "../CopyProvider";
+import type { ActivityCopy } from "orbit-ui/bridge/generated/ActivityCopy";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { PrivacyCopy } from "orbit-ui/bridge/generated/PrivacyCopy";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 
 afterEach(cleanup);
 const work: AgentWork = {

@@ -8,9 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import { attachmentBytes } from "../../bridge/attachments";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { refusalOf } from "../../bridge/refusal";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import { refusalOf } from "orbit-ui/bridge/refusal";
 import { useTrack } from "../../state/use-in-flight";
 import { attachmentFailure } from "./attachment-drafts";
 import { AttachmentViewer } from "./AttachmentViewer";

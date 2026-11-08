@@ -1,4 +1,4 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { type ReactNode, useRef, useState } from "react";
 
 import type { Match } from "./transcript-search";

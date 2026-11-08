@@ -1,4 +1,4 @@
-import type { CalendarEventSnapshot } from "../../bridge/generated/CalendarEventSnapshot";
+import type { CalendarEventSnapshot } from "orbit-ui/bridge/generated/CalendarEventSnapshot";
 import { guests, people } from "./people";
 import { at } from "./time";
 

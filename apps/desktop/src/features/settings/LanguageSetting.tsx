@@ -1,7 +1,7 @@
 import { useId } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import { useCopy, useLanguage } from "../../i18n/CopyProvider";
-import type { LanguageChoice } from "../../i18n/language";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { useCopy, useLanguage } from "orbit-ui/i18n/CopyProvider";
+import type { LanguageChoice } from "orbit-ui/i18n/language";
 import { Group, List, Row } from "./layout";
 import styles from "./SettingsView.module.css";
 

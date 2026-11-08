@@ -1,4 +1,4 @@
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 
 /** What a message says: a voice note by its transcript. */
 function said(message: ChatMessage): string {

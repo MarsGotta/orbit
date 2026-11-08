@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import type { DaemonPort } from "../../bridge/port";
-import { Button } from "../../design/Button";
-import { Loading } from "../../design/Spinner";
+import { Button } from "orbit-ui/design/Button";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
@@ -15,7 +15,7 @@ import { LimitCard } from "./LimitCard";
 import { ThreadSkeleton, TurnFailure, turnFailureCode } from "./ThreadParts";
 import { retryText } from "./conversation-markdown";
 import { SignInNotice } from "./SignInNotice";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { useConversation } from "./useConversation";
 import styles from "./AssistantView.module.css";
 

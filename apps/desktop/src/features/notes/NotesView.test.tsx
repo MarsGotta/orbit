@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
+import type { NotesSnapshot } from "orbit-ui/bridge/generated/NotesSnapshot";
 import NotesView from "./NotesView";
 import { appView, notesSnapshot, writtenNote } from "./test-notes";
 

@@ -1,11 +1,11 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
-import type { BriefingPreviousActions } from "../../bridge/generated/BriefingPreviousActions";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
+import type { BriefingPreviousActions } from "orbit-ui/bridge/generated/BriefingPreviousActions";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import type { AppView } from "../../state/app-view";
 import { TEST_NOW_MS } from "../../test-clock";
 import BriefingView from "./BriefingView";

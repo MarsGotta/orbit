@@ -1,7 +1,7 @@
-import { getCopy } from "../../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { useEffect } from "react";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
 
 import type { CalendarEvent } from "../eventLook";
 import { isSeries, updatedTarget } from "./commands";

@@ -1,7 +1,7 @@
 import { actor, useVaultOwner } from "./provenance";
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultNote } from "../../bridge/generated/VaultNote";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
 
 import { displayDate } from "./TaskRows";
 import styles from "./VaultReading.module.css";

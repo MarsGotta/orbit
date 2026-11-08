@@ -1,4 +1,4 @@
-import type { Distillation } from "../../bridge/generated/Distillation";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import { quoteTime } from "./distillation-format";
 import styles from "./Distillation.module.css";
 export function DistillationQuotes({

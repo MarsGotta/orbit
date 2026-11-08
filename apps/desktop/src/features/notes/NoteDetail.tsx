@@ -1,13 +1,13 @@
 import type { VaultPort } from "../vault/api";
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import { useUiStore } from "../../state/ui";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { useUiStore } from "orbit-ui/state/ui";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { Breadcrumbs, TopBarLeading } from "../../app/shell-slots";
-import { Tabs } from "../../design/Tabs";
-import { ViewError } from "../../design/ViewError";
+import { Tabs } from "orbit-ui/design/Tabs";
+import { ViewError } from "orbit-ui/design/ViewError";
 
 import { ActionsTab } from "./ActionsTab";
 import { NoteHeader } from "./NoteHeader";

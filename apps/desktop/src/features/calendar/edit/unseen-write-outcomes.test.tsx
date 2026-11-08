@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
-import { ToastStack } from "../../../design/Toast";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
+import { ToastStack } from "orbit-ui/design/Toast";
 import { UnseenWriteOutcomes } from "./UnseenWriteOutcomes";
 
 // A calendar write whose outcome arrives while the calendar view is closed

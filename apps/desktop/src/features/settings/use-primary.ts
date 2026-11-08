@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Agent } from "../../bridge/generated/Agent";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { callAgent } from "../assistant/agent-calls";
 import { colorOf } from "../assistant/assistants";
 import type { AgentPort } from "./agents/use-agent-config";

@@ -1,7 +1,7 @@
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { MeetingMenu } from "./MeetingMenu";
 import { writtenNote } from "./test-notes";
 

@@ -1,4 +1,4 @@
-import type { VaultNote } from "../../bridge/generated/VaultNote";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
 
 interface Node {
   type: string;

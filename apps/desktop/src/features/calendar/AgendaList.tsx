@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Icon } from "../../design/Icon";
-import { Skeleton } from "../../design/Skeleton";
+import { Icon } from "orbit-ui/design/Icon";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import {
   civil,

@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import { editorNamed, focusAt, typeText } from "../editor/test-editor";
 import { MessageList } from "./MessageList";
 

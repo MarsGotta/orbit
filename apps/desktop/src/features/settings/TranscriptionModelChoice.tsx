@@ -1,5 +1,5 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { TranscriptionModel } from "orbit-ui/bridge/generated/TranscriptionModel";
 
 export function TranscriptionModelChoice({
   model,

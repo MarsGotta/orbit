@@ -1,4 +1,4 @@
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 /**
  * How Today sends an order. A promise, when there is one, says whether the

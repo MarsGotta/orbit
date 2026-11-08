@@ -8,7 +8,7 @@ macro_rules! wire {
         #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
         #[cfg_attr(
             feature = "ts",
-            ts(export_to = "../../apps/desktop/src/bridge/generated/")
+            ts(export_to = "../../packages/orbit-ui/bridge/generated/")
         )]
         $item
     };
@@ -38,7 +38,7 @@ wire! {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct VaultConnection {
     pub kind: String,

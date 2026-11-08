@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 
 import type { AppView } from "../../state/app-view";
 import { agentFor } from "../../state/agents";

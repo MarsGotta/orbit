@@ -1,8 +1,8 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { UpdateSnapshot } from "../bridge/generated/UpdateSnapshot";
-import { Toast } from "../design/Toast";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { UpdateSnapshot } from "orbit-ui/bridge/generated/UpdateSnapshot";
+import { Toast } from "orbit-ui/design/Toast";
 
 const DISMISSED_VERSION = "orbit.update.dismissed-version";
 

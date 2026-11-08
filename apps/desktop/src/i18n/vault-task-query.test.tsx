@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { CopyProvider } from "./CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { VaultMarkdown } from "../features/vault/VaultMarkdown";
-import type { VaultNote } from "../bridge/generated/VaultNote";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
 
 const note: VaultNote = {
   path: "example.md",

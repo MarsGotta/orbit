@@ -1,18 +1,18 @@
 import { presentExceeded } from "./exceeded";
 export { exceededReport } from "./exceeded";
-import { getCopy } from "../i18n";
-import type { AppCommand, FeatureId } from "../bridge/generated";
-import type { Notice } from "../bridge/generated/Notice";
-import type { NoticeCode } from "../bridge/generated/NoticeCode";
-import { noticeClass } from "../bridge/generated/noticeClasses";
+import { getCopy } from "orbit-ui/i18n";
+import type { AppCommand, FeatureId } from "orbit-ui/bridge/generated";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
+import type { NoticeCode } from "orbit-ui/bridge/generated/NoticeCode";
+import { noticeClass } from "orbit-ui/bridge/generated/noticeClasses";
 import type { Report } from "../bridge/port";
-import type { Refusal } from "../bridge/refusal";
-import type { NoticeAction, NoticeData } from "../i18n";
-import type { FailedNoticeCode } from "../i18n";
+import type { Refusal } from "orbit-ui/bridge/refusal";
+import type { NoticeAction, NoticeData } from "orbit-ui/i18n";
+import type { FailedNoticeCode } from "orbit-ui/i18n";
 import { failureCode, genericFailure, repeatable, failure, worded, type Failure } from "./failure";
 
 import { closedData, timeoutData, token } from "./report-data";
-import type { ViewId } from "./ui";
+import type { ViewId } from "orbit-ui/state/ui";
 
 /** Where a command's refusal is shown: the view, overlay or panel that sent it. */
 export type ErrorOrigin = ViewId | "onboarding" | "recording";

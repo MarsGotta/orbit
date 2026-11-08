@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useHeldChoice } from "../../state/use-held-choice";

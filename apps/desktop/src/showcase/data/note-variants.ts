@@ -1,4 +1,4 @@
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { reviewNote } from "./note-open";
 import { speakers, turns } from "./transcript";
 import { at } from "./time";

@@ -1,8 +1,8 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
-import { Button } from "../../../design/Button";
-import { Toast } from "../../../design/Toast";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
+import { Button } from "orbit-ui/design/Button";
+import { Toast } from "orbit-ui/design/Toast";
 
 import { failureNotice } from "./notices";
 

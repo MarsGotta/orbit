@@ -1,4 +1,4 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AIProviderEditor } from "../settings/AIProviderEditor";

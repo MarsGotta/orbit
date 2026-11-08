@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import { MessageList } from "./MessageList";
 
 // A message shows what it carried: images as thumbnails and a PDF as a chip,

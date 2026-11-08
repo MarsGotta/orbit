@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { EditorView } from "@codemirror/view";
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
-import { Tooltip } from "../../design/Tooltip";
+import { Tooltip } from "orbit-ui/design/Tooltip";
 
 import { EditorMenu } from "./EditorMenu";
 import type { MenuKeys } from "./editor-keys";

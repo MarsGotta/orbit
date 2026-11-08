@@ -1,11 +1,11 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { getCopy } from "../../i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { AssistantFoldersSnapshot } from "../../bridge/generated/AssistantFoldersSnapshot";
-import type { FolderAccess } from "../../bridge/generated/FolderAccess";
-import type { FolderView } from "../../bridge/generated/FolderView";
-import { Button } from "../../design/Button";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { AssistantFoldersSnapshot } from "orbit-ui/bridge/generated/AssistantFoldersSnapshot";
+import type { FolderAccess } from "orbit-ui/bridge/generated/FolderAccess";
+import type { FolderView } from "orbit-ui/bridge/generated/FolderView";
+import { Button } from "orbit-ui/design/Button";
 
 import { Group, List, SkeletonRows } from "./layout";
 import styles from "./SettingsView.module.css";

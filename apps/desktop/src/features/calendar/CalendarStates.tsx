@@ -1,11 +1,11 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState, type ReactNode } from "react";
-import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
-import type { IconName } from "../../design/Icon";
-import { Skeleton } from "../../design/Skeleton";
-import { Loading } from "../../design/Spinner";
-import { ViewError } from "../../design/ViewError";
+import { Button } from "orbit-ui/design/Button";
+import { EmptyState } from "orbit-ui/design/EmptyState";
+import type { IconName } from "orbit-ui/design/Icon";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { Loading } from "orbit-ui/design/Spinner";
+import { ViewError } from "orbit-ui/design/ViewError";
 
 import styles from "./CalendarView.module.css";
 

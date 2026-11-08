@@ -1,14 +1,14 @@
 import { MeetingDistillation } from "./MeetingDistillation";
 import type { VaultPort } from "../vault/api";
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { Spinner } from "../../design/Spinner";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { MeetingMenu } from "./MeetingMenu";
 import { isRecording } from "./note-progress";

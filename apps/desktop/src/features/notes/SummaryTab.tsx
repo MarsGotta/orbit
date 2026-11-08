@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { CSSProperties } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { Skeleton } from "../../design/Skeleton";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import { notRequested, templateOf } from "./note-progress";
 import { shortName } from "./notes-format";

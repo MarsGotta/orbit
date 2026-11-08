@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import { openAttachment } from "../../bridge/attachments";
 import { useTrack } from "../../state/use-in-flight";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import { refusalOf } from "../../bridge/refusal";
-import { Button } from "../../design/Button";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import { refusalOf } from "orbit-ui/bridge/refusal";
+import { Button } from "orbit-ui/design/Button";
 
 import { attachmentFailure } from "./attachment-drafts";
 import { useAttachmentUrl, useGallery } from "./AttachmentGallery";

@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
-import { Button } from "../../design/Button";
-import { Loading } from "../../design/Spinner";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import { useRereadOnReturn } from "../settings/permission-reread";
 import { Step } from "./OnboardingSteps";

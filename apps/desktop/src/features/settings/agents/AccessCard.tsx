@@ -1,6 +1,6 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { AccessConfig } from "../../../bridge/generated/AccessConfig";
-import { Switch } from "../../../design/Switch";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AccessConfig } from "orbit-ui/bridge/generated/AccessConfig";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { Group, List, Row } from "../layout";
 import { FeedbackLine, NotEditable, type OrderProps } from "./parts";

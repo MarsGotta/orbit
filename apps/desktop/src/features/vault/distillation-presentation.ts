@@ -1,5 +1,5 @@
-import type { Catalogue } from "../../i18n/catalogue";
-import type { Distillation } from "../../bridge/generated/Distillation";
+import type { Catalogue } from "orbit-ui/i18n/catalogue";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import { countChanges, countNotes } from "./distillation-format";
 type Copy = Catalogue["distillation"];
 export function proposalLead(proposal: Distillation, copy: Copy) {

@@ -1,7 +1,7 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, useState } from "react";
-import { Button } from "../../../design/Button";
-import { Field } from "../../../design/Field";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 import { Group } from "../layout";
 import { FeedbackLine, type OrderProps } from "./parts";
 

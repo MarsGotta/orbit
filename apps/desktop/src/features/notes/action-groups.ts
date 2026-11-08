@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { NoteActionSnapshot } from "../../bridge/generated/NoteActionSnapshot";
+import { getCopy } from "orbit-ui/i18n";
+import type { NoteActionSnapshot } from "orbit-ui/bridge/generated/NoteActionSnapshot";
 
 export interface ActionGroup {
   key: string;

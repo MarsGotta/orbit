@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AiProvider } from "../../bridge/generated/AiProvider";
-import type { AiModel } from "../../bridge/generated/AiModel";
-import { Button } from "../../design/Button";
+import type { AiProvider } from "orbit-ui/bridge/generated/AiProvider";
+import type { AiModel } from "orbit-ui/bridge/generated/AiModel";
+import { Button } from "orbit-ui/design/Button";
 
 import { Group, List, Row } from "./layout";
 import { AIProviderEditor } from "./AIProviderEditor";

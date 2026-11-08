@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
 import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
-import { Icon } from "../../design/Icon";
-import { Toast } from "../../design/Toast";
-import { ViewError } from "../../design/ViewError";
-import { CopyProvider, useCopy } from "../../i18n/CopyProvider";
+import { Icon } from "orbit-ui/design/Icon";
+import { Toast } from "orbit-ui/design/Toast";
+import { ViewError } from "orbit-ui/design/ViewError";
+import { CopyProvider, useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useNow } from "../../use-now";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { AddAssistant } from "./AddAssistant";

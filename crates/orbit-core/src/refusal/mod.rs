@@ -24,7 +24,7 @@ macro_rules! parameter_enum {
     ($name:ident { $($variant:ident => $label:literal),+ $(,)? }) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
         #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-        #[cfg_attr(feature = "ts", ts(export_to = "../../apps/desktop/src/bridge/generated/"))]
+        #[cfg_attr(feature = "ts", ts(export_to = "../../packages/orbit-ui/bridge/generated/"))]
         #[serde(rename_all = "snake_case")]
         pub enum $name { $($variant),+ }
         impl fmt::Display for $name {

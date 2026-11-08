@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import type { VaultOutcome } from "../../bridge/generated/VaultOutcome";
-import type { VaultRead } from "../../bridge/generated/VaultRead";
-import type { VaultSettings } from "../../bridge/generated/VaultSettings";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
+import type { VaultRead } from "orbit-ui/bridge/generated/VaultRead";
+import type { VaultSettings } from "orbit-ui/bridge/generated/VaultSettings";
 import { message, request, type VaultPort } from "./api";
 
 export function useVaultRead(port: VaultPort | undefined, filter: VaultRead | null) {

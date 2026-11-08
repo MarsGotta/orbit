@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useLocalDraft } from "../../../state/local-drafts";
 import type { CalendarEvent } from "../eventLook";
 import { changesOf, type EventForm, hasChanges } from "./form";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 import type { WriteSettled } from "./usePendingWrites";
 import type { Current, Editing } from "./useEventEditor";
 

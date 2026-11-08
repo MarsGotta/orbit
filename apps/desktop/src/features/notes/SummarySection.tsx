@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { NoteSectionSnapshot } from "../../bridge/generated/NoteSectionSnapshot";
-import { Button } from "../../design/Button";
-import { Spinner } from "../../design/Spinner";
+import type { NoteSectionSnapshot } from "orbit-ui/bridge/generated/NoteSectionSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownView } from "./MarkdownView";

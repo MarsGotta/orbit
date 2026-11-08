@@ -1,7 +1,7 @@
 /** Invented public hub proposal; no connector, provider or device effects. */
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { VaultCall } from "../../bridge/generated/VaultCall";
-import type { VaultOutcome } from "../../bridge/generated/VaultOutcome";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
 import fixture from "../../features/vault/__fixtures__/distillation.json";
 import { vaultAnswer } from "../vault";
 export function distillationPort(status: Distillation["status"] = "proposed", holdApply = false) {

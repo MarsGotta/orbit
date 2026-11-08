@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { Notice } from "../bridge/generated/Notice";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import { receive } from "../state/interceptor";
 
 it.each([

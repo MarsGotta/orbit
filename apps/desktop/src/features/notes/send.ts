@@ -1,4 +1,4 @@
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 /** How the note screen gives the daemon an order: the store's `send`, whose
  * promise resolves `false` when the daemon refused it (its notice says why). */

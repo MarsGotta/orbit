@@ -1,4 +1,4 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
 
 import { agentsOf } from "../../state/agents";

@@ -1,8 +1,8 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { Agent } from "../../../bridge/generated/Agent";
-import { Button } from "../../../design/Button";
-import { useFeedback } from "../../../design/feedback";
-import { Skeleton } from "../../../design/Skeleton";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 import { SkeletonRows } from "../layout";
 import { AccessCard } from "./AccessCard";
 import styles from "./Agents.module.css";

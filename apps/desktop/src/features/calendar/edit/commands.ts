@@ -3,11 +3,11 @@
  * from what was read. Nothing here sends or retries: a write whose outcome is
  * unknown is never built again.
  */
-import type { Command } from "../../../bridge/generated/Command";
-import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
-import type { CalendarEventDraft } from "../../../bridge/generated/CalendarEventDraft";
-import type { CalendarSpan } from "../../../bridge/generated/CalendarSpan";
-import type { WriteTarget } from "../../../bridge/generated/WriteTarget";
+import type { Command } from "orbit-ui/bridge/generated/Command";
+import type { CalendarEventChanges } from "orbit-ui/bridge/generated/CalendarEventChanges";
+import type { CalendarEventDraft } from "orbit-ui/bridge/generated/CalendarEventDraft";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import type { WriteTarget } from "orbit-ui/bridge/generated/WriteTarget";
 import type { CalendarEvent } from "../eventLook";
 import { changesOf, formOf, inputOf } from "./form";
 

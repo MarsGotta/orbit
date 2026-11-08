@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { dateTime } from "../../i18n/locale";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import type { VaultTask } from "../../bridge/generated/VaultTask";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { dateTime } from "orbit-ui/i18n/locale";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
+import type { VaultTask } from "orbit-ui/bridge/generated/VaultTask";
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";
 

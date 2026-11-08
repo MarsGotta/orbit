@@ -1,4 +1,4 @@
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 import { at, HOUR, MINUTE } from "./time";
 
 type Draft = Pick<NoteListItem, "recording_id" | "title" | "started_at_ms" | "group"> &

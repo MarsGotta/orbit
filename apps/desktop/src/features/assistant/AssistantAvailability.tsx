@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
-import { Skeleton } from "../../design/Skeleton";
-import { Loading } from "../../design/Spinner";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnection";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import type { AppView } from "../../state/app-view";
 import styles from "./AssistantView.module.css";

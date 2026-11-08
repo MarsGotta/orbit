@@ -1,4 +1,4 @@
-import { getCopy } from "../../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 /**
  * What the calendar says about a write, and what ⌘Z keeps of it.
  * Pure. A refusal and an unknown outcome say what to do, never their cause;
@@ -6,7 +6,7 @@ import { getCopy } from "../../../i18n";
  * anything is sent.
  */
 import type { AppView as AppSnapshot } from "../../../state/app-view";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 
 import type { CalendarEvent } from "../eventLook";
 import { isSeries, recreateInput, type UndoEntry, inverseChanges, updatedTarget } from "./commands";

@@ -1,7 +1,7 @@
 import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { followTheme, toggleTheme } from "../../design/theme";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import { followTheme, toggleTheme } from "orbit-ui/design/theme";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
 import { GeneralSection } from "./GeneralSection";
 

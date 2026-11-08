@@ -1,5 +1,5 @@
-import type { NoticeCode } from "../bridge/generated/NoticeCode";
-import type { NoticeData } from "../i18n";
+import type { NoticeCode } from "orbit-ui/bridge/generated/NoticeCode";
+import type { NoticeData } from "orbit-ui/i18n";
 import type { AppView } from "./app-view";
 
 /**

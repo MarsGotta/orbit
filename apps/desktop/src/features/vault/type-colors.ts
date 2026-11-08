@@ -1,4 +1,4 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 
 export const COLORS: Record<string, string> = {
   person: "var(--o-c1)",

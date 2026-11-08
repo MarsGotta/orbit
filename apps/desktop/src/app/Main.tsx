@@ -1,11 +1,11 @@
-import { settingsSectionKey } from "../state/ui";
-import { useCopy } from "../i18n/CopyProvider";
+import { settingsSectionKey } from "orbit-ui/state/ui";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { lazy as reactLazy, Suspense, useEffect } from "react";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 
-import { routeFor, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
+import { routeFor, useUiStore, type SettingsSection, type ViewId } from "orbit-ui/state/ui";
 import styles from "./Main.module.css";
 import { Breadcrumbs, TopBarLeading } from "./shell-slots";
 import { ViewBoundary } from "./ViewBoundary";

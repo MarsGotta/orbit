@@ -1,6 +1,6 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { AppCommand } from "../../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 import { refusalText, seriesRefusals } from "../../../state/library-refusal";
 
 import styles from "./EventTemplate.module.css";

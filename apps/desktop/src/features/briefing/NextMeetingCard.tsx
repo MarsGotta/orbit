@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
-import { Button } from "../../design/Button";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
+import { Button } from "orbit-ui/design/Button";
 
 import { timeLabel } from "../calendar/date";
 import { PersonalReminder } from "./PersonalReminder";

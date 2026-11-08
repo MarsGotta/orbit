@@ -1,4 +1,4 @@
-import { dateTime } from "./i18n/locale";
+import { dateTime } from "orbit-ui/i18n/locale";
 export function effectiveTimezone(publishedTimezone: string): string | null {
   if (!publishedTimezone) return null;
   try {

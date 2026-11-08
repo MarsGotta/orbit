@@ -1,4 +1,4 @@
-import type { AppBootstrap, FeatureFrame, FeatureId } from "../bridge/generated";
+import type { AppBootstrap, FeatureFrame, FeatureId } from "orbit-ui/bridge/generated";
 import { agenda } from "./data/agenda";
 import { agentConfigs, skillDocuments } from "./data/agents";
 import { briefing } from "./data/briefing";

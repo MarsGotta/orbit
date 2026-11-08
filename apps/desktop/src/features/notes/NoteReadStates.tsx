@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
-import { Loading } from "../../design/Spinner";
-import { Skeleton } from "../../design/Skeleton";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { Button } from "orbit-ui/design/Button";
+import { EmptyState } from "orbit-ui/design/EmptyState";
+import { Loading } from "orbit-ui/design/Spinner";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import styles from "./Note.module.css";
 

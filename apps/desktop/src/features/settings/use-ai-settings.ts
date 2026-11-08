@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useState } from "react";
-import type { AiSettings } from "../../bridge/generated/AiSettings";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
+import type { AiSettings } from "orbit-ui/bridge/generated/AiSettings";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 
 import type { AgentPort } from "./agents/use-agent-config";
 

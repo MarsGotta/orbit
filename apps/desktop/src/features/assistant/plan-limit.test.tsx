@@ -1,8 +1,8 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { Notice } from "../../bridge/generated/Notice";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import type { MessagesPage } from "../../bridge/reads";
 import { useHandovers } from "./handover";
 import {

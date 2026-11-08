@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Skeleton } from "../../design/Skeleton";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 import styles from "./SettingsView.module.css";
 
 /** The section's title and the sentence that says what it holds. */

@@ -1,7 +1,7 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { localizeMessage } from "../state/interceptor";
-import { Toast } from "../design/Toast";
-import type { NoticeAction } from "../i18n";
+import { Toast } from "orbit-ui/design/Toast";
+import type { NoticeAction } from "orbit-ui/i18n";
 import { FailureActions, FailureHelp } from "./FailureActions";
 import type { Message } from "../state/interceptor";
 export interface NoticeBannerProps {

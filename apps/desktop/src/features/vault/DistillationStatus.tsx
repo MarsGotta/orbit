@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationAction } from "../../bridge/generated/DistillationAction";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationAction } from "orbit-ui/bridge/generated/DistillationAction";
 import { countChanges, countNotes, noteName } from "./distillation-format";
 import { noteRoute } from "./route";
 import styles from "./Distillation.module.css";

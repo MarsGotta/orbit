@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { CallSnapshot } from "../../bridge/generated/CallSnapshot";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import type { AppView } from "../../state/app-view";
 import AssistantView from "./AssistantView";
 import { callLimits } from "./CallView";

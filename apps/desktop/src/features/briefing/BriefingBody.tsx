@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
-import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { EmptyState } from "orbit-ui/design/EmptyState";
 
 import { nextMeeting } from "./briefing-clock";
 import { BriefingLoading } from "./BriefingLoading";

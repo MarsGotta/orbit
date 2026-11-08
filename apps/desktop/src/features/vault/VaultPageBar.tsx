@@ -1,4 +1,4 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { TopBarLeading } from "../../app/shell-slots";
 import type { VaultRoute } from "./route";
 export function VaultPageBar({ route }: { route: VaultRoute }) {

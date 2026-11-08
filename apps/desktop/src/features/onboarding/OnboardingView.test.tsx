@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
 import type { AppView } from "../../state/app-view";
 import { OnboardingView } from "./OnboardingView";
 

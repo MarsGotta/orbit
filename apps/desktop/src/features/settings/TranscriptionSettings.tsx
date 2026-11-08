@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 
-import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
+import type { TranscriptionModel } from "orbit-ui/bridge/generated/TranscriptionModel";
 import type { AgentPort } from "./agents/use-agent-config";
 import { Group, List, Row } from "./layout";
 import { useTranscriptionSettings } from "./use-transcription-settings";

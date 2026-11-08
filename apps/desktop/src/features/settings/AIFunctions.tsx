@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { lookupCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AiFunction } from "../../bridge/generated/AiFunction";
-import type { AiProvider } from "../../bridge/generated/AiProvider";
+import { lookupCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AiFunction } from "orbit-ui/bridge/generated/AiFunction";
+import type { AiProvider } from "orbit-ui/bridge/generated/AiProvider";
 
 import { Group, List, Row } from "./layout";
 import type { useAISettings } from "./use-ai-settings";

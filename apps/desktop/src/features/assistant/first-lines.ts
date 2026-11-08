@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 
 /**
  * The first sentence of what the user wrote, as the list of conversations

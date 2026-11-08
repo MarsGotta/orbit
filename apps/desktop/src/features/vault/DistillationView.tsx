@@ -1,10 +1,10 @@
 import { proposalLead } from "./distillation-presentation";
 import { DistillationControls } from "./DistillationControls";
 import { useState } from "react";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Breadcrumbs, TopBarLeading } from "../../app/shell-slots";
-import { Button } from "../../design/Button";
-import type { Distillation } from "../../bridge/generated/Distillation";
+import { Button } from "orbit-ui/design/Button";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
 import { type VaultPort } from "./api";
 import { useDistillation } from "./use-distillation";
 import { DistillationColumn } from "./DistillationColumn";

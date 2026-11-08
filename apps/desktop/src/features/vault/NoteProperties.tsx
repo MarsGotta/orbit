@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import type { VaultNote } from "../../bridge/generated/VaultNote";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
 import { noteRoute } from "./route";
 import { taskTitle } from "./TaskRows";
 import styles from "./VaultReading.module.css";

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import type { DaemonPort } from "../bridge/port";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { MenuAction, MenuState } from "../bridge/window-menu";
 import type { AppView } from "../state/app-view";
-import { useUiStore } from "../state/ui";
+import { useUiStore } from "orbit-ui/state/ui";
 import { followWindowPreferences, useWindowPreferences } from "../state/window-preferences";
 import { useWindowActions } from "../state/window-actions";
 import { goTo } from "../features/assistant/assistant-route";

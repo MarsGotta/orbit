@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { MeetingApplicationSnapshot } from "../../bridge/generated/MeetingApplicationSnapshot";
-import { Button } from "../../design/Button";
-import { RadioList } from "../../design/RadioList";
-import { Loading } from "../../design/Spinner";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { MeetingApplicationSnapshot } from "orbit-ui/bridge/generated/MeetingApplicationSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { RadioList } from "orbit-ui/design/RadioList";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import type { AudioSource } from "./start-options";
 import styles from "./MeetingStartDialog.module.css";

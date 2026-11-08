@@ -1,4 +1,4 @@
-import { dateTime, getLocale } from "../../i18n/locale";
+import { dateTime, getLocale } from "orbit-ui/i18n/locale";
 import { isoWeekForDay } from "../../local-time";
 
 export const DAY_MS = 24 * 60 * 60 * 1_000;

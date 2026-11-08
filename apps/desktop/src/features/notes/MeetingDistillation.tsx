@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
 import { useDistillations } from "../vault/use-distillations";
 import { useVaultConfiguration } from "../vault/use-vault-read";
 import { countChanges, countNotes, proposalRoute } from "../vault/distillation-format";

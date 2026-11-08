@@ -1,5 +1,5 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
-import type { WriteOutcome } from "../../../bridge/generated/WriteOutcome";
+import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 import type { CalendarEvent } from "../eventLook";
 import { failureNotice, Notice } from "./notices";
 import { nextDeadline, type PendingWrite, reconcile } from "./pending";

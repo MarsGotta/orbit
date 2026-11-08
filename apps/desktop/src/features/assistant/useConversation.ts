@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
 

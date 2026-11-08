@@ -1,5 +1,5 @@
-import type { Refusal } from "../bridge/refusal";
-import type { NoticeData } from "../i18n";
+import type { Refusal } from "orbit-ui/bridge/refusal";
+import type { NoticeData } from "orbit-ui/i18n";
 
 const TOKEN = /^[a-z0-9_.-]{1,64}$/;
 

@@ -1,5 +1,5 @@
-import { lookupCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { lookupCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Fragment, useEffect, useState, type CSSProperties } from "react";
 
 import { CopyButton } from "./CopyButton";

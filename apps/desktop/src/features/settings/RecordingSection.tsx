@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import type { CallPreference } from "../../bridge/generated/CallPreference";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CallPreference } from "orbit-ui/bridge/generated/CallPreference";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { RadioList } from "../../design/RadioList";
+import { RadioList } from "orbit-ui/design/RadioList";
 
 import { useHeldChoice } from "../../state/use-held-choice";
 import { Group, List, SectionHeading } from "./layout";

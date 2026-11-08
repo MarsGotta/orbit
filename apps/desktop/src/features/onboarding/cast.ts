@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { Agent } from "../../bridge/generated/Agent";
+import { getCopy } from "orbit-ui/i18n";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { agentsOf } from "../../state/agents";

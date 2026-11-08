@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Skeleton } from "../../design/Skeleton";
-import { Loading } from "../../design/Spinner";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import styles from "./BriefingView.module.css";
 

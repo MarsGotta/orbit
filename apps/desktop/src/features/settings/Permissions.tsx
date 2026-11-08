@@ -1,10 +1,10 @@
-import { getCopy, type Catalogue } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy, type Catalogue } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand, PermissionState } from "../../bridge/generated";
+import type { AppCommand, PermissionState } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Switch } from "../../design/Switch";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { NotificationPermission } from "./NativeSettings";
 import { Group, List, Row } from "./layout";

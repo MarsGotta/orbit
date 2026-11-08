@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AgentAnswer } from "../../bridge/generated/AgentAnswer";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 import type { AppView } from "../../state/app-view";
 import SettingsView from "./SettingsView";
 

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum AttachmentKind {
@@ -24,7 +24,7 @@ pub enum AttachmentKind {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct Attachment {
     pub id: String,
@@ -45,7 +45,7 @@ pub struct Attachment {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct AttachmentLimits {
     #[cfg_attr(feature = "ts", ts(type = "number"))]
@@ -63,7 +63,7 @@ pub struct AttachmentLimits {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(tag = "from", rename_all = "snake_case", deny_unknown_fields)]
 pub enum AttachmentSource {
@@ -83,7 +83,7 @@ pub enum AttachmentSource {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum WindowText {
@@ -108,7 +108,7 @@ pub enum WindowText {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct AddedAttachment {
     pub attachment: Attachment,

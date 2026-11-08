@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Fragment, useId } from "react";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { Spinner } from "../../design/Spinner";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { STEP_KEYS, isPreparing, noteFailure, stepLabel, waitsForHub } from "./note-progress";
 import type { Send } from "./send";

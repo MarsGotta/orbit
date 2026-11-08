@@ -73,7 +73,7 @@ pub const EVENT_LOOKAHEAD_MS: i64 = 600_000;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub enum CallPreference {
     /// «Avisarme»: the floating panel offers to record.

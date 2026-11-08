@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import AssistantView from "./AssistantView";

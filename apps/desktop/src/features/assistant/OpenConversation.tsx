@@ -1,7 +1,7 @@
-import { lookupCopy } from "../../i18n";
-import type { AppCommand } from "../../bridge/generated";
+import { lookupCopy } from "orbit-ui/i18n";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../../bridge/port";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { StepWait } from "./AgentWork";
 import { ConversationHeader } from "./ConversationHeader";

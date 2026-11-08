@@ -1,9 +1,9 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import { asText, useLocalDraft } from "../../state/local-drafts";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
-import type { HubLinkConnection } from "../../bridge/generated/HubLinkConnection";
-import type { useCopy } from "../../i18n/CopyProvider";
+import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
+import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnection";
+import type { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useVoiceNote, type VoiceSend } from "./useVoiceNote";
 import { useComposerInsert } from "./composer-insert";
 import { turnInFlight } from "./conversation";

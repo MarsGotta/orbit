@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Switch } from "../../design/Switch";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { useHeldChoice } from "../../state/use-held-choice";
 import { Group, List, Row, SectionHeading } from "./layout";

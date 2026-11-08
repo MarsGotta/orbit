@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { CopyProvider } from "../../i18n/CopyProvider";
-import { configureCopy } from "../../i18n";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import { configureCopy } from "orbit-ui/i18n";
 import { VaultWarnings } from "./VaultWarnings";
 
 afterEach(() => configureCopy("es", [], "Deimos"));

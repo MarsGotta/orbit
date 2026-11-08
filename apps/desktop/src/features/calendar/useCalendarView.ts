@@ -1,8 +1,8 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useCallback, useEffect, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import { useNow } from "../../use-now";
-import { useUiStore } from "../../state/ui";
+import { useUiStore } from "orbit-ui/state/ui";
 import { effectiveTimezone } from "./date";
 
 export type CalendarEvent = AppSnapshot["calendar"]["events"][number];

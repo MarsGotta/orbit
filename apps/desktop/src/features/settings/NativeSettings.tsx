@@ -1,9 +1,9 @@
 import { useEffect } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView } from "../../state/app-view";
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import { Switch } from "../../design/Switch";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
 import { Row } from "./layout";
 import styles from "./SettingsView.module.css";
 

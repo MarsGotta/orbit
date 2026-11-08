@@ -1,6 +1,6 @@
 import type { DaemonPort } from "../bridge/port";
-import { commandError } from "../bridge/refusal";
-import { commandFeature } from "../bridge/generated/commandFeatures";
+import { commandError } from "orbit-ui/bridge/refusal";
+import { commandFeature } from "orbit-ui/bridge/generated/commandFeatures";
 import { newOp } from "./interceptor";
 import { orderCeilingMs } from "./ceilings";
 import { intercept } from "./daemon-watchers";

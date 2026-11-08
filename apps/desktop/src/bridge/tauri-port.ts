@@ -1,10 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppBootstrap, AppCommand, CommandReceipt, FeatureId } from "./generated";
-import type { AgentAnswer } from "./generated/AgentAnswer";
-import type { AgentCall } from "./generated/AgentCall";
-import type { VaultCall } from "./generated/VaultCall";
-import type { VaultOutcome } from "./generated/VaultOutcome";
+import type {
+  AppBootstrap,
+  AppCommand,
+  CommandReceipt,
+  FeatureId,
+} from "orbit-ui/bridge/generated";
+import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
 import type { DaemonPort, FrameListener, Report, Unsubscribe } from "./port";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 import type { MenuAction, MenuState } from "./window-menu";

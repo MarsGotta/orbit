@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from "react";
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { VoiceNoteAudioSnapshot } from "../../bridge/generated/VoiceNoteAudioSnapshot";
-import { Icon } from "../../design/Icon";
-import { useCopy } from "../../i18n/CopyProvider";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { VoiceNoteAudioSnapshot } from "orbit-ui/bridge/generated/VoiceNoteAudioSnapshot";
+import { Icon } from "orbit-ui/design/Icon";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { AgentWorkView, AnswerHead, type StepWait, workSummary } from "./AgentWork";
 import { AssistantAnswer } from "./AssistantAnswer";
 import { AttachmentGallery } from "./AttachmentGallery";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import {
   conversationMarkdown,
   lastCodeBlock,

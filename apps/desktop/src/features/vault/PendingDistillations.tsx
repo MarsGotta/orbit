@@ -1,9 +1,9 @@
 import { proposalLead, pendingHeading } from "./distillation-presentation";
 import pendingStyles from "./PendingDistillations.module.css";
 import type { DistillationList } from "./use-distillations";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import { Button } from "../../design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import { Button } from "orbit-ui/design/Button";
 import { countChanges, pending, proposalRoute } from "./distillation-format";
 import column from "./VaultColumn.module.css";
 import styles from "./VaultReading.module.css";

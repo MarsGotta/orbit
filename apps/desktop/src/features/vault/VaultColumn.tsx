@@ -1,8 +1,8 @@
 import type { DistillationList } from "./use-distillations";
 import { PendingLinks } from "./PendingDistillations";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import type { VaultSettings } from "../../bridge/generated/VaultSettings";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultSettings } from "orbit-ui/bridge/generated/VaultSettings";
 import { ListColumn, useShellSlots } from "../../app/shell-slots";
 
 import { noteRoute, type VaultRoute } from "./route";

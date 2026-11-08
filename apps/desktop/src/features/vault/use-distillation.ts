@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { VaultCall } from "../../bridge/generated/VaultCall";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
 import { message, request, type VaultPort } from "./api";
 type Activity = "review" | "apply" | "discard" | "undo" | "prepare" | null;
 

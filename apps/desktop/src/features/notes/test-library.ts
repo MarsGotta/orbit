@@ -1,6 +1,6 @@
 // The invented library of the notes tests: templates and dictionaries.
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTemplateDetailSnapshot } from "../../bridge/generated/NoteTemplateDetailSnapshot";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
 
 const template = (id: string, name: string): NoteTemplateDetailSnapshot => ({
   id,

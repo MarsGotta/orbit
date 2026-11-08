@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { receive } from "../../../state/interceptor";
-import type { Notice } from "../../../bridge/generated/Notice";
-import { configureCopy } from "../..";
-import { hubRefusalText as englishRefusal } from "../../en/hubRefusals";
-import { hubRefusalText } from "../hubRefusals";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
+import { configureCopy } from "orbit-ui/i18n";
+import { hubRefusalText as englishRefusal } from "orbit-ui/i18n/en/hubRefusals";
+import { hubRefusalText } from "orbit-ui/i18n/es/hubRefusals";
 
 // A hub without Linux has no jail for Claude Code or Codex: the person reads
 // that cause, in the chat and in the assistant's settings, never a generic

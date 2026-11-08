@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { MeetingAskSnapshot } from "../../bridge/generated/MeetingAskSnapshot";
-import type { VoiceStatusSnapshot } from "../../bridge/generated/VoiceStatusSnapshot";
-import { moveWithArrows } from "../../design/roving";
-import { Button } from "../../design/Button";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingAskSnapshot } from "orbit-ui/bridge/generated/MeetingAskSnapshot";
+import type { VoiceStatusSnapshot } from "orbit-ui/bridge/generated/VoiceStatusSnapshot";
+import { moveWithArrows } from "orbit-ui/design/roving";
+import { Button } from "orbit-ui/design/Button";
 
 import { questionBytes, voiceStatusText } from "./copy";
 import styles from "./MeetingQuestion.module.css";

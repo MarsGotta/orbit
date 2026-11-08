@@ -1,11 +1,11 @@
-import { getCopy } from "../../../i18n";
-import { useCopy } from "../../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../../bridge/generated";
-import type { DaemonConnection } from "../../../bridge/generated/DaemonConnection";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
-import { Toast } from "../../../design/Toast";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DaemonConnection } from "orbit-ui/bridge/generated/DaemonConnection";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
+import { Toast } from "orbit-ui/design/Toast";
 
 import { Group, SkeletonRows } from "../layout";
 import { LibraryStatus } from "./LibraryStatus";

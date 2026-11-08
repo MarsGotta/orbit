@@ -1,9 +1,9 @@
-import { AssistantAvatar, type AssistantAvatarSize } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { Icon, type IconName } from "../../design/Icon";
-import { BeingRedone, ProgressCard } from "../../design/ProgressCard";
-import { toggleTheme, useTheme } from "../../design/theme";
-import { ViewNotice } from "../../design/ViewNotice";
+import { AssistantAvatar, type AssistantAvatarSize } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { Icon, type IconName } from "orbit-ui/design/Icon";
+import { BeingRedone, ProgressCard } from "orbit-ui/design/ProgressCard";
+import { toggleTheme, useTheme } from "orbit-ui/design/theme";
+import { ViewNotice } from "orbit-ui/design/ViewNotice";
 import { EditorSection } from "./AnnexEditor";
 import { AnswerActions, HeaderSection } from "./AnnexMenus";
 import { MenusSection } from "./AnnexWord";

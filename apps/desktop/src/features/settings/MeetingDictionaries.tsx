@@ -1,9 +1,9 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { DictionarySnapshot } from "../../bridge/generated/DictionarySnapshot";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import { Button } from "../../design/Button";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DictionarySnapshot } from "orbit-ui/bridge/generated/DictionarySnapshot";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import { Button } from "orbit-ui/design/Button";
 
 import { DictionaryFeedback, sendDictionary } from "../notes/DictionaryPicker";
 import { Group, List, SkeletonRows } from "./layout";

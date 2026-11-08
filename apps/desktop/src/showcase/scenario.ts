@@ -1,14 +1,14 @@
-import type { VaultCall } from "../bridge/generated/VaultCall";
-import type { VaultOutcome } from "../bridge/generated/VaultOutcome";
-import type { FeatureFrame, FeatureId } from "../bridge/generated";
-import type { AgentCall } from "../bridge/generated/AgentCall";
-import type { AgentConfig } from "../bridge/generated/AgentConfig";
-import type { AgentOutcome } from "../bridge/generated/AgentOutcome";
-import type { AppCommand } from "../bridge/generated/AppCommand";
-import type { ChatMessage } from "../bridge/generated/ChatMessage";
-import type { ChatSessionSummary } from "../bridge/generated/ChatSessionSummary";
-import type { SkillDocument } from "../bridge/generated/SkillDocument";
-import type { Refusal } from "../bridge/refusal";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
+import type { FeatureFrame, FeatureId } from "orbit-ui/bridge/generated";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
+import type { AppCommand } from "orbit-ui/bridge/generated/AppCommand";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
+import type { SkillDocument } from "orbit-ui/bridge/generated/SkillDocument";
+import type { Refusal } from "orbit-ui/bridge/refusal";
 
 /** What the daemon publishes for each function, as the generated types say. */
 export type Views = { [F in FeatureId]: Extract<FeatureFrame, { feature: F }>["view"] };

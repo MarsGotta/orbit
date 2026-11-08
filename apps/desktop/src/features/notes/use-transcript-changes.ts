@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useState } from "react";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { SpeakerRenameScope } from "orbit-ui/bridge/generated/SpeakerRenameScope";
 
 import { sent, type Send } from "./send";
 import type { Fix } from "./transcript-fix";

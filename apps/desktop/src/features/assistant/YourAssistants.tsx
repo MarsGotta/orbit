@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId } from "react";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Icon } from "../../design/Icon";
-import { Tooltip } from "../../design/Tooltip";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Icon } from "orbit-ui/design/Icon";
+import { Tooltip } from "orbit-ui/design/Tooltip";
 
 import { useNow } from "../../use-now";
 import type { AppView as AppSnapshot } from "../../state/app-view";

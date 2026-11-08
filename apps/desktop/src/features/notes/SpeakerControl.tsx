@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback } from "react";
-import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
-import { Popover } from "../../design/Popover";
+import type { NoteSpeakerSnapshot } from "orbit-ui/bridge/generated/NoteSpeakerSnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { SpeakerRenameScope } from "orbit-ui/bridge/generated/SpeakerRenameScope";
+import { Popover } from "orbit-ui/design/Popover";
 
 import { SpeakerMenu } from "./SpeakerMenu";
 import { SpeakerName } from "./TranscriptSegment";

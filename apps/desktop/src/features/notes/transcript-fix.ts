@@ -1,5 +1,5 @@
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
 import { conflictsOf } from "./dictionary-choice";
 import type { Correction } from "./WordMenu";
 import { corrected, fixedPlaces, type Span } from "./word-forms";

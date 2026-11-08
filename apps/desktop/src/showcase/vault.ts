@@ -1,9 +1,9 @@
 /** Invented reading data from the owner's supplied example vault. No real connector. */
-import type { VaultCall } from "../bridge/generated/VaultCall";
-import type { VaultOutcome } from "../bridge/generated/VaultOutcome";
-import type { VaultNote } from "../bridge/generated/VaultNote";
-import type { VaultCatalog } from "../bridge/generated/VaultCatalog";
-import type { VaultTaskPage } from "../bridge/generated/VaultTaskPage";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultTaskPage } from "orbit-ui/bridge/generated/VaultTaskPage";
 import fixture from "../features/vault/__fixtures__/reading.json";
 
 export function vaultAnswer(call: VaultCall, empty: boolean): VaultOutcome {

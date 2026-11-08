@@ -1,4 +1,4 @@
-import type { FeatureFrame } from "../bridge/generated";
+import type { FeatureFrame } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { freshNotices, newOp, receive, uiReport, type Context, type Incoming } from "./interceptor";
 import { conversationAgentName } from "./agents";

@@ -30,7 +30,7 @@ pub const MAX_ITEM_ID_CHARS: usize = 128;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WorkKind {
@@ -44,7 +44,7 @@ pub enum WorkKind {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WorkPhase {
@@ -64,7 +64,7 @@ impl WorkPhase {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum WorkStepStatus {
@@ -78,7 +78,7 @@ pub enum WorkStepStatus {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct WorkStep {
     pub text: String,
@@ -91,7 +91,7 @@ pub struct WorkStep {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityLabelCode {
@@ -140,7 +140,7 @@ pub enum ActivityLabelCode {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct ActivityCopy {
     pub code: ActivityLabelCode,
@@ -160,7 +160,7 @@ pub struct ActivityCopy {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct WorkItem {
     pub id: String,
@@ -268,7 +268,7 @@ impl WorkItem {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct AgentWork {
     pub turn_id: String,
@@ -353,7 +353,7 @@ impl AgentWork {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct WorkSummary {
     #[cfg_attr(feature = "ts", ts(type = "number"))]

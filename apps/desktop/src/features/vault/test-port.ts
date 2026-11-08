@@ -1,7 +1,7 @@
 import { vi } from "vitest";
-import type { VaultNote } from "../../bridge/generated/VaultNote";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import type { VaultTaskPage } from "../../bridge/generated/VaultTaskPage";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultTaskPage } from "orbit-ui/bridge/generated/VaultTaskPage";
 import type { VaultPort } from "./api";
 import fixture from "./__fixtures__/reading.json";
 export function fixturePort() {

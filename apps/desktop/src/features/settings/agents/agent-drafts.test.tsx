@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentAnswer } from "../../../bridge/generated/AgentAnswer";
-import type { AgentCall } from "../../../bridge/generated/AgentCall";
-import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
+import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
 import { AgentCards } from "./AgentCards";
 
 // A personality or a skill written and not saved yet stays on this Mac when

@@ -1,6 +1,6 @@
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { AppCommand } from "../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 import { AgendaList } from "./AgendaList";
 import { CalendarFeedback } from "./CalendarFeedback";
 import { CalendarToolbar } from "./CalendarToolbar";

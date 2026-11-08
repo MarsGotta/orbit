@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, type KeyboardEvent } from "react";
-import type { AssistantColor } from "../../design/AssistantAvatar";
-import { moveWithArrows } from "../../design/roving";
+import type { AssistantColor } from "orbit-ui/design/AssistantAvatar";
+import { moveWithArrows } from "orbit-ui/design/roving";
 
 import { DESCRIPTION_MAX, NAME_MAX, type profileProblem } from "./assistants";
 import styles from "./AssistantPages.module.css";

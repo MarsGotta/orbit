@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { CalendarWeekStart } from "../../bridge/generated/CalendarWeekStart";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CalendarWeekStart } from "orbit-ui/bridge/generated/CalendarWeekStart";
 import {
   clampZoom,
   type CalendarPreferences,

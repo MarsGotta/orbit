@@ -1,6 +1,6 @@
-import { getCopy } from "../../i18n";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
+import { getCopy } from "orbit-ui/i18n";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 
 import type { AgentPort } from "../settings/agents/use-agent-config";
 

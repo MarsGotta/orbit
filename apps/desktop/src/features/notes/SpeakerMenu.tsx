@@ -1,13 +1,13 @@
 import { people, type Person } from "./speaker-people";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useRef, useState } from "react";
-import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { SpeakerRenameScope } from "../../bridge/generated/SpeakerRenameScope";
-import { Button } from "../../design/Button";
-import { useFeedback } from "../../design/feedback";
-import { RadioList } from "../../design/RadioList";
+import type { NoteSpeakerSnapshot } from "orbit-ui/bridge/generated/NoteSpeakerSnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { SpeakerRenameScope } from "orbit-ui/bridge/generated/SpeakerRenameScope";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { RadioList } from "orbit-ui/design/RadioList";
 
 import { formatTimestamp } from "./notes-format";
 import styles from "./Note.module.css";

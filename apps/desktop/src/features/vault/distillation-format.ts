@@ -1,5 +1,5 @@
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationChange } from "../../bridge/generated/DistillationChange";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationChange } from "orbit-ui/bridge/generated/DistillationChange";
 export function countChanges(changes: DistillationChange[]) {
   return changes
     .filter((change) => change.include)

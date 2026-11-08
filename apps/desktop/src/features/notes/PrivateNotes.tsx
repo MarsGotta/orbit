@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Spinner } from "../../design/Spinner";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import type { NoteWriting } from "./note-writing";

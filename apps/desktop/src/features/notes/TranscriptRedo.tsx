@@ -1,14 +1,14 @@
-import { getCopy, lookupCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { TranscriptionModel } from "../../bridge/generated/TranscriptionModel";
+import { getCopy, lookupCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { TranscriptionModel } from "orbit-ui/bridge/generated/TranscriptionModel";
 import { TranscriptionModelChoice } from "../settings/TranscriptionModelChoice";
 import { useEffect, useState } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Button } from "../../design/Button";
-import { ConfirmCard } from "../../design/ConfirmCard";
-import { Icon } from "../../design/Icon";
-import { ProgressCard } from "../../design/ProgressCard";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { ConfirmCard } from "orbit-ui/design/ConfirmCard";
+import { Icon } from "orbit-ui/design/Icon";
+import { ProgressCard } from "orbit-ui/design/ProgressCard";
 
 import { meetingDictionaries, nameOf, takesLists } from "./dictionary-choice";
 import { formatLength } from "./notes-format";

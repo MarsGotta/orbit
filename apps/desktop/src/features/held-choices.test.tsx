@@ -1,9 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../bridge/generated";
-import type { ChatPending } from "../bridge/generated/ChatPending";
-import type { OpenNoteSnapshot } from "../bridge/generated/OpenNoteSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { PendingCard } from "./assistant/PendingCard";
 import { ActionsTab } from "./notes/ActionsTab";
 import { CallPreferenceList } from "./settings/RecordingSection";

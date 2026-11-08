@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { useState, type ReactNode } from "react";
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { WorkItem } from "../../bridge/generated/WorkItem";
-import type { WorkStepStatus } from "../../bridge/generated/WorkStepStatus";
-import { Icon } from "../../design/Icon";
-import { Spinner } from "../../design/Spinner";
-import { useCopy } from "../../i18n/CopyProvider";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { WorkItem } from "orbit-ui/bridge/generated/WorkItem";
+import type { WorkStepStatus } from "orbit-ui/bridge/generated/WorkStepStatus";
+import { Icon } from "orbit-ui/design/Icon";
+import { Spinner } from "orbit-ui/design/Spinner";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 
 import { useNow } from "../../use-now";
 import styles from "./AssistantView.module.css";

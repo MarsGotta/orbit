@@ -1,5 +1,5 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
 
 import styles from "./CalendarView.module.css";
 

@@ -1,5 +1,5 @@
-import type { AppCommand } from "../../bridge/generated";
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import { recordingMeeting } from "../data/recording";
 import { MINUTE, NOW } from "../data/time";
 import type { Scenario, Step, Views } from "../scenario";

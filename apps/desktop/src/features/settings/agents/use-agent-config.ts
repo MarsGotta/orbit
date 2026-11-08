@@ -1,10 +1,10 @@
-import { getCopy } from "../../../i18n";
-import { useCopy } from "../../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentAnswer } from "../../../bridge/generated/AgentAnswer";
-import type { AgentCall } from "../../../bridge/generated/AgentCall";
-import type { AgentConfig } from "../../../bridge/generated/AgentConfig";
-import type { SkillDocument } from "../../../bridge/generated/SkillDocument";
+import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
+import type { SkillDocument } from "orbit-ui/bridge/generated/SkillDocument";
 
 /** The daemon's one call for an agent's configuration (`orbit_agent`). */
 export type AgentPort = (call: AgentCall) => Promise<AgentAnswer>;

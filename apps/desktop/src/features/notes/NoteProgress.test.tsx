@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import type { NoteProgressSnapshot } from "../../bridge/generated/NoteProgressSnapshot";
+import type { NoteProgressSnapshot } from "orbit-ui/bridge/generated/NoteProgressSnapshot";
 import { NoteProgress } from "./NoteProgress";
 import { writingNote } from "./test-notes";
 

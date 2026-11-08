@@ -82,7 +82,7 @@ macro_rules! ts_union {
 
             fn output_path() -> Option<std::path::PathBuf> {
                 Some(std::path::PathBuf::from(concat!(
-                    "../../apps/desktop/src/bridge/generated/",
+                    "../../packages/orbit-ui/bridge/generated/",
                     stringify!($type),
                     ".ts"
                 )))

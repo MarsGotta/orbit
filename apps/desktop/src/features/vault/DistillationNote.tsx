@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationChange } from "../../bridge/generated/DistillationChange";
-import type { DistillationReview } from "../../bridge/generated/DistillationReview";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationChange } from "orbit-ui/bridge/generated/DistillationChange";
+import type { DistillationReview } from "orbit-ui/bridge/generated/DistillationReview";
 import { useDistillationEdit } from "./use-distillation-edit";
 import { DistillationQuotes } from "./DistillationQuotes";
 import { PropertyDiff, TextDiff } from "./DistillationDiff";

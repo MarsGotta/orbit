@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import { AskMenu } from "./AskMenu";
 
 it("the sidebar context choices use one tab stop and wrap selection with arrows", async () => {

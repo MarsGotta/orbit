@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { genericFailure, receive } from "../../../state/interceptor";
-import type { Notice } from "../../../bridge/generated/Notice";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
 
 // A turn the hub refused for its files says which rule and its numbers;
 // every other failure of a turn keeps the generic message with its code.

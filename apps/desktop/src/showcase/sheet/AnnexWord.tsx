@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Button } from "../../design/Button";
-import { ConfirmCard } from "../../design/ConfirmCard";
-import { EditMenu } from "../../design/EditMenu";
-import { Field } from "../../design/Field";
-import { Icon } from "../../design/Icon";
-import { MultiSelect } from "../../design/MultiSelect";
+import { Button } from "orbit-ui/design/Button";
+import { ConfirmCard } from "orbit-ui/design/ConfirmCard";
+import { EditMenu } from "orbit-ui/design/EditMenu";
+import { Field } from "orbit-ui/design/Field";
+import { Icon } from "orbit-ui/design/Icon";
+import { MultiSelect } from "orbit-ui/design/MultiSelect";
 import sheet from "./DesignSheet.module.css";
 import styles from "./AnnexSheet.module.css";
 

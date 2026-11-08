@@ -1,4 +1,4 @@
-import type { Theme } from "../../design/theme";
+import type { Theme } from "orbit-ui/design/theme";
 import styles from "./DesignSheet.module.css";
 
 type Swatch = [name: string, token: string, dark: string, light: string, use: string];

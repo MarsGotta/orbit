@@ -1,9 +1,9 @@
-import { configureCopy } from "./i18n";
+import { configureCopy } from "orbit-ui/i18n";
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
 import { QUERY_BUDGET_MS } from "./test-budgets";
 import { TEST_NOW_MS } from "./test-clock";
-import { useUiStore } from "./state/ui";
+import { useUiStore } from "orbit-ui/state/ui";
 
 // A query waits for what it asks about for as long as a loaded machine
 // takes to render it, which is more than Testing Library's default second.

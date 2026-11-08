@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import { useFeedback } from "../../design/feedback";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
 
 /**
  * Every «Copiar» of the note says «✓ Copiado» once the text is on the

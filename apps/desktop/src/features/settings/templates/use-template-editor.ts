@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import { useFlushOnQuit } from "../../../state/quit-flush";
-import type { NoteTemplateDetailSnapshot } from "../../../bridge/generated/NoteTemplateDetailSnapshot";
+import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
 import {
   type EditTarget,
   type TemplateDraft,

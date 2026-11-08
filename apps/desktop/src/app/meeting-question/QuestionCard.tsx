@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
-import type { AppCommand } from "../../bridge/generated";
-import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
-import { Button } from "../../design/Button";
-import { TextLink } from "../../design/TextLink";
+import { getCopy } from "orbit-ui/i18n";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingQuestionSnapshot } from "orbit-ui/bridge/generated/MeetingQuestionSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { TextLink } from "orbit-ui/design/TextLink";
 import { MarkdownView } from "../../features/notes/MarkdownView";
 
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { answerPieces, causeText, linkText } from "./copy";
 import styles from "./MeetingQuestion.module.css";
 

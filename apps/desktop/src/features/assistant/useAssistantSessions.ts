@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
 import type { DaemonPort } from "../../bridge/port";
 import type { AssistantCursor, SessionPage } from "../../bridge/reads";
 

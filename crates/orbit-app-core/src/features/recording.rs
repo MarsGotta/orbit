@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct RecordingView {
     pub availability: FeatureAvailability,
     pub call_availability: FeatureAvailability,
@@ -19,7 +19,7 @@ pub struct RecordingView {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "state", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum RecordingFreshness {
     Current,
     Stale {
@@ -226,7 +226,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "command", rename_all = "snake_case", deny_unknown_fields)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum RecordingCommand {
     #[serde(skip)]
     #[ts(skip)]

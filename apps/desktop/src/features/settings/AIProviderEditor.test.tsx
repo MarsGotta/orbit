@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentRefusal } from "../../bridge/generated/AgentRefusal";
-import type { AiModel } from "../../bridge/generated/AiModel";
-import type { AiProvider } from "../../bridge/generated/AiProvider";
-import type { AiProviderInput } from "../../bridge/generated/AiProviderInput";
-import { configureCopy, getCopy } from "../../i18n";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentRefusal } from "orbit-ui/bridge/generated/AgentRefusal";
+import type { AiModel } from "orbit-ui/bridge/generated/AiModel";
+import type { AiProvider } from "orbit-ui/bridge/generated/AiProvider";
+import type { AiProviderInput } from "orbit-ui/bridge/generated/AiProviderInput";
+import { configureCopy, getCopy } from "orbit-ui/i18n";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AISettings } from "./AISettings";
 

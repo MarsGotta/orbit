@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { isRecording, templateOf } from "./note-progress";
 import { sent, type Send } from "./send";
 

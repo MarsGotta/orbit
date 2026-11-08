@@ -1,8 +1,8 @@
 import { type RefObject, useMemo, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { BeingRedone } from "../../design/ProgressCard";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { BeingRedone } from "orbit-ui/design/ProgressCard";
 import { CorrectedBand, UndoneBand } from "./CorrectedBand";
 import { templateOf } from "./note-progress";
 import type { Send } from "./send";

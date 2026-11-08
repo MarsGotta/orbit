@@ -1,6 +1,6 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import { CalendarEvent as EventBox } from "../../design/CalendarEvent";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { CalendarEvent as EventBox } from "orbit-ui/design/CalendarEvent";
 
 import { timeLabel } from "./date";
 import {

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import { CopyProvider } from "../../i18n/CopyProvider";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { MessageList } from "./MessageList";
 
 // Instrument the public Markdown parser boundary while running the real parser.

@@ -191,7 +191,7 @@ pub struct Folder {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum FolderAccess {
@@ -205,7 +205,7 @@ pub enum FolderAccess {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum FolderCause {
@@ -241,7 +241,7 @@ pub enum FolderCause {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct FolderView {
     pub id: String,

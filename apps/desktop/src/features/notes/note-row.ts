@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
+import { getCopy } from "orbit-ui/i18n";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 
 /** How a row's line reads: red while recording or failed, muted while work goes on. */
 export type RowTone = "live" | "working" | "failed" | "plain";

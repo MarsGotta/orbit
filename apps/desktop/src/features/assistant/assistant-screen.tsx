@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import type { DaemonPort } from "../../bridge/port";
 import { currentHubConnection, hasSavedPairing } from "../../bridge/hub-state";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";

@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { EditMenu } from "../../design/EditMenu";
-import { useFeedback } from "../../design/feedback";
-import { Field } from "../../design/Field";
-import { Icon } from "../../design/Icon";
-import { IconButton } from "../../design/IconButton";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { EditMenu } from "orbit-ui/design/EditMenu";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { Field } from "orbit-ui/design/Field";
+import { Icon } from "orbit-ui/design/Icon";
+import { IconButton } from "orbit-ui/design/IconButton";
 import sheet from "./DesignSheet.module.css";
 import styles from "./AnnexSheet.module.css";
 

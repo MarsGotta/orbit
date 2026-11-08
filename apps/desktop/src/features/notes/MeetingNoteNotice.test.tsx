@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { NoteReadySnapshot } from "../../bridge/generated/NoteReadySnapshot";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { NoteReadySnapshot } from "orbit-ui/bridge/generated/NoteReadySnapshot";
 import type { AppView } from "../../state/app-view";
 import { MeetingNoteNotice } from "./MeetingNoteNotice";
 

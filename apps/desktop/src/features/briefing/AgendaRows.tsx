@@ -1,10 +1,10 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { Fragment } from "react";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import type { BriefingAgendaSnapshot } from "../../bridge/generated/BriefingAgendaSnapshot";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
+import type { BriefingAgendaSnapshot } from "orbit-ui/bridge/generated/BriefingAgendaSnapshot";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 
-import { useUiStore } from "../../state/ui";
+import { useUiStore } from "orbit-ui/state/ui";
 import { timeLabel } from "../calendar/date";
 import styles from "./BriefingView.module.css";
 

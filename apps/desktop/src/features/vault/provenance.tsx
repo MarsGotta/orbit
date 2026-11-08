@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
-import { getCopy } from "../../i18n";
-import { getLocale } from "../../i18n/locale";
+import { getCopy } from "orbit-ui/i18n";
+import { getLocale } from "orbit-ui/i18n/locale";
 export const VaultOwner = createContext("");
 export function normalizeOwner(value: string) {
   return value

@@ -2,10 +2,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "vitest";
-import { spanish } from "./es";
-import { english } from "./en";
-import { setLocale } from "./locale";
-import { configureCopy } from "./index";
+import { spanish } from "orbit-ui/i18n/es";
+import { english } from "orbit-ui/i18n/en";
+import { setLocale } from "orbit-ui/i18n/locale";
+import { configureCopy } from "orbit-ui/i18n/index";
 import { sessionWhen } from "../features/assistant/session-title";
 
 function flatten(value: unknown, prefix = "", result: Record<string, string> = {}) {

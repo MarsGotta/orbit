@@ -1,11 +1,11 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useId, useState, type KeyboardEvent } from "react";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { Loading } from "../../design/Spinner";
-import { useModalFocus } from "../../design/use-modal-focus";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Loading } from "orbit-ui/design/Spinner";
+import { useModalFocus } from "orbit-ui/design/use-modal-focus";
 
 import { useAttachmentUrl } from "./AttachmentGallery";
 import { CopyImage, OpenButtons } from "./ViewerActions";

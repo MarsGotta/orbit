@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, type ReactNode } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { Loading } from "../../design/Spinner";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { Loading } from "orbit-ui/design/Spinner";
 
 import { colorOf } from "../assistant/assistants";
 import { SignInWaiting } from "../assistant/SignInNotice";

@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import { AttentionRow } from "../../design/AttentionRow";
-import { Button } from "../../design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import { AttentionRow } from "orbit-ui/design/AttentionRow";
+import { Button } from "orbit-ui/design/Button";
 
 import type { StartBlocker as Blocker } from "./start-options";
 

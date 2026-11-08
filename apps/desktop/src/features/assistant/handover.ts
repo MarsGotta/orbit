@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 
 /**
  * What this run of Orbit knows about conversations passed to another

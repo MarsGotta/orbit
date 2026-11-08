@@ -1,4 +1,4 @@
-import type { FeatureFrame, FrameRevision } from "../bridge/generated";
+import type { FeatureFrame, FrameRevision } from "orbit-ui/bridge/generated";
 
 type ViewOf<F extends FeatureFrame["feature"]> = Extract<FeatureFrame, { feature: F }>["view"];
 

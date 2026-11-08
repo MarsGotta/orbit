@@ -1,6 +1,6 @@
-import type { ChatMessage } from "./generated/ChatMessage";
-import type { ChatSessionSummary } from "./generated/ChatSessionSummary";
-import type { Refusal } from "./refusal";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
+import type { Refusal } from "orbit-ui/bridge/refusal";
 
 export type AssistantCursor = { kind: "id"; id: string } | { kind: "index"; index: number };
 

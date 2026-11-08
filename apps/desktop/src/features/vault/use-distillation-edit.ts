@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { DistillationChange } from "../../bridge/generated/DistillationChange";
-import type { DistillationReview } from "../../bridge/generated/DistillationReview";
+import type { DistillationChange } from "orbit-ui/bridge/generated/DistillationChange";
+import type { DistillationReview } from "orbit-ui/bridge/generated/DistillationReview";
 function draftOf(change: DistillationChange) {
   return {
     properties: Object.fromEntries(

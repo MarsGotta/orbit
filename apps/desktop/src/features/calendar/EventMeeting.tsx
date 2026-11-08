@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import { Button } from "../../design/Button";
-import { TextLink } from "../../design/TextLink";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { TextLink } from "orbit-ui/design/TextLink";
 
 import type { lockedReason } from "./edit/notices";
 import { type CalendarEvent, placePreview } from "./eventLook";

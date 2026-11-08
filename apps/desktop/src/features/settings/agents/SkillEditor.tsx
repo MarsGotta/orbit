@@ -1,6 +1,6 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import { Button } from "../../../design/Button";
-import { Dialog } from "../../../design/Dialog";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Dialog } from "orbit-ui/design/Dialog";
 
 import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
 import styles from "./Agents.module.css";

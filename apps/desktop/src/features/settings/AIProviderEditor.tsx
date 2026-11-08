@@ -1,10 +1,10 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AiModel } from "../../bridge/generated/AiModel";
-import type { AiProvider } from "../../bridge/generated/AiProvider";
-import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
+import type { AiModel } from "orbit-ui/bridge/generated/AiModel";
+import type { AiProvider } from "orbit-ui/bridge/generated/AiProvider";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 
 import {
   MAX_AI_PROVIDER_NAME_CHARS,

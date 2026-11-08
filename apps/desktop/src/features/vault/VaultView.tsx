@@ -3,13 +3,13 @@ import { VaultOwner, normalizeOwner } from "./provenance";
 import { DistillationView } from "./DistillationView";
 import { useDistillations } from "./use-distillations";
 import { VaultWarnings } from "./VaultWarnings";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import type { VaultSettings } from "../../bridge/generated/VaultSettings";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultSettings } from "orbit-ui/bridge/generated/VaultSettings";
 import type { VaultRoute } from "./route";
 import { useState } from "react";
 import { TopBarLeading } from "../../app/shell-slots";
-import { Button } from "../../design/Button";
+import { Button } from "orbit-ui/design/Button";
 
 import { readFilter, type VaultPort } from "./api";
 import { ConnectionCard } from "./ConnectionCard";

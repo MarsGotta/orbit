@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeatureFrame } from "../bridge/generated";
+import type { FeatureFrame } from "orbit-ui/bridge/generated";
 import type { DaemonPort, Report } from "../bridge/port";
 import type { AppView } from "../state/app-view";
 import { createOrbitStore } from "../state/orbit-store";
 import { stateFailures, watchFailures } from "../state/state-failures";
 import { openPanelLink } from "../features/call-panel/panel-links";
-import { es } from "../i18n/es";
+import { es } from "orbit-ui/i18n/es";
 import { reportingAgent, reportingReads } from "./report-failure";
 
 // A cause taken off the screen still lands in the local report log,

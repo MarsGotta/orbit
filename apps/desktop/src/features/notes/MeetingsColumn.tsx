@@ -1,12 +1,12 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
-import { Button } from "../../design/Button";
-import { useFeedback } from "../../design/feedback";
-import { Icon } from "../../design/Icon";
-import { Loading, Spinner } from "../../design/Spinner";
-import { Skeleton } from "../../design/Skeleton";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { NotesSnapshot } from "orbit-ui/bridge/generated/NotesSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { Icon } from "orbit-ui/design/Icon";
+import { Loading, Spinner } from "orbit-ui/design/Spinner";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 import { ListColumn } from "../../app/shell-slots";
 
 import type { AppView } from "../../state/app-view";

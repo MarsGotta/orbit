@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { TextLink } from "../../design/TextLink";
+import { TextLink } from "orbit-ui/design/TextLink";
 import { type Block, type Run, parseMarkdown } from "./markdown";
 import styles from "./MarkdownView.module.css";
 

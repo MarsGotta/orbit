@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import type { Agent } from "../../bridge/generated/Agent";
+import { getCopy } from "orbit-ui/i18n";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { healthOf } from "../assistant/assistants";
 
 /** What its row says at the right: what stops it, in amber, or its plan's usage. */

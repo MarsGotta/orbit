@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { BriefingReminder } from "../../bridge/generated/BriefingReminder";
-import { Field } from "../../design/Field";
+import type { BriefingReminder } from "orbit-ui/bridge/generated/BriefingReminder";
+import { Field } from "orbit-ui/design/Field";
 
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";

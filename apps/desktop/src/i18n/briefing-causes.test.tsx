@@ -1,10 +1,10 @@
 import type { AppView } from "../state/app-view";
-import type { BriefingSnapshot } from "../bridge/generated/BriefingSnapshot";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 import { BriefingBody } from "../features/briefing/BriefingBody";
 import { appView, notesSnapshot } from "../features/notes/test-notes";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { configureCopy, getCopy } from ".";
+import { configureCopy, getCopy } from "orbit-ui/i18n";
 import { PreviousActions } from "../features/briefing/PreviousActions";
 
 afterEach(() => {

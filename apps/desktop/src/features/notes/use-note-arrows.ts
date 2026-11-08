@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 import { dayGroups, groupFor } from "./notes-format";
 
 /** The list in the order it is shown: by day group, then as the daemon sent it. */

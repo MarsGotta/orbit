@@ -1,10 +1,10 @@
-import { dateTime } from "../../i18n/locale";
-import { getCopy, lookupCopy } from "../../i18n";
-import type { NoteDayGroup } from "../../bridge/generated/NoteDayGroup";
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { mmss } from "../../time-format";
+import { dateTime } from "orbit-ui/i18n/locale";
+import { getCopy, lookupCopy } from "orbit-ui/i18n";
+import type { NoteDayGroup } from "orbit-ui/bridge/generated/NoteDayGroup";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { mmss } from "orbit-ui/time-format";
 
 const DAY_MS = 86_400_000;
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 
 /**
  * What the Briefing asks for when it opens: the Briefing is about

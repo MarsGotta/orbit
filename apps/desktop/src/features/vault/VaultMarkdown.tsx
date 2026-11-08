@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { VaultWarnings } from "./VaultWarnings";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { VaultMeta } from "../../bridge/generated/VaultMeta";
-import type { VaultNote } from "../../bridge/generated/VaultNote";
-import { TextLink } from "../../design/TextLink";
+import type { VaultMeta } from "orbit-ui/bridge/generated/VaultMeta";
+import type { VaultNote } from "orbit-ui/bridge/generated/VaultNote";
+import { TextLink } from "orbit-ui/design/TextLink";
 import type { VaultPort } from "./api";
 import { internalTarget, remarkVault } from "./markdown-tree";
 import { noteRoute } from "./route";

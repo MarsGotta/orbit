@@ -1,4 +1,4 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import type { EditorState } from "@codemirror/state";
 
 /** A note «[[» can link to: its title, and when it was. */

@@ -1,6 +1,6 @@
 import type { DaemonPort } from "../bridge/port";
 import type { ReadPage } from "../bridge/reads";
-import { refusalOf } from "../bridge/refusal";
+import { refusalOf } from "orbit-ui/bridge/refusal";
 import type { OrbitState } from "../state/orbit-store";
 import type { DirectCall } from "../state/ceilings";
 import { newOp, refusalReport } from "../state/interceptor";

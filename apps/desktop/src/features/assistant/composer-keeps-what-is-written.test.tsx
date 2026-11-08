@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 import type { DaemonPort } from "../../bridge/port";
 import { createOrbitStore } from "../../state/orbit-store";
 import { AssistantComposer } from "./AssistantComposer";

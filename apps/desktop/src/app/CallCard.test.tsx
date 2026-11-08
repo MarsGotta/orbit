@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { AppCommand } from "../bridge/generated";
-import type { CallSnapshot } from "../bridge/generated/CallSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
 import { CallCard } from "./CallCard";
 
 function call(change: Partial<CallSnapshot> = {}): CallSnapshot {

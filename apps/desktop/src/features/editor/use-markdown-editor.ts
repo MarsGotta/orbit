@@ -1,5 +1,5 @@
 import { editorLanguage } from "./editor-language";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { placeholder, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 

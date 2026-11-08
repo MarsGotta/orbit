@@ -1,6 +1,6 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationChange } from "../../bridge/generated/DistillationChange";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationChange } from "orbit-ui/bridge/generated/DistillationChange";
 import type { DistillationEditor } from "./use-distillation-edit";
 import { valueText } from "./distillation-format";
 import { DistillationQuotes } from "./DistillationQuotes";

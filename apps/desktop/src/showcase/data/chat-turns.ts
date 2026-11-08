@@ -1,6 +1,6 @@
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { ChatPending } from "../../bridge/generated/ChatPending";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
 import { message } from "./chat";
 import { NOW } from "./time";
 

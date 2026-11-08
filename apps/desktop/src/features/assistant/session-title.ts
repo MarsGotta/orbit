@@ -1,5 +1,5 @@
-import { getCopy } from "../../i18n";
-import { dateTime } from "../../i18n/locale";
+import { getCopy } from "orbit-ui/i18n";
+import { dateTime } from "orbit-ui/i18n/locale";
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&

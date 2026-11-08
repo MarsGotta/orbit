@@ -1,10 +1,10 @@
 import { useId, type ReactNode } from "react";
-import type { ChatSnapshot } from "../../bridge/generated/ChatSnapshot";
-import { Button } from "../../design/Button";
-import { Tooltip } from "../../design/Tooltip";
-import { Icon } from "../../design/Icon";
-import { useCopy } from "../../i18n/CopyProvider";
-import { mmss } from "../../time-format";
+import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Tooltip } from "orbit-ui/design/Tooltip";
+import { Icon } from "orbit-ui/design/Icon";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { mmss } from "orbit-ui/time-format";
 import { AttachButtons, AttachmentChips } from "./AttachmentChips";
 import { useComposer, type ComposerProps, type Controls } from "./use-composer";
 import styles from "./AssistantView.module.css";

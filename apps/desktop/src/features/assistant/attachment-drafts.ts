@@ -1,9 +1,9 @@
-import { getCopy } from "../../i18n";
-import type { AddedAttachment } from "../../bridge/generated/AddedAttachment";
-import type { Attachment } from "../../bridge/generated/Attachment";
-import type { AttachmentLimits } from "../../bridge/generated/AttachmentLimits";
-import type { WindowText } from "../../bridge/generated/WindowText";
-import { refusalOf, type Refusal } from "../../bridge/refusal";
+import { getCopy } from "orbit-ui/i18n";
+import type { AddedAttachment } from "orbit-ui/bridge/generated/AddedAttachment";
+import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
+import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
+import type { WindowText } from "orbit-ui/bridge/generated/WindowText";
+import { refusalOf, type Refusal } from "orbit-ui/bridge/refusal";
 
 /**
  * A file on its way into the next message, as its chip shows it. A ready

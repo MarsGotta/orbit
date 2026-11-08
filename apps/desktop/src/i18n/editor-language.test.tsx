@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import { CopyProvider } from "./CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { MarkdownEditor } from "../features/editor/MarkdownEditor";
 import { editorNamed, focusAt, select, typeText } from "../features/editor/test-editor";
 

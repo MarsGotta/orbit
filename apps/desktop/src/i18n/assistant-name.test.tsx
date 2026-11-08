@@ -1,9 +1,9 @@
 import { act, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
+import type { AppBootstrap, FeatureFrame } from "orbit-ui/bridge/generated";
 import type { DaemonPort, FrameListener } from "../bridge/port";
-import { spanish } from "./es";
-import { english } from "./en";
+import { spanish } from "orbit-ui/i18n/es";
+import { english } from "orbit-ui/i18n/en";
 import { receive } from "../state/interceptor";
 import { PanelApp } from "../features/call-panel/PanelApp";
 

@@ -1,11 +1,11 @@
-import { settingsSectionKey } from "../../state/ui";
-import { useCopy } from "../../i18n/CopyProvider";
+import { settingsSectionKey } from "orbit-ui/state/ui";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { ViewError } from "../../design/ViewError";
+import { ViewError } from "orbit-ui/design/ViewError";
 
-import { SETTINGS_SECTIONS, type SettingsSection } from "../../state/ui";
+import { SETTINGS_SECTIONS, type SettingsSection } from "orbit-ui/state/ui";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantSection } from "./AssistantSection";
 import { GeneralSection } from "./GeneralSection";

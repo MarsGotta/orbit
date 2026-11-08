@@ -1,8 +1,8 @@
-import type { AppCommand } from "../bridge/generated";
-import type { CallSnapshot } from "../bridge/generated/CallSnapshot";
-import { Button } from "../design/Button";
-import { useCopy } from "../i18n/CopyProvider";
-import { mmss } from "../time-format";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { mmss } from "orbit-ui/time-format";
 import { useNow } from "../use-now";
 import styles from "./SidebarCard.module.css";
 

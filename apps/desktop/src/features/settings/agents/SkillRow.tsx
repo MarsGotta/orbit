@@ -1,8 +1,8 @@
-import { useCopy } from "../../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { SkillSummary } from "../../../bridge/generated/SkillSummary";
-import { Button } from "../../../design/Button";
-import { Switch } from "../../../design/Switch";
+import type { SkillSummary } from "orbit-ui/bridge/generated/SkillSummary";
+import { Button } from "orbit-ui/design/Button";
+import { Switch } from "orbit-ui/design/Switch";
 import styles from "./Agents.module.css";
 import { type OrderProps } from "./parts";
 

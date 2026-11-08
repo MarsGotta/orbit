@@ -1,9 +1,9 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, type ReactNode } from "react";
 import { copyText } from "../bridge/clipboard";
-import { Button } from "../design/Button";
-import { useFeedback } from "../design/feedback";
-import { ViewErrorActions } from "../design/ViewError";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { ViewErrorActions } from "orbit-ui/design/ViewError";
 
 import { localizeMessage, type Failure, type Message } from "../state/interceptor";
 import styles from "./FailureActions.module.css";

@@ -1,7 +1,7 @@
 import { sourceHeading } from "./distillation-presentation";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationReview } from "../../bridge/generated/DistillationReview";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationReview } from "orbit-ui/bridge/generated/DistillationReview";
 import { countChanges, countNotes, valueText } from "./distillation-format";
 import styles from "./Distillation.module.css";
 export function DistillationColumn({

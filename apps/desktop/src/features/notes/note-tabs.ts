@@ -1,6 +1,6 @@
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { isRecording } from "./note-progress";
-import type { NoteTab } from "../../state/ui";
+import type { NoteTab } from "orbit-ui/state/ui";
 
 export type { NoteTab };
 

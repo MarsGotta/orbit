@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { ReactNode } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { TopBarLeading } from "../../app/shell-slots";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
 
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";

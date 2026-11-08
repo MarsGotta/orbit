@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AiModel } from "../../bridge/generated/AiModel";
-import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AiModel } from "orbit-ui/bridge/generated/AiModel";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 
 import styles from "./SettingsView.module.css";
 

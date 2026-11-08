@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { type CSSProperties, type ReactNode, forwardRef } from "react";
-import type { NoteSpeakerSnapshot } from "../../bridge/generated/NoteSpeakerSnapshot";
-import type { NoteTurnSnapshot } from "../../bridge/generated/NoteTurnSnapshot";
+import type { NoteSpeakerSnapshot } from "orbit-ui/bridge/generated/NoteSpeakerSnapshot";
+import type { NoteTurnSnapshot } from "orbit-ui/bridge/generated/NoteTurnSnapshot";
 
 import { formatTimestamp, isUnnamedSpeaker } from "./notes-format";
 import styles from "./Note.module.css";

@@ -1,6 +1,6 @@
-import { useCopy } from "../../../i18n/CopyProvider";
-import type { CalendarFrequency } from "../../../bridge/generated/CalendarFrequency";
-import { Switch } from "../../../design/Switch";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { CalendarFrequency } from "orbit-ui/bridge/generated/CalendarFrequency";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { DAY_MS } from "../date";
 import { type EventForm, type Repeat, withAllDay, withStart } from "./form";

@@ -1,5 +1,5 @@
-import type { CalendarViewKind } from "../../bridge/generated/CalendarViewKind";
-import type { CalendarWeekStart } from "../../bridge/generated/CalendarWeekStart";
+import type { CalendarViewKind } from "orbit-ui/bridge/generated/CalendarViewKind";
+import type { CalendarWeekStart } from "orbit-ui/bridge/generated/CalendarWeekStart";
 import { MAX_GRID_DAYS, type ViewChoice, type WidthTier } from "./range";
 
 /**

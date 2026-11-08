@@ -1,6 +1,6 @@
-import { dateTime } from "../../i18n/locale";
-import { getCopy } from "../../i18n";
-import type { MeetingAudio } from "../../bridge/generated/MeetingAudio";
+import { dateTime } from "orbit-ui/i18n/locale";
+import { getCopy } from "orbit-ui/i18n";
+import type { MeetingAudio } from "orbit-ui/bridge/generated/MeetingAudio";
 import { effectiveTimezone } from "../../local-time";
 import type { AppView } from "../../state/app-view";
 

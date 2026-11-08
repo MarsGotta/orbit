@@ -2,7 +2,11 @@ import { expect, it } from "vitest";
 import { inlineCopy } from "../../scripts/inline-copy-scan.mjs";
 
 const sources = import.meta.glob<string>(
-  ["./**/*.{ts,tsx}", "../{app,design,state}/**/*.{ts,tsx}"],
+  [
+    "./**/*.{ts,tsx}",
+    "../{app,design,state}/**/*.{ts,tsx}",
+    "../../../../packages/orbit-ui/{design,state}/**/*.{ts,tsx}",
+  ],
   {
     query: "?raw",
     import: "default",
@@ -12,7 +16,9 @@ const sources = import.meta.glob<string>(
 it("keeps interface copy in the typed catalogues", () => {
   const candidates = Object.entries(sources).flatMap(([file, code]) => {
     if (/(\.test\.|\/test[-.]|\/__)/.test(file)) return [];
-    const relative = file.startsWith("./") ? `features/${file.slice(2)}` : file.slice(3);
+    const relative = file.startsWith("./")
+      ? `features/${file.slice(2)}`
+      : file.replace(/^(?:\.\.\/)+(?:packages\/orbit-ui\/)?/, "");
     return inlineCopy(relative, code).map((candidate) => ({ file: relative, ...candidate }));
   });
   expect(candidates).toEqual([]);

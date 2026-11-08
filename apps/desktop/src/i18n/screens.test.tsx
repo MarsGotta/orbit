@@ -1,8 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { CopyProvider } from "./CopyProvider";
-import { spanish } from "./es";
-import { english } from "./en";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import { spanish } from "orbit-ui/i18n/es";
+import { english } from "orbit-ui/i18n/en";
 import BriefingView from "../features/briefing/BriefingView";
 import NotesView from "../features/notes/NotesView";
 import { NoteDetail } from "../features/notes/NoteDetail";

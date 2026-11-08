@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { ApplicationsKnown, AudioSourceFieldProps } from "./AudioSourceField";
 import { selectedAudio, type AudioSource } from "./start-options";

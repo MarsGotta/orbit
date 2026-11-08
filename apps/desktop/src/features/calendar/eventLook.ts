@@ -1,4 +1,4 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import type { CSSProperties } from "react";
 

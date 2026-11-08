@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
-import type { Distillation } from "../../bridge/generated/Distillation";
-import type { DistillationConflict as Conflict } from "../../bridge/generated/DistillationConflict";
-import type { ConflictChoice } from "../../bridge/generated/ConflictChoice";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { Distillation } from "orbit-ui/bridge/generated/Distillation";
+import type { DistillationConflict as Conflict } from "orbit-ui/bridge/generated/DistillationConflict";
+import type { ConflictChoice } from "orbit-ui/bridge/generated/ConflictChoice";
 import { noteName, valueText } from "./distillation-format";
 import { DistillationQuotes } from "./DistillationQuotes";
 import styles from "./Distillation.module.css";

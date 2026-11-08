@@ -1,8 +1,8 @@
 // Invented meetings for the notes tests: one written note and the list.
 // Each test changes the copy it takes.
-import type { NoteListItem } from "../../bridge/generated/NoteListItem";
-import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
+import type { NotesSnapshot } from "orbit-ui/bridge/generated/NotesSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import type { AppView } from "../../state/app-view";
 
 export { library } from "./test-library";

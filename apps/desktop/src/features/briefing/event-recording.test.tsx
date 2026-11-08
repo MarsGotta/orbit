@@ -1,8 +1,8 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
-import type { CalendarSnapshot } from "../../bridge/generated/CalendarSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
+import type { CalendarSnapshot } from "orbit-ui/bridge/generated/CalendarSnapshot";
 import { eventLook, type CalendarEvent } from "../calendar/eventLook";
 import { useCalendarView } from "../calendar/useCalendarView";
 import { NextMeetingCard } from "./NextMeetingCard";

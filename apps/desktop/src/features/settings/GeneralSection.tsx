@@ -1,12 +1,12 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { useFeedback } from "../../design/feedback";
-import { Field } from "../../design/Field";
-import { Segmented } from "../../design/Segmented";
-import { Skeleton } from "../../design/Skeleton";
-import { chooseTheme, useThemeChoice, type ThemeChoice } from "../../design/theme";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { Field } from "orbit-ui/design/Field";
+import { Segmented } from "orbit-ui/design/Segmented";
+import { Skeleton } from "orbit-ui/design/Skeleton";
+import { chooseTheme, useThemeChoice, type ThemeChoice } from "orbit-ui/design/theme";
 
 import { LoginItem } from "./NativeSettings";
 import { Group, List, SectionHeading } from "./layout";

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { configureCopy, getCopy } from ".";
+import { configureCopy, getCopy } from "orbit-ui/i18n";
 import { formatClock } from "../features/notes/notes-format";
 import { dayAndMonth, hourLabel } from "../features/calendar/date";
 

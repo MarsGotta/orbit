@@ -1,5 +1,5 @@
 import { editorLanguage } from "./editor-language";
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import { Language } from "@codemirror/language";

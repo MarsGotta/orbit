@@ -1,10 +1,15 @@
 import type { AppView as AppSnapshot } from "../state/app-view";
 import { useEffect, useMemo, useState } from "react";
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { AssistantSessions } from "../features/assistant/AssistantSessions";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
-import { initializeUiStore, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
+import {
+  initializeUiStore,
+  useUiStore,
+  type SettingsSection,
+  type ViewId,
+} from "orbit-ui/state/ui";
 import { NotResponding, Starting } from "./AppStates";
 import type { useAppStore } from "./use-app-store";
 import { useErrorSelection } from "./error-selection";

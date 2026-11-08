@@ -1,4 +1,4 @@
-import { getCopy } from "../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { closedData } from "./report-data";
 import type { Exceeded, Presented } from "./interceptor";
 import { failureCode } from "./failure";

@@ -1,9 +1,9 @@
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { AppCommand } from "../../bridge/generated";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { AppView as AppSnapshot } from "../../state/app-view";
-import { Button } from "../../design/Button";
-import { Spinner } from "../../design/Spinner";
+import { Button } from "orbit-ui/design/Button";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import { List, Row } from "./layout";
 import styles from "./SettingsView.module.css";

@@ -1,6 +1,6 @@
-import { getCopy } from "../../i18n";
-import type { VaultCall } from "../../bridge/generated/VaultCall";
-import type { VaultOutcome } from "../../bridge/generated/VaultOutcome";
+import { getCopy } from "orbit-ui/i18n";
+import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
+import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
 
 class VaultRequestError extends Error {
   constructor(render: () => string) {
@@ -42,11 +42,11 @@ export function message(error: unknown): string {
 }
 
 export function readFilter(
-  operation: import("../../bridge/generated/VaultRead").VaultRead["operation"],
+  operation: import("orbit-ui/bridge/generated/VaultRead").VaultRead["operation"],
   path = "",
   page = 1,
   query = "",
-): import("../../bridge/generated/VaultRead").VaultRead {
+): import("orbit-ui/bridge/generated/VaultRead").VaultRead {
   return {
     operation,
     path,

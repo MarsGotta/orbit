@@ -1,10 +1,10 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, type KeyboardEvent } from "react";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { moveWithArrows } from "../../design/roving";
-import { Spinner } from "../../design/Spinner";
-import { Switch } from "../../design/Switch";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { moveWithArrows } from "orbit-ui/design/roving";
+import { Spinner } from "orbit-ui/design/Spinner";
+import { Switch } from "orbit-ui/design/Switch";
 
 import { NAME_MAX } from "./assistants";
 import { ColorChoice } from "./ProfileFields";

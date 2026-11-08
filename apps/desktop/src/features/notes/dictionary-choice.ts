@@ -1,10 +1,10 @@
-import { getCopy } from "../../i18n";
-import type { Dictionary } from "../../bridge/generated/Dictionary";
-import type { DictionaryConflict } from "../../bridge/generated/DictionaryConflict";
-import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { MultiSelectOption } from "../../design/MultiSelect";
+import { getCopy } from "orbit-ui/i18n";
+import type { Dictionary } from "orbit-ui/bridge/generated/Dictionary";
+import type { DictionaryConflict } from "orbit-ui/bridge/generated/DictionaryConflict";
+import type { DictionaryRequest } from "orbit-ui/bridge/generated/DictionaryRequest";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { MultiSelectOption } from "orbit-ui/design/MultiSelect";
 
 // Which dictionaries a meeting uses, and the orders that change them, for a
 // hub that takes several (its meeting documents carry `dictionary_ids`) and

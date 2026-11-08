@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
+import { Button } from "orbit-ui/design/Button";
+import { EmptyState } from "orbit-ui/design/EmptyState";
 
 import type { Send } from "./send";
 import styles from "./BriefingView.module.css";

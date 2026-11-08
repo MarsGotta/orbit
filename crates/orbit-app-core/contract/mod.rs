@@ -9,7 +9,7 @@ fn is_false(value: &bool) -> bool {
 macro_rules! app_type {
     ($item:item) => {
         #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-        #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+        #[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
         $item
     };
 }

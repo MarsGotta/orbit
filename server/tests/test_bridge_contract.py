@@ -384,7 +384,7 @@ def test_generated_refusal_and_helper_codes_have_a_sentence_for_deimos():
 
     from orbit_mcp.refusals import ERROR_MESSAGES
 
-    generated = Path(__file__).resolve().parents[2] / "apps/desktop/src/bridge/generated"
+    generated = Path(__file__).resolve().parents[2] / "packages/orbit-ui/bridge/generated"
     for name in ("RefusalCode", "HelperCode"):
         codes = set(re.findall(r'"([a-z_]+)"', (generated / f"{name}.ts").read_text()))
         assert codes, f"no codes read from {name}"

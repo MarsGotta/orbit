@@ -1,12 +1,12 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { ReactNode } from "react";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import { Icon } from "../../design/Icon";
-import { MultiSelect } from "../../design/MultiSelect";
-import { Switch } from "../../design/Switch";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import { Icon } from "orbit-ui/design/Icon";
+import { MultiSelect } from "orbit-ui/design/MultiSelect";
+import { Switch } from "orbit-ui/design/Switch";
 
-import { useUiStore } from "../../state/ui";
+import { useUiStore } from "orbit-ui/state/ui";
 import { chosen, dictionaryOptions, meetingDictionaries } from "./dictionary-choice";
 import { languageName } from "./notes-format";
 import { type Choice, LANGUAGES, templateName } from "./note-settings";

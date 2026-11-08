@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NoteLibrarySnapshot } from "../../../bridge/generated/NoteLibrarySnapshot";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 import { restoreNotice, type Restoring } from "./restore-notice";
 import type { RemovedTemplate } from "./template-draft";
 

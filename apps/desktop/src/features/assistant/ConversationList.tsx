@@ -1,12 +1,12 @@
-import { dateTime } from "../../i18n/locale";
-import { getCopy } from "../../i18n";
-import { useCopy } from "../../i18n/CopyProvider";
+import { dateTime } from "orbit-ui/i18n/locale";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Skeleton } from "../../design/Skeleton";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import { useNow } from "../../use-now";
 import type { AppView as AppSnapshot } from "../../state/app-view";

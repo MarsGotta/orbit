@@ -1,4 +1,4 @@
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import { approval } from "../data/chat-turns";
 import { recordingMeeting } from "../data/recording";
 import { NOW } from "../data/time";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import type { AppCommand } from "../../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 
 /** The order to the daemon; what it returns settles once the daemon has answered. */
 export type VoiceSend = (command: AppCommand) => unknown;

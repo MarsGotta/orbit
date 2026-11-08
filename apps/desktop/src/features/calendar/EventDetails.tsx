@@ -1,11 +1,11 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { CalendarSpan } from "../../bridge/generated/CalendarSpan";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
 
 import type { EventForm } from "./edit/form";
 import { lockedReason } from "./edit/notices";

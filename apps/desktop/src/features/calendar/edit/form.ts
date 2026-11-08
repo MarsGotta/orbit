@@ -3,11 +3,11 @@
  * event or a draft in, a form out; two forms in, the change between them out.
  * Changes accumulate in the form and nothing is written until the user saves.
  */
-import type { CalendarAvailability } from "../../../bridge/generated/CalendarAvailability";
-import type { CalendarEventChanges } from "../../../bridge/generated/CalendarEventChanges";
-import type { CalendarEventDraft } from "../../../bridge/generated/CalendarEventDraft";
-import type { CalendarFrequency } from "../../../bridge/generated/CalendarFrequency";
-import type { CalendarRecurrence } from "../../../bridge/generated/CalendarRecurrence";
+import type { CalendarAvailability } from "orbit-ui/bridge/generated/CalendarAvailability";
+import type { CalendarEventChanges } from "orbit-ui/bridge/generated/CalendarEventChanges";
+import type { CalendarEventDraft } from "orbit-ui/bridge/generated/CalendarEventDraft";
+import type { CalendarFrequency } from "orbit-ui/bridge/generated/CalendarFrequency";
+import type { CalendarRecurrence } from "orbit-ui/bridge/generated/CalendarRecurrence";
 import type { CalendarEvent } from "../eventLook";
 import { allDaySpan, atWall, coveredDays } from "./geometry";
 
@@ -65,7 +65,7 @@ export function formOf(event: CalendarEvent): EventForm {
  *  where the original rule ended. */
 function ruleOf(
   repeat: Repeat,
-): import("../../../bridge/generated/CalendarRecurrenceRule").CalendarRecurrenceRule | null {
+): import("orbit-ui/bridge/generated/CalendarRecurrenceRule").CalendarRecurrenceRule | null {
   if (repeat.kind === "none") return null;
   const end = repeat.rule?.end;
   if (repeat.kind === "kept") {

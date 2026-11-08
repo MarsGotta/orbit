@@ -1,7 +1,7 @@
 import { logAction, logDetail } from "./log-presentation";
 import { actorName, useVaultOwner } from "./provenance";
-import { useCopy } from "../../i18n/CopyProvider";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
 
 import { noteRoute } from "./route";
 import styles from "./VaultReading.module.css";

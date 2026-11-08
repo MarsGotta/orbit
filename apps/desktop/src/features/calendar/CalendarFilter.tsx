@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../state/app-view";
 import { useState } from "react";
-import { Popover } from "../../design/Popover";
+import { Popover } from "orbit-ui/design/Popover";
 
 import { calendarTone, toneStyle } from "./eventLook";
 import styles from "./CalendarView.module.css";

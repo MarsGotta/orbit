@@ -1,8 +1,8 @@
-import { getCopy } from "../../../i18n";
-import { useCopy } from "../../../i18n/CopyProvider";
+import { getCopy } from "orbit-ui/i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "../../../state/app-view";
-import type { CalendarAvailability } from "../../../bridge/generated/CalendarAvailability";
-import { Segmented } from "../../../design/Segmented";
+import type { CalendarAvailability } from "orbit-ui/bridge/generated/CalendarAvailability";
+import { Segmented } from "orbit-ui/design/Segmented";
 
 import { calendarTone, toneStyle } from "../eventLook";
 import type { EventForm } from "./form";

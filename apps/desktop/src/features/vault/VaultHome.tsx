@@ -1,11 +1,11 @@
 import { PendingDistillations } from "./PendingDistillations";
 import type { useDistillations } from "./use-distillations";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { VaultCatalog } from "../../bridge/generated/VaultCatalog";
-import type { VaultSettings } from "../../bridge/generated/VaultSettings";
-import { Button } from "../../design/Button";
-import { Field } from "../../design/Field";
+import type { VaultCatalog } from "orbit-ui/bridge/generated/VaultCatalog";
+import type { VaultSettings } from "orbit-ui/bridge/generated/VaultSettings";
+import { Button } from "orbit-ui/design/Button";
+import { Field } from "orbit-ui/design/Field";
 
 import { readFilter, type VaultPort } from "./api";
 import { noteRoute } from "./route";
@@ -71,7 +71,7 @@ function SearchResults({
   setNumber,
   close,
 }: {
-  page: import("../../bridge/generated/VaultPage").VaultPage | null;
+  page: import("orbit-ui/bridge/generated/VaultPage").VaultPage | null;
   error: string | null;
   catalog: VaultCatalog;
   number: number;

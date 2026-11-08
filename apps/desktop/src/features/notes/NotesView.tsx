@@ -1,12 +1,12 @@
 import type { VaultPort } from "../vault/api";
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { NotesSnapshot } from "../../bridge/generated/NotesSnapshot";
-import { Button } from "../../design/Button";
-import { EmptyState } from "../../design/EmptyState";
-import { Loading } from "../../design/Spinner";
-import { ViewError } from "../../design/ViewError";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { NotesSnapshot } from "orbit-ui/bridge/generated/NotesSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { EmptyState } from "orbit-ui/design/EmptyState";
+import { Loading } from "orbit-ui/design/Spinner";
+import { ViewError } from "orbit-ui/design/ViewError";
 
 import type { AppView } from "../../state/app-view";
 import { MeetingsColumn } from "./MeetingsColumn";
