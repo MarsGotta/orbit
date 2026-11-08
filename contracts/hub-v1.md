@@ -367,6 +367,8 @@ removed targets cannot pass live turn/request validation. Uncertain targets are
 not reapplied automatically. Physical disk exhaustion remains a deployment
 constraint requiring reserved metadata capacity; revocation is still local.
 
+A `chat.send` that finds its conversation's turn under way waits for it, in arrival order, and is then sent; past the conversation's ceiling of waiting messages it is refused with `too_many_waiting_turns` (`count`, `max`).
+
 A `chat.send` id is reserved when the frame is admitted, so a resend after a
 lost receipt never resubmits (`outcome_unknown`). A send the hub refuses before
 it stored the message (a refusal such as `meeting_not_found`, or a full disk)

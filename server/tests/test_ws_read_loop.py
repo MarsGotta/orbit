@@ -1,13 +1,15 @@
 """The socket keeps reading a Mac's frames while a control waits.
 
 An approval, a clarification or an interrupt can wait on the agent (its answer
-RPC) or on the admission of a turn of its own conversation (a reopen). Neither
-wait holds the socket's read loop: a `ping` sent after the control is answered
-before the control is. The agent is a synthetic Hermes; names are invented.
+RPC), and an interrupt also on the admission of a turn of its own conversation
+(a reopen). Neither wait holds the socket's read loop: a `ping` sent after the
+control is answered before the control is. The agent is a synthetic Hermes;
+names are invented.
 """
 
 import asyncio
 import threading
+import time
 from uuid import uuid4
 
 from conftest import device
@@ -22,6 +24,8 @@ from orbit_hub.assistant.backend import ResumedSession
 PONG_BUDGET_SECONDS = 5
 # How long the test holds the agent at most, so a red run ends.
 HOLD_SECONDS = 15
+# Long enough for a `chat.send` just sent to reach its conversation's admission.
+REACHED_ADMISSION_SECONDS = 0.2
 
 
 def read_until(ws, frame_id, frames, done):
@@ -147,13 +151,14 @@ def test_the_socket_keeps_reading_while_a_control_waits_for_its_conversation_to_
                 "params": {"text": "Sigo", "session_id": session},
             }
         )
-        clarification = str(uuid4())
+        time.sleep(REACHED_ADMISSION_SECONDS)
+        cut = str(uuid4())
         ws.send_json(
             {
                 "v": 1,
-                "id": clarification,
-                "method": "clarify.respond",
-                "params": {"session_id": session, "request_id": "pregunta-1", "answer": "Sí"},
+                "id": cut,
+                "method": "chat.interrupt",
+                "params": {"session_id": session, "turn_id": reopening},
             }
         )
         frames: list[dict] = []
@@ -161,14 +166,13 @@ def test_the_socket_keeps_reading_while_a_control_waits_for_its_conversation_to_
         try:
             assert answered.wait(PONG_BUDGET_SECONDS), "the read loop waited for the reopen"
             assert not gate.is_set()
-            assert clarification not in {frame.get("id") for frame in frames}
+            assert cut not in {frame.get("id") for frame in frames}
         finally:
             gate.set()
             reader.join(HOLD_SECONDS)
-        # The control still applies after the turn sent before it: that turn's
-        # question was never asked, so it is answered as unknown.
+        # The interrupt names the send that reopens, so it waits for that send
+        # and applies once it has gone.
         answers = []
-        read_until(ws, clarification, answers, threading.Event())
-        assert answers[-1]["event"] == "error"
-        assert answers[-1]["data"]["code"] == "interaction_not_found"
+        read_until(ws, cut, answers, threading.Event())
+        assert answers[-1]["event"] == "chat.interrupted", answers[-1]["data"]
         assert reopening in {frame.get("id") for frame in answers}

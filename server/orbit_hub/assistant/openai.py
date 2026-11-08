@@ -411,7 +411,11 @@ class OpenAIConnection:
     async def prompt(self, session_id: str, blocks: Sequence[ContentBlock]) -> None:
         session = self._session(session_id)
         if session.turn is not None and not session.turn.done():
-            raise HubError("session_busy", "Wait or interrupt the current turn")
+            # The hub prompts only once the previous turn's state is final, and
+            # that turn emits its end from inside its own task, so only its
+            # closing is left: a queued message goes the moment it does.
+            await asyncio.wait((session.turn,))
+            session = self._session(session_id)
         text = "".join(block.text for block in blocks if isinstance(block, TextBlock))
         # The runtime sends images only when `capabilities.images` says so.
         images = [block for block in blocks if isinstance(block, ImageBlock)]

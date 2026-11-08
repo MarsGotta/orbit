@@ -12,6 +12,7 @@ import asyncio
 import json
 from collections.abc import Callable
 from concurrent.futures import Executor
+from contextlib import suppress
 from functools import partial
 from uuid import uuid4
 
@@ -78,6 +79,8 @@ class DeviceRuntime:
         self.listeners: set[asyncio.Queue] = set()
         self.revoked = False
         self.closed = False
+        # Set and replaced each time a waiting send must look again.
+        self._woken = asyncio.Event()
         self.revision = 0
         self.reconciliations: dict[tuple[str, str], asyncio.Task] = {}
         self._snapshot_cache = None
@@ -169,6 +172,19 @@ class DeviceRuntime:
     def touched(self) -> None:
         """The turns or their questions changed: the next snapshot is new."""
         self.revision, self._snapshot_cache = self.revision + 1, None
+        self.wake_waiting_sends()
+
+    def wake_waiting_sends(self) -> None:
+        """Something a waiting send depends on moved: each one looks again."""
+        self._woken.set()
+        self._woken = asyncio.Event()
+
+    async def until_woken(self, seconds: float | None) -> None:
+        """Sleep until `wake_waiting_sends`, or for `seconds` when given."""
+        woken = self._woken
+        with suppress(TimeoutError):
+            async with asyncio.timeout(seconds):
+                await woken.wait()
 
     async def changed(self) -> None:
         self.touched()
@@ -247,6 +263,8 @@ class DeviceRuntime:
             return
         if current is TurnState.INTERRUPTING:
             self.interrupt_deadlines.pop(session_id, None)
+        # Not every caller publishes: an unknown outcome reaches only here.
+        self.wake_waiting_sends()
 
     def expire_stale_interrupt(self, session_id: str) -> None:
         """An interrupting turn that outlived its deadline has an unknown outcome."""
@@ -256,6 +274,14 @@ class DeviceRuntime:
             self.apply_state(session_id, TurnState.OUTCOME_UNKNOWN)
 
     def safety_target(self, method, params) -> tuple[str, str]:
+        if (
+            method == "chat.interrupt"
+            and (params.session_id, params.turn_id) in self.conversations.waiting_sends()
+        ):
+            # An interrupt of a send still waiting waits with it, and is
+            # checked again here once that send has left the admission. Before
+            # the live check: a send that reopens its session is not live yet.
+            return target_key(method, params.session_id, params.turn_id, ""), params.turn_id
         self.require_live(params.session_id)
         turn_id = self.turn_ids.get(params.session_id)
         if not turn_id or params.turn_id != turn_id:
@@ -399,6 +425,7 @@ class DeviceRuntime:
         if self.revoked:
             return
         self.revoked = True
+        self.wake_waiting_sends()
         self.resumes.end("revoked")
         self.pending.clear()
         await self.publish(emit("revoked", {}))
@@ -420,6 +447,7 @@ class DeviceRuntime:
 
     async def close(self) -> None:
         self.closed = True
+        self.wake_waiting_sends()
         self.resumes.end("closed")
         for task in list(self.reconciliations.values()):
             task.cancel()

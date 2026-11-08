@@ -98,6 +98,10 @@ export const hubRequestRefusals = {
     n.count === undefined || n.max === undefined
       ? undefined
       : `El agente ya tiene ${formatQuantity(n.count)} skills; máximo ${formatQuantity(n.max)}. Borra alguna antes de crear otra`,
+  too_many_waiting_turns: (n) =>
+    n.count === undefined || n.max === undefined
+      ? undefined
+      : `Serían ${formatQuantity(n.count)} mensajes esperando a que acabe el turno en curso; el máximo es ${formatQuantity(n.max)}. Espera a la respuesta`,
   transcription_audio_empty: () => "El audio de transcripción está vacío",
   transcription_connection_error: () => "No se pudo conectar con el servicio de transcripción",
   transcription_connection_timeout: (n) =>

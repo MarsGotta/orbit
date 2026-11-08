@@ -93,6 +93,10 @@ export const hubRequestRefusals: Record<HubRequestCode, (n: Numbers) => string |
     n.count === undefined || n.max === undefined
       ? undefined
       : `The agent already has ${formatQuantity(n.count)} skills; maximum ${formatQuantity(n.max)}. Delete one before creating another`,
+  too_many_waiting_turns: (n) =>
+    n.count === undefined || n.max === undefined
+      ? undefined
+      : `${formatQuantity(n.count)} messages would be waiting for the current turn; maximum ${formatQuantity(n.max)}. Wait for the answer`,
   transcription_audio_empty: () => "Transcription audio is empty",
   transcription_connection_error: () => "Could not connect to the transcription service",
   transcription_connection_timeout: (n) =>
