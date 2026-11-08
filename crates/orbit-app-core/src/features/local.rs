@@ -16,18 +16,21 @@ pub struct LocalView {
 pub type View = LocalView;
 
 pub fn project(input: &FeatureInput<'_>) -> View {
+    #[cfg(feature = "updater")]
+    let install_blocked =
+        crate::UpdateService::installation_blocker_reason(input.topics).map(|reason| {
+            input
+                .copy
+                .text(crate::PresentationText::UpdateBlocked(reason))
+        });
+    #[cfg(not(feature = "updater"))]
+    let install_blocked = None;
     LocalView {
         profile: (*input.local.profile).clone(),
         login_item: (*input.local.login_item).clone(),
         notifications: (*input.local.notifications).clone(),
         update: UpdateSnapshot {
-            install_blocked: crate::UpdateService::installation_blocker_reason(input.topics).map(
-                |reason| {
-                    input
-                        .copy
-                        .text(crate::PresentationText::UpdateBlocked(reason))
-                },
-            ),
+            install_blocked,
             ..(*input.local.update).clone()
         },
         onboarding_done: input.local.onboarding_done,

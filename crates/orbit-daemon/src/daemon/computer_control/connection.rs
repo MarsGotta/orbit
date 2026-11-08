@@ -307,8 +307,11 @@ impl Runtime {
     pub(in crate::daemon) async fn maintain_computer(&mut self) -> Result<()> {
         self.poll_permissions();
         // The engine follows what macOS grants — started, kept or
-        // stopped with its cause — every turn, with nobody asking.
-        self.maintain_engine().await;
+        // stopped with its cause — every turn, with nobody asking. A build
+        // without the control client has no engine to start.
+        if cfg!(feature = "control") {
+            self.maintain_engine().await;
+        }
         Ok(())
     }
 }

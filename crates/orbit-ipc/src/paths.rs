@@ -22,8 +22,12 @@ pub struct Settings {
     pub assistant_name: Option<String>,
     pub hub_url: Option<String>,
     pub device_id: Option<String>,
-    pub helper_path: Option<PathBuf>,
     pub speak_responses: bool,
+    /// The app and the standalone daemon say where the helper is when they
+    /// start the engine, so nothing reads this any more. Accepted for
+    /// `config.toml` files that still name it, dropped on the next save.
+    #[serde(default, rename = "helper_path", skip_serializing)]
+    pub retired_helper_path: Option<PathBuf>,
     /// Accepted for config.toml files written before source persistence retired.
     #[serde(default, rename = "max_source_intents", skip_serializing)]
     pub retired_max_source_intents: u64,
@@ -95,8 +99,8 @@ impl Default for Settings {
             assistant_name: None,
             hub_url: None,
             device_id: None,
-            helper_path: None,
             speak_responses: false,
+            retired_helper_path: None,
             retired_max_source_intents: 0,
             retired_max_source_bytes: 0,
             error_reports: false,
@@ -257,7 +261,6 @@ mod tests {
         "device_name",
         "hub_url",
         "device_id",
-        "helper_path",
         "speak_responses",
         "error_reports",
     ];
@@ -302,7 +305,6 @@ mod tests {
             hub_agents: Some(agents()),
             hub_url: Some("https://hub.example".into()),
             device_id: Some("device-1".into()),
-            helper_path: Some("/Applications/Orbit.app/Contents/MacOS/OrbitNative".into()),
             error_reports: true,
             ..Settings::default()
         };

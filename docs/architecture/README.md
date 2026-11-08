@@ -51,9 +51,11 @@ privacy latch. `orbit-mcp` exposes `orbit_devices`, `orbit_windows`,
 | `orbit-core` | Pure policies, state and typed contracts, with facts/time supplied |
 | `orbit-store` | Encrypted storage; receives its key, never opens Keychain or reads clocks |
 | `orbit-ipc` | Typed local transports, paths, configuration and reports |
-| `orbit-control` | The control engine's adapter: the verified CUA MCP client, the engine's processes and their cleanup; its decisions are `orbit-core`'s |
+| `orbit-control` | The control engine's adapter: the verified CUA MCP client, the engine's processes and their cleanup; its decisions are `orbit-core`'s; the daemon takes it only through its `control` feature, on by default |
+| `orbit-mac` | The effects only a Mac has: the native helper's process, the Keychain, the process's signals and the account's name; the daemon reaches them behind its `mac` feature |
+| `orbit-hub-client` | The client of the hub: the device's WebSocket and the HTTP calls made with its credential |
 | `orbit-daemon` | Runtime composition, capture, hub, helper and engine; standalone binary is development-only |
-| `orbit-app-core` | App client, projections and updater, without Tauri |
+| `orbit-app-core` | App client, projections and updater (behind its default `updater` feature), without Tauri |
 | `orbit-desktop` | Tauri shell linking the daemon into the app |
 
 Inside the daemon one actor owns the runtime (`daemon/runtime.rs`): a

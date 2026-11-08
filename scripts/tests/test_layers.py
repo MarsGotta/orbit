@@ -21,6 +21,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+import tomllib
+
 ROOT = Path(__file__).resolve().parents[2]
 GUARD = ROOT / "scripts" / "check" / "layers.py"
 TIMEOUT = 180
@@ -222,6 +224,12 @@ def render_rules(rules: dict) -> str:
     if "optional" in rules:
         lines += ["", "[optional]"]
         lines.extend(f"{name} = {json.dumps(uses)}" for name, uses in rules["optional"].items())
+    if "launch_only_in" in rules:
+        lines += ["", "[launch_only_in]"]
+        lines.extend(
+            f"{name} = {json.dumps(uses)}"
+            for name, uses in rules["launch_only_in"].items()
+        )
     lines += ["", "[engine]"]
     lines.extend(f"{key} = {json.dumps(value)}" for key, value in rules["engine"].items())
     runtime = rules["runtime"]
@@ -284,6 +292,7 @@ class Workspace(unittest.TestCase):
     def run_guard(self) -> subprocess.CompletedProcess:
         return subprocess.run(
             [sys.executable, "-B", str(GUARD), str(self.root)],
+            check=False,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,
@@ -327,6 +336,7 @@ class TheRealTree(unittest.TestCase):
         """The photo: layers.toml holds exactly what the repository has today."""
         result = subprocess.run(
             [sys.executable, "-B", str(GUARD)],
+            check=False,
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -338,6 +348,7 @@ class TheRealTree(unittest.TestCase):
         for arguments in (["--plan"], ["--plan", "guards"]):
             result = subprocess.run(
                 ["bash", "scripts/check.sh", *arguments],
+                check=False,
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
@@ -347,6 +358,25 @@ class TheRealTree(unittest.TestCase):
             steps = {line.split("\t")[0]: line for line in result.stdout.splitlines()}
             self.assertIn("guards-layers", steps, result.stdout)
             self.assertIn("scripts/check/layers.py", steps["guards-layers"])
+
+    def rules(self) -> dict:
+        return tomllib.loads(
+            (ROOT / "scripts" / "check" / "layers.toml").read_text(encoding="utf-8")
+        )
+
+    def test_the_engine_takes_the_control_client_only_through_its_feature(self) -> None:
+        optional = self.rules()["optional"].get("orbit-daemon", [])
+        self.assertIn("orbit-control", optional)
+        self.assertIn("orbit-mac", optional)
+
+    def test_the_app_core_launches_processes_only_in_its_updater(self) -> None:
+        self.assertEqual(
+            sorted(self.rules().get("launch_only_in", {}).get("orbit-app-core", [])),
+            [
+                "crates/orbit-app-core/src/update/installer.rs",
+                "crates/orbit-app-core/src/update/retirement.rs",
+            ],
+        )
 
 
 class Packages(Workspace):
@@ -714,6 +744,90 @@ class BadlyTypedRules(Workspace):
                 rules["runtime"][key] = value
                 self.write("scripts/check/layers.toml", render_rules(rules))
                 self.assert_cannot_check(f"[runtime].{key}", "whole number")
+
+
+class LaunchOnlyIn(Workspace):
+    """[launch_only_in]: a client package launches processes only in the files it names."""
+
+    def with_a_launcher_in_shell(self) -> None:
+        self.write(
+            "crates/shell/src/lib.rs", "pub fn show() {}\nmod update;\nmod other;\n"
+        )
+        self.write(
+            "crates/shell/src/update.rs",
+            """
+            pub fn install() {
+                let _ = std::process::Command::new("tool");
+            }
+            """,
+        )
+        self.write("crates/shell/src/other.rs", "pub fn quiet() {}\n")
+        self.rules["launch_only_in"] = {"shell": ["crates/shell/src/update.rs"]}
+        self.write_rules()
+
+    def test_a_launch_in_the_named_file_passes(self) -> None:
+        self.with_a_launcher_in_shell()
+        self.assert_passes()
+
+    def test_a_launch_outside_the_named_files_fails(self) -> None:
+        self.with_a_launcher_in_shell()
+        text = self.write(
+            "crates/shell/src/other.rs",
+            """
+            pub fn quiet() {
+                let _ = std::process::Command::new("tool");
+            }
+            """,
+        )
+        self.assert_problem(
+            self.run_guard(),
+            "launch_outside_allowed_files",
+            "crates/shell/src/other.rs",
+            line_number(text, "Command::new"),
+            "shell",
+        )
+
+    def test_a_launch_in_a_test_passes(self) -> None:
+        self.with_a_launcher_in_shell()
+        self.write(
+            "crates/shell/src/other.rs",
+            """
+            pub fn quiet() {}
+
+            #[cfg(test)]
+            mod tests {
+                #[test]
+                fn launches_in_tests_only() {
+                    let _ = std::process::Command::new("tool");
+                }
+            }
+            """,
+        )
+        self.assert_passes()
+
+    def test_an_allowance_the_file_no_longer_needs_fails(self) -> None:
+        self.with_a_launcher_in_shell()
+        self.write("crates/shell/src/update.rs", "pub fn install() {}\n")
+        self.assert_problem(
+            self.run_guard(), "launch_allowance_unused", "crates/shell/src/update.rs"
+        )
+
+    def test_a_line_for_a_package_that_does_not_exist_fails(self) -> None:
+        self.rules["launch_only_in"] = {"phantom": ["crates/phantom/src/lib.rs"]}
+        self.write_rules()
+        self.assert_problem(self.run_guard(), "rule_without_package", "phantom")
+
+    def test_rules_without_the_table_pass(self) -> None:
+        self.assertNotIn("launch_only_in", self.rules)
+        self.assert_passes()
+
+    def test_a_line_that_is_not_a_list_cannot_be_checked(self) -> None:
+        self.write(
+            "scripts/check/layers.toml",
+            render_rules(self.rules) + "\n[launch_only_in]\nshell = 3\n",
+        )
+        result = self.run_guard()
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
 
 
 class TheRuntimeRatchet(Workspace):

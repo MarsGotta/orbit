@@ -9,6 +9,7 @@ mod projection;
 pub use presentation::{PresentationCopy, PresentationText, UpdateBlocker};
 mod system_zone;
 pub mod topics;
+#[cfg(feature = "updater")]
 mod update;
 
 #[cfg(test)]
@@ -19,6 +20,7 @@ mod build_script;
 pub use client::DaemonClient;
 pub use contract::*;
 pub use local_time::{LocalZone, ZoneTransition};
+#[cfg(feature = "updater")]
 pub use update::{
     AUTOMATIC_CHECK_INTERVAL, DEFAULT_UPDATE_BASE_URL, UpdateInstallOutcome, UpdateService,
     UpdateState,

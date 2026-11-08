@@ -4,7 +4,11 @@
 
 pub mod capture;
 pub mod config;
+#[cfg(feature = "control")]
 pub use orbit_control::cua;
+#[cfg(not(feature = "control"))]
+#[path = "control_absent.rs"]
+pub mod cua;
 pub mod daemon;
 pub mod diagnostics;
 pub mod error_reports;

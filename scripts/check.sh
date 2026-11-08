@@ -284,6 +284,14 @@ run_rust_zone() {
     cargo clippy -p orbit-desktop --features pruebas --all-targets --locked -- -D warnings
   check_run rust-test-pruebas "rust · Orbit Pruebas identity and test bridge" --needs env-rust --cwd "$ROOT" \
     --report cargo -- cargo test -p orbit-core -p orbit-desktop --features orbit-desktop/pruebas --locked --no-fail-fast
+  # The engine built without its control client. Only this package: beside
+  # orbit-app-core, whose dev-dependency on the engine asks for its default
+  # features, cargo would unify the feature back on and the file would compile
+  # to 0 tests, which this step's report refuses as an empty suite.
+  check_run rust-engine-without-control "rust · the engine without its control client" --needs env-rust --cwd "$ROOT" \
+    --report cargo -- cargo test -p "$DAEMON_PACKAGE" --no-default-features --locked --test engine_without_control
+  check_run rust-app-core-without-updater "rust · app-core compiles without its updater" --needs env-rust --cwd "$ROOT" -- \
+    cargo check -p orbit-app-core --lib --no-default-features --locked
   # orbit-app-core's tests write the TypeScript of the bridge.
   check_run rust-generated "rust · generated TypeScript up to date" --after rust-test-app --cwd "$ROOT" -- \
     python3 -B "$CHECK_DIR/generated.py" compare "$GENERATED_TYPES" "$LOG_DIR/generated.json"

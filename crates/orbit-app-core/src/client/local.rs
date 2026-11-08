@@ -44,11 +44,13 @@ impl DaemonClient {
         })
     }
 
+    #[cfg(feature = "updater")]
     pub async fn update_installation_blocker(&self) -> Option<String> {
         let topics = self.inner.topics.read().await;
         crate::UpdateService::installation_blocker(&topics)
     }
 
+    #[cfg(feature = "updater")]
     pub fn set_update_result(&self, state: UpdateState) -> AppSnapshot {
         if self.local_snapshot().settings.update.state == crate::SettingsUpdateState::Installing {
             return self.composed_snapshot();

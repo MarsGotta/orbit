@@ -10,7 +10,9 @@ mod control;
 pub(crate) mod library;
 pub(crate) mod note;
 pub(crate) mod notes;
+#[cfg(feature = "updater")]
 mod status;
+#[cfg(feature = "updater")]
 pub(crate) use status::project_update;
 mod agenda;
 pub(crate) use agenda::*;

@@ -11,18 +11,19 @@ name = "orbit"
 path = "src/main.rs"
 required-features = ["mac"]
 
-# The Mac's own effects. On by default, so the binary, its tests, the app and
-# the build scripts all get them; an engine without a Mac is built with
-# `default-features = false`.
+# The Mac's own effects and its computer-control client. On by default, so the
+# binary, its tests, the app and the build scripts all get them; an engine
+# without a Mac is built with `default-features = false`.
 [features]
-default = ["mac"]
+default = ["mac", "control"]
 mac = ["dep:orbit-mac"]
+control = ["dep:orbit-control"]
 
 [dependencies]
 orbit-core = { path = "../orbit-core" }
 orbit-store = { path = "../orbit-store" }
 orbit-ipc = { path = "../orbit-ipc" }
-orbit-control = { path = "../orbit-control" }
+orbit-control = { path = "../orbit-control", optional = true }
 orbit-hub-client = { path = "../orbit-hub-client" }
 orbit-mac = { path = "../orbit-mac", optional = true }
 anyhow.workspace = true

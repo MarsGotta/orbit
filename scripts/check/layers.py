@@ -14,6 +14,10 @@ longer needs fails too, so every list only shortens.
   optional  the dependencies that must stay optional: the engine only takes
             them when the Mac turns their feature on. Each is also in
             [packages]. The table may be missing.
+  launch_only_in  a client package and the only files where it may launch a
+            process, read as [engine] reads command_new (masked, production
+            code). A launch elsewhere fails, and a file that stopped
+            launching fails too. The table may be missing.
   engine    the engine packages, and for each forbidden use (launching a
             process, branching on an Apple platform, the keychain crate,
             AppKit, Unix signals) the files that may still have it. Production
@@ -109,14 +113,14 @@ def shape_problems(rules: dict) -> list[str]:
     otherwise be read letter by letter, and pass."""
     problems = [
         f"[{table}] must be a table, and it is a {type(rules[table]).__name__}"
-        for table in ("packages", "optional", "engine", "runtime")
+        for table in ("packages", "optional", "launch_only_in", "engine", "runtime")
         if table in rules and not isinstance(rules[table], dict)
     ]
     if problems:
         return problems
     wrong_list = [
         f"[{table}].{name}"
-        for table in ("packages", "optional")
+        for table in ("packages", "optional", "launch_only_in")
         for name, value in rules.get(table, {}).items()
         if not is_text_list(value)
     ]
@@ -227,6 +231,7 @@ def check_packages(rules: dict, workspace: Workspace, report: Report) -> None:
     named = (
         set(allowed)
         | set(rules.get("optional", {}))
+        | set(rules.get("launch_only_in", {}))
         | set(rules["engine"]["packages"])
         | {rules["runtime"]["package"]}
     )
@@ -326,6 +331,33 @@ def check_engine(rules: dict, workspace: Workspace, root: Path, report: Report) 
             )
 
 
+def check_launchers(rules: dict, workspace: Workspace, root: Path, report: Report) -> None:
+    """A client package launches processes only in the files [launch_only_in] names."""
+    for package, allowed in sorted(rules.get("launch_only_in", {}).items()):
+        if package not in workspace.directories:
+            continue
+        launching: set[str] = set()
+        for file in production_files(workspace.directories[package]):
+            offsets = forbidden_offsets(file, "command_new")
+            if not offsets:
+                continue
+            path = relative(file.path, root)
+            launching.add(path)
+            if path not in allowed:
+                line = line_of(line_starts(file.masked), offsets[0])
+                report.add(
+                    "launch_outside_allowed_files",
+                    f"{path}:{line}: package {package} launches a process ({len(offsets)} uses) "
+                    "outside the files [launch_only_in] of layers.toml names",
+                )
+        for path in sorted(set(allowed) - launching):
+            report.add(
+                "launch_allowance_unused",
+                f"{path} no longer launches a process: remove it from [launch_only_in].{package} "
+                "in layers.toml",
+            )
+
+
 def module_of(file: RustFile, offset: int) -> tuple[str, ...]:
     """The module path at `offset`: the file's module and the inline modules around it."""
     inline = [
@@ -402,6 +434,7 @@ def check(root: Path) -> int:
     report = Report()
     check_packages(rules, workspace, report)
     check_optional(rules, workspace, report)
+    check_launchers(rules, workspace, root, report)
     check_engine(rules, workspace, root, report)
     check_forbidden_crates(rules, workspace, report)
     check_runtime(rules, workspace, report)
