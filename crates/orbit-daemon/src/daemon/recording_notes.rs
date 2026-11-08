@@ -59,8 +59,6 @@ mod supervised;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-use crate::platform::system::read_account_name;
 pub(super) use library::LibraryRuntime;
 pub(super) use outbox::{Lane, Outbox};
 

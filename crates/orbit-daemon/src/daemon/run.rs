@@ -1,6 +1,7 @@
 //! The daemon's life in order: its start and recovery, the loop, its closure.
 use super::*;
 
+#[cfg(feature = "mac")]
 pub async fn run(paths: Paths, development: bool) -> Result<()> {
     run_with_helper(paths, development, None).await
 }
@@ -8,6 +9,7 @@ pub async fn run(paths: Paths, development: bool) -> Result<()> {
 /// The whole daemon, until its closure ends. Orbit.app runs it on a thread of
 /// its own (`apps/desktop/src-tauri/src/daemon_thread.rs`); the
 /// development binary `orbit` runs it on its main thread.
+#[cfg(feature = "mac")]
 pub async fn run_with_helper(
     paths: Paths,
     development: bool,

@@ -2,19 +2,24 @@
 """Each package uses only the packages its layer allows, the engine stays free
 of what belongs to a client, and the coordinator `Runtime` only shrinks.
 
-layers.toml, next to this guard, holds three exact rules. Like
-boundaries.toml and size-ratchet.toml it is a photo: what is new fails, and
-an entry the code no longer needs fails too, so every list only shortens.
+layers.toml, next to this guard, holds its rules. Like boundaries.toml and
+size-ratchet.toml it is exact: what is new fails, and an entry the code no
+longer needs fails too, so every list only shortens.
 
   packages  every workspace package and the workspace packages it uses as a
             normal dependency (dev and build dependencies are not part of
             what ships, so they do not count; optional and platform-only ones
             do). Read with `cargo metadata --no-deps --offline`, which builds
             nothing.
+  optional  the dependencies that must stay optional: the engine only takes
+            them when the Mac turns their feature on. Each is also in
+            [packages]. The table may be missing.
   engine    the engine packages, and for each forbidden use (launching a
-            process, branching on macOS, the keychain crate, AppKit) the
-            files that may still have it. Production code only, on the masked
-            source (code_scan.py): comments and string contents do not count.
+            process, branching on an Apple platform, the keychain crate,
+            AppKit, Unix signals) the files that may still have it. Production
+            code only, on the masked source (code_scan.py): comments and
+            string contents do not count. Also the crates no engine package
+            may depend on, under any name and of any kind of dependency.
   runtime   how many methods `impl Runtime` has in the coordinator's package,
             and how many of them live in a domain folder (`daemon::<d>`,
             where `<d>` owns a `…Handle` field of daemon/runtime.rs, the
@@ -22,7 +27,8 @@ an entry the code no longer needs fails too, so every list only shortens.
             when they do the guard asks to lower them in layers.toml.
 
 Exit status: 0 when the code matches layers.toml, 1 when it differs, 2 when
-it cannot check (an extra argument, no layers.toml, cargo metadata failing).
+it cannot check (an extra argument, no layers.toml or one of the wrong shape,
+cargo metadata failing).
 
 Usage: layers.py [ROOT]    ROOT defaults to the repository
 """
@@ -43,14 +49,21 @@ from rust_modules import RustFile, crate_files
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 CONFIG = Path("scripts") / "check" / "layers.toml"
-ENGINE_KEYS = ("command_new", "cfg_macos", "keyring", "appkit")
+ENGINE_KEYS = ("command_new", "cfg_macos", "keyring", "appkit", "unix_signals")
+FORBIDDEN_CRATES_KEY = "forbidden_crates"
 FORBIDDEN = {
-    "command_new": re.compile(r"\bCommand\s*::\s*new\b"),
-    "cfg_macos": re.compile(r"\btarget_os\s*=\s*\""),
+    "command_new": re.compile(
+        r"\bCommand\s*::\s*new\b"
+        r"|\bprocess\s*::\s*Command\b"
+        r"|\bprocess\s*::\s*\{[^}]*\bCommand\b"
+        r"|\bprocess\s*::\s*\*"
+    ),
+    "cfg_macos": re.compile(r"\btarget_(?:os|vendor)\s*=\s*\""),
     "keyring": re.compile(r"\bkeyring\b"),
     "appkit": re.compile(r"\b(AppKit|objc2_app_kit|cocoa)\b"),
+    "unix_signals": re.compile(r"\bsignal\s*::\s*(?:unix\b|\*|ctrl_c\b)|\bSignalKind\b"),
 }
-MACOS_VALUE = re.compile(r"target_os\s*=\s*\"macos\"")
+APPLE_VALUE = re.compile(r"target_(?:os\s*=\s*\"(?:macos|ios)\"|vendor\s*=\s*\"apple\")")
 HANDLE_FIELD = re.compile(r"\b(\w+)\s*:\s*(\w+)\s*::\s*(\w+Handle)\b")
 COORDINATOR = "Runtime"
 DOMAIN_PARENT = "daemon"
@@ -62,10 +75,15 @@ class CannotCheck(Exception):
 
 @dataclass
 class Workspace:
-    """The workspace packages, their directories and their normal workspace dependencies."""
+    """The workspace packages, their directories and their dependencies."""
 
     directories: dict[str, Path]
+    # Normal workspace dependencies.
     uses: dict[str, set[str]]
+    # The same, without the optional ones.
+    required: dict[str, set[str]]
+    # Every dependency of every kind, workspace or not: (crate, the name it is used under).
+    crates: dict[str, set[tuple[str, str]]]
 
 
 @dataclass
@@ -77,6 +95,49 @@ class Report:
         self.problems.append(f"{cause}: {text}")
 
 
+def is_text_list(value: object) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def is_count(value: object) -> bool:
+    # TOML's true and false are Python's bool, which is an int.
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def shape_problems(rules: dict) -> list[str]:
+    """What in layers.toml has the wrong type. A string where a list goes would
+    otherwise be read letter by letter, and pass."""
+    problems = [
+        f"[{table}] must be a table, and it is a {type(rules[table]).__name__}"
+        for table in ("packages", "optional", "engine", "runtime")
+        if table in rules and not isinstance(rules[table], dict)
+    ]
+    if problems:
+        return problems
+    wrong_list = [
+        f"[{table}].{name}"
+        for table in ("packages", "optional")
+        for name, value in rules.get(table, {}).items()
+        if not is_text_list(value)
+    ]
+    engine = rules.get("engine", {})
+    wrong_list += [
+        f"[engine].{key}"
+        for key in ("packages", *ENGINE_KEYS, FORBIDDEN_CRATES_KEY)
+        if key in engine and not is_text_list(engine[key])
+    ]
+    problems = [f"{name} must be a list of strings" for name in wrong_list]
+    runtime = rules.get("runtime", {})
+    if "package" in runtime and not isinstance(runtime["package"], str):
+        problems.append("[runtime].package must be a string")
+    problems += [
+        f"[runtime].{key} must be a whole number"
+        for key in ("methods", "in_domains")
+        if key in runtime and not is_count(runtime[key])
+    ]
+    return problems
+
+
 def read_rules(root: Path) -> dict:
     path = root / CONFIG
     if not path.is_file():
@@ -85,9 +146,16 @@ def read_rules(root: Path) -> dict:
         rules = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as error:
         raise CannotCheck(f"{CONFIG.as_posix()} is not valid TOML: {error}") from error
+    problems = shape_problems(rules)
+    if problems:
+        raise CannotCheck(f"{CONFIG.as_posix()}: {'; '.join(problems)}")
     engine = rules.get("engine", {})
     runtime = rules.get("runtime", {})
-    missing = [f"[engine].{key}" for key in ("packages", *ENGINE_KEYS) if key not in engine]
+    missing = [
+        f"[engine].{key}"
+        for key in ("packages", *ENGINE_KEYS, FORBIDDEN_CRATES_KEY)
+        if key not in engine
+    ]
     missing += [f"[runtime].{key}" for key in ("package", "methods", "in_domains") if key not in runtime]
     if "packages" not in rules:
         missing.insert(0, "[packages]")
@@ -115,15 +183,23 @@ def read_workspace(root: Path) -> Workspace:
         raise CannotCheck(f"cargo metadata printed no package list: {error}") from error
     names = {package["name"] for package in packages}
     directories = {package["name"]: Path(package["manifest_path"]).parent for package in packages}
-    uses = {
-        package["name"]: {
-            dependency["name"]
+    def normal(package: dict) -> list[dict]:
+        return [
+            dependency
             for dependency in package["dependencies"]
             if dependency.get("kind") is None and dependency["name"] in names
-        }
+        ]
+
+    uses = {package["name"]: {dep["name"] for dep in normal(package)} for package in packages}
+    required = {
+        package["name"]: {dep["name"] for dep in normal(package) if not dep.get("optional")}
         for package in packages
     }
-    return Workspace(directories, uses)
+    crates = {
+        package["name"]: {(dep["name"], dep.get("rename") or dep["name"]) for dep in package["dependencies"]}
+        for package in packages
+    }
+    return Workspace(directories, uses, required, crates)
 
 
 def relative(path: Path, root: Path) -> str:
@@ -148,7 +224,12 @@ def check_packages(rules: dict, workspace: Workspace, report: Report) -> None:
             f"package {name} has no line in [packages] of layers.toml; add it with the "
             "workspace packages its layer lets it use",
         )
-    named = set(allowed) | set(rules["engine"]["packages"]) | {rules["runtime"]["package"]}
+    named = (
+        set(allowed)
+        | set(rules.get("optional", {}))
+        | set(rules["engine"]["packages"])
+        | {rules["runtime"]["package"]}
+    )
     for name in sorted(named - workspace.uses.keys()):
         report.add("rule_without_package", f"layers.toml names {name}, which is not a workspace package")
     for name in sorted(workspace.uses.keys() & allowed.keys()):
@@ -165,13 +246,54 @@ def check_packages(rules: dict, workspace: Workspace, report: Report) -> None:
             )
 
 
+def check_optional(rules: dict, workspace: Workspace, report: Report) -> None:
+    """Each dependency in [optional] is in its package's rule and really is optional."""
+    for name, dependencies in sorted(rules.get("optional", {}).items()):
+        if name not in workspace.uses:
+            continue
+        allowed = set(rules["packages"].get(name, []))
+        for dependency in sorted(dependencies):
+            if dependency not in allowed:
+                report.add(
+                    "dependency_must_be_optional",
+                    f"{name} lists {dependency} in [optional], but its line in [packages] of "
+                    "layers.toml does not allow it: add it there or remove it from [optional]",
+                )
+            elif dependency not in workspace.uses[name]:
+                report.add(
+                    "dependency_no_longer_used",
+                    f"{name} no longer uses {dependency}: remove it from its line in [optional] "
+                    "of layers.toml",
+                )
+            elif dependency in workspace.required[name]:
+                report.add(
+                    "dependency_must_be_optional",
+                    f"{name} takes {dependency} as a required dependency; layers.toml lists it in "
+                    "[optional], so declare it with optional = true",
+                )
+
+
+def check_forbidden_crates(rules: dict, workspace: Workspace, report: Report) -> None:
+    """No engine package depends on a forbidden crate, whatever it is called there."""
+    engine = rules["engine"]
+    forbidden = set(engine[FORBIDDEN_CRATES_KEY])
+    for package in sorted(set(engine["packages"]) & workspace.crates.keys()):
+        for crate, alias in sorted(workspace.crates[package]):
+            if crate in forbidden:
+                report.add(
+                    "engine_forbidden_crate",
+                    f"engine package {package} depends on {crate}, under the name {alias}: "
+                    "that belongs to a client package",
+                )
+
+
 def forbidden_offsets(file: RustFile, key: str) -> list[int]:
     """Where `key` appears in the file's code, outside tests."""
     offsets = []
     for match in FORBIDDEN[key].finditer(file.masked):
         if file.in_test(match.start()):
             continue
-        if key == "cfg_macos" and not MACOS_VALUE.match(file.source, match.start()):
+        if key == "cfg_macos" and not APPLE_VALUE.match(file.source, match.start()):
             continue
         offsets.append(match.start())
     return offsets
@@ -279,7 +401,9 @@ def check(root: Path) -> int:
     workspace = read_workspace(root)
     report = Report()
     check_packages(rules, workspace, report)
+    check_optional(rules, workspace, report)
     check_engine(rules, workspace, root, report)
+    check_forbidden_crates(rules, workspace, report)
     check_runtime(rules, workspace, report)
     print(summary(rules, workspace, report))
     for problem in report.problems:

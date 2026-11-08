@@ -5,6 +5,7 @@ members = [
     "crates/orbit-ipc",
     "crates/orbit-control",
     "crates/orbit-hub-client",
+    "crates/orbit-mac",
     "crates/orbit-daemon",
     "crates/orbit-app-core",
     "apps/desktop/src-tauri",

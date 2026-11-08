@@ -2936,11 +2936,11 @@ dependencies = [
  "chrono",
  "directories",
  "futures-util",
- "keyring",
  "orbit-control",
  "orbit-core",
  "orbit-hub-client",
  "orbit-ipc",
+ "orbit-mac",
  "orbit-store",
  "png 0.18.1",
  "rand 0.9.5",
@@ -3020,6 +3020,19 @@ dependencies = [
  "tokio",
  "toml 0.9.12+spec-1.1.0",
  "uuid",
+]
+
+[[package]]
+name = "orbit-mac"
+version = "0.15.0"
+dependencies = [
+ "anyhow",
+ "keyring",
+ "orbit-core",
+ "orbit-ipc",
+ "rustix",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

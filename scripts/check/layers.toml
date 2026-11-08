@@ -1,36 +1,44 @@
 # The layers that scripts/check/layers.py enforces.
 #
-# A photo of the repository: what it has today is what is allowed. Every rule
-# is exact, like boundaries.toml and size-ratchet.toml: something new fails,
-# and an entry the code no longer needs fails too, so these lists only get
-# shorter.
+# Every rule is exact, like boundaries.toml and size-ratchet.toml: something
+# new fails, and an entry the code no longer needs fails too, so these lists
+# only get shorter.
 
 # Each workspace package and the workspace packages it uses as a normal
 # dependency (dev and build dependencies do not count). A new package needs
 # its line here; a new dependency between packages needs its layer to allow
 # it. The engine still uses orbit-control, a Mac client package: a later
-# step removes it.
+# step removes it. orbit-mac is a leaf with the Mac's own effects.
 [packages]
 orbit-core = []
 orbit-store = ["orbit-core"]
 orbit-ipc = ["orbit-core"]
 orbit-control = ["orbit-core"]
 orbit-hub-client = ["orbit-core"]
-orbit-daemon = ["orbit-control", "orbit-core", "orbit-hub-client", "orbit-ipc", "orbit-store"]
+orbit-mac = ["orbit-core", "orbit-ipc"]
+orbit-daemon = ["orbit-control", "orbit-core", "orbit-hub-client", "orbit-ipc", "orbit-mac", "orbit-store"]
 orbit-app-core = ["orbit-core", "orbit-ipc"]
 orbit-desktop = ["orbit-app-core", "orbit-core", "orbit-daemon", "orbit-ipc"]
 
+# Dependencies that must stay optional: the engine only takes them when the
+# Mac turns the feature on.
+[optional]
+orbit-daemon = ["orbit-mac"]
+
 # The engine packages, and what they must not do outside tests because it is
-# a client's job: launch a process (command_new), branch on
-# target_os = "macos" (cfg_macos), use the keychain crate (keyring) or AppKit
-# (appkit). Each list holds the files that still do it; the four keys are
-# always here, even when a list is empty.
+# a client's job: launch a process (command_new), branch on an Apple platform
+# (cfg_macos), use the keychain crate (keyring) or AppKit (appkit), or listen
+# for Unix signals (unix_signals). The lists stay empty: a file with one of
+# the forms the guard knows fails. forbidden_crates names the crates no engine
+# package may depend on, under any name.
 [engine]
 packages = ["orbit-daemon", "orbit-hub-client", "orbit-ipc", "orbit-store"]
-command_new = ["crates/orbit-daemon/src/platform/system.rs"]
-cfg_macos = ["crates/orbit-daemon/src/platform/system.rs"]
-keyring = ["crates/orbit-daemon/src/platform/system.rs"]
+command_new = []
+cfg_macos = []
+keyring = []
 appkit = []
+unix_signals = []
+forbidden_crates = ["keyring", "objc2-app-kit", "cocoa"]
 
 # The ratchet of the coordinator: the methods of `impl Runtime` in the
 # package, and how many of them sit in a domain folder (daemon::<domain>).

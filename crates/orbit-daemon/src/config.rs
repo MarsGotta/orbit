@@ -7,7 +7,8 @@ pub use orbit_ipc::{Paths, Settings, atomic_private_write};
 use std::fs;
 
 use crate::platform::Secrets;
-pub use crate::platform::system::{get_secret, set_secret};
+#[cfg(feature = "mac")]
+pub use orbit_mac::{get_secret, set_secret};
 
 pub use orbit_hub_client::validate_hub_url;
 

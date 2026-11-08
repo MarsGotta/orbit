@@ -40,9 +40,11 @@ mod run;
 mod runtime;
 mod runtime_build;
 use ipc_replies::*;
+pub use run::run_embedded;
 #[cfg(test)]
 use run::run_with_helper_inner;
-pub use run::{run, run_embedded, run_with_helper};
+#[cfg(feature = "mac")]
+pub use run::{run, run_with_helper};
 pub(crate) use runtime::MAX_PENDING_NATIVE;
 use runtime::*;
 mod agent_config;

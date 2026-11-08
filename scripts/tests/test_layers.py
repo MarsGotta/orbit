@@ -201,6 +201,8 @@ RULES = {
         "cfg_macos": ["crates/pilot/src/transport.rs"],
         "keyring": ["crates/pilot/src/transport.rs"],
         "appkit": [],
+        "unix_signals": [],
+        "forbidden_crates": ["keyring", "objc2-app-kit", "cocoa"],
     },
     "runtime": {"package": "pilot", "methods": 6, "in_domains": 4},
 }
@@ -217,6 +219,9 @@ def manifest(name: str, tables: dict[str, list[str]]) -> str:
 def render_rules(rules: dict) -> str:
     lines = ["[packages]"]
     lines.extend(f"{name} = {json.dumps(uses)}" for name, uses in rules["packages"].items())
+    if "optional" in rules:
+        lines += ["", "[optional]"]
+        lines.extend(f"{name} = {json.dumps(uses)}" for name, uses in rules["optional"].items())
     lines += ["", "[engine]"]
     lines.extend(f"{key} = {json.dumps(value)}" for key, value in rules["engine"].items())
     runtime = rules["runtime"]
@@ -387,6 +392,62 @@ class Packages(Workspace):
         self.assert_problem(self.run_guard(), "dependency_not_allowed", "hub-link", "relay")
 
 
+class OptionalDependencies(Workspace):
+    """[optional]: the Mac package only reaches the engine behind a feature."""
+
+    def make_relay_optional_in_pilot(self) -> None:
+        self.write(
+            "crates/pilot/Cargo.toml",
+            """
+            [package]
+            name = "pilot"
+            version = "0.0.0"
+            edition = "2021"
+            publish = false
+
+            [dependencies]
+            kernel = { path = "../kernel" }
+            relay = { path = "../relay", optional = true }
+
+            [features]
+            default = ["mac"]
+            mac = ["dep:relay"]
+            """,
+        )
+
+    def test_a_dependency_listed_optional_that_is_optional_passes(self) -> None:
+        self.make_relay_optional_in_pilot()
+        self.rules["optional"] = {"pilot": ["relay"]}
+        self.write_rules()
+        self.assert_passes()
+
+    def test_a_dependency_listed_optional_that_is_required_fails(self) -> None:
+        self.rules["optional"] = {"pilot": ["relay"]}
+        self.write_rules()
+        self.assert_problem(self.run_guard(), "dependency_must_be_optional", "pilot", "relay")
+
+    def test_a_dependency_listed_optional_outside_its_rule_fails(self) -> None:
+        self.rules["optional"] = {"pilot": ["gadget"]}
+        self.write_rules()
+        self.assert_problem(self.run_guard(), "dependency_must_be_optional", "pilot", "gadget")
+
+    def test_a_dependency_listed_optional_that_is_gone_fails(self) -> None:
+        self.dependencies["pilot"]["dependencies"].remove("relay")
+        self.write_manifests()
+        self.rules["optional"] = {"pilot": ["relay"]}
+        self.write_rules()
+        self.assert_problem(self.run_guard(), "dependency_no_longer_used", "pilot", "relay", "[optional]")
+
+    def test_an_optional_line_for_a_package_that_does_not_exist_fails(self) -> None:
+        self.rules["optional"] = {"phantom": ["kernel"]}
+        self.write_rules()
+        self.assert_problem(self.run_guard(), "rule_without_package", "phantom")
+
+    def test_rules_without_the_optional_table_pass(self) -> None:
+        self.assertNotIn("optional", self.rules)
+        self.assert_passes()
+
+
 class TheEngine(Workspace):
     def test_command_new_in_an_engine_file_outside_the_list_fails(self) -> None:
         text = self.append(
@@ -456,6 +517,203 @@ class TheEngine(Workspace):
             result, "engine_allowance_unused", "crates/pilot/src/transport.rs", "keyring"
         )
         self.assert_no_problem(result, "engine_forbidden_use")
+
+
+    def test_launching_a_process_through_an_import_alias_fails(self) -> None:
+        aliased = self.append(
+            "crates/pilot/src/daemon/ticks.rs",
+            """
+            use tokio::process::Command as Run;
+
+            fn go() {
+                let _ = Run::new("tool");
+            }
+            """,
+        )
+        grouped = self.append("crates/pilot/src/daemon/beta.rs", "use std::process::{Stdio, Command as Launch};\n")
+        wildcard = self.append("crates/relay/src/lib.rs", "use std::process::*;\n")
+        result = self.run_guard()
+        for path, text, needle, package in (
+            ("crates/pilot/src/daemon/ticks.rs", aliased, "process::Command", "pilot"),
+            ("crates/pilot/src/daemon/beta.rs", grouped, "process::{", "pilot"),
+            ("crates/relay/src/lib.rs", wildcard, "process::*", "relay"),
+        ):
+            with self.subTest(path=path):
+                line = line_number(text, needle)
+                self.assert_problem(result, "engine_forbidden_use", f"{path}:{line}", "command_new", package)
+
+    def test_a_process_type_that_launches_nothing_passes(self) -> None:
+        self.append("crates/pilot/src/daemon/ticks.rs", "use std::process::ExitStatus;\n")
+        self.assert_passes()
+
+    def test_every_apple_platform_condition_counts_as_macos(self) -> None:
+        vendor = self.append(
+            "crates/pilot/src/daemon/beta.rs",
+            """
+            #[cfg(target_vendor = "apple")]
+            fn on_apple() {}
+            """,
+        )
+        ios = self.append(
+            "crates/relay/src/lib.rs",
+            """
+            #[cfg(target_os = "ios")]
+            fn on_ios() {}
+            """,
+        )
+        result = self.run_guard()
+        vendor_line = line_number(vendor, "target_vendor")
+        ios_line = line_number(ios, 'target_os = "ios"')
+        self.assert_problem(
+            result, "engine_forbidden_use", f"crates/pilot/src/daemon/beta.rs:{vendor_line}", "cfg_macos", "pilot"
+        )
+        self.assert_problem(result, "engine_forbidden_use", f"crates/relay/src/lib.rs:{ios_line}", "cfg_macos", "relay")
+
+    def test_unix_signals_in_an_engine_file_fail(self) -> None:
+        unix = self.append("crates/pilot/src/daemon/ticks.rs", "use tokio::signal::unix::{signal, SignalKind};\n")
+        wildcard = self.append("crates/pilot/src/daemon/beta.rs", "use tokio::signal::*;\n")
+        ctrl_c = self.append(
+            "crates/relay/src/lib.rs",
+            """
+            pub async fn wait() {
+                let _ = tokio::signal::ctrl_c().await;
+            }
+            """,
+        )
+        kind = self.append(
+            "crates/pilot/src/daemon/alpha/deep.rs",
+            """
+            fn which(kind: SignalKind) -> SignalKind {
+                kind
+            }
+            """,
+        )
+        result = self.run_guard()
+        for path, text, needle, package in (
+            ("crates/pilot/src/daemon/ticks.rs", unix, "signal::unix", "pilot"),
+            ("crates/pilot/src/daemon/beta.rs", wildcard, "signal::*", "pilot"),
+            ("crates/relay/src/lib.rs", ctrl_c, "signal::ctrl_c", "relay"),
+            ("crates/pilot/src/daemon/alpha/deep.rs", kind, "SignalKind", "pilot"),
+        ):
+            with self.subTest(path=path):
+                line = line_number(text, needle)
+                self.assert_problem(result, "engine_forbidden_use", f"{path}:{line}", "unix_signals", package)
+
+    def test_signals_in_a_comment_or_a_client_package_pass(self) -> None:
+        self.append("crates/pilot/src/daemon/ticks.rs", "// tokio::signal::unix and SignalKind are a client's job.\n")
+        self.append("crates/gadget/src/lib.rs", "use tokio::signal::unix::{signal, SignalKind};\n")
+        self.assert_passes()
+
+    def test_a_forbidden_crate_under_another_name_fails(self) -> None:
+        self.append("crates/pilot/Cargo.toml", 'kr = { package = "keyring", version = "3" }\n')
+        self.assert_problem(self.run_guard(), "engine_forbidden_crate", "pilot", "keyring", "kr")
+
+    def test_a_forbidden_crate_for_one_platform_or_for_tests_fails(self) -> None:
+        self.append(
+            "crates/relay/Cargo.toml",
+            """
+            [target.'cfg(target_os = "macos")'.dependencies]
+            cocoa = "0.26"
+
+            [dev-dependencies]
+            objc2-app-kit = "0.3"
+            """,
+        )
+        result = self.run_guard()
+        self.assert_problem(result, "engine_forbidden_crate", "relay", "cocoa")
+        self.assert_problem(result, "engine_forbidden_crate", "relay", "objc2-app-kit")
+
+    def test_a_forbidden_crate_in_a_client_package_passes(self) -> None:
+        self.append("crates/gadget/Cargo.toml", 'keyring = "3"\n')
+        self.assert_passes()
+
+    def test_rules_without_a_key_of_the_engine_cannot_be_checked(self) -> None:
+        for key in ("unix_signals", "forbidden_crates"):
+            with self.subTest(key=key):
+                rules = copy.deepcopy(self.rules)
+                del rules["engine"][key]
+                self.write("scripts/check/layers.toml", render_rules(rules))
+                result = self.run_guard()
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(f"[engine].{key}", result.stderr)
+
+
+class BadlyTypedRules(Workspace):
+    """A layers.toml of the wrong shape cannot be checked: exit 2, its cause, no trace."""
+
+    def assert_cannot_check(self, *facts: str) -> None:
+        result = self.run_guard()
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 2, output)
+        self.assertNotIn("Traceback", output)
+        for fact in facts:
+            self.assertIn(fact, result.stderr)
+
+    def write_top_level(self, line: str) -> None:
+        """A key before the first table, where a table of that name would be."""
+        self.write("scripts/check/layers.toml", f"{line}\n{render_rules(self.rules)}")
+
+    def test_forbidden_crates_as_a_string_is_not_a_list_of_letters(self) -> None:
+        """It used to compare the crate names with k, e, y, r... and pass with the real keyring."""
+        self.append("crates/pilot/Cargo.toml", 'keyring = "3"\n')
+        self.rules["engine"]["forbidden_crates"] = "keyring"
+        self.write_rules()
+        self.assert_cannot_check("[engine].forbidden_crates", "list of strings")
+
+    def test_forbidden_crates_as_a_number_cannot_be_checked(self) -> None:
+        self.rules["engine"]["forbidden_crates"] = 3
+        self.write_rules()
+        self.assert_cannot_check("[engine].forbidden_crates", "list of strings")
+
+    def test_forbidden_crates_with_a_number_inside_cannot_be_checked(self) -> None:
+        self.rules["engine"]["forbidden_crates"] = ["keyring", 3]
+        self.write_rules()
+        self.assert_cannot_check("[engine].forbidden_crates", "list of strings")
+
+    def test_optional_as_a_number_cannot_be_checked(self) -> None:
+        self.write_top_level("optional = 3")
+        self.assert_cannot_check("[optional]", "table")
+
+    def test_optional_as_a_list_cannot_be_checked(self) -> None:
+        self.write_top_level('optional = ["relay"]')
+        self.assert_cannot_check("[optional]", "table")
+
+    def test_a_line_of_optional_that_is_a_number_cannot_be_checked(self) -> None:
+        self.rules["optional"] = {"motor": 3}
+        self.write_rules()
+        self.assert_cannot_check("[optional].motor", "list of strings")
+
+    def test_a_line_of_packages_that_is_a_number_cannot_be_checked(self) -> None:
+        self.rules["packages"]["motor"] = 3
+        self.write_rules()
+        self.assert_cannot_check("[packages].motor", "list of strings")
+
+    def test_a_table_that_is_a_number_cannot_be_checked(self) -> None:
+        for table in ("packages", "engine", "runtime"):
+            with self.subTest(table=table):
+                self.write("scripts/check/layers.toml", f"{table} = 3\n")
+                self.assert_cannot_check(f"[{table}]", "table")
+
+    def test_an_engine_list_that_is_a_string_cannot_be_checked(self) -> None:
+        for key in ("packages", "command_new", "cfg_macos", "keyring", "appkit", "unix_signals"):
+            with self.subTest(key=key):
+                rules = copy.deepcopy(self.rules)
+                rules["engine"][key] = "crates/pilot/src/transport.rs"
+                self.write("scripts/check/layers.toml", render_rules(rules))
+                self.assert_cannot_check(f"[engine].{key}", "list of strings")
+
+    def test_a_runtime_package_that_is_a_number_cannot_be_checked(self) -> None:
+        self.rules["runtime"]["package"] = 3
+        self.write_rules()
+        self.assert_cannot_check("[runtime].package", "string")
+
+    def test_a_runtime_count_that_is_no_number_cannot_be_checked(self) -> None:
+        for key, value in (("methods", '"6"'), ("in_domains", "true")):
+            with self.subTest(key=key):
+                rules = copy.deepcopy(self.rules)
+                rules["runtime"][key] = value
+                self.write("scripts/check/layers.toml", render_rules(rules))
+                self.assert_cannot_check(f"[runtime].{key}", "whole number")
 
 
 class TheRuntimeRatchet(Workspace):

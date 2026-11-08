@@ -3,6 +3,7 @@
 //! close and the owner's name. A Mac's own pieces are in [`system`].
 use futures_util::future::BoxFuture;
 
+#[cfg(feature = "mac")]
 pub mod system;
 
 /// What the engine is handed at start instead of looking for it itself.

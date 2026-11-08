@@ -853,38 +853,6 @@ async fn template_orders_go_to_the_hub_and_a_refusal_is_shown() -> Result<()> {
     Ok(())
 }
 
-/// The account's name labels the user's microphone on the hub: read from the
-/// program that prints it, “Me” when it fails or is late.
-#[tokio::test]
-async fn the_account_name_is_read_with_a_deadline_and_uses_the_english_fallback_when_late()
--> Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    let directory = tempfile::tempdir()?;
-    let script = |name: &str, body: &str| -> Result<std::path::PathBuf> {
-        let path = directory.path().join(name);
-        std::fs::write(&path, format!("#!/bin/sh\n{body}\n"))?;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))?;
-        Ok(path)
-    };
-    let fast = script("fast-id", "echo 'Ada Lovelace,,,'")?;
-    let slow = script("slow-id", "sleep 30; echo 'Nunca'")?;
-    let failing = script("failing-id", "exit 1")?;
-    // The programs that finish are not raced against the clock: macOS assesses
-    // a freshly written executable on its first exec, measured at 108–297 ms
-    // on an idle Mac (11–17 ms after), so a short deadline decided the result.
-    // The call returns when the program exits; this bound is never reached.
-    let unhurried = std::time::Duration::from_secs(60);
-    assert_eq!(
-        super::read_account_name(&fast, unhurried).await,
-        "Ada Lovelace"
-    );
-    assert_eq!(super::read_account_name(&failing, unhurried).await, "Me");
-    // Had it waited for the program, the name would be «Nunca».
-    let deadline = std::time::Duration::from_millis(300);
-    assert_eq!(super::read_account_name(&slow, deadline).await, "Me");
-    Ok(())
-}
-
 /// A privacy stop: nothing goes to the hub, the reads say why, and what is
 /// owed stays in the store for the rearm.
 #[tokio::test]
