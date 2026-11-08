@@ -5,7 +5,7 @@ import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import { Button } from "orbit-ui/design/Button";
 import { Skeleton } from "orbit-ui/design/Skeleton";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import styles from "./AssistantView.module.css";
 
 type Send = (command: AppCommand) => unknown;

@@ -5,9 +5,9 @@ import type {
   FeatureFrame,
   FeatureId,
   FrameRevision,
-} from "orbit-ui/bridge/generated";
+} from "../bridge/generated";
 import type { DaemonPort, Unsubscribe } from "../bridge/port";
-import { refusalOf } from "orbit-ui/bridge/refusal";
+import { refusalOf } from "../bridge/refusal";
 import { daemonWatchers, intercept } from "./daemon-watchers";
 import {
   newOp,

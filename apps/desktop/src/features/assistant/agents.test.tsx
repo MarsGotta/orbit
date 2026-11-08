@@ -6,13 +6,13 @@ import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { FeatureFrame } from "orbit-ui/bridge/generated";
-import { applyFrame } from "../../state/feature-frame";
+import { applyFrame } from "orbit-ui/state/feature-frame";
 import AssistantView from "./AssistantView";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
-import { conversationAgentName, primaryAgentName } from "../../state/agents";
+import { conversationAgentName, primaryAgentName } from "orbit-ui/state/agents";
 
 /** The window's list column, where the conversations are drawn. */
 function ColumnHost() {

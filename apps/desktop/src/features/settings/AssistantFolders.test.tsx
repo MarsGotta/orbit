@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import SettingsView from "./SettingsView";
 
 // Invented folders; only the fields Settings reads.

@@ -5,7 +5,7 @@ import { Button } from "orbit-ui/design/Button";
 import { Icon } from "orbit-ui/design/Icon";
 import { useModalFocus } from "orbit-ui/design/use-modal-focus";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { goTo } from "./assistant-route";
 import { ConnectStep, HubStep, KindStep, NameStep, ReadyStep } from "./AddSteps";

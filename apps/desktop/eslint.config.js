@@ -106,28 +106,6 @@ function viewZone(view) {
   };
 }
 
-const stateZone = {
-  files: ["src/state/**/*.{ts,tsx}"],
-  ignores: testFiles,
-  linterOptions: { noInlineConfig: true },
-  rules: {
-    "no-restricted-imports": [
-      "error",
-      {
-        patterns: [
-          tauri,
-          unnormalized,
-          packageByPath,
-          {
-            regex: String.raw`^(?:\.\./)+(?:features|app)(?:/|$)`,
-            message: "src/state/ may not import a view (src/features/) or the frame (src/app/).",
-          },
-        ],
-      },
-    ],
-  },
-};
-
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "src-tauri/gen"] },
   eslint.configs.recommended,
@@ -151,7 +129,6 @@ export default tseslint.config(
     rules: { "no-restricted-imports": ["error", { patterns: [tauri] }] },
   },
   ...views.map(viewZone),
-  stateZone,
   {
     // The showcase (`showcase.html`) is the app with an invented daemon: it
     // installs that daemon behind Tauri's IPC, so it imports Tauri's mocks.

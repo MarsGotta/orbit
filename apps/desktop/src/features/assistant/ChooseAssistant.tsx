@@ -4,11 +4,11 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
-import { useHeldChoice } from "../../state/use-held-choice";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { useHeldChoice } from "orbit-ui/state/use-held-choice";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { colorOf } from "./assistants";
-import { agentFor, agentsOf } from "../../state/agents";
+import { agentFor, agentsOf } from "orbit-ui/state/agents";
 import { StatusLine } from "./AssistantHome";
 import { SignInNotice } from "./SignInNotice";
 import styles from "./AssistantPages.module.css";

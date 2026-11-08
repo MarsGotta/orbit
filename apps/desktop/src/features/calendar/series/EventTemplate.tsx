@@ -1,10 +1,10 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
-import { refusalText, seriesRefusals } from "../../../state/library-refusal";
+import { refusalText, seriesRefusals } from "orbit-ui/state/library-refusal";
 
 import styles from "./EventTemplate.module.css";
-import { useHeldChoice } from "../../../state/use-held-choice";
+import { useHeldChoice } from "orbit-ui/state/use-held-choice";
 
 const GENERAL = "general";
 

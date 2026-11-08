@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { AppCommand } from "../bridge/generated";
 import { HUB_CONFIRMATION_MS } from "./ceilings";
 
 /**

@@ -5,7 +5,7 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
 import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
 import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { AssistantComposer } from "./AssistantComposer";
 import AssistantView from "./AssistantView";
 

@@ -1,5 +1,5 @@
 import { getCopy } from "orbit-ui/i18n";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { type CSSProperties, useEffect, useMemo, useRef } from "react";
 
 import { AllDayLane } from "./AllDayLane";

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Button } from "orbit-ui/design/Button";
 import { Switch } from "orbit-ui/design/Switch";

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { Notice } from "orbit-ui/bridge/generated/Notice";
-import type { MessagesPage } from "../../bridge/reads";
+import type { MessagesPage } from "orbit-ui/bridge/reads";
 import { useHandovers } from "./handover";
 import {
   ARES,

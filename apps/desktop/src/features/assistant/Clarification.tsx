@@ -4,7 +4,7 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
 import { Button } from "orbit-ui/design/Button";
 
-import { useHeldChoice } from "../../state/use-held-choice";
+import { useHeldChoice } from "orbit-ui/state/use-held-choice";
 import styles from "./AssistantView.module.css";
 
 export type Send = (command: AppCommand) => unknown;

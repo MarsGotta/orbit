@@ -7,7 +7,7 @@ import { AssistantComposer } from "../features/assistant/AssistantComposer";
 import { UnknownAssistant } from "../features/assistant/AssistantAvailability";
 import { briefingAgendaStatus } from "../features/briefing/BriefingSections";
 import { CalendarFeedback } from "../features/calendar/CalendarFeedback";
-import type { AppView as AppSnapshot } from "../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { NoticeBanner } from "./NoticeBanner";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";

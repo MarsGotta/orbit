@@ -1,15 +1,10 @@
-import type {
-  AppBootstrap,
-  AppCommand,
-  CommandReceipt,
-  FeatureFrame,
-} from "orbit-ui/bridge/generated";
-import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
-import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
-import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
-import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
-import type { NoticeClass } from "orbit-ui/bridge/generated/NoticeClass";
-import type { NoticeData } from "orbit-ui/i18n";
+import type { AppBootstrap, AppCommand, CommandReceipt, FeatureFrame } from "./generated";
+import type { AgentAnswer } from "./generated/AgentAnswer";
+import type { AgentCall } from "./generated/AgentCall";
+import type { VaultCall } from "./generated/VaultCall";
+import type { VaultOutcome } from "./generated/VaultOutcome";
+import type { NoticeClass } from "./generated/NoticeClass";
+import type { NoticeData } from "../i18n";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 import type { MenuAction, MenuState } from "./window-menu";
 

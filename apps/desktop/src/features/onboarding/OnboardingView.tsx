@@ -1,4 +1,4 @@
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useId, useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";

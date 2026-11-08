@@ -1,4 +1,4 @@
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
 import { AgendaList } from "./AgendaList";

@@ -1,4 +1,4 @@
-import type { AppView } from "../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 import { BriefingBody } from "../features/briefing/BriefingBody";
 import { appView, notesSnapshot } from "../features/notes/test-notes";

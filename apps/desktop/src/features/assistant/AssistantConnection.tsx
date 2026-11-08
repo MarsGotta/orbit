@@ -6,12 +6,12 @@ import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { Button } from "orbit-ui/design/Button";
 import { useFeedback } from "orbit-ui/design/feedback";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { Group, List } from "../settings/layout";
 import { callAgent } from "./agent-calls";
 import { healthOf, type Health } from "./assistants";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { SignInNotice } from "./SignInNotice";
 import styles from "./AssistantPages.module.css";
 

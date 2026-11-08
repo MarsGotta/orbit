@@ -4,7 +4,7 @@ import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
 import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
 import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
-import type { AppView } from "../../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import SettingsView from "../SettingsView";
 import { AgentCards } from "./AgentCards";
 

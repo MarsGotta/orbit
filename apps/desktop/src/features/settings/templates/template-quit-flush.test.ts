@@ -2,7 +2,7 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
-import { flushBeforeQuit } from "../../../state/quit-flush";
+import { flushBeforeQuit } from "orbit-ui/state/quit-flush";
 import { useTemplateEditor } from "./use-template-editor";
 
 // A template typed less than a second before Orbit quits is saved before it

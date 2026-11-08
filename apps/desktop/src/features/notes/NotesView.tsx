@@ -8,7 +8,7 @@ import { EmptyState } from "orbit-ui/design/EmptyState";
 import { Loading } from "orbit-ui/design/Spinner";
 import { ViewError } from "orbit-ui/design/ViewError";
 
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { MeetingsColumn } from "./MeetingsColumn";
 import { NoteDetail } from "./NoteDetail";
 import { NoteGone, NoteLoading, NoteReadFailure } from "./NoteReadStates";

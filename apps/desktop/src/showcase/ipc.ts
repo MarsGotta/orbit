@@ -8,7 +8,7 @@ import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
 import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 import type { AttachmentKind } from "orbit-ui/bridge/generated/AttachmentKind";
 import type { AttachmentSource } from "../bridge/attachments";
-import type { MessagesPage, SessionPage } from "../bridge/reads";
+import type { MessagesPage, SessionPage } from "orbit-ui/bridge/reads";
 import { bootstrapOf, framesOf } from "./base";
 import { attachmentBytes } from "./images";
 import { reactTo } from "./reactions";

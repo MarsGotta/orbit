@@ -1,5 +1,5 @@
 import type { AppView as AppSnapshot } from "../state/app-view";
-import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnection";
+import type { HubLinkConnection } from "./generated/HubLinkConnection";
 
 export function currentHubConnection(snapshot: AppSnapshot): HubLinkConnection {
   const projected = snapshot.settings.hub.connection;

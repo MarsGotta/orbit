@@ -4,11 +4,11 @@ import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 import { IconButton } from "orbit-ui/design/IconButton";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { assistantHash } from "./assistant-route";
 import { colorOf } from "./assistants";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { ProfileMenu } from "./ProfileMenu";
 import styles from "./AssistantView.module.css";
 

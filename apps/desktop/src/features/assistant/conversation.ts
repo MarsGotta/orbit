@@ -1,4 +1,4 @@
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 
 /** A turn is in flight while Deimos thinks or answers it. */

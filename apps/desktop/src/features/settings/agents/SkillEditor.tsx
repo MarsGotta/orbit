@@ -2,7 +2,7 @@ import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { Button } from "orbit-ui/design/Button";
 import { Dialog } from "orbit-ui/design/Dialog";
 
-import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
+import { asTextOver, useLocalDraft } from "orbit-ui/state/local-drafts";
 import styles from "./Agents.module.css";
 import { ByteCount } from "./parts";
 import { skillName, utf8Bytes } from "./skill-file";

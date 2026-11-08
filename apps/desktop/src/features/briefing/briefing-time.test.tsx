@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { expect, it } from "vitest";
 import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 import { isoWeekForDay, localDayIndex } from "../../local-time";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { localDateLabel } from "./briefing-clock";
 import { BriefingSections } from "./BriefingSections";
 import { timeLabel } from "../calendar/date";

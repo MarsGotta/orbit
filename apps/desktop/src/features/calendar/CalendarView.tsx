@@ -1,5 +1,5 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import { Button } from "orbit-ui/design/Button";
 

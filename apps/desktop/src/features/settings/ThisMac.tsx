@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { Button } from "orbit-ui/design/Button";
 import { Skeleton } from "orbit-ui/design/Skeleton";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";

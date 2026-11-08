@@ -1,8 +1,8 @@
 import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { MessagesPage, SessionPage } from "../../bridge/reads";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { MessagesPage, SessionPage } from "orbit-ui/bridge/reads";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import AssistantView from "./AssistantView";
 import { useAssistantSessions } from "./useAssistantSessions";
 

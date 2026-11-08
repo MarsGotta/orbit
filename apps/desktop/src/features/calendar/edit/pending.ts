@@ -13,7 +13,7 @@ import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
 import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 import type { WriteTarget } from "orbit-ui/bridge/generated/WriteTarget";
 import type { CalendarEvent } from "../eventLook";
-import { DELIVERY_MS } from "../../../state/ceilings";
+import { DELIVERY_MS } from "orbit-ui/state/ceilings";
 import { sameTarget, type Target, targetOf, updatedTarget } from "./commands";
 
 /**

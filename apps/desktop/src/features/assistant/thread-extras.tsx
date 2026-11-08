@@ -1,13 +1,13 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { Agent } from "orbit-ui/bridge/generated/Agent";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { Button } from "orbit-ui/design/Button";
 import { Loading } from "orbit-ui/design/Spinner";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { AssistantHome } from "./AssistantHome";
 import { healthOf } from "./assistants";
 import { ChooseAssistant } from "./ChooseAssistant";

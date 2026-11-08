@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import type { AppView } from "../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import SettingsView from "../features/settings/SettingsView";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 

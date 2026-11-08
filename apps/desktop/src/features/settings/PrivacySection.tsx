@@ -1,11 +1,11 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { Button } from "orbit-ui/design/Button";
 import { Switch } from "orbit-ui/design/Switch";
 
-import { useHeldChoice } from "../../state/use-held-choice";
+import { useHeldChoice } from "orbit-ui/state/use-held-choice";
 import { Group, List, Row, SectionHeading } from "./layout";
 import { SystemPermissions } from "./Permissions";
 import styles from "./SettingsView.module.css";

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Notice } from "orbit-ui/bridge/generated/Notice";
 import type { NoticeCode } from "orbit-ui/bridge/generated/NoticeCode";
 import { failures } from "orbit-ui/i18n/es/failures";
-import { receive } from "../state/interceptor";
+import { receive } from "orbit-ui/state/interceptor";
 
 const OP = "5e1d2c3b-0000-4000-8000-000000000042";
 

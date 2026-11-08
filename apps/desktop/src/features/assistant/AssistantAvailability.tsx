@@ -5,7 +5,7 @@ import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnect
 import { Skeleton } from "orbit-ui/design/Skeleton";
 import { Loading } from "orbit-ui/design/Spinner";
 
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import styles from "./AssistantView.module.css";
 
 /**

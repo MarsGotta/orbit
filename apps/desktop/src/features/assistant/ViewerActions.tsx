@@ -5,7 +5,7 @@ import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
 import { refusalOf } from "orbit-ui/bridge/refusal";
 import { Button } from "orbit-ui/design/Button";
 import { useFeedback } from "orbit-ui/design/feedback";
-import { useTrack } from "../../state/use-in-flight";
+import { useTrack } from "orbit-ui/state/use-in-flight";
 
 import { attachmentFailure } from "./attachment-drafts";
 import styles from "./Viewer.module.css";

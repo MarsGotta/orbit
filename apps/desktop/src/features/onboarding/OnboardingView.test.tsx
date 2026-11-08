@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { OnboardingView } from "./OnboardingView";
 
 afterEach(cleanup);

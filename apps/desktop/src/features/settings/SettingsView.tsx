@@ -2,7 +2,7 @@ import { settingsSectionKey } from "orbit-ui/state/ui";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { ViewError } from "orbit-ui/design/ViewError";
 
 import { SETTINGS_SECTIONS, type SettingsSection } from "orbit-ui/state/ui";

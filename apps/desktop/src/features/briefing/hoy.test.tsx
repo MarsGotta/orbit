@@ -6,7 +6,7 @@ import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNex
 import type { BriefingPreviousActions } from "orbit-ui/bridge/generated/BriefingPreviousActions";
 import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { TEST_NOW_MS } from "../../test-clock";
 import BriefingView from "./BriefingView";
 

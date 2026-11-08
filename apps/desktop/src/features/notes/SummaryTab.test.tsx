@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
-import { flushBeforeQuit } from "../../state/quit-flush";
+import { flushBeforeQuit } from "orbit-ui/state/quit-flush";
 import { blur, editorNamed, focusAt, typeText } from "../editor/test-editor";
 import { SummaryTab } from "./SummaryTab";
 import { writtenNote } from "./test-notes";

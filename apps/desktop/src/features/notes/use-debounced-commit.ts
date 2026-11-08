@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useFlushOnQuit } from "../../state/quit-flush";
+import { useFlushOnQuit } from "orbit-ui/state/quit-flush";
 
 /** The user's edits reach the daemon one second after they pause, and at
  * least every five seconds while they keep typing. */

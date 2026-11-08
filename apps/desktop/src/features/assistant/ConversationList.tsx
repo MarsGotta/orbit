@@ -9,11 +9,11 @@ import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 import { Skeleton } from "orbit-ui/design/Skeleton";
 
 import { useNow } from "../../use-now";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { assistantHash } from "./assistant-route";
 import { colorOf } from "./assistants";
 import { openSession, sessionAgent } from "./AssistantHome";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { openingLine, useFirstLines } from "./first-lines";
 import { sessionWhen } from "./session-title";
 import styles from "./Sessions.module.css";

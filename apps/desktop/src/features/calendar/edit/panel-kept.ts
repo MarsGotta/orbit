@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocalDraft } from "../../../state/local-drafts";
+import { useLocalDraft } from "orbit-ui/state/local-drafts";
 import type { CalendarEvent } from "../eventLook";
 import { changesOf, type EventForm, hasChanges } from "./form";
 import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";

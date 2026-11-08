@@ -5,7 +5,7 @@ import { getCopy } from "orbit-ui/i18n";
  * a gesture Orbit already knows it cannot make says why before
  * anything is sent.
  */
-import type { AppView as AppSnapshot } from "../../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
 
 import type { CalendarEvent } from "../eventLook";

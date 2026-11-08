@@ -10,13 +10,13 @@ import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
 import type { Notice } from "orbit-ui/bridge/generated/Notice";
-import type { MessagesPage, SessionPage } from "../../bridge/reads";
+import type { MessagesPage, SessionPage } from "orbit-ui/bridge/reads";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { AssistantSessions } from "./AssistantSessions";
 import AssistantView from "./AssistantView";
-import { conversationAgentName } from "../../state/agents";
+import { conversationAgentName } from "orbit-ui/state/agents";
 
 // Wednesday 21 October 2026, 12:00 on the Mac's clock.
 export const NOW = new Date(2026, 9, 21, 12, 0).getTime();

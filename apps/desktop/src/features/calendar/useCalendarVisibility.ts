@@ -1,4 +1,4 @@
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useEffect, useMemo, useState } from "react";
 
 type CalendarItem = AppSnapshot["calendar"]["calendars"][number];

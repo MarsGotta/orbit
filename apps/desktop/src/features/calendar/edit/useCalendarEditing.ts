@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { AppView as AppSnapshot } from "../../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { CalendarEvent } from "../eventLook";
 import { type BlockedAction, blockedNotice, lockedReason } from "./notices";

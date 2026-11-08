@@ -9,7 +9,7 @@ import { Loading, Spinner } from "orbit-ui/design/Spinner";
 import { Skeleton } from "orbit-ui/design/Skeleton";
 import { ListColumn } from "../../app/shell-slots";
 
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { noteRowState } from "./note-row";
 import { dayGroups, groupFor, rowTime } from "./notes-format";
 import { openMeeting, routeRecordingId } from "./note-route";

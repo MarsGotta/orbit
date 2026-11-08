@@ -2,7 +2,7 @@ import { getCopy, type Catalogue } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import type { AppCommand, PermissionState } from "orbit-ui/bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { Button } from "orbit-ui/design/Button";
 import { Switch } from "orbit-ui/design/Switch";
 

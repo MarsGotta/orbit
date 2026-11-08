@@ -6,11 +6,11 @@ import type { AccessGroups } from "orbit-ui/bridge/generated/AccessGroups";
 import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import type { AssistantColor } from "orbit-ui/design/AssistantAvatar";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { callAgent } from "./agent-calls";
 import { colorOf, profileProblem } from "./assistants";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { useSignIn } from "./use-sign-in";
 
 export type Kind = "claude-code" | "codex" | "hermes";

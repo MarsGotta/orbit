@@ -12,7 +12,7 @@
  * - `useTrack()`: runs a call to the app outside `send` through the registry.
  */
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
-import type { FeatureId } from "orbit-ui/bridge/generated";
+import type { FeatureId } from "../bridge/generated";
 import { hasNoStateYet, inFlight, type WaitFilter } from "./in-flight";
 import type { OrbitState, OrbitStore } from "./orbit-store";
 

@@ -1,6 +1,6 @@
 import { getCopy } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
 import type { VoiceStatusSnapshot } from "orbit-ui/bridge/generated/VoiceStatusSnapshot";
 import { Button } from "orbit-ui/design/Button";

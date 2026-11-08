@@ -4,7 +4,7 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { CallSnapshot } from "orbit-ui/bridge/generated/CallSnapshot";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import AssistantView from "./AssistantView";
 import { callLimits } from "./CallView";
 

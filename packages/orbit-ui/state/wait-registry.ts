@@ -1,5 +1,5 @@
-import { getCopy } from "orbit-ui/i18n";
-import type { FeatureId, FrameRevision } from "orbit-ui/bridge/generated";
+import { getCopy } from "../i18n";
+import type { FeatureId, FrameRevision } from "../bridge/generated";
 import type { DaemonPort } from "../bridge/port";
 import { newOp, type Context, type ErrorOrigin } from "./interceptor";
 

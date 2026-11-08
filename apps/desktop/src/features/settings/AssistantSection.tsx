@@ -7,11 +7,11 @@ import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 import { Button } from "orbit-ui/design/Button";
 import { Icon } from "orbit-ui/design/Icon";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useNow } from "../../use-now";
 import { assistantHash } from "../assistant/assistant-route";
 import { colorOf } from "../assistant/assistants";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AssistantFolders } from "./AssistantFolders";
 import { ControlHistory } from "./ControlHistory";

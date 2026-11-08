@@ -7,19 +7,19 @@ import { ViewBoundary } from "../../app/ViewBoundary";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { VoiceStatusSnapshot } from "orbit-ui/bridge/generated/VoiceStatusSnapshot";
 import { panelFocus } from "../../bridge/panel-port";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { CopyProvider, useCopy } from "orbit-ui/i18n/CopyProvider";
-import { createOrbitStore, type OrbitStore } from "../../state/orbit-store";
-import { OrbitStoreProvider } from "../../state/use-in-flight";
+import { createOrbitStore, type OrbitStore } from "orbit-ui/state/orbit-store";
+import { OrbitStoreProvider } from "orbit-ui/state/use-in-flight";
 import { voiceStatusText } from "../../app/meeting-question/copy";
-import { primaryAgentName } from "../../state/agents";
+import { primaryAgentName } from "orbit-ui/state/agents";
 import { EndingCard, OfferCard, RecordingCard } from "./CallPanel";
 import { PanelAnswer } from "./PanelAnswer";
 import { PanelAsk } from "./PanelAsk";
 import { openPanelLink } from "./panel-links";
 import styles from "./CallPanel.module.css";
 import { usePanelSize } from "./use-panel-size";
-import { followWindowPreferences } from "../../state/window-preferences";
+import { followWindowPreferences } from "orbit-ui/state/window-preferences";
 
 /**
  * The root of the floating panel's window. It follows the same

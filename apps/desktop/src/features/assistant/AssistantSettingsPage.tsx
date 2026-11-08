@@ -7,7 +7,7 @@ import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
 import { Button } from "orbit-ui/design/Button";
 import { useFeedback } from "orbit-ui/design/feedback";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { AgentCards } from "../settings/agents/AgentCards";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { ControlHistory } from "../settings/ControlHistory";
@@ -16,7 +16,7 @@ import { callAgent } from "./agent-calls";
 import { assistantHash, goTo } from "./assistant-route";
 import { colorOf } from "./assistants";
 import { Connection } from "./AssistantConnection";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import { AssistantIdentity } from "./AssistantIdentity";
 import styles from "./AssistantPages.module.css";
 

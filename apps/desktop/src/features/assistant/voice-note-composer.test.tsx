@@ -3,7 +3,7 @@ import { act } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { AssistantComposer } from "./AssistantComposer";
 import AssistantView from "./AssistantView";
 

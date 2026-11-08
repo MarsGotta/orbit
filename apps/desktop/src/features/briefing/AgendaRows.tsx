@@ -1,6 +1,6 @@
 import { getCopy } from "orbit-ui/i18n";
 import { Fragment } from "react";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { BriefingAgendaSnapshot } from "orbit-ui/bridge/generated/BriefingAgendaSnapshot";
 import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 

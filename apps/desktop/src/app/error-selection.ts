@@ -1,5 +1,5 @@
 import { useStore } from "zustand";
-import type { OrbitStore } from "../state/orbit-store";
+import type { OrbitStore } from "orbit-ui/state/orbit-store";
 import type { ViewId } from "orbit-ui/state/ui";
 import { messageFor } from "./visible-error";
 

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { NoticeBanner } from "./NoticeBanner";
-import type { Message, VisibleClass } from "../state/interceptor";
+import type { Message, VisibleClass } from "orbit-ui/state/interceptor";
 
 const message = (kind: VisibleClass, op = kind): Message => ({
   op,

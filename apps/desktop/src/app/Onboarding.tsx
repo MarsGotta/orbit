@@ -1,6 +1,6 @@
-import type { AppView as AppSnapshot } from "../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { DaemonPort } from "../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { OnboardingView } from "../features/onboarding/OnboardingView";
 
 export type OnboardingRequest = "full" | "pair" | null;

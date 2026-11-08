@@ -1,7 +1,7 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useFeedback } from "orbit-ui/design/feedback";
 import { Field } from "orbit-ui/design/Field";
 import { Segmented } from "orbit-ui/design/Segmented";

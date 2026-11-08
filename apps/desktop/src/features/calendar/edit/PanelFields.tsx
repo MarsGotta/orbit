@@ -1,6 +1,6 @@
 import { getCopy } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { CalendarAvailability } from "orbit-ui/bridge/generated/CalendarAvailability";
 import { Segmented } from "orbit-ui/design/Segmented";
 

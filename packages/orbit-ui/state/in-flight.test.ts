@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AppBootstrap, FeatureFrame, FeatureId } from "orbit-ui/bridge/generated";
-import type { Notice } from "orbit-ui/bridge/generated/Notice";
+import type { AppBootstrap, FeatureFrame, FeatureId } from "../bridge/generated";
+import type { Notice } from "../bridge/generated/Notice";
 import type { DaemonPort } from "../bridge/port";
 import {
   CALL_TIMEOUT_SECONDS,

@@ -4,7 +4,7 @@ import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibraryS
 import type { NoteTemplateDetailSnapshot } from "orbit-ui/bridge/generated/NoteTemplateDetailSnapshot";
 import { Button } from "orbit-ui/design/Button";
 
-import { refusalText } from "../../../state/library-refusal";
+import { refusalText } from "orbit-ui/state/library-refusal";
 import { MarkdownEditor } from "../../editor/MarkdownEditor";
 import { type RemovedTemplate, type TemplateDraft, removedTemplate } from "./template-draft";
 import { TemplateSections } from "./TemplateSections";

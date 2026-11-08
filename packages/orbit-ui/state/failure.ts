@@ -1,7 +1,7 @@
-import { getCopy } from "orbit-ui/i18n";
-import type { AppCommand } from "orbit-ui/bridge/generated";
+import { getCopy } from "../i18n";
+import type { AppCommand } from "../bridge/generated";
 import type { Report } from "../bridge/port";
-import type { Refusal } from "orbit-ui/bridge/refusal";
+import type { Refusal } from "../bridge/refusal";
 
 /**
  * What a failure offers besides its words: the code of its op to share,

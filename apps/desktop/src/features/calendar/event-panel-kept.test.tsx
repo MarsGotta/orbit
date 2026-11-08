@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { WriteOutcome } from "orbit-ui/bridge/generated/WriteOutcome";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useUiStore } from "orbit-ui/state/ui";
 import { FIXTURE_WEEK_START_MS } from "../../test-clock";
 import CalendarView from "./CalendarView";

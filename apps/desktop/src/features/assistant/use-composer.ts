@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
-import { asText, useLocalDraft } from "../../state/local-drafts";
+import { asText, useLocalDraft } from "orbit-ui/state/local-drafts";
 import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
 import type { ChatSnapshot } from "orbit-ui/bridge/generated/ChatSnapshot";
 import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnection";

@@ -5,7 +5,7 @@ import { Button } from "orbit-ui/design/Button";
 import { useFeedback } from "orbit-ui/design/feedback";
 import { ViewErrorActions } from "orbit-ui/design/ViewError";
 
-import { localizeMessage, type Failure, type Message } from "../state/interceptor";
+import { localizeMessage, type Failure, type Message } from "orbit-ui/state/interceptor";
 import styles from "./FailureActions.module.css";
 
 /** «Copiar el código» → «✓ Copiado»: only the code goes to the clipboard. */

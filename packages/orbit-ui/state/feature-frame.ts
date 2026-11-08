@@ -1,4 +1,4 @@
-import type { FeatureFrame, FrameRevision } from "orbit-ui/bridge/generated";
+import type { FeatureFrame, FrameRevision } from "../bridge/generated";
 import type { AppView } from "./app-view";
 
 export function newer(next: FrameRevision, previous: FrameRevision | undefined): boolean {

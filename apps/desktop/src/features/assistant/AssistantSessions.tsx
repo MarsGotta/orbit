@@ -1,13 +1,13 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { ListColumn } from "../../app/shell-slots";
 import { Button } from "orbit-ui/design/Button";
 import { Icon } from "orbit-ui/design/Icon";
 import { Skeleton } from "orbit-ui/design/Skeleton";
 import { Loading } from "orbit-ui/design/Spinner";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { goTo } from "./assistant-route";
 import { Conversations, useRows } from "./ConversationList";
 import { turnInFlight } from "./conversation";

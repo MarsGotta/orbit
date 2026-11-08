@@ -6,7 +6,7 @@ import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
 import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
 import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { OnboardingView } from "./OnboardingView";
 
 // Step 4, «Tus asistentes», and step 5, «Todo listo». The company, people

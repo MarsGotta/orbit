@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { ErrorOrigin } from "../state/orbit-store";
+import type { ErrorOrigin } from "orbit-ui/state/orbit-store";
 import type { ViewId } from "orbit-ui/state/ui";
 import {
   askAssistant,

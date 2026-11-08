@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 import type { NoteReadySnapshot } from "orbit-ui/bridge/generated/NoteReadySnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { MeetingNoteNotice } from "./MeetingNoteNotice";
 
 // One notice per meeting, from its end to its note: «Reunión guardada»

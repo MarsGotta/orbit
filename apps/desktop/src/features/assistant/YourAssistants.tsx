@@ -5,10 +5,10 @@ import { Icon } from "orbit-ui/design/Icon";
 import { Tooltip } from "orbit-ui/design/Tooltip";
 
 import { useNow } from "../../use-now";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { assistantHash, useAssistantRoute } from "./assistant-route";
 import { colorOf, rowWarning } from "./assistants";
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import styles from "./Sessions.module.css";
 
 // A limit's time passes while the column is open: read the clock each minute.

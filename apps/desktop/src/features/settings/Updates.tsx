@@ -1,7 +1,7 @@
 import { getCopy } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { Button } from "orbit-ui/design/Button";
 import { Spinner } from "orbit-ui/design/Spinner";
 

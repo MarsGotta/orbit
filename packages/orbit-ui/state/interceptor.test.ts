@@ -1,7 +1,7 @@
-import { getCopy } from "orbit-ui/i18n";
+import { getCopy } from "../i18n";
 import { describe, expect, it } from "vitest";
-import type { Notice } from "orbit-ui/bridge/generated/Notice";
-import type { NoticeCode } from "orbit-ui/bridge/generated/NoticeCode";
+import type { Notice } from "../bridge/generated/Notice";
+import type { NoticeCode } from "../bridge/generated/NoticeCode";
 import { genericFailure, receive, type Message } from "./interceptor";
 
 const OP = "7f3a2c9e-0000-4000-8000-000000000001";

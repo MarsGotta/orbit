@@ -4,7 +4,7 @@ import { Button } from "orbit-ui/design/Button";
 import { Icon } from "orbit-ui/design/Icon";
 import { useModalFocus } from "orbit-ui/design/use-modal-focus";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import { asTextOver, useLocalDraft } from "../../state/local-drafts";
+import { asTextOver, useLocalDraft } from "orbit-ui/state/local-drafts";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { useClipboardCopy, copyStatus } from "./CopyButton";
 import styles from "./AnswerEditor.module.css";

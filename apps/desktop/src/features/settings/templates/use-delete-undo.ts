@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonConnection } from "orbit-ui/bridge/generated/DaemonConnection";
-import { HUB_CONFIRMATION_MS } from "../../../state/ceilings";
-import { useWindowActions } from "../../../state/window-actions";
+import { HUB_CONFIRMATION_MS } from "orbit-ui/state/ceilings";
+import { useWindowActions } from "orbit-ui/state/window-actions";
 import type { Restoring } from "./restore-notice";
 import { type RemovedTemplate, newTemplateId, restoreCommand } from "./template-draft";
 

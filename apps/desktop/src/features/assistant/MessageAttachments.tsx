@@ -2,7 +2,7 @@ import { getCopy } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useRef, useState } from "react";
 import { openAttachment } from "../../bridge/attachments";
-import { useTrack } from "../../state/use-in-flight";
+import { useTrack } from "orbit-ui/state/use-in-flight";
 import type { Attachment } from "orbit-ui/bridge/generated/Attachment";
 import { refusalOf } from "orbit-ui/bridge/refusal";
 import { Button } from "orbit-ui/design/Button";

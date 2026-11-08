@@ -9,7 +9,7 @@ import { NoteDetail } from "../features/notes/NoteDetail";
 import { appView, notesSnapshot, writtenNote, library } from "../features/notes/test-notes";
 import AssistantView from "../features/assistant/AssistantView";
 import SettingsView from "../features/settings/SettingsView";
-import type { AppView } from "../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 
 const send = vi.fn(async () => true);
 function snapshot(): AppView {

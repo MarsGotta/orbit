@@ -1379,7 +1379,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "HUB_VOICE_DEADLINE_SECONDS",
         "unit": "seconds"
       }
@@ -1803,7 +1803,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "CALL_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1822,7 +1822,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "ATTACHMENT_CALL_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1841,7 +1841,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "HUB_HTTP_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1860,7 +1860,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "DOWNLOAD_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1879,7 +1879,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "READ_WAIT_SECONDS",
         "unit": "seconds"
       }
@@ -1898,7 +1898,7 @@
         "unit": "pages"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "MAX_LIST_PAGES",
         "unit": "pages"
       }
@@ -1917,7 +1917,7 @@
         "unit": "pages"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "MAX_TURN_PAGES",
         "unit": "pages"
       }

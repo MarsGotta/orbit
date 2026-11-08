@@ -3,7 +3,7 @@
 import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 import type { NotesSnapshot } from "orbit-ui/bridge/generated/NotesSnapshot";
 import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 
 export { library } from "./test-library";
 

@@ -11,7 +11,7 @@
  * in `contracts/constants.json` and compared with their source by
  * `scripts/tests/test_constants_copies.py`.
  */
-import type { AppCommand, FeatureId } from "orbit-ui/bridge/generated";
+import type { AppCommand, FeatureId } from "../bridge/generated";
 
 /** Copy: one call to the daemon, its queue included (`CALL_TIMEOUT_SECONDS`, orbit-ipc). */
 export const CALL_TIMEOUT_SECONDS = 10;

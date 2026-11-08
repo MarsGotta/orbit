@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
-import type { AssistantCursor, MessagesPage } from "../../bridge/reads";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AssistantCursor, MessagesPage } from "orbit-ui/bridge/reads";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import AssistantView from "./AssistantView";
 
 const copied = vi.hoisted(() => ({ texts: [] as string[] }));

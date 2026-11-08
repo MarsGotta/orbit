@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { type Match, findMatches } from "./transcript-search";
-import { useWindowActions } from "../../state/window-actions";
+import { useWindowActions } from "orbit-ui/state/window-actions";
 
 /**
  * The transcript's search, always at hand: the query, its matches and the one

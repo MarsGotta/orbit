@@ -5,12 +5,12 @@ import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { Agent } from "orbit-ui/bridge/generated/Agent";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
-import type { SessionPage } from "../../bridge/reads";
+import type { SessionPage } from "orbit-ui/bridge/reads";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { ShellSlots, useShellSlots } from "../../app/shell-slots";
 import { AssistantSessions } from "./AssistantSessions";
-import { conversationAgentName } from "../../state/agents";
+import { conversationAgentName } from "orbit-ui/state/agents";
 import { rememberFirstLine } from "./first-lines";
 import { sessionWhen } from "./session-title";
 

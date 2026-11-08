@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import type { Section } from "orbit-ui/bridge/generated/Section";
-import { useLocalDraft } from "../../state/local-drafts";
+import { useLocalDraft } from "orbit-ui/state/local-drafts";
 import type { Send } from "./send";
 import { useDebouncedCommit } from "./use-debounced-commit";
 

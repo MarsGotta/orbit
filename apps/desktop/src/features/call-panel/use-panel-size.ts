@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 
 /** Measure the intrinsic card plus refusals; the host constrains it to the work area. */
 export function usePanelSize(port: DaemonPort) {

@@ -10,9 +10,9 @@ import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
 import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
 import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
 import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
-import type { DaemonPort, FrameListener, Report, Unsubscribe } from "./port";
-import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
-import type { MenuAction, MenuState } from "./window-menu";
+import type { DaemonPort, FrameListener, Report, Unsubscribe } from "orbit-ui/bridge/port";
+import type { AssistantCursor, MessagesPage, SessionPage } from "orbit-ui/bridge/reads";
+import type { MenuAction, MenuState } from "orbit-ui/bridge/window-menu";
 
 const frameEvents: Record<FeatureId, string> = {
   status: "orbit://feature/status",

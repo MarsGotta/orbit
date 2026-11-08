@@ -10,7 +10,7 @@ import {
 import type { AttachmentLimits } from "orbit-ui/bridge/generated/AttachmentLimits";
 import { refusalOf } from "orbit-ui/bridge/refusal";
 
-import { useTrack } from "../../state/use-in-flight";
+import { useTrack } from "orbit-ui/state/use-in-flight";
 import { localRefusal, settled, type DraftAttachment } from "./attachment-drafts";
 
 /**

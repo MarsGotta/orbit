@@ -2,7 +2,7 @@ import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
 import type { PersonalityConfig } from "orbit-ui/bridge/generated/PersonalityConfig";
 
-import { asTextOver, useLocalDraft } from "../../../state/local-drafts";
+import { asTextOver, useLocalDraft } from "orbit-ui/state/local-drafts";
 import { Button } from "orbit-ui/design/Button";
 import type { useFeedback } from "orbit-ui/design/feedback";
 import { Group } from "../layout";

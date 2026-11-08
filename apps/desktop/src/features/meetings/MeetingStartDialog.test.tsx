@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { MeetingAudio } from "orbit-ui/bridge/generated/MeetingAudio";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { TEST_NOW_MS } from "../../test-clock";
 import { MeetingStartDialog } from "./MeetingStartDialog";
 

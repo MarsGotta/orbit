@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { currentHubConnection } from "../bridge/hub-state";
+import { currentHubConnection } from "orbit-ui/bridge/hub-state";
 import { Icon } from "orbit-ui/design/Icon";
 import { toggleTheme, useTheme } from "orbit-ui/design/theme";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useShellSlots } from "./shell-slots";
 import { settleHub, topBarNotices } from "./status-problem";
 import { TopBarNotices, NoticeActions } from "./TopBarNotices";
 import styles from "./TopBar.module.css";
-import { useWindowPreferences } from "../state/window-preferences";
+import { useWindowPreferences } from "orbit-ui/state/window-preferences";
 
 function SidebarToggle() {
   const copy = useCopy();

@@ -1,7 +1,7 @@
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 
-import { agentsOf } from "../../state/agents";
+import { agentsOf } from "orbit-ui/state/agents";
 import type { AgentPort } from "./agents/use-agent-config";
 import { AIFunctions } from "./AIFunctions";
 import { AIProviders } from "./AIProviders";

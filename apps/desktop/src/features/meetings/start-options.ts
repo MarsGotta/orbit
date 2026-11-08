@@ -2,7 +2,7 @@ import { dateTime } from "orbit-ui/i18n/locale";
 import { getCopy } from "orbit-ui/i18n";
 import type { MeetingAudio } from "orbit-ui/bridge/generated/MeetingAudio";
 import { effectiveTimezone } from "../../local-time";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 
 export type AudioSource = "system" | "microphone" | "application";
 

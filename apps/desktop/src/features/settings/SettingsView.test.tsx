@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { TEST_NOW_MS } from "../../test-clock";
 import SettingsView, { type SettingsViewProps } from "./SettingsView";

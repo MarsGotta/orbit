@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { CopyProvider, useCopy } from "orbit-ui/i18n/CopyProvider";
 import { getCopy } from "orbit-ui/i18n";
 import { NoticeBanner } from "../app/NoticeBanner";
-import { receive } from "../state/interceptor";
+import { receive } from "orbit-ui/state/interceptor";
 import { LanguageSetting } from "../features/settings/LanguageSetting";
 
 function ReadCopy() {

@@ -1,8 +1,8 @@
 import { getCopy } from "orbit-ui/i18n";
 import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 
-import type { AppView } from "../../state/app-view";
-import { agentFor } from "../../state/agents";
+import type { AppView } from "orbit-ui/state/app-view";
+import { agentFor } from "orbit-ui/state/agents";
 import { insertIntoComposer } from "../assistant/composer-insert";
 import { quoteFragment } from "../assistant/conversation-markdown";
 import type { EditorAssistant } from "../editor/MarkdownEditor";

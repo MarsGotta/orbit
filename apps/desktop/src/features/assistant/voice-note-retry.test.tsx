@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { VoiceNote } from "orbit-ui/bridge/generated/VoiceNote";
-import { genericFailure, receive } from "../../state/interceptor";
+import { genericFailure, receive } from "orbit-ui/state/interceptor";
 import { MessageList } from "./MessageList";
 
 // «Reintentar transcripción» on a voice note whose transcription failed asks

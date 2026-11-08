@@ -4,7 +4,7 @@ import type { NoteListItem } from "orbit-ui/bridge/generated/NoteListItem";
 import { Button } from "orbit-ui/design/Button";
 import { Toast } from "orbit-ui/design/Toast";
 
-import type { AppView } from "../../state/app-view";
+import type { AppView } from "orbit-ui/state/app-view";
 import { openMeeting } from "./note-route";
 import { noteRowState } from "./note-row";
 import type { Send } from "./send";

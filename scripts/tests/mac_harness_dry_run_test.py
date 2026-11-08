@@ -605,7 +605,7 @@ def test_the_draft_is_looked_for_in_webkit_s_own_storage(tmp_path):
 
 
 def test_the_texts_of_the_draft_check_are_the_app_s():
-    source = ROOT / "apps" / "desktop" / "src"
+    source = ROOT / "packages" / "orbit-ui"
     assert drafts_panel_checks.TEXTS["recovered"] == harness_copy.text("assistant.draftRecovered")
     assert drafts_panel_checks.TEXTS["composer"] == harness_copy.text("assistant.composerPrefix")
     drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")

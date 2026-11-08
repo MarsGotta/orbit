@@ -6,7 +6,7 @@ import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
 import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
 import type { WorkItem } from "orbit-ui/bridge/generated/WorkItem";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { PanelApp } from "../call-panel/PanelApp";
 import { AgentWorkView, workSummary } from "./AgentWork";
 import { MessageList } from "./MessageList";

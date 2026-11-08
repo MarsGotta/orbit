@@ -1,6 +1,6 @@
 import { getCopy } from "orbit-ui/i18n";
 import { useEffect } from "react";
-import type { AppView as AppSnapshot } from "../../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { CalendarSpan } from "orbit-ui/bridge/generated/CalendarSpan";
 
 import type { CalendarEvent } from "../eventLook";

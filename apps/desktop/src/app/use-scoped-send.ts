@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
-import type { OrbitState } from "../state/orbit-store";
+import type { OrbitState } from "orbit-ui/state/orbit-store";
 import type { ViewId } from "orbit-ui/state/ui";
 
 /** Sends a command tagged with the view whose error slot receives its refusal. */

@@ -1,8 +1,8 @@
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import { MeetingStartDialog } from "./MeetingStartDialog";
 import { Toast } from "orbit-ui/design/Toast";
-import type { VisibleClass } from "../../state/interceptor";
+import type { VisibleClass } from "orbit-ui/state/interceptor";
 
 export interface MeetingOverlaysProps {
   error: string | null;

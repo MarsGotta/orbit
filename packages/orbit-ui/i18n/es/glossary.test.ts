@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { genericFailure, receive } from "../../state/interceptor";
-import { accessGroups } from "orbit-ui/i18n/es/agents";
-import { es, globalShortcuts, spanish } from "orbit-ui/i18n/es/index";
+import { accessGroups } from "./agents";
+import { es, globalShortcuts, spanish } from "./index";
 
 // One thing, one name, everywhere: the words the interface uses for what it
 // shows, as the design's glossary renamed them.

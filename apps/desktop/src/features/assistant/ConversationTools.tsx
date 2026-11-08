@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
-import type { DaemonPort } from "../../bridge/port";
-import type { AssistantCursor } from "../../bridge/reads";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import type { AssistantCursor } from "orbit-ui/bridge/reads";
 import { Button } from "orbit-ui/design/Button";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { copyText } from "../../bridge/clipboard";

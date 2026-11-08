@@ -6,7 +6,7 @@ import { TopBarLeading } from "../../app/shell-slots";
 import { Button } from "orbit-ui/design/Button";
 import { Icon } from "orbit-ui/design/Icon";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import type { AgentPort } from "../settings/agents/use-agent-config";
 import { healthOf } from "./assistants";
 import { turnInFlight } from "./conversation";

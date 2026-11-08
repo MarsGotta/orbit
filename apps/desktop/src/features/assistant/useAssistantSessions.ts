@@ -2,8 +2,8 @@ import { getCopy } from "orbit-ui/i18n";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
-import type { DaemonPort } from "../../bridge/port";
-import type { AssistantCursor, SessionPage } from "../../bridge/reads";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import type { AssistantCursor, SessionPage } from "orbit-ui/bridge/reads";
 
 export type SessionsState = {
   items: ChatSessionSummary[];

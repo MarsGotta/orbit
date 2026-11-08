@@ -1,8 +1,8 @@
 import { expect, it, vi } from "vitest";
-import type { AppBootstrap, FeatureFrame } from "orbit-ui/bridge/generated";
-import type { Notice } from "orbit-ui/bridge/generated/Notice";
+import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
+import type { Notice } from "../bridge/generated/Notice";
 import type { DaemonPort } from "../bridge/port";
-import callFrames from "../../../../contracts/fixtures/call-notice-frames.json";
+import callFrames from "../../../contracts/fixtures/call-notice-frames.json";
 import { createOrbitStore } from "./orbit-store";
 
 function status(notices: Notice[], counter: number, epoch = "daemon-one"): FeatureFrame {

@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Notice } from "orbit-ui/bridge/generated/Notice";
-import { receive } from "../../../state/interceptor";
+import { receive } from "orbit-ui/state/interceptor";
 import { NoticeBanner } from "../../../app/NoticeBanner";
 
 function recovered(elapsedMs?: number) {
