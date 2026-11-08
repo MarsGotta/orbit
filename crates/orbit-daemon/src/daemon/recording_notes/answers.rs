@@ -331,9 +331,9 @@ fn dictionary_failure(target: String, outcome: Outcome) -> Option<core::Dictiona
 }
 
 impl crate::daemon::recording_notes::NotesHandle {
-    /// Every note read is read again once (a dictionary changed), rather than
-    /// one WebSocket event per historical recording.
-    fn invalidate_note_reads(&mut self) {
+    /// Every note read is read again once (a dictionary changed, or the hub
+    /// came back), rather than one WebSocket event per historical recording.
+    pub(super) fn invalidate_note_reads(&mut self) {
         let head = &mut self.head;
         head.touch();
         head.recordings.clear();
