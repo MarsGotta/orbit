@@ -3,6 +3,22 @@
 TLS is mandatory except explicit localhost development. Tokens are device-scoped;
 server-side settings choose the Hermes profile. Never trust a client device ID.
 
+**Route blocks.** Some routes are written as a block: a heading
+`` `METHOD /path` `` with the hub's own parameter names, then two tables. The
+first, `in`/`field`/`type`, says what the request carries (`path`, `query`,
+`body`) and the top-level fields of what the route answers (`reply`), every
+variant of the answer together. The second, `status`/`code`/`numbers`/`cause`,
+lists every refusal of that route by the answer's `code` (`refusal.code` may
+name its family instead: `busy`, `not_found`, `too_large`); its numbers are the
+fields of `refusal` besides `code` and `retry`. A row whose field or code is a
+link takes the rows of that section, and a shared shape names its fields as
+`field` rows. A block does not repeat the refusals any route can give, said here once:
+`401 unauthorized` (no credential, an unknown one, or a signature that does
+not verify), `403 revoked`, `403 tls_required`, `403 origin_forbidden`,
+`500 internal_error` (whatever the route did not foresee, without its text),
+and `507 storage_full` and `507 quota_exceeded` (see «A refusal travels as…»
+in [Choices and questions](#choices-and-questions)).
+
 `POST /v1/pair` accepts `{code,name,kind?,capabilities?,installation_id?}` and
 returns `{device_id,token}`. Codes are one-use and short-lived; create/revoke
 through the hub's local admin CLI. `kind` is `mac` or `phone` (absent: `mac`).
@@ -21,6 +37,14 @@ every group.
 never changed (a restored copy keeps it); it is no secret, it only says which
 hub answers at that address. `ready` says the same `hub_id`. Absent from an
 older hub, in both: the Mac keeps none.
+`GET /health/deps`, anonymous too, says whether the services the hub uses
+answer; see [Dependency health](#dependency-health).
+
+`GET /openapi.json` is anonymous: FastAPI's description of the hub's HTTP
+routes, without the signed `/internal/v1/*` routes and the WebSocket.
+Of it only `info.version` is contract: the hub's installed version, or
+`unknown` for a checkout that was never installed. The hub's activation reads
+it to check which version answers, because `/health` does not say.
 
 `GET /v1/sessions?before=&limit=` uses the device bearer token and returns
 `{"sessions":[{"id":string,"agent_id"?:string,"created_at_ms":integer,"last_at_ms":integer,
@@ -62,6 +86,36 @@ session yields `404 session_not_found`.
 
 `POST /v1/recordings/{uuid}/transcript/retry` uses the same authentication and
 returns `{"requeued":nonnegative-integer}`. The recording ID is a canonical UUID.
+
+## Dependency health
+
+For a monitor that cannot reach the hub's own services, such as one in a
+container network or on another machine. It is anonymous, so it says nothing
+but fixed names: never a URL, a host, an error text or anything a dependency
+answered; why one failed goes to the hub's log (`dependency_unavailable`).
+
+The hub probes, in parallel, at most 3 s each (`PROBE_TIMEOUT_SECONDS`):
+`whisper`, the meeting speech-to-text (`[meeting_transcription]`), whose
+`GET /health` must answer 2xx; `hermes`, the Hermes the hub's Hermes agents
+use, only when one is configured, where any HTTP answer below 500 to `GET /`
+counts; and `processing`, the notes model, only when `[processing]` is
+configured, with any answer below 500 to its endpoint. One round answers
+every caller for 10 s (`CACHE_SECONDS`), so the route cannot be used to
+hammer those services. An answer says the service is up and answering HTTP,
+not that a transcription or a turn would succeed.
+
+### `GET /health/deps`
+
+`200 {"ok":true}` when every probed service answered; otherwise
+`503 {"ok":false,"failing":["whisper"]}`, an answer, not a refusal: it
+carries no `code`.
+
+| in | field | type | |
+|---|---|---|---|
+| reply | `ok` | boolean | every probed service answered |
+| reply | `failing` | [string] | only with `ok:false`: the names that did not, in the order above |
+
+It has no refusals of its own.
 
 ## Local daemon IPC
 
@@ -436,7 +490,7 @@ this identity and the name at request time in action history. Events from older
 hubs omit `agent`; Macs treat that absence as an unknown author, not as the
 current default assistant. Older Macs ignore this additive field.
 
-An answered or refused `/internal/v1/device/request` updates the active device's
+An answered or refused `POST /internal/v1/device/request` updates the active device's
 durable `last_seen`; a timeout does not fabricate activity.
 
 A refusal travels as `{"refusal":{"code":<code>,"retry":<policy>,…}}`. The code
@@ -537,7 +591,8 @@ speaks of itself. A Mac whose helper says nothing handles every group.
 Meetings have no sharing switch. Retired `PUT /v1/meetings-sharing` is no longer
 called by the daemon.
 
-`POST /internal/v1/meetings/list`, `…/transcript` and `…/note` use
+`POST /internal/v1/meetings/list`, `POST /internal/v1/meetings/transcript` and
+`POST /internal/v1/meetings/note` use
 `orbit_meetings_bridge_v1`, a dedicated key and `X-Orbit-Meetings-` headers.
 Signatures cover exact method, path and body. Each route has its own
 `Authenticator`; a signature for one route cannot open another. Invalid
@@ -583,8 +638,10 @@ the owner, explicit user renames, otherwise “Otra persona”.
 “Micrófono local”. Pages allow 1 MiB; `after_index` continues within the chosen recording. Past-end requests yield `after_index_out_of_range`
 `{after_index,total_chars}`.
 
-`meetings/note` takes `{device_id,recording_id}` and returns the same note the
-UI reads: `{recording_id,state,revision,progress,note,edited,owner_name,
+`meetings/note` takes `{device_id,recording_id}` and returns the note as the
+user sees it, the model's note with the user's edits applied; that is not the
+shape of `GET /v1/recordings/{recording_id}/note`, which keeps them apart:
+`{recording_id,state,revision,progress,note,edited,owner_name,
 private_notes,superseded_edits,updated_at_ms}`. Owner is null until supplied;
 private notes come from the hub. `note` reflects edited title/sections
 (`edited:{title,sections}`) and each task's `done`. Regeneration keeps state and
@@ -932,6 +989,66 @@ an explicit template wins. `note.template_source` is `requested|series|default`
 (absent on older notes). Document `template_id` is the requested value or null
 when the hub chose. Title/event come from the manifest; owner/voices/private
 notes are read from the hub when generating.
+
+The note's two other routes read it and keep the user's edits. Neither checks
+that the hub holds the recording: an id it does not have reads as a note
+nobody asked for, and an edit to it as a note not written yet.
+
+#### `GET /v1/recordings/{recording_id}/note`
+
+The note as the hub keeps it: what the model wrote and the user's edits apart.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `recording_id` | string | a canonical UUID |
+| reply | [The note document](#the-note-document) | | |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_note_request` | | `recording_id` is not a canonical UUID |
+| 409 | `recording_id_ambiguous` | `matches_at_least` | a legacy UUID held by two recording devices |
+| 404 | `note_not_requested` | | nobody asked for this recording's note, or the hub does not have the recording |
+
+#### `PUT /v1/recordings/{recording_id}/note/edits`
+
+The user's edits, on the revision they started from. `title` and `sections`
+each replace the edited value whole when sent (absent or null keeps it); `done` marks
+are merged task by task. Each edit adds one to `revision`, and the hub
+announces `recording.changed`. The body is at most 512 KiB.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `recording_id` | string | a canonical UUID |
+| body | `base_revision` | integer ≥ 0 | required: the `revision` the edit started from |
+| body | `title` | string \| null | at most 200 characters; absent or null keeps it |
+| body | `sections` | [{name,markdown}] \| null | at most 12; a name of 1–80 characters, markdown at most 16 KiB of characters; absent or null keeps them |
+| body | `done` | {task id: boolean} | at most 60 marks |
+| reply | [The note document](#the-note-document) | | after the edit |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_payload` | | an empty body |
+| 413 | `too_large` | `resource`, `bytes`, `max_bytes` | a body over 512 KiB (`resource:"hub_request"`) |
+| 400 | `invalid_note_request` | `field`, `max`, `min`, `actual` | `recording_id` is not a canonical UUID or the body is not JSON (no numbers), or `field` (`base_revision`, `sections.0.name`…) breaks its bound |
+| 409 | `recording_id_ambiguous` | `matches_at_least` | a legacy UUID held by two recording devices |
+| 409 | `note_not_ready` | | the note has not been written yet, or the hub does not have the recording |
+| 409 | `note_revision_changed` | | the note is at another revision: read it again and send the same edit |
+
+#### The note document
+
+| in | field | type | |
+|---|---|---|---|
+| field | `recording_id` | string | |
+| field | `state` | string | `not_configured`, `waiting_transcript`, `queued`, `generating`, `failed` or `ready` |
+| field | `revision` | integer | grows with each edit and each new note |
+| field | `attempts` | integer | generation attempts |
+| field | `next_attempt_ms` | integer \| null | when the hub tries again, while `waiting_transcript` or `queued` |
+| field | `error` | object \| null | the last failure: its `code` and numbers |
+| field | `template_id` | string \| null | the template asked for; null when the hub chose |
+| field | `note` | object \| null | what the model wrote, without the user's edits; null until written |
+| field | `edits` | {title?,sections?,done} \| null | the user's edits; null when none. After a regeneration only `done` stays |
+| field | `superseded_edits` | object \| null | the edits the last regeneration set aside, with those of earlier ones under `earlier`, newest first |
+| field | `updated_at_ms` | integer | |
 
 ### Meetings for the Mac
 
@@ -1527,7 +1644,8 @@ Where each kind keeps them:
 ```json
 {"agent_id":"lyra","kind":"openai",
  "personality":{"text":"Eres Lyra. Hablas claro y breve.","editable":true,"max_bytes":16384},
- "access":{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true},
+ "access":{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true,
+                     "notes":true},
            "editable":true},
  "skills":{"editable":true,"max_skills":128,"max_skill_bytes":65536,
            "items":[{"name":"resumen-semanal","description":"Resume la semana en cinco puntos.",
@@ -1565,8 +1683,9 @@ Each write answers `200` with the agent's whole configuration, exactly as
 - `PUT /v1/agents/{agent_id}/personality` `{"text":"…"}`. An empty text
   clears it.
 - `PUT /v1/agents/{agent_id}/access`
-  `{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true}}`:
-  the five groups, each a boolean; a missing or extra key is refused.
+  `{"groups":{"screen":true,"control":false,"calendar":true,"meetings":true,"files":true,"notes":true}}`:
+  the six groups, each a boolean; a missing `notes` is on (a Mac before that
+  group sends five), any other missing key or an extra one is refused.
 - `PUT /v1/agents/{agent_id}/skills/{name}` `{"content":"---\nname: resumen-semanal\ndescription: Resume la semana en cinco puntos.\n---\n1. Lee la agenda…"}`
   creates the skill, enabled, or replaces its file keeping whether it is
   enabled. A `name` with an encoded slash (`mis%2Fskill`) is `422
@@ -1666,6 +1785,7 @@ the profile's skills against the 128.
 | `calendar` | `orbit_calendar` | `calendar_read` |
 | `meetings` | `orbit_meetings`, `orbit_transcript`, `orbit_note` | `/internal/v1/meetings/*` |
 | `files` | `orbit_files_list`, `orbit_files_search`, `orbit_files_read` | `files_list`, `files_search`, `files_read` |
+| `notes` | `orbit_notes_search`, `orbit_note_read`, `orbit_notes_index` | `POST /internal/v1/vault/read` (see [Notes](#notes-vault)) |
 
 `orbit_devices` and `orbit_skill` belong to none: the first names the Macs,
 the second reads the agent's own skills. Every group is on by default. A group off is
@@ -1791,7 +1911,8 @@ All use the device bearer token. Each write answers the whole list as
   conversations stay, listed with its `agent_id`; a turn in one is
   `agent_not_found`.
 - `POST /v1/agents/{agent_id}/sign-in` → a sign-in (below), started or the
-  one already waiting. `GET` reads it, `DELETE` cancels it: the vendor's tool
+  one already waiting. `GET /v1/agents/{agent_id}/sign-in` reads it, and
+  `DELETE /v1/agents/{agent_id}/sign-in` cancels it: the vendor's tool
   is stopped and the agent's account stays as it was. The Mac reads it again
   until it is no longer `waiting`; `done` is also published as
   `account:"signed_in"`.
@@ -2022,7 +2143,7 @@ and the migration from the earlier transcription preference.
 This compatibility route controls meeting transcription and listening together.
 Authenticated paired devices share its preference. `GET /v1/settings/transcription`
 returns `model` (`whisper` by default, or `mai`) and `key_configured` (boolean).
-`PUT` accepts those model values and an optional write-only `api_key` (1–4096
+`PUT /v1/settings/transcription` accepts those model values and an optional write-only `api_key` (1–4096
 characters, request body at most 25 KiB). Omission preserves the current key.
 The hub validates a replacement key or MAI selection with synthetic audio before
 saving the encrypted credential; no key is returned. Refusals retain the typed
@@ -2035,3 +2156,491 @@ regenerate the note. `transcript.final_pass.model`, when present, reports the
 model pinned to that job. All windows and retries keep their original model.
 See [transcription models](../docs/architecture/transcription-models.md) for
 provider shapes, privacy policy and the complete audio-path inventory.
+
+## Notes (vault)
+
+Notes («Notas») reads a Markdown vault the person connects to the hub: a
+folder on the hub or a Fast Note Sync server. The Mac reads it through the
+device routes below, with the device bearer token; an assistant, through the
+signed `POST /internal/v1/vault/read`. Reading writes nothing in the vault;
+reviewed writes are [Meeting distillation](#meeting-distillation). How notes,
+links, tasks and the vault's `SCHEMA.md` are read is in
+[vault](../docs/architecture/vault.md).
+
+Each bound protects its own resource: a request body of 16 KiB
+(`MAX_REQUEST_BYTES`); an answer of 4 MiB, JSON escaping included
+(`MAX_RESPONSE_BYTES`); a note of 256 KiB of UTF-8 (`MAX_NOTE_BYTES`); 100
+entries per page (`MAX_PAGE_SIZE`); 10,000 entries per walk of the vault,
+which also bounds how far pages go (`MAX_SCAN_ENTRIES`); 16 MiB of notes read
+by one read of the whole vault (`MAX_SCAN_BYTES`); 64 folder levels
+(`MAX_FOLDER_DEPTH`); two reads at once on the hub (`MAX_READS`); and, for
+Fast Note Sync, 7 s per read (`CONNECTOR_SECONDS`) and 1,703,936 bytes per
+answer it gives (`MAX_UPSTREAM_BYTES`: a note escaped sixfold plus 128 KiB).
+A read refreshes the connector's catalogue before it uses the hub's
+encrypted working copy, so a failing connector is refused, never answered
+from a stale copy.
+
+### `GET /v1/vault/config`
+
+The saved connection, without its token, or `{"configured":false}`.
+
+| in | field | type | |
+|---|---|---|---|
+| reply | [The Notes configuration](#the-notes-configuration) | | |
+
+It has no refusals of its own.
+
+### `PUT /v1/vault/config`
+
+Saves a connection once a real listing opened it: the folder is walked, or
+Fast Note Sync is asked for one page. A connection that does not open is
+refused and the saved one stays. A `fast_note_sync` body without `token`
+keeps the saved token only for the same kind, URL and vault. Another vault
+(kind, path, URL or vault changed) empties the hub's working copy; the
+proposals of the old one stay, and refuse while it is not connected.
+
+| in | field | type | |
+|---|---|---|---|
+| body | `kind` | `folder` \| `fast_note_sync` | required; every other field has a default (empty, `null` or `markdown`) |
+| body | `path` | string | the folder: an absolute path on the hub, at most 4096 characters |
+| body | `url` | string | Fast Note Sync's HTTP or HTTPS address, without credentials, query or fragment; at most 2048 characters |
+| body | `vault` | string | Fast Note Sync's vault, at most 256 characters |
+| body | `token` | string \| null | Fast Note Sync's token, printable ASCII without spaces, at most 8192 characters; never returned |
+| body | `link_style` | `markdown` \| `wikilink` | how written links look; `markdown` when absent |
+| body | `maintenance_model` | string | at most 256 characters, kept; the model that writes is the vault AI function's |
+| reply | [The Notes configuration](#the-notes-configuration) | | as saved |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_payload` | | an empty body |
+| 413 | `too_large` | `resource`, `bytes`, `max_bytes` | a body over 16 KiB (`resource:"hub_request"`) |
+| 400 | `vault_invalid_request` | `max_page_size`, `max_page` | a body that is not JSON, or a field missing, unknown, of another type or over its bound; `message_fields` names the `field` and the `rule`. The numbers are the read's page bounds, whatever the field |
+| 400 | `vault_folder_absolute` | | a folder path that is not absolute |
+| 400 | `vault_connection_fields` | | a Fast Note Sync URL, vault or token the hub cannot use |
+| — | [Connector refusals](#connector-refusals) | | the listing that checks the connection |
+
+### `DELETE /v1/vault/config`
+
+Forgets the connection and empties the working copy; the vault itself is not
+touched. Repeating it is harmless.
+
+| in | field | type | |
+|---|---|---|---|
+| reply | `configured` | boolean | always `false` |
+
+It has no refusals of its own.
+
+### `POST /v1/vault/read`
+
+One read operation. `list` lists a folder (`path`, empty for the root),
+folders first; `search` finds notes under `path` whose path, or text when
+`content`, has `query`, ignoring case (with Fast Note Sync, `path` is not
+applied: the search is its own); `read` gives one note with its index
+facts and the vault log's entries about it; `backlinks` and `outlinks` list
+the notes that link to `path` or that it links to; `index` gives the vault's
+`index.md`, or one the hub makes up from the catalogue (`synthesized:true`,
+paged) when the vault has none; `catalog` gives a page of note summaries with
+the vault's counts; `tasks` gives a page of the vault's tasks filtered by
+`state`, `query` and `path`.
+
+| in | field | type | |
+|---|---|---|---|
+| body | [A Notes read](#a-notes-read) | | |
+| reply | [A Notes page](#a-notes-page) | | `list`, `search`, `backlinks`, `outlinks` |
+| reply | [A Notes document](#a-notes-document) | | `read`, `index` |
+| reply | [The Notes catalog](#the-notes-catalog) | | `catalog` |
+| reply | [A Notes task page](#a-notes-task-page) | | `tasks` |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_payload` | | an empty body |
+| 413 | `too_large` | `resource`, `bytes`, `max_bytes` | a body over 16 KiB (`resource:"hub_request"`) |
+| — | [Notes read refusals](#notes-read-refusals) | | |
+
+### `POST /internal/v1/vault/read`
+
+The same read for an assistant (`orbit_notes_search`, `orbit_note_read`,
+`orbit_notes_index`), with the same answers. It is signed as the meeting
+reads are: `orbit_meetings_bridge_v1`, the meetings key or an agent's own
+meetings key, `X-Orbit-Meetings-` headers, over the exact body, sent as
+`Content-Type: application/json` and without a query. The agent is the one
+the key is bound to, else `agent_id`, else the default agent, and its `notes`
+access group must be on. `GET`, `PUT` and `DELETE` on this path are answered
+`401 unauthorized`.
+
+| in | field | type | |
+|---|---|---|---|
+| body | [A Notes read](#a-notes-read) | | |
+| reply | [A Notes page](#a-notes-page) | | `list`, `search`, `backlinks`, `outlinks` |
+| reply | [A Notes document](#a-notes-document) | | `read`, `index` |
+| reply | [The Notes catalog](#the-notes-catalog) | | `catalog` |
+| reply | [A Notes task page](#a-notes-task-page) | | `tasks` |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_request` | `received_bytes`, `max_bytes` | a body over 16 KiB (with the numbers); an empty body, a query string, another `Content-Type`, or a body that is not JSON when the key is an agent's (without them) |
+| 503 | `unavailable` | | the hub has no meetings key it can read |
+| 503 | `consumer_clock` | | the hub's own clock went back too far or too often; the route stays closed until the hub restarts |
+| 401 | `consumer_clock` | | `issued-at-ms` more than 30 s from the hub's clock |
+| 401 | `consumer_replay` | | a nonce already used |
+| 429 | `consumer_busy` | `operation`, `retry_after_ms` | 4096 nonces are still held; `retry_after_ms` is null |
+| 403 | `agent_identity_mismatch` | | an agent's own key with another `agent_id` |
+| 404 | `agent_not_found` | `agent_id`, `agent_ids` | an `agent_id` the hub does not have; `agent_ids` comma-joined |
+| 403 | `agent_access_disabled` | `agent_id`, `group` | the agent's `notes` group is off |
+| — | [Notes read refusals](#notes-read-refusals) | | |
+
+### The Notes configuration
+
+`{"configured":false}` alone when no vault is connected.
+
+| in | field | type | |
+|---|---|---|---|
+| field | `configured` | boolean | a vault is connected |
+| field | `kind` | string | `folder` or `fast_note_sync` |
+| field | `path` | string | the folder, or empty |
+| field | `url` | string | Fast Note Sync's address, or empty |
+| field | `vault` | string | Fast Note Sync's vault, or empty |
+| field | `has_token` | boolean | a token is saved; the token itself is never returned |
+| field | `link_style` | string | `markdown` or `wikilink` |
+| field | `maintenance_model` | string | the model distillation uses when one is configured, else the saved value |
+| field | `maintenance_enabled` | boolean | a model for distillation is configured |
+
+### A Notes read
+
+Strict: an unknown field or a value of another type is refused.
+
+| in | field | type | |
+|---|---|---|---|
+| field | `operation` | string | required: `list`, `search`, `read`, `backlinks`, `outlinks`, `index`, `catalog` or `tasks`; every other field has its default |
+| field | `path` | string | vault-relative, at most 4096 characters: the note of `read`, `backlinks` and `outlinks`; the folder of `list` and `search` and the note filter of `tasks` (empty: all) |
+| field | `query` | string | at most 256 characters: the words of `search`; the filter of `tasks` on owner and text |
+| field | `content` | boolean | `search` also looks in the notes' text; `true` when absent |
+| field | `page` | integer | from 1 (absent: 1), with `(page − 1) × page_size` below 10,000 |
+| field | `page_size` | integer | 1 to 100; 50 when absent |
+| field | `agent_id` | string \| null | `[a-z0-9-]`, 1 to 32 characters: the agent of a signed read; the device read ignores it |
+| field | `state` | string | the filter of `tasks`: `all` (absent), `open`, `done`, `overdue`, `mine` |
+| field | `owner` | string | at most 256 characters: who `mine` is |
+| field | `today` | string | `YYYY-MM-DD` or empty: what `overdue` compares with |
+
+A path is never absolute, never has `\`, `:`, a control character or a
+hidden or system component (`.name`, `__MACOSX`, `Thumbs.db`,
+`desktop.ini`), and a note's path ends in `.md`.
+
+### A Notes page
+
+Nested shapes in these sections are written whole; `?` marks a field that
+does not always come.
+
+| in | field | type | |
+|---|---|---|---|
+| field | `entries` | [{path,kind,title?,type?,snippet?}] | `kind` `note` or `folder`; only a `backlinks` entry has `title`, `type` and `snippet` (its first line with the link, at most 240 characters) |
+| field | `next_page` | integer \| null | the next `page`, or null on the last |
+
+### A Notes document
+
+One note, with what the hub reads in it. A task, wherever it appears, is
+`{file,line,block_id,text,who,who_path,done,project,source_id,source,tags,due,scheduled,start,done_at,priority,recurrence,id,depends_on}`:
+`line` counts from the file's first line, `done` is a boolean, `tags` and
+`depends_on` are lists of strings, and the other fields are strings, empty
+when the task does not say (`due`, `scheduled`, `start` and `done_at` are
+`YYYY-MM-DD`; `who` and `who_path` name the person note it links to). A log
+entry is `{date,time,action,title,path,by,detail,text}`, all strings: `text`
+holds a free-prose entry, the other fields a structured one.
+
+| in | field | type | |
+|---|---|---|---|
+| field | `path` | string | |
+| field | `type` | string | the note's type, as the vault's `SCHEMA.md` names it |
+| field | `role` | string | what the type is for: `person`, `project`, `meeting`, `topic`, `source`, `journal` or `note` |
+| field | `properties` | object | the frontmatter's OKF fields and the schema's mapped fields that the note has, by their Orbit names, with `status` always (`stable` when absent), and `verified` when the note has it (a single mapping comes as a one-item list) |
+| field | `frontmatter` | object | the original frontmatter, whole, as written |
+| field | `body` | string | the Markdown after the frontmatter |
+| field | `raw` | string | the whole file |
+| field | `outlinks` | [{target,path}] | its links that lead to a note of the vault |
+| field | `citations` | [{id,number,resource,title}] | its source citations, numbered from 1 |
+| field | `tasks` | [{file,line,block_id,text,who,who_path,done,project,source_id,source,tags,due,scheduled,start,done_at,priority,recurrence,id,depends_on}] | its tasks |
+| field | `dependencies` | [{prerequisite,dependent,relation}] | task dependencies, across the vault: `relation` is `requires` or `after` |
+| field | `dependency_tasks` | [{file,line,block_id,text,who,who_path,done,project,source_id,source,tags,due,scheduled,start,done_at,priority,recurrence,id,depends_on}] | the tasks those dependencies name |
+| field | `queries` | [{kind,lines,warnings,diagnostics:[{code,field,numbers}],tasks:[{file,line,block_id,text,who,who_path,done,project,source_id,source,tags,due,scheduled,start,done_at,priority,recurrence,id,depends_on}],total}] | its `tasks` query blocks: `kind` is `tasks`, at most 100 tasks each, `total` all that match |
+| field | `conformance` | {conformant,issues:[{field,code,message}]} | advisory, never a refusal |
+| field | `schema_warnings` | [string] | why the vault's `SCHEMA.md` is read with defaults |
+| field | `schema_diagnostics` | [{code,field,numbers,value?}] | the same, as codes and numbers |
+| field | `synthesized` | boolean | `true` for an `index` the hub made up |
+| field | `history` | [{date,time,action,title,path,by,detail,text}] | `read` only: a page of the log's entries about this note |
+| field | `history_next_page` | integer \| null | `read` only |
+| field | `next_page` | integer \| null | a made-up `index` only: its next page |
+
+### The Notes catalog
+
+| in | field | type | |
+|---|---|---|---|
+| field | `notes` | [{path,kind,title,type,role,description,state,start,links,backlink_count,task_count,modified_at}] | a page of summaries: `kind` is `note`, `links` the paths it links to, the counts integers, the rest strings |
+| field | `next_page` | integer \| null | |
+| field | `notes_count` | integer | catalogue notes that are not sources, in the whole vault |
+| field | `sources_count` | integer | sources |
+| field | `open_tasks` | integer | tasks not done |
+| field | `type_counts` | object | one count per type: its keys are the types of the catalogue's notes (`person`, `project`…, as the vault names them), its values integers |
+| field | `okf_version` | string | the root `index.md`'s `okf_version`, or empty |
+| field | `schema` | {path,body,owner,folders,types,fields:{stage,start},warnings,diagnostics:[{code,field,numbers,value?}]} | the vault's schema as the hub reads it: `owner` a string or null; `types` maps each type to `{role,folder?}` and `folders` each type that has one to its folder; `fields` names the vault's field for `stage` and `start` |
+| field | `recent` | [{date,time,action,title,path,by,detail,text}] | the log's four latest entries |
+
+### A Notes task page
+
+| in | field | type | |
+|---|---|---|---|
+| field | `tasks` | [{file,line,block_id,text,who,who_path,done,project,source_id,source,tags,due,scheduled,start,done_at,priority,recurrence,id,depends_on}] | a page of the tasks that pass the filters |
+| field | `total` | integer | how many pass them |
+| field | `counts` | {all,open,done,overdue,mine} | integers: how many of the tasks filtered by `query` and `path` each `state` would give |
+| field | `next_page` | integer \| null | |
+
+### Notes read refusals
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `vault_invalid_request` | `max_page_size`, `max_page` | a body that is not JSON, or a field missing, unknown, of another type or outside its bound; `message_fields` names the `field` and the `rule` |
+| 429 | `vault_busy` | `operation`, `retry_after_ms` | the hub is already doing two reads (`MAX_READS`); `retry_after_ms` is null |
+| 409 | `vault_not_connected` | | no vault is connected |
+| 404 | `vault_note_missing` | `upstream_code` | the note does not exist (`upstream_code` when Fast Note Sync said so: 428 or 430) |
+| 400 | `vault_not_markdown` | | a note path that does not end in `.md` |
+| 400 | `vault_scan_bytes` | `bytes`, `max_bytes` | a read of the whole vault over 16 MiB of notes: `search` with `content`, `backlinks`, `read`, `catalog`, `tasks` or an `index` the hub makes up (with Fast Note Sync, `search`, `backlinks` and `outlinks` are its own and read no notes) |
+| 400 | `vault_frontmatter_invalid` | `line` | a note whose YAML frontmatter cannot be read: the one asked for (`outlinks`, an existing `index.md`), or any note of the vault for `backlinks`, `read`, `catalog`, `tasks` and an `index` the hub makes up; `line` when known, and `message_code` names the rule |
+| 413 | `vault_response_too_large` | `bytes`, `max_bytes` | the answer is over 4 MiB |
+| — | [Note text refusals](#note-text-refusals) | | |
+| — | [Connector refusals](#connector-refusals) | | |
+
+### Note text refusals
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `vault_encoding` | | a note that is not UTF-8 |
+| 413 | `vault_note_too_large` | `bytes`, `max_bytes` | a note over 256 KiB |
+
+### Connector refusals
+
+What opening or reading the vault can be refused for, whichever route asked.
+All but the last are 400 whatever their cause, Fast Note Sync's or the
+network's included: the code names the cause, the status does not.
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `vault_path_refused` | | a path outside the vault or of the kind above, a folder path with a control character, or a folder or note reached only through a symbolic link or not a regular file; `message_code` names which, except for a request's path |
+| 400 | `vault_folder_missing` | | the folder does not exist on the hub |
+| 400 | `vault_folder_permission` | | the hub may not read it |
+| 400 | `vault_folder_changed` | | a folder changed or could not be opened during the walk |
+| 400 | `vault_scan_limit` | `entries`, `max_entries` | over 10,000 entries in the folder or in Fast Note Sync's catalogue, or links of one note |
+| 400 | `vault_depth_limit` | `max_depth` | over 64 folder levels |
+| 400 | `vault_sync_timeout` | `timeout_seconds` | Fast Note Sync did not finish in time: 7 s for a read, 120 s within a distillation |
+| 400 | `vault_sync_connection` | | Fast Note Sync could not be reached |
+| 400 | `vault_sync_http` | `upstream_status` | an HTTP status other than 200, 401 or 403 |
+| 400 | `vault_sync_shape` | | an answer the hub cannot read |
+| 400 | `vault_sync_missing` | `upstream_code` | Fast Note Sync does not have that vault (its code 414) |
+| 400 | `vault_sync_refused` | `upstream_code` | any other refusal of Fast Note Sync; `upstream_code` when it gave a number |
+| 400 | `vault_token_refused` | `upstream_status`, `upstream_code` | the token was refused: HTTP 401 or 403, or its code 507 |
+| 400 | `vault_token_expired` | `upstream_code` | the token expired (its code 508) |
+| 413 | `vault_response_too_large` | `bytes`, `max_bytes` | one answer of Fast Note Sync over 1,703,936 bytes |
+
+## Meeting distillation
+
+Once a meeting's note is ready, the hub prepares a proposal from its public
+transcript: changes to the notes of the vault, each with the quotes it rests
+on, for the person to review, edit and apply, discard or undo. It never reads
+the private notes, the note's sections or their edits. Without a connected
+vault or a model for the vault AI function, no proposal is made. How
+proposals are validated and written is in
+[distillation](../docs/architecture/distillation.md).
+
+All routes use the device bearer token; every paired Mac reviews every
+meeting's proposals. A proposal belongs to the vault connection it was
+prepared for: with another connected it is refused. Its `status` is
+`queued`, `preparing`, `proposed`, `failed`, `stale`, `applying`, `applied`,
+`discarded`, `undoing`, `undone` or `recovery_required`. The hub's worker
+prepares queued proposals and announces `recording.changed` for the meeting
+when one is done; the Mac reads it again. A proposal is stored encrypted and
+is at most 8 MiB (`MAX_PROPOSAL_BYTES`), the ceiling of a review's body too;
+it touches at most 24 notes (`MAX_CHANGES`); a job's vault reads and writes
+have 120 s (`CONNECTOR_JOB_SECONDS`). Repeating `apply`, `discard` or `undo`
+after it succeeded answers the proposal again.
+
+### `GET /v1/vault/distillations`
+
+The proposals of the connected vault, newest first.
+
+| in | field | type | |
+|---|---|---|---|
+| query | `meeting_id` | string | only this meeting's |
+| query | `page` | integer | from 1 (absent: 1) |
+| query | `page_size` | integer | 1 to 100; 50 when absent |
+| reply | `entries` | [proposal] | each as `GET /v1/vault/distillations/{proposal_id}` gives it |
+| reply | `next_page` | integer \| null | |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 422 | `invalid_request` | | `page` or `page_size` that is not an integer |
+| 400 | `vault_invalid_request` | `max_entries`, `max_page_size` | a page outside the first 10,000 entries or a page size outside 1 to 100 |
+| 409 | `vault_not_connected` | | no vault is connected |
+| 413 | `vault_response_too_large` | `bytes`, `max_bytes` | the answer is over 4 MiB |
+
+### `POST /v1/recordings/{recording_id}/distillations`
+
+Queues a proposal for the meeting; the worker prepares it. Each call queues a
+new one.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `recording_id` | string | |
+| reply | [A queued proposal](#a-queued-proposal) | | |
+| reply | [A proposal not made](#a-proposal-not-made) | | without a vault or a model |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| — | [Meeting refusals](#meeting-refusals) | | |
+| 413 | `vault_response_too_large` | `bytes`, `max_bytes` | the answer is over 4 MiB |
+
+### `GET /v1/vault/distillations/{proposal_id}`
+
+| in | field | type | |
+|---|---|---|---|
+| path | `proposal_id` | string | |
+| reply | [A prepared proposal](#a-prepared-proposal) | | in any status |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| — | [Proposal read refusals](#proposal-read-refusals) | | |
+
+### `PATCH /v1/vault/distillations/{proposal_id}`
+
+A review of a `proposed` proposal, on the revision it was read at: decisions
+on its contradictions and edits of its changes. The edited changes are
+validated again before they are saved; the revision grows by one. Strict: an
+unknown field or a value of another type is refused.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `proposal_id` | string | |
+| body | `revision` | integer ≥ 0 | required: the proposal's `revision`; `changes` and `decisions` default to empty |
+| body | `changes` | {change id: {include?,properties?,lines?}} | at most 24: `include` a boolean or null, `properties` new values by key (at most 40), `lines` new text by zero-based patch index (at most 80) |
+| body | `decisions` | {contradiction id: string} | at most 200: `incoming`, `current` or `both` |
+| reply | [A prepared proposal](#a-prepared-proposal) | | as revised |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 400 | `invalid_payload` | | an empty body |
+| 413 | `too_large` | `resource`, `bytes`, `max_bytes` | a body over 8 MiB (`resource:"hub_request"`) |
+| 400 | `vault_invalid_request` | `max_page_size`, `max_page` | a body that is not JSON, or a field missing, unknown, of another type or outside its bound; `message_fields` names the `field` and the `rule`. The numbers are the Notes read's page bounds, whatever the field |
+| — | [Proposal read refusals](#proposal-read-refusals) | | |
+| 409 | `distillation_not_proposed` | | the proposal is not `proposed` |
+| 409 | `stale_revision` | | the proposal is at another revision; read it again |
+| 400 | `distillation_edit_invalid` | | an edit of a change, property, line or contradiction the proposal does not have, or a new text or link that does not validate |
+| 413 | `vault_note_too_large` | `bytes`, `max_bytes` | an edited note over 256 KiB |
+| 413 | `distillation_too_large` | `bytes`, `max_bytes` | the revised proposal over 8 MiB |
+| 404 | `recording_not_found` | `resource` | the meeting was deleted (`resource:"recording"`) |
+
+### `POST /v1/vault/distillations/{proposal_id}/prepare`
+
+Queues a new proposal for the same meeting, which reads the vault afresh; the
+older one stays as it is.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `proposal_id` | string | |
+| reply | [A queued proposal](#a-queued-proposal) | | the new one |
+| reply | [A proposal not made](#a-proposal-not-made) | | without a model (without a vault it is `409 vault_not_connected`) |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| — | [Proposal read refusals](#proposal-read-refusals) | | |
+| — | [Meeting refusals](#meeting-refusals) | | |
+
+### `POST /v1/vault/distillations/{proposal_id}/{action}`
+
+`action` is `apply`, `discard` or `undo`. `apply` writes a `proposed`
+proposal whose every contradiction is decided: it first checks that no note
+it read changed, then journals and writes each note, the source, `index.md`
+and `log.md`; a write that fails is rolled back as far as can be read back.
+`discard` drops a `queued`, `proposed`, `failed` or `stale` proposal without
+writing anything. `undo` restores the notes an applied proposal wrote, unless
+they changed since (named in `skipped`), and reconciles an interrupted apply.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `proposal_id` | string | |
+| path | `action` | string | `apply`, `discard` or `undo` |
+| reply | [A prepared proposal](#a-prepared-proposal) | | after the action |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 404 | `distillation_action_invalid` | | another `action` |
+| — | [Proposal read refusals](#proposal-read-refusals) | | |
+| 409 | `distillation_not_proposed` | | `apply` on a proposal that is not `proposed`, or `discard` on one in any other status than those four |
+| 409 | `distillation_undecided` | | `apply` with a contradiction not decided |
+| 409 | `distillation_not_applied` | | `undo` on a proposal that was not applied |
+| 409 | `distillation_validation_failed` | | the final notes fail the schema or source validation; prepare again |
+| 409 | `distillation_content_changed` | `changed_notes` | notes it read changed since: the proposal becomes `stale` and nothing is written |
+| 409 | `distillation_write_failed` | `bytes`, `max_bytes`, `upstream_status`, `upstream_code`, `timeout_seconds`, `max_depth` | a write failed: the proposal says what was rolled back and what needs recovery, and its `error.code` names the cause (for example `distillation_content_changed`, a note changed just before its own write); the numbers are those of the failure, when it had some |
+| 409 | `vault_sync_version_missing` | | Fast Note Sync gave a note without its version and content hash, so the hub does not write |
+| 413 | `distillation_too_large` | `bytes`, `max_bytes` | the proposal with its journal over 8 MiB |
+| 404 | `recording_not_found` | `resource` | the meeting was deleted (`resource:"recording"`) |
+| — | [Note text refusals](#note-text-refusals) | | a note it reads or would write |
+| — | [Connector refusals](#connector-refusals) | | |
+
+### A queued proposal
+
+| in | field | type | |
+|---|---|---|---|
+| field | `id` | string | a UUID |
+| field | `meeting_id` | string | the recording |
+| field | `source_kind` | string | `meeting` |
+| field | `status` | string | |
+| field | `revision` | integer | grows with each review |
+| field | `created_at` | string | UTC ISO 8601 |
+| field | `changes` | array | |
+| field | `conflicts` | array | |
+| field | `quotes` | array | |
+| field | `new_source` | object \| null | |
+| field | `error` | object \| null | why it failed: `code` and its numbers |
+| field | `changed_paths` | [string] | |
+| field | `skipped` | [{path,code}] | |
+| field | `dropped` | [{path,code}] | |
+| field | `can_prepare_again` | boolean | |
+
+The items of `changes`, `conflicts`, `quotes`, `new_source`, `skipped` and
+`dropped` are described in [distillation](../docs/architecture/distillation.md).
+
+### A prepared proposal
+
+What the worker adds once the model answered. A proposal that failed may lack
+them; it always has its cause in `error.code`.
+
+| in | field | type | |
+|---|---|---|---|
+| field | [A queued proposal](#a-queued-proposal) | | |
+| field | `title` | string | the meeting's title |
+| field | `summary` | string | the source's summary |
+| field | `people` | object | each named speaker's person note, or null when none matches |
+| field | `by` | string | `orbit-hub/<installed version>` |
+
+### A proposal not made
+
+`200 {"prepared":false,"reason":"vault_or_model_not_configured"}`: no vault is
+connected or no model is configured, so nothing was queued.
+
+| in | field | type | |
+|---|---|---|---|
+| field | `prepared` | boolean | `false` |
+| field | `reason` | string | `vault_or_model_not_configured` |
+
+### Meeting refusals
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 404 | `recording_not_found` | `resource` | the hub does not have the meeting (`resource:"recording"`) |
+| 409 | `recording_id_ambiguous` | `matches_at_least` | a legacy UUID held by two recording devices |
+
+### Proposal read refusals
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 409 | `vault_not_connected` | | no vault is connected |
+| 404 | `distillation_not_found` | | the hub has no such proposal |
+| 409 | `distillation_vault_changed` | | the proposal belongs to another vault connection |
+| 413 | `vault_response_too_large` | `bytes`, `max_bytes` | the answer is over 4 MiB |
