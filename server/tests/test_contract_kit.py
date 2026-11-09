@@ -12,9 +12,11 @@ commands take them.
 These tests may import the hub: they are its oracle. They check that the kit
 stays out of it, that the sample database is the one today's hub writes, that
 it holds nothing a hub changes on its own as time passes or when it starts,
-that no device token of the sample is kept beside it (the kit pairs its own
-device on its copy), and that the kit reads, through the network, every sealed
-column this first slice covers, and notices when a hub reads one of them wrong.
+that no device token of the sample and no path of this machine is kept beside
+it (the kit pairs its own device on its copy), and that the kit reads, through
+the network, every sealed column the first two slices cover, and notices when
+a hub reads one of them wrong. The second slice reads through a signed private
+route too, signed as the contract writes it.
 """
 
 import ast
@@ -29,6 +31,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
@@ -65,8 +68,29 @@ FIRST_SLICE = {
     "note_templates.body": r"note-template:[^:]+:[^:]+",
     "transcription_preferences.body": r"hub-transcription-preference",
 }
-# Rows the sample holds beyond the first slice's columns: the device that wrote them.
+# The second slice: a device's name (only the signed device list shows it), an
+# API agent's personality and skill, and a vault's configuration. Not the AI
+# settings: once they hold a choice, the transcription preference is read from
+# them and its own row (first slice) by nothing.
+SECOND_SLICE = {
+    "devices.name": r"device:[^:]+",
+    "agent_personalities.body": r"agent-personality:[^:]+",
+    "agent_skills.body": r"agent-skill:[^:]+:[^:]+",
+    "vault_configuration.body": r"vault-configuration:v1",
+}
+COLUMNS = {**FIRST_SLICE, **SECOND_SLICE}
+# Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
+# The signed route the kit must reach, by its protocol: `devices.name` shows
+# through no other route.
+SIGNED_READS = {"/internal/v1/devices": "orbit_device_bridge_v1"}
+# The headers of a signed private request, as the contract has to name them:
+# a kit written from the contract alone has to know them.
+SIGNED_HEADERS = [
+    f"x-orbit-{prefix}-{name}"
+    for prefix in ("bridge", "meetings")
+    for name in ("key-id", "issued-at-ms", "nonce", "signature")
+]
 # Rows today's hub deletes or changes by itself, while serving or when it
 # starts: a sample holding one would be read differently after an hour, or
 # only once. An attachment no message holds is deleted an hour after its
@@ -146,6 +170,22 @@ def watched(self, data, context):
 
 
 database.Store.decrypt = watched
+
+from orbit_hub import private_auth
+
+real_admit = private_auth.Authenticator.admit
+
+
+def admitted(self, *arguments, **keywords):
+    agent = real_admit(self, *arguments, **keywords)
+    with open(LOG, "a") as out:
+        line = {"pid": os.getpid(), "argv": sys.argv[1:], "signed": self._path,
+                "protocol": self._protocol}
+        out.write(json.dumps(line) + "\\n")
+    return agent
+
+
+private_auth.Authenticator.admit = admitted
 from orbit_hub.cli import main
 
 main()
@@ -208,6 +248,14 @@ def sample_key() -> bytes:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def machine_paths() -> list[str]:
+    """Where this machine keeps its user, this checkout and its temporary
+    files: none may be written into the public sample (a bare `/tmp` says
+    nothing of the machine)."""
+    paths = {str(Path.home()), str(ROOT), tempfile.gettempdir()}
+    return sorted(path for path in paths if path not in ("/", "/tmp"))
 
 
 def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
@@ -393,7 +441,13 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
     shutil.copy(GOLDEN, data / "hub.sqlite3")
     key.write_bytes(sample_key())
     key.chmod(0o600)
-    Store(data, key).close()  # refuses a database sealed with another key
+    sample = Store(data, key)  # refuses a database sealed with another key
+    try:
+        with sqlite3.connect(f"file:{data / 'hub.sqlite3'}?mode=ro", uri=True) as db:
+            sealed = [row[0] for row in db.execute("SELECT body FROM vault_configuration")]
+        opened = [sample.decrypt(body, "vault-configuration:v1").decode() for body in sealed]
+    finally:
+        sample.close()
 
     create_app(settings)  # today's hub, with the tables its domains create
     store.close()
@@ -411,7 +465,7 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         empty = [
             column
-            for column in FIRST_SLICE
+            for column in COLUMNS
             if not db.execute(
                 "SELECT count(*) FROM {} WHERE {} IS NOT NULL".format(*column.split("."))
             ).fetchone()[0]
@@ -439,12 +493,32 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
         )
     ]
     assert not kept, f"a device token of the sample is kept in {kept}: pair the kit's own"
+    # The vault's folder is a path on the hub that wrote the sample: an
+    # invented one, and so is every text kept beside the sample.
+    texts = {"the vault's configuration": "\n".join(opened)}
+    texts |= {
+        str(path.relative_to(ROOT)): path.read_bytes().decode("utf-8", "replace")
+        for folder in (KIT, SAMPLE)
+        for path in folder.rglob("*")
+        if path.is_file()
+        and path != GOLDEN
+        # What Python and the linters leave (compiled files name their source's path).
+        and not any(part.startswith((".", "__pycache__")) for part in path.relative_to(ROOT).parts)
+    }
+    found = [
+        f"{where} names {path}"
+        for where, text in texts.items()
+        for path in machine_paths()
+        if path in text
+    ]
+    assert not found, "the sample keeps a path of this machine:\n" + "\n".join(found)
 
 
 def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     """The kit passes against today's hub run as a program, works on a copy,
-    loads nothing of the hub, and the hub opened every column of the first
-    slice while serving it."""
+    loads nothing of the hub, reaches the signed device list with a signature
+    the hub admits, and the hub opened every column of both slices while
+    serving it."""
     require_kit()
     before = sha256(GOLDEN)
     run = run_kit(tmp_path, "plain")
@@ -464,20 +538,35 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     opened = {line["context"] for line in served if "context" in line}
     unread = [
         column
-        for column, context in FIRST_SLICE.items()
+        for column, context in COLUMNS.items()
         if not any(re.fullmatch(context, seen) for seen in opened)
     ]
     assert not unread, f"the hub never opened {unread} while serving the kit"
+    admitted = {(line["signed"], line["protocol"]) for line in served if "signed" in line}
+    unsigned = [
+        f"{path} ({protocol})"
+        for path, protocol in SIGNED_READS.items()
+        if (path, protocol) not in admitted
+    ]
+    assert not unsigned, f"the hub admitted no signed request to {unsigned} from the kit"
 
 
-@pytest.mark.parametrize("column", sorted(FIRST_SLICE))
+@pytest.mark.parametrize("column", sorted(COLUMNS))
 def test_the_kit_notices_a_hub_that_reads_a_column_wrong(tmp_path, column):
-    """A hub that opens one column of the first slice into another value
+    """A hub that opens one column of either slice into another value
     (a person's text gets ` ~`) must make the kit fail, not skip or pass."""
     require_kit()
-    run = run_kit(tmp_path, "changed", corrupt=FIRST_SLICE[column])
+    run = run_kit(tmp_path, "changed", corrupt=COLUMNS[column])
     counts = run["counts"]
     assert run["code"] != 0 and (counts["failures"] or counts["errors"]), (
         f"the kit passed with {column} read wrong: {counts}\n{run['output'][-1500:]}"
     )
     assert not counts["skipped"], counts
+
+
+def test_the_contract_writes_down_how_a_private_request_is_signed():
+    """The kit signs as the contract says, so the contract names each header of
+    both private protocols: today's hub reads them, and the recipe beside them."""
+    contract = (ROOT / "contracts" / "hub-v1.md").read_text().lower()
+    missing = [header for header in SIGNED_HEADERS if header not in contract]
+    assert not missing, f"contracts/hub-v1.md does not name the signed headers {missing}"

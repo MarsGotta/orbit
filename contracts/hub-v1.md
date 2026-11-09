@@ -594,9 +594,39 @@ called by the daemon.
 `POST /internal/v1/meetings/list`, `POST /internal/v1/meetings/transcript` and
 `POST /internal/v1/meetings/note` use
 `orbit_meetings_bridge_v1`, a dedicated key and `X-Orbit-Meetings-` headers.
-Signatures cover exact method, path and body. Each route has its own
-`Authenticator`; a signature for one route cannot open another. Invalid
-signatures yield 401. A valid HMAC key is the sole requirement.
+
+A private request is signed the same way under both protocols, each with its
+own key and headers. `orbit_device_bridge_v1` sends `X-Orbit-Bridge-Key-Id`,
+`X-Orbit-Bridge-Issued-At-Ms`, `X-Orbit-Bridge-Nonce` and
+`X-Orbit-Bridge-Signature`; `orbit_meetings_bridge_v1` sends
+`X-Orbit-Meetings-Key-Id`, `X-Orbit-Meetings-Issued-At-Ms`,
+`X-Orbit-Meetings-Nonce` and `X-Orbit-Meetings-Signature`. The key id is 1–64
+characters of `A-Z`, `a-z`, `0-9`, `_` and `-`; the time is Unix milliseconds,
+within 30 seconds of the hub's clock; the nonce is a UUID in its canonical form
+(36 characters, lowercase hexadecimal with hyphens), never reused. Each of the
+four headers is sent once, in ASCII, at most 256 characters long. The
+signature is the HMAC-SHA256 of these seven lines joined by `\n` (no trailing
+newline), with the 32-byte key, in lowercase hexadecimal:
+
+1. the protocol (`orbit_device_bridge_v1` or `orbit_meetings_bridge_v1`);
+2. `POST`, whatever the request's method: `GET /internal/v1/devices` is signed
+   with `POST` too;
+3. the route's path (a private route takes no query: one is refused, `401
+   unauthorized` on a `GET` and `400 invalid_request` on a `POST`);
+4. the key id;
+5. the time, in decimal without leading zeros;
+6. the nonce;
+7. the SHA-256 of the exact body in lowercase hexadecimal (that of no bytes for
+   a `GET`).
+
+A header that is missing, repeated, not ASCII, too long or not in the form
+above, an unknown key id, or a signature that does not match, yields `401
+unauthorized`; a time more than 30 seconds from the hub's clock, `401
+consumer_clock`; a nonce already used, `401 consumer_replay`; a request while
+4096 nonces are still held, `429 consumer_busy`.
+
+Each route checks its own signatures: one for a route cannot open another. A
+valid HMAC key is the sole requirement.
 
 Meeting reads cover the personal hub's whole history, including recordings
 from revoked devices. The request's device identifies the assistant context,

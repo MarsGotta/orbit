@@ -6,10 +6,13 @@ manifest keeps: the manifest holds what was written, not what a hub answered,
 and a hub may add fields to an answer (the contract grows additively), so
 fields it does not keep are not compared. The kit reads as a
 device it pairs itself on the copy: none of these values belongs to the
-device that wrote it.
+device that wrote it. A device's name shows only in the device bridge's
+list, a private route the kit signs as the contract writes it and calls
+without the device's credential.
 """
 
 pytest_plugins = ("kit_hub",)
+DEVICES_PATH = "/internal/v1/devices"
 
 
 def ok(response) -> dict:
@@ -58,4 +61,43 @@ def test_the_transcription_preference_reads_back(sample_hub):
     http, manifest = sample_hub
     read = ok(http.get("/v1/settings/transcription"))
     for field, value in manifest["transcription"].items():
+        assert read[field] == value, field
+
+
+def test_a_device_name_reads_back_in_the_signed_device_list(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    written = manifest["device"]
+    # Only the signature: the contract asks for nothing else, so the device's
+    # own credential is taken off.
+    request = http.build_request("GET", DEVICES_PATH, headers=sample_signature(DEVICES_PATH))
+    del request.headers["authorization"]
+    read = ok(http.send(request))["devices"]
+    named = [device["name"] for device in read if device["id"] == written["id"]]
+    assert named == [written["name"]]
+
+
+def test_an_agent_personality_reads_back_whole(sample_hub):
+    http, manifest = sample_hub
+    written = manifest["agent"]
+    read = ok(http.get(f"/v1/agents/{written['id']}/config"))
+    assert read["personality"]["text"] == written["personality"]
+
+
+def test_an_agent_skill_reads_back_whole(sample_hub):
+    http, manifest = sample_hub
+    agent, written = manifest["agent"]["id"], manifest["agent"]["skill"]
+    items = ok(http.get(f"/v1/agents/{agent}/config"))["skills"]["items"]
+    assert [item["name"] for item in items] == [written["name"]]
+    assert items[0]["description"] == written["description"]
+    read = ok(http.get(f"/v1/agents/{agent}/skills/{written['name']}"))
+    assert read["name"] == written["name"]
+    assert read["description"] == written["description"]
+    assert read["content"] == written["content"]
+
+
+def test_the_vault_configuration_reads_back_field_by_field(sample_hub):
+    http, manifest = sample_hub
+    read = ok(http.get("/v1/vault/config"))
+    assert read["configured"] is True
+    for field, value in manifest["vault"].items():
         assert read[field] == value, field

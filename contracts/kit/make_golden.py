@@ -3,7 +3,9 @@
 Run by hand, and only on purpose: the file the repository keeps is the one
 today's hub wrote, and the kit's tests compare what a hub reads against the
 manifest written beside it, which keeps no device token: the kit pairs
-its own device on its copy. Every name and text is invented.
+its own device on its copy. Every name and text is invented. The vault is a
+folder under a bare `/tmp`, removed at the end: its path stays in the
+database, and must say nothing of the machine that wrote it.
 
     server/.venv/bin/python contracts/kit/make_golden.py
 
@@ -23,6 +25,7 @@ from pathlib import Path
 
 import httpx
 from kit_hub import (
+    AGENT_ID,
     DATABASE_NAME,
     GOLDEN,
     MANIFEST,
@@ -52,6 +55,18 @@ NOTE_TEMPLATE = {
     ],
 }
 TRANSCRIPTION = {"model": "whisper"}
+PERSONALITY = "You are Cedar. You answer briefly and plainly."
+SKILL = {
+    "name": "cedar-digest",
+    "description": "Sums up the Cedar week in three points.",
+}
+SKILL_FILE = (
+    f"---\nname: {SKILL['name']}\ndescription: {SKILL['description']}\n---\n"
+    "1. Read the Cedar notes of the week.\n2. Write three short points.\n"
+)
+VAULT_FOLDER = "Cedar notes"
+VAULT_NOTE = ("Cedar ideas.md", "# Cedar ideas\n\nA garden for the invented Cedar team.\n")
+VAULT = {"kind": "folder", "link_style": "wikilink"}
 
 
 def answer(response: httpx.Response) -> dict:
@@ -60,13 +75,14 @@ def answer(response: httpx.Response) -> dict:
     return response.json()
 
 
-def write(url: str, code: str) -> dict:
+def write(url: str, code: str, vault: Path) -> dict:
     """Pair the invented device and write one of each kind of value through routes.
 
     Nothing today's hub deletes or changes on its own, as time passes or when
     it starts: no attachment (one no message holds is deleted after an hour),
     no conversation, transcription or final pass under way."""
-    with device_client(url, pair_device(url, code, DEVICE_NAME)) as http:
+    paired = pair_device(url, code, DEVICE_NAME)
+    with device_client(url, paired["token"]) as http:
         answer(http.put(f"/v1/reminders/{TITLE_DIGEST}", json=REMINDER))
         answer(
             http.post(
@@ -81,13 +97,25 @@ def write(url: str, code: str) -> dict:
         template = {key: value for key, value in NOTE_TEMPLATE.items() if key != "id"}
         answer(http.put(f"/v1/note-templates/{NOTE_TEMPLATE['id']}", json=template))
         answer(http.put("/v1/settings/transcription", json=TRANSCRIPTION))
+        answer(http.put(f"/v1/agents/{AGENT_ID}/personality", json={"text": PERSONALITY}))
+        answer(
+            http.put(f"/v1/agents/{AGENT_ID}/skills/{SKILL['name']}", json={"content": SKILL_FILE})
+        )
+        answer(http.put("/v1/vault/config", json={**VAULT, "path": str(vault)}))
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
+        "device": {"id": paired["device_id"], "name": DEVICE_NAME},
         "reminder": {"title_digest": TITLE_DIGEST, **REMINDER},
         "dictionary": DICTIONARY,
         "note_template": {**NOTE_TEMPLATE, "forked_from": None},
         "transcription": {**TRANSCRIPTION, "key_configured": False},
+        "agent": {
+            "id": AGENT_ID,
+            "personality": PERSONALITY,
+            "skill": {**SKILL, "content": SKILL_FILE},
+        },
+        "vault": {**VAULT, "path": str(vault)},
     }
 
 
@@ -95,12 +123,16 @@ def main() -> None:
     if not TEST_KEY.exists():
         TEST_KEY.write_text(secrets.token_bytes(32).hex() + "\n")
     key = bytes.fromhex(TEST_KEY.read_text().strip())
-    with tempfile.TemporaryDirectory(prefix="orbit-golden-") as scratch:
+    # A bare /tmp, not the machine's temporary folder: the vault's path is kept.
+    with tempfile.TemporaryDirectory(prefix="orbit-golden-", dir="/tmp") as scratch:
+        vault = Path(scratch) / VAULT_FOLDER
+        vault.mkdir()
+        (vault / VAULT_NOTE[0]).write_text(VAULT_NOTE[1], encoding="utf-8")
         configuration = prepare(Path(scratch) / "hub", key)
         # The first command that opens the store creates it, sealed with the test key.
         code = run(configuration, "pair-code").strip()
         with serving(configuration) as url:
-            manifest = write(url, code)
+            manifest = write(url, code, vault)
         data = configuration.parent / "data"
         left = sorted(path.name for path in data.glob(f"{DATABASE_NAME}-*"))
         if left:

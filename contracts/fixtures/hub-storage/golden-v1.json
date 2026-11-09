@@ -1,5 +1,9 @@
 {
-  "hub_id": "cd6e8770-9440-4c31-a6ca-ccc2be32449c",
+  "hub_id": "a7e871f3-cc18-45db-8f1c-a0599fc325a3",
+  "device": {
+    "id": "81f93de5-3b6f-4f18-9e29-3a6ab3597ef9",
+    "name": "Cedar test Mac"
+  },
   "reminder": {
     "title_digest": "30da0d7286b1d190362f38162ef4c7c0601e315525920c1a6b4cf12d7c585479",
     "text": "Bring the Cedar roadmap draft to the weekly sync",
@@ -28,5 +32,19 @@
   "transcription": {
     "model": "whisper",
     "key_configured": false
+  },
+  "agent": {
+    "id": "cedar",
+    "personality": "You are Cedar. You answer briefly and plainly.",
+    "skill": {
+      "name": "cedar-digest",
+      "description": "Sums up the Cedar week in three points.",
+      "content": "---\nname: cedar-digest\ndescription: Sums up the Cedar week in three points.\n---\n1. Read the Cedar notes of the week.\n2. Write three short points.\n"
+    }
+  },
+  "vault": {
+    "kind": "folder",
+    "link_style": "wikilink",
+    "path": "/tmp/orbit-golden-nfy0ejkh/Cedar notes"
   }
 }
