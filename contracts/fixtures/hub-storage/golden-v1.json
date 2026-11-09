@@ -1,0 +1,32 @@
+{
+  "hub_id": "cd6e8770-9440-4c31-a6ca-ccc2be32449c",
+  "reminder": {
+    "title_digest": "30da0d7286b1d190362f38162ef4c7c0601e315525920c1a6b4cf12d7c585479",
+    "text": "Bring the Cedar roadmap draft to the weekly sync",
+    "edited_at_ms": 1767225600000
+  },
+  "dictionary": {
+    "id": "5d8f2c1e-7a3b-4e6f-9c0d-1b2a3c4d5e6f",
+    "name": "Cedar glossary"
+  },
+  "note_template": {
+    "id": "cedar-standup",
+    "name": "Cedar standup",
+    "context": "A short daily meeting of the invented Cedar team at example.test.",
+    "sections": [
+      {
+        "name": "Progress",
+        "instructions": "What each person finished since yesterday."
+      },
+      {
+        "name": "Blockers",
+        "instructions": "What stops someone, and who can help."
+      }
+    ],
+    "forked_from": null
+  },
+  "transcription": {
+    "model": "whisper",
+    "key_configured": false
+  }
+}
