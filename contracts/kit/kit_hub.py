@@ -32,6 +32,16 @@ started with in anything else. Asked for a vault proposal (the schema named
 `orbit_distillation`), it answers a valid one instead: that text as its
 summary, the first transcript line the hub sent quoted whole, and one new
 `meeting` note, titled after the meeting, adding that line's text.
+
+The API agent answers a turn through the model its configuration names
+(`base_url`). The invented agent the kit starts on loopback, in a thread too,
+answers `POST /v1/chat/completions` with `stream: true` as OpenAI's API does,
+in server-sent events, always with the text it was started with. The hub runs
+an API agent beside its orbit-mcp, so the kit writes a valid configuration for
+it: the hub's address behind the closed port, the device bridge's key of the
+hub's folder and an invented device. A turn without tools never calls it. A
+device holds a turn over `GET /v1/ws` with its bearer token: a `chat.send` to
+the agent, then the events of that turn until `chat.completed`.
 """
 
 import hashlib
@@ -59,6 +69,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from websockets.sync.client import connect
 
 KIT = Path(__file__).resolve().parent
 SAMPLE = KIT.parent / "fixtures" / "hub-storage"
@@ -135,6 +146,14 @@ NOTE_POLL_SECONDS = 0.1
 PROPOSAL_UNDER_WAY = ("queued", "preparing", "applying")
 # The schema name the hub asks a vault proposal with.
 DISTILLATION_SCHEMA = "orbit_distillation"
+# The invented device orbit-mcp would act on: no tool runs under the kit.
+TOOLS_DEVICE = ("Invented Mac", "invented-device")
+# The hub answered the measured turn in under 2 s, orbit-mcp's start included;
+# thirty times that, so only a hub that never answers fails.
+TURN_SECONDS = 60
+# The ids the invented agent gives its streamed answer.
+AGENT_ANSWER_ID = "invented-answer"
+AGENT_CREATED = 1767225600
 
 
 class HubFailed(Exception):
@@ -171,12 +190,14 @@ def prepare(
     database: Path | None = None,
     transcription: str | None = None,
     model: str | None = None,
+    agent: str | None = None,
 ) -> Path:
     """A hub's folder: data 0700, the key in a file of its own (0600), a new
     key for each private protocol (0600), an invented configuration and, when
     given, a copy of `database` as the hub's, meeting transcription at the
-    `transcription` service's URL and the notes model at the `model` URL (with
-    an invented credential, 0600). Answers the configuration's path."""
+    `transcription` service's URL, the notes model at the `model` URL (with
+    an invented credential, 0600) and the API agent's model at the `agent`
+    base URL. Answers the configuration's path."""
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     data, home = folder / "data", folder / "home"
     data.mkdir(mode=0o700)
@@ -193,9 +214,24 @@ def prepare(
             f"key_id = {_toml(key_id)}",
             f"credential_file = {_toml(folder / private_key_file)}",
         )
-    # The agent's orbit-mcp configuration: the hub only checks that it exists.
+    # The agent's orbit-mcp configuration: valid, so orbit-mcp starts beside a
+    # turn; the hub's address is the closed port, since no tool runs.
     tools = folder / "orbit-mcp.toml"
-    tools.write_text("# Invented: no tool of the agent runs under the kit.\n")
+    bridge_section, _, bridge_key_id, bridge_key_file = PRIVATE_PROTOCOLS[BRIDGE_PROTOCOL]
+    tools.write_text(
+        "\n".join(
+            (
+                f'hub_url = "http://127.0.0.1:{CLOSED_PORT}"',
+                f"default_device = {_toml(TOOLS_DEVICE[0])}",
+                f"[{bridge_section}]",
+                f"key_id = {_toml(bridge_key_id)}",
+                f"key_file = {_toml(folder / bridge_key_file)}",
+                "[devices]",
+                f"{_toml(TOOLS_DEVICE[0])} = {_toml(TOOLS_DEVICE[1])}",
+            )
+        )
+        + "\n"
+    )
     processing = []
     if model is not None:
         model_credential = folder / "notes-model-credential"
@@ -229,7 +265,7 @@ def prepare(
                 f"id = {_toml(AGENT_ID)}",
                 f"name = {_toml(AGENT_NAME)}",
                 'kind = "openai"',
-                f'base_url = "http://127.0.0.1:{CLOSED_PORT}/v1"',
+                f"base_url = {_toml(agent or f'http://127.0.0.1:{CLOSED_PORT}/v1')}",
                 'model = "invented-model"',
                 f"orbit_mcp_config = {_toml(tools)}",
             )
@@ -509,6 +545,57 @@ class _ModelHandler(BaseHTTPRequestHandler):
         pass
 
 
+def _chunk(delta: dict, finish_reason: str | None = None, usage: dict | None = None) -> dict:
+    chunk = {
+        "id": AGENT_ANSWER_ID,
+        "object": "chat.completion.chunk",
+        "created": AGENT_CREATED,
+        "model": "invented-model",
+        "choices": []
+        if usage is not None
+        else [{"index": 0, "delta": delta, "finish_reason": finish_reason}],
+    }
+    if usage is not None:
+        chunk["usage"] = usage
+    return chunk
+
+
+def streamed_answer(text: str) -> bytes:
+    """What the invented agent streams: `text`, the end of its one choice, the
+    usage, then `[DONE]`, as server-sent events."""
+    chunks = (
+        _chunk({"role": "assistant", "content": text}),
+        _chunk({}, "stop"),
+        _chunk({}, usage={"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}),
+    )
+    events = [f"data: {json.dumps(chunk)}\n\n" for chunk in chunks] + ["data: [DONE]\n\n"]
+    return "".join(events).encode()
+
+
+class _AgentHandler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        raw = self.rfile.read(int(self.headers.get("content-length", 0)))
+        if self.path != "/v1/chat/completions":
+            self.send_error(404)
+            return
+        try:
+            streamed = json.loads(raw).get("stream") is True
+        except (ValueError, AttributeError):
+            streamed = False
+        if not streamed:
+            self.send_error(400)
+            return
+        body = streamed_answer(self.server.text)
+        self.send_response(200)
+        self.send_header("content-type", "text/event-stream")
+        self.send_header("content-length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *arguments) -> None:
+        pass
+
+
 @contextmanager
 def _service(handler: type[BaseHTTPRequestHandler], text: str) -> Iterator[str]:
     """`handler` on a free loopback port, in a thread of this process,
@@ -539,6 +626,46 @@ def notes_model(text: str) -> Iterator[str]:
     for; yields its `chat/completions` URL."""
     with _service(_ModelHandler, text) as url:
         yield f"{url}/v1/chat/completions"
+
+
+@contextmanager
+def api_agent(text: str) -> Iterator[str]:
+    """An invented API agent streaming `text` as every answer; yields the base
+    URL an agent's `base_url` names."""
+    with _service(_AgentHandler, text) as url:
+        yield f"{url}/v1"
+
+
+def chat_turn(url: str, token: str, text: str, agent_id: str = AGENT_ID) -> dict:
+    """A turn as a device holds it over `GET /v1/ws`: a `chat.send` of `text`
+    to `agent_id`, then that turn's events until `chat.completed`; answers its
+    data. Fails on an `error` of the turn, or past `TURN_SECONDS`."""
+    turn = str(uuid.uuid4())
+    frame = {
+        "v": 1,
+        "id": turn,
+        "method": "chat.send",
+        "params": {"text": text, "agent_id": agent_id},
+    }
+    address = "ws" + url.removeprefix("http") + "/v1/ws"
+    deadline = time.monotonic() + TURN_SECONDS
+    headers = {"Authorization": f"Bearer {token}"}
+    with connect(address, additional_headers=headers, open_timeout=TURN_SECONDS) as ws:
+        ws.send(json.dumps(frame))
+        while True:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                raise HubFailed(f"the turn {turn} did not complete within {TURN_SECONDS} s")
+            try:
+                event = json.loads(ws.recv(timeout=left))
+            except TimeoutError:
+                continue
+            if event.get("id") != turn:
+                continue
+            if event.get("event") == "error":
+                raise HubFailed(f"the turn {turn} failed: {event.get('data')}")
+            if event.get("event") == "chat.completed":
+                return event["data"]
 
 
 def tone_wav() -> bytes:
@@ -670,13 +797,24 @@ def kit_transcription():
 
 
 @pytest.fixture(scope="module")
-def sample_configuration(tmp_path_factory, kit_transcription, kit_model) -> Path:
+def kit_agent():
+    """The invented model of the sample's API agent: its base URL and the text
+    it answers, another than the sample's conversation."""
+    text = "The contract kit answered this invented turn"
+    with api_agent(text) as url:
+        yield url, text
+
+
+@pytest.fixture(scope="module")
+def sample_configuration(tmp_path_factory, kit_transcription, kit_model, kit_agent) -> Path:
     """The configuration of the hub that serves a copy of the sample: its
     folder holds the private protocols' keys the kit signs with, its meeting
-    transcription is the kit's invented service and its notes model the kit's
-    invented model."""
+    transcription is the kit's invented service, its notes model the kit's
+    invented model and its API agent's model the kit's invented agent."""
     folder = tmp_path_factory.mktemp("sample-hub") / "hub"
-    return prepare(folder, read_test_key(), GOLDEN, kit_transcription[0], kit_model[0])
+    return prepare(
+        folder, read_test_key(), GOLDEN, kit_transcription[0], kit_model[0], kit_agent[0]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -716,3 +854,12 @@ def kit_note(sample_hub, kit_meeting) -> dict:
     """The note document of the kit's own meeting, once the hub has written it."""
     http, _ = sample_hub
     return wait_for_note(http, kit_meeting)
+
+
+@pytest.fixture(scope="module")
+def kit_turn(sample_hub, kit_agent) -> dict:
+    """A turn the kit holds with the sample's API agent as its own device;
+    answers its `chat.completed` data."""
+    http, _ = sample_hub
+    token = http.headers["authorization"].removeprefix("Bearer ")
+    return chat_turn(str(http.base_url).rstrip("/"), token, "Hello from the contract kit")

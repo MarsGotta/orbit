@@ -10,9 +10,12 @@ device that wrote it. A device's name shows only in the device bridge's
 list, a private route the kit signs as the contract writes it and calls
 without the device's credential; the meetings list and a meeting's
 transcript are signed the same way, with the meetings key, for the device
-that recorded the sample's meeting, and so is its note. The kit also records a
-meeting of its own and reads back what its invented transcription service
-answered and the note its invented notes model wrote.
+that recorded the sample's meeting, and so is its note. A paired device reads
+every conversation, so the kit reads the sample's device's conversation with
+its own. The kit also records a meeting of its own and reads back what its
+invented transcription service answered and the note its invented notes model
+wrote, and holds a turn of its own with the API agent, which its invented
+agent answers.
 """
 
 import json
@@ -264,3 +267,36 @@ def test_the_vault_configuration_reads_back_field_by_field(sample_hub):
     assert read["configured"] is True
     for field, value in manifest["vault"].items():
         assert read[field] == value, field
+
+
+def test_the_conversation_reads_back_message_by_message(sample_hub):
+    http, manifest = sample_hub
+    written = manifest["conversation"]
+    listed = ok(http.get("/v1/sessions"))["sessions"]
+    held = [session for session in listed if session["id"] == written["id"]]
+    assert len(held) == 1, listed
+    assert held[0]["agent_id"] == written["agent_id"]
+    page = ok(http.get(f"/v1/sessions/{written['id']}/messages"))
+    assert page["agent_id"] == written["agent_id"]
+    read = page["messages"]
+    assert [message["role"] for message in read] == [
+        message["role"] for message in written["messages"]
+    ]
+    for got, kept in zip(read, written["messages"], strict=True):
+        assert got["text"] == kept["text"], kept["role"]
+        assert got.get("work") == kept.get("work"), kept["role"]
+
+
+def test_a_turn_the_kit_holds_is_answered_by_its_agent(sample_hub, kit_turn, kit_agent):
+    http, manifest = sample_hub
+    _, text = kit_agent
+    # Another text than the sample's: a hub that answered the sample's
+    # conversation for every turn would not pass.
+    answers = [m["text"] for m in manifest["conversation"]["messages"] if m["role"] == "assistant"]
+    assert text not in answers
+    assert kit_turn["status"] == "completed" and kit_turn["persisted"] is True, kit_turn
+    assert kit_turn["text"] == text
+    session = kit_turn["session_id"]
+    assert session != manifest["conversation"]["id"]
+    read = ok(http.get(f"/v1/sessions/{session}/messages"))["messages"]
+    assert [(message["role"], message["text"]) for message in read][-1] == ("assistant", text)

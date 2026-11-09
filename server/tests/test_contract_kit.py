@@ -23,7 +23,10 @@ sample's device recorded by HTTP and an invented transcription service
 transcribed, and that meeting's note, which an invented model wrote, with the
 user's edits and the ones a regeneration set aside, and the vault proposal the
 hub prepared on its own from that note, which the invented model wrote too,
-quoting the transcript. The kit also records a
+quoting the transcript; and a conversation the sample's device held with an
+API agent through the WebSocket, one turn with the agent's answer and its
+summary of the turn's work, answered by an invented agent the hub reaches on
+loopback. The kit also holds a turn of its own with that agent, records a
 meeting of its own against an invented transcription service and an invented
 notes model it starts on loopback, and every process it starts (its hubs and
 its invented services) ends with it.
@@ -130,6 +133,15 @@ NOTE_SLICE = {
 PROPOSAL_SLICE = {
     "vault_distillations.body": r"vault-distillation:{proposal}",
 }
+# The fourth slice, first part: a conversation of the sample's device with the
+# API agent, one turn: the user's message, the agent's answer and the
+# summary of the turn's work kept with it. Their contexts name the
+# conversation, not the device: `{session}` is one of the sample's, since the
+# kit holds a conversation of its own too.
+CONVERSATION_SLICE = {
+    "messages.body": r"message:{session}:(?:user|assistant)",
+    "messages.work": r"message-work:{session}",
+}
 COLUMNS = {
     **FIRST_SLICE,
     **SECOND_SLICE,
@@ -137,6 +149,7 @@ COLUMNS = {
     **MEETING_SLICE,
     **NOTE_SLICE,
     **PROPOSAL_SLICE,
+    **CONVERSATION_SLICE,
 }
 # Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
@@ -243,16 +256,23 @@ def changed(plain):
 
     spaced = any(" " in text for text in texts(value))
 
-    def walk(item):
+    def walk(item, numbers=False):
         if isinstance(item, str):
             return item + " ~" if (" " in item if spaced else len(item) > 3) else item
+        if numbers and isinstance(item, int) and not isinstance(item, bool):
+            return item + 1
         if isinstance(item, dict):
-            return {key: walk(inner) for key, inner in item.items()}
+            return {key: walk(inner, numbers) for key, inner in item.items()}
         if isinstance(item, list):
-            return [walk(inner) for inner in item]
+            return [walk(inner, numbers) for inner in item]
         return item
 
-    return json.dumps(walk(value), ensure_ascii=False).encode()
+    # A value with no text to change (a turn's work without tools) gets its
+    # numbers changed instead.
+    walked = walk(value)
+    if walked == value:
+        walked = walk(value, numbers=True)
+    return json.dumps(walked, ensure_ascii=False).encode()
 
 
 def watched(self, data, context):
@@ -420,9 +440,15 @@ def sample_ids(table: str, column: str = "id") -> list[str]:
 
 def context_of(column: str) -> str:
     """The context a column is opened with; a meeting's names a device of the
-    sample, a vault proposal's one of the sample's proposals."""
+    sample, a vault proposal's one of the sample's proposals, a message's one
+    of the sample's conversations."""
     context = COLUMNS[column]
-    for marker, table in (("{device}", "devices"), ("{proposal}", "vault_distillations")):
+    markers = (
+        ("{device}", "devices"),
+        ("{proposal}", "vault_distillations"),
+        ("{session}", "sessions"),
+    )
+    for marker, table in markers:
         if marker in context:
             ids = "|".join(re.escape(identity) for identity in sample_ids(table))
             context = context.replace(marker, f"(?:{ids})")
@@ -664,11 +690,28 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
                 "SELECT id, device_id, recording, state, body FROM vault_distillations"
             ).fetchall()
             recorded = set(db.execute("SELECT device_id, recording FROM recording_manifests"))
+            conversations = db.execute("SELECT id, device_id, agent_id, status FROM sessions")
+            conversations = conversations.fetchall()
+            message_rows = db.execute(
+                "SELECT session_id, role, body, work FROM messages ORDER BY id"
+            ).fetchall()
+            devices = {row[0] for row in db.execute("SELECT id FROM devices")}
         opened = [sample.decrypt(body, "vault-configuration:v1").decode() for body in sealed]
         ai = [json.loads(sample.decrypt(body, "hub-ai-settings")) for body in settings_rows]
         proposals = [
             (row, json.loads(sample.decrypt(row[4], "vault-distillation:" + row[0])))
             for row in proposal_rows
+        ]
+        messages = [
+            (
+                session,
+                role,
+                sample.decrypt(body, f"message:{session}:{role}").decode(),
+                None
+                if work is None
+                else json.loads(sample.decrypt(work, f"message-work:{session}")),
+            )
+            for session, role, body, work in message_rows
         ]
     finally:
         sample.close()
@@ -694,6 +737,30 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
     assert not unproposed, f"the sample holds vault proposals not proposed: {unproposed}"
     elsewhere = [row[0] for row, _ in proposals if (row[1], row[2]) not in recorded]
     assert not elsewhere, f"the sample holds vault proposals of no meeting of its own: {elsewhere}"
+    # The conversation of the sample's device with the API agent: one turn,
+    # answered, with the summary of its work, as the manifest keeps it (the kit
+    # compares what a hub reads with the manifest).
+    conversation = json.loads((SAMPLE / "golden-v1.json").read_text()).get("conversation") or {}
+    assert conversations, "the sample holds no conversation"
+    strays = [
+        f"{row[0]}: {row[1:]}"
+        for row in conversations
+        if row[1] not in devices or row[2] != "cedar" or row[3] != "completed"
+    ]
+    assert not strays, f"the sample holds conversations not completed with cedar: {strays}"
+    assert [row[0] for row in conversations] == [conversation.get("id")], (
+        f"the manifest keeps conversation {conversation.get('id')}, "
+        f"the sample holds {[row[0] for row in conversations]}"
+    )
+    stored = [
+        {"role": role, "text": text, **({"work": work} if work is not None else {})}
+        for _, role, text, work in messages
+    ]
+    assert [message["role"] for message in stored] == ["user", "assistant"], stored
+    assert "work" in stored[1], "the agent's answer keeps no summary of its turn's work"
+    assert stored == conversation.get("messages"), (
+        f"the manifest keeps {conversation.get('messages')}, the sample holds {stored}"
+    )
 
     create_app(settings)  # today's hub, with the tables its domains create
     store.close()
@@ -810,6 +877,19 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     asked = {line["proposal"] for line in served if "proposal" in line}
     unasked = sorted(set(sample_ids("vault_distillations")) - asked)
     assert not unasked, f"the kit never asked for the vault proposals {unasked} by their id"
+    # The kit's own turn: the hub opened an answer of a conversation that is not
+    # the sample's, which only the invented agent the kit starts can have written.
+    theirs = set(sample_ids("sessions"))
+    own = [
+        seen
+        for seen in opened
+        if (found := re.fullmatch(r"message:([^:]+):assistant", seen))
+        and found.group(1) not in theirs
+    ]
+    assert own, (
+        "the hub opened no answer of a conversation of the kit's own: the kit holds a turn "
+        "with the API agent through the WebSocket, against an invented agent on loopback"
+    )
     # The kit's own meeting: the hub sent its audio to a service the kit
     # started on loopback, which answered some text (a failed call is not
     # written down).

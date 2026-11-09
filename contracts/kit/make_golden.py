@@ -32,6 +32,8 @@ from kit_hub import (
     MEETING_SECONDS,
     MEETING_TRACK,
     TEST_KEY,
+    api_agent,
+    chat_turn,
     device_client,
     notes_model,
     pair_device,
@@ -76,6 +78,12 @@ SKILL_FILE = (
     f"---\nname: {SKILL['name']}\ndescription: {SKILL['description']}\n---\n"
     "1. Read the Cedar notes of the week.\n2. Write three short points.\n"
 )
+# A conversation of the device with the API agent: one turn, which the
+# invented agent answers with its text.
+TURN = {
+    "question": "What is left before the Cedar launch?",
+    "answer": "Only the Cedar roadmap review is left before the launch",
+}
 VAULT_FOLDER = "Cedar notes"
 VAULT_NOTE = ("Cedar ideas.md", "# Cedar ideas\n\nA garden for the invented Cedar team.\n")
 VAULT = {"kind": "folder", "link_style": "wikilink"}
@@ -113,8 +121,9 @@ def write(url: str, code: str, vault: Path) -> dict:
     it starts: no attachment (one no message holds is deleted after an hour),
     no conversation, transcription or final pass under way: the meeting is
     read once its transcript is ready and its final pass is no longer under way,
-    its note once it is written, and the vault proposal the hub prepares on
-    its own for a written note once it is no longer under way."""
+    its note once it is written, the vault proposal the hub prepares on its
+    own for a written note once it is no longer under way, and the
+    conversation, last, once its turn is completed and kept."""
     paired = pair_device(url, code, DEVICE_NAME)
     with device_client(url, paired["token"]) as http:
         answer(http.put(f"/v1/reminders/{TITLE_DIGEST}", json=REMINDER))
@@ -172,6 +181,11 @@ def write(url: str, code: str, vault: Path) -> dict:
         proposals = wait_for_proposals(http, recording)
         if [entry["status"] for entry in proposals] != ["proposed"]:
             raise SystemExit(f"the hub prepared no single proposed vault proposal: {proposals}")
+        completed = chat_turn(url, paired["token"], TURN["question"])
+        if completed.get("status") != "completed" or completed.get("persisted") is not True:
+            raise SystemExit(f"the turn with {AGENT_ID} was not completed and kept: {completed}")
+        session = completed["session_id"]
+        page = answer(http.get(f"/v1/sessions/{session}/messages"))
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
@@ -187,6 +201,20 @@ def write(url: str, code: str, vault: Path) -> dict:
             "skill": {**SKILL, "content": SKILL_FILE},
         },
         "vault": {**VAULT, "path": str(vault)},
+        # Each message as the conversation's page gives it: role, text and,
+        # for the agent's answer, the summary of its turn's work.
+        "conversation": {
+            "id": session,
+            "agent_id": page["agent_id"],
+            "messages": [
+                {
+                    "role": message["role"],
+                    "text": message["text"],
+                    **({"work": message["work"]} if "work" in message else {}),
+                }
+                for message in page["messages"]
+            ],
+        },
         "meeting": {**MEETING, "duration_ms": MEETING_SECONDS * 1000},
         "note": {
             **NOTE,
@@ -217,8 +245,14 @@ def main() -> None:
         vault = Path(scratch) / VAULT_FOLDER
         vault.mkdir()
         (vault / VAULT_NOTE[0]).write_text(VAULT_NOTE[1], encoding="utf-8")
-        with transcription_service(MEETING["text"]) as service, notes_model(NOTE["text"]) as model:
-            configuration = prepare(Path(scratch) / "hub", key, transcription=service, model=model)
+        with (
+            transcription_service(MEETING["text"]) as service,
+            notes_model(NOTE["text"]) as model,
+            api_agent(TURN["answer"]) as agent,
+        ):
+            configuration = prepare(
+                Path(scratch) / "hub", key, transcription=service, model=model, agent=agent
+            )
             # The first command that opens the store creates it, sealed with the test key.
             code = run(configuration, "pair-code").strip()
             with serving(configuration) as url:

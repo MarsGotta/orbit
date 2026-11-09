@@ -1,7 +1,7 @@
 {
-  "hub_id": "80000db7-e09a-4b11-bab6-771b6b5ba4ca",
+  "hub_id": "62f958ff-5702-4021-aa8f-21c172860843",
   "device": {
-    "id": "b553e566-9734-4dc7-8cf9-df8caa6e36c2",
+    "id": "63d35adf-6710-453c-84f9-6a42fde3a673",
     "name": "Cedar test Mac"
   },
   "reminder": {
@@ -50,7 +50,27 @@
   "vault": {
     "kind": "folder",
     "link_style": "wikilink",
-    "path": "/tmp/orbit-golden-aq442uuo/Cedar notes"
+    "path": "/tmp/orbit-golden-w3ltxksp/Cedar notes"
+  },
+  "conversation": {
+    "id": "be7a31c4-36f2-4e96-8dcf-bd70da013c7c",
+    "agent_id": "cedar",
+    "messages": [
+      {
+        "role": "user",
+        "text": "What is left before the Cedar launch?"
+      },
+      {
+        "role": "assistant",
+        "text": "Only the Cedar roadmap review is left before the launch",
+        "work": {
+          "started_at_ms": 1794267019182,
+          "ended_at_ms": 1794267019206,
+          "tools": 0,
+          "subjects": []
+        }
+      }
+    ]
   },
   "meeting": {
     "id": "6a1e4c2b-8d3f-4b5a-9c7e-2f0d1b3a5c4e",
@@ -75,7 +95,7 @@
     ]
   },
   "proposal": {
-    "id": "7d5ce30f-b409-46d8-a44f-fe3c021c4707",
+    "id": "ccf04537-ebfe-43e7-ab22-3f8d2337b718",
     "summary": "The Cedar roadmap draft goes to the weekly sync",
     "quote": {
       "at_ms": 0,
