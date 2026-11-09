@@ -299,6 +299,9 @@ Both remain in progress. Orbit shows a fixed Spanish wait, never raw provider
 diagnostics; text, tool activity or an owner question clears the retry state. A terminal refusal still
 ends the turn with its structured cause. Pending approvals and clarifications
 are shown as waiting for permission or an answer and marked in the session list.
+The Mac shows, untranslated, the `chat.status` warnings of the open conversation's
+turn in flight (or without a turn id) under that turn: the newest three, each up
+to 500 characters, until the next turn or another conversation.
 
 `state.snapshot` has `id:null` and data:
 

@@ -243,6 +243,12 @@ app_type! {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
         pub work: Option<orbit_core::agent_work::AgentWork>,
+        /// The hub's warnings about the open conversation, in the hub's
+        /// words, oldest first: painted under the turn with a label that
+        /// says they are the hub's.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[ts(as = "Option<Vec<String>>", optional)]
+        pub warnings: Vec<String>,
     }
 }
 

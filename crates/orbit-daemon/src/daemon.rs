@@ -263,4 +263,6 @@ mod response_budget_tests;
 
 #[cfg(test)]
 mod conversation_switch_tests;
+#[cfg(test)]
+mod hub_warning_tests;
 mod silence;

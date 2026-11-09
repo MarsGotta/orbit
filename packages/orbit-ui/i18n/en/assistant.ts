@@ -70,6 +70,8 @@ const base = {
     loadOlder: "Load earlier messages",
     loadingOlder: "Loading earlier messages…",
     historyFailed: "Couldn’t load messages.",
+    // Before the hub's own words about the turn, never translated.
+    hubWarning: "Hub notice",
   },
 } as const;
 

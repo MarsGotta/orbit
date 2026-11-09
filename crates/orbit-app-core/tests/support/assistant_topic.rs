@@ -33,6 +33,7 @@ pub fn assistant_value() -> Value {
         short_voice_note: None,
         work: None,
         microphone_muted: false,
+        warnings: Vec::new(),
     }
 }
 
