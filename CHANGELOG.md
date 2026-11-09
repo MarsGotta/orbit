@@ -7,6 +7,46 @@ English and Spanish; labels quoted below may use either language.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-09
+
+### Added
+
+- Settings › AI adds a third kind of provider, an OpenAI-compatible API, with
+  the models you name and what each can do.
+- A hub no longer needs Hermes: it can offer only Claude Code, Codex or an
+  OpenAI-compatible model. Without Hermes, dictation uses the model chosen in
+  Settings › AI or the hub's meeting transcription.
+- Each device says what it is and which groups of orders it handles; what it
+  does not handle is refused with `device_capability_missing`, its kind and
+  the group. A device that says nothing is a Mac that handles everything.
+- The hub has its own id, and each installation of Orbit sends its own when it
+  pairs. `GET /health` and `ready` carry `hub_id`.
+- The hub numbers each meeting change; `GET /v1/recordings/changes?since=N`
+  answers what changed after a number.
+- `contracts/plugin-v1.md` describes the plugin contract, on paper only.
+
+### Changed
+
+- What you say while the assistant is still answering waits for its turn
+  instead of being refused, up to four messages per conversation
+  (`too_many_waiting_turns`). Interrupts and answers reach the turn they name.
+- Dictation belongs to the hub: it is never refused for want of a voice of the
+  default agent.
+- The hub reads values sealed with or without a key mark and still writes
+  today's form, which earlier hubs read.
+- The code moves without changing what it does: the interface to
+  `packages/orbit-ui`, the hub client to `orbit-hub-client` and the Mac's own
+  effects to `orbit-mac`. The computer-control client and the updater are
+  Cargo features, on by default, and the helper's path leaves the settings: an
+  older `config.toml` that names it still loads.
+
+### Fixed
+
+- The call card no longer counts down an absurd number of hours; it says
+  whether Orbit sees your screen and how long the call has lasted.
+- The open note is read again when the hub comes back.
+- Onboarding no longer takes an iPhone for a Mac.
+
 ## [0.15.0] - 2026-11-06
 
 ### Added
