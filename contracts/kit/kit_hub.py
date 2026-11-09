@@ -22,6 +22,13 @@ over `PUT /v1/chunks/{id}` with its capture headers, then its close. The
 invented transcription service answers `POST /v1/audio/transcriptions` as
 OpenAI's API does, with the text it was started with; it runs in a thread of
 the kit's process, so it ends with the kit whatever happens.
+
+The hub writes a meeting's note with the notes model its configuration names
+(`[processing]`). The invented notes model the kit starts on loopback, in a
+thread too, answers `POST /v1/chat/completions` as OpenAI's API does: it fills
+the JSON schema the hub sends (`response_format.json_schema.schema`) with
+every property of each object, one element in each list and the text it was
+started with in anything else.
 """
 
 import hashlib
@@ -115,6 +122,14 @@ SERVICE_LANGUAGE = "en"
 # The kit's own meeting, on the device it pairs: another id than the sample's.
 KIT_MEETING_ID = "0b9d7e5f-3c1a-4e2d-8f6b-7a9c1e3d5b2f"
 KIT_MEETING_STARTED_AT_MS = 1767261600000
+# The invented notes model, as the hub's configuration names it.
+NOTES_MODEL = "invented-notes-model"
+# The hub wrote the measured meeting's note in the same second as its
+# transcript; as long as a transcript is waited for.
+NOTE_SECONDS = 60
+NOTE_POLL_SECONDS = 0.1
+# A vault proposal in these states will still move on its own.
+PROPOSAL_UNDER_WAY = ("queued", "preparing", "applying")
 
 
 class HubFailed(Exception):
@@ -146,12 +161,17 @@ def _secret_file(path: Path, value: bytes) -> None:
 
 
 def prepare(
-    folder: Path, key: bytes, database: Path | None = None, transcription: str | None = None
+    folder: Path,
+    key: bytes,
+    database: Path | None = None,
+    transcription: str | None = None,
+    model: str | None = None,
 ) -> Path:
     """A hub's folder: data 0700, the key in a file of its own (0600), a new
     key for each private protocol (0600), an invented configuration and, when
-    given, a copy of `database` as the hub's and meeting transcription at the
-    `transcription` service's URL. Answers the configuration's path."""
+    given, a copy of `database` as the hub's, meeting transcription at the
+    `transcription` service's URL and the notes model at the `model` URL (with
+    an invented credential, 0600). Answers the configuration's path."""
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     data, home = folder / "data", folder / "home"
     data.mkdir(mode=0o700)
@@ -171,6 +191,17 @@ def prepare(
     # The agent's orbit-mcp configuration: the hub only checks that it exists.
     tools = folder / "orbit-mcp.toml"
     tools.write_text("# Invented: no tool of the agent runs under the kit.\n")
+    processing = []
+    if model is not None:
+        model_credential = folder / "notes-model-credential"
+        _secret_file(model_credential, b"invented-notes-credential\n")
+        processing = [
+            "[processing]",
+            f"endpoint = {_toml(model)}",
+            f"model = {_toml(NOTES_MODEL)}",
+            f"credential_file = {_toml(model_credential)}",
+            "allow_insecure_localhost = true",
+        ]
     if database is not None:
         # Always a copy: SQLite leaves -wal and -shm beside a WAL database it
         # opens, and a hub writes to the one it serves.
@@ -188,6 +219,7 @@ def prepare(
                 f"endpoint = {_toml(transcription or f'http://127.0.0.1:{CLOSED_PORT}')}",
                 f"model = {_toml(OPERATOR_TRANSCRIPTION_MODEL)}",
                 *private,
+                *processing,
                 "[[agents]]",
                 f"id = {_toml(AGENT_ID)}",
                 f"name = {_toml(AGENT_NAME)}",
@@ -400,11 +432,61 @@ class _TranscriptionHandler(BaseHTTPRequestHandler):
         pass
 
 
+def filled(schema: dict, text: str):
+    """A value for `schema`: every property of an object, one element in a
+    list, `text` in anything else."""
+    if schema.get("type") == "object":
+        return {name: filled(inner, text) for name, inner in schema["properties"].items()}
+    if schema.get("type") == "array":
+        return [filled(schema["items"], text)]
+    return text
+
+
+def completion_answer(request: dict, text: str) -> dict:
+    """What the invented notes model answers a `chat/completions` request:
+    the schema it was sent, filled with `text`, as one finished choice."""
+    schema = request["response_format"]["json_schema"]["schema"]
+    content = json.dumps(filled(schema, text))
+    return {
+        "model": request.get("model", NOTES_MODEL),
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+    }
+
+
+class _ModelHandler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        raw = self.rfile.read(int(self.headers.get("content-length", 0)))
+        if self.path != "/v1/chat/completions":
+            self.send_error(404)
+            return
+        try:
+            answer = completion_answer(json.loads(raw), self.server.text)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            self.send_error(400)
+            return
+        body = json.dumps(answer).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *arguments) -> None:
+        pass
+
+
 @contextmanager
-def transcription_service(text: str) -> Iterator[str]:
-    """An invented transcription service on a free loopback port, in a thread
-    of this process, answering `text` to every audio; yields its URL."""
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _TranscriptionHandler)
+def _service(handler: type[BaseHTTPRequestHandler], text: str) -> Iterator[str]:
+    """`handler` on a free loopback port, in a thread of this process,
+    answering with `text`; yields its base URL."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     server.text = text
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -414,6 +496,22 @@ def transcription_service(text: str) -> Iterator[str]:
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+@contextmanager
+def transcription_service(text: str) -> Iterator[str]:
+    """An invented transcription service answering `text` to every audio;
+    yields its URL."""
+    with _service(_TranscriptionHandler, text) as url:
+        yield url
+
+
+@contextmanager
+def notes_model(text: str) -> Iterator[str]:
+    """An invented notes model writing `text` in every string it is asked
+    for; yields its `chat/completions` URL."""
+    with _service(_ModelHandler, text) as url:
+        yield f"{url}/v1/chat/completions"
 
 
 def tone_wav() -> bytes:
@@ -492,6 +590,49 @@ def wait_for_transcript(http: httpx.Client, recording: str) -> dict:
         time.sleep(TRANSCRIPT_POLL_SECONDS)
 
 
+def wait_for_note(http: httpx.Client, recording: str) -> dict:
+    """The recording's note document (`GET …/note`) once it is `ready`; fails
+    past `NOTE_SECONDS`."""
+    deadline = time.monotonic() + NOTE_SECONDS
+    while True:
+        document = _answered(http.get(f"/v1/recordings/{recording}/note"))
+        if document["state"] == "ready":
+            return document
+        if time.monotonic() >= deadline:
+            raise HubFailed(
+                f"the note of recording {recording} was not written within {NOTE_SECONDS} s: "
+                f"{document['state']} {document.get('error')}"
+            )
+        time.sleep(NOTE_POLL_SECONDS)
+
+
+def wait_for_proposals(http: httpx.Client, recording: str) -> list[dict]:
+    """The vault proposals the hub prepared on its own for the recording,
+    once there is one and none is still under way; fails past `NOTE_SECONDS`."""
+    deadline = time.monotonic() + NOTE_SECONDS
+    while True:
+        listing = http.get("/v1/vault/distillations", params={"meeting_id": recording})
+        entries = _answered(listing)["entries"]
+        if entries and not any(entry["status"] in PROPOSAL_UNDER_WAY for entry in entries):
+            return entries
+        if time.monotonic() >= deadline:
+            states = [entry["status"] for entry in entries]
+            raise HubFailed(
+                f"the vault proposals of recording {recording} did not settle within "
+                f"{NOTE_SECONDS} s: {states}"
+            )
+        time.sleep(NOTE_POLL_SECONDS)
+
+
+@pytest.fixture(scope="module")
+def kit_model():
+    """The invented notes model of the sample's hub: its URL and the text it
+    writes, another than the sample's note."""
+    text = "The contract kit wrote this invented note"
+    with notes_model(text) as url:
+        yield url, text
+
+
 @pytest.fixture(scope="module")
 def kit_transcription():
     """The invented service the sample's hub transcribes the kit's own
@@ -502,12 +643,13 @@ def kit_transcription():
 
 
 @pytest.fixture(scope="module")
-def sample_configuration(tmp_path_factory, kit_transcription) -> Path:
+def sample_configuration(tmp_path_factory, kit_transcription, kit_model) -> Path:
     """The configuration of the hub that serves a copy of the sample: its
-    folder holds the private protocols' keys the kit signs with, and its
-    meeting transcription is the kit's invented service."""
+    folder holds the private protocols' keys the kit signs with, its meeting
+    transcription is the kit's invented service and its notes model the kit's
+    invented model."""
     folder = tmp_path_factory.mktemp("sample-hub") / "hub"
-    return prepare(folder, read_test_key(), GOLDEN, kit_transcription[0])
+    return prepare(folder, read_test_key(), GOLDEN, kit_transcription[0], kit_model[0])
 
 
 @pytest.fixture(scope="module")
@@ -540,3 +682,10 @@ def kit_meeting(sample_hub) -> str:
     record_meeting(http, KIT_MEETING_ID, KIT_MEETING_STARTED_AT_MS)
     wait_for_transcript(http, KIT_MEETING_ID)
     return KIT_MEETING_ID
+
+
+@pytest.fixture(scope="module")
+def kit_note(sample_hub, kit_meeting) -> dict:
+    """The note document of the kit's own meeting, once the hub has written it."""
+    http, _ = sample_hub
+    return wait_for_note(http, kit_meeting)

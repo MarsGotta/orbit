@@ -10,8 +10,9 @@ device that wrote it. A device's name shows only in the device bridge's
 list, a private route the kit signs as the contract writes it and calls
 without the device's credential; the meetings list and a meeting's
 transcript are signed the same way, with the meetings key, for the device
-that recorded the sample's meeting. The kit also records a meeting of its own
-and reads back what its invented transcription service answered.
+that recorded the sample's meeting, and so is its note. The kit also records a
+meeting of its own and reads back what its invented transcription service
+answered and the note its invented notes model wrote.
 """
 
 import json
@@ -20,6 +21,7 @@ pytest_plugins = ("kit_hub",)
 DEVICES_PATH = "/internal/v1/devices"
 MEETINGS_LIST_PATH = "/internal/v1/meetings/list"
 MEETINGS_TRANSCRIPT_PATH = "/internal/v1/meetings/transcript"
+MEETINGS_NOTE_PATH = "/internal/v1/meetings/note"
 MEETINGS_PROTOCOL = "orbit_meetings_bridge_v1"
 # `operator` takes a function's choice back, to the default the hub's
 # configuration names (`kit_hub.OPERATOR_TRANSCRIPTION_MODEL`).
@@ -155,6 +157,56 @@ def test_a_meeting_the_kit_records_is_transcribed_by_its_service(
     _, text = kit_transcription
     turns = ok(http.get(f"/v1/recordings/{kit_meeting}/turns"))["turns"]
     assert [turn["text"] for turn in turns] == [text]
+
+
+def assert_written_by_the_model(note: dict, text: str, sections: list[str]) -> None:
+    """Each text the model wrote in `note` is `text`, in each section named."""
+    assert note["short_summary"] == text
+    assert [(section["name"], section["markdown"]) for section in note["sections"]] == [
+        (name, text) for name in sections
+    ]
+    assert note["decisions"] == [text]
+    assert note["open_topics"] == [text]
+    assert [item["text"] for item in note["action_items"]] == [text]
+
+
+def test_a_meetings_note_reads_back_field_by_field(sample_hub):
+    http, manifest = sample_hub
+    written, meeting = manifest["note"], manifest["meeting"]["id"]
+    read = ok(http.get(f"/v1/recordings/{meeting}/note"))
+    assert read["state"] == "ready"
+    assert read["template_id"] == written["template_id"]
+    note = read["note"]
+    assert note["template_id"] == written["template_id"]
+    assert note["title"] == written["text"]
+    assert_written_by_the_model(note, written["text"], written["sections"])
+    assert read["edits"]["title"] == written["title"]
+    assert read["superseded_edits"]["title"] == written["set_aside_title"]
+
+
+def test_the_signed_note_shows_the_users_edits(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    written, meeting = manifest["note"], manifest["meeting"]
+    payload = {"device_id": manifest["device"]["id"], "recording_id": meeting["id"]}
+    read = signed_meetings(http, sample_signature, MEETINGS_NOTE_PATH, payload)
+    assert read["state"] == "ready"
+    assert read["note"]["title"] == written["title"]
+    assert read["note"]["short_summary"] == written["text"]
+    assert read["superseded_edits"] is True
+    assert read["private_notes"] == meeting["private_notes"]
+
+
+def test_a_meeting_the_kit_records_gets_its_note_from_its_model(sample_hub, kit_note, kit_model):
+    _, manifest = sample_hub
+    _, text = kit_model
+    # Another text than the sample's: a hub that answered the sample's note
+    # for every meeting would not pass.
+    assert text != manifest["note"]["text"]
+    note = kit_note["note"]
+    sections = [section["name"] for section in note["sections"]]
+    assert sections
+    assert note["title"] == text
+    assert_written_by_the_model(note, text, sections)
 
 
 def test_an_agent_personality_reads_back_whole(sample_hub):

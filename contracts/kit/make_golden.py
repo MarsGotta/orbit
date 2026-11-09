@@ -33,12 +33,15 @@ from kit_hub import (
     MEETING_TRACK,
     TEST_KEY,
     device_client,
+    notes_model,
     pair_device,
     prepare,
     record_meeting,
     run,
     serving,
     transcription_service,
+    wait_for_note,
+    wait_for_proposals,
     wait_for_transcript,
 )
 
@@ -87,10 +90,18 @@ MEETING = {
     "speaker": {"key": MEETING_TRACK, "name": "Rowan Cedar"},
     "private_notes": "Ask about the Cedar launch date",
 }
+# The meeting's note: the invented model writes it once the transcript is
+# ready, the device edits its title, asks for it again with the sample's
+# template (which sets that edit aside) and edits the new note's title.
+NOTE = {
+    "text": "The Cedar roadmap draft goes to the weekly sync",
+    "set_aside_title": "Cedar roadmap first notes",
+    "title": "Cedar roadmap review notes",
+}
 
 
 def answer(response: httpx.Response) -> dict:
-    if response.status_code not in (200, 201):
+    if response.status_code not in (200, 201, 202):
         raise SystemExit(f"{response.request.method} {response.request.url.path}: {response.text}")
     return response.json()
 
@@ -101,7 +112,9 @@ def write(url: str, code: str, vault: Path) -> dict:
     Nothing today's hub deletes or changes on its own, as time passes or when
     it starts: no attachment (one no message holds is deleted after an hour),
     no conversation, transcription or final pass under way: the meeting is
-    read once its transcript is ready and its final pass is no longer under way."""
+    read once its transcript is ready and its final pass is no longer under way,
+    its note once it is written, and the vault proposal the hub prepares on
+    its own for a written note once it is no longer under way."""
     paired = pair_device(url, code, DEVICE_NAME)
     with device_client(url, paired["token"]) as http:
         answer(http.put(f"/v1/reminders/{TITLE_DIGEST}", json=REMINDER))
@@ -146,6 +159,15 @@ def write(url: str, code: str, vault: Path) -> dict:
                 json={"text": MEETING["private_notes"], "base_revision": 0},
             )
         )
+        note_path = f"/v1/recordings/{recording}/note"
+        note = wait_for_note(http, recording)
+        edit = {"base_revision": note["revision"], "title": NOTE["set_aside_title"]}
+        answer(http.put(f"{note_path}/edits", json=edit))
+        answer(http.post(note_path, json={"template_id": NOTE_TEMPLATE["id"]}))
+        note = wait_for_note(http, recording)
+        edit = {"base_revision": note["revision"], "title": NOTE["title"]}
+        answer(http.put(f"{note_path}/edits", json=edit))
+        wait_for_proposals(http, recording)
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
@@ -162,6 +184,11 @@ def write(url: str, code: str, vault: Path) -> dict:
         },
         "vault": {**VAULT, "path": str(vault)},
         "meeting": {**MEETING, "duration_ms": MEETING_SECONDS * 1000},
+        "note": {
+            **NOTE,
+            "template_id": NOTE_TEMPLATE["id"],
+            "sections": [section["name"] for section in NOTE_TEMPLATE["sections"]],
+        },
     }
 
 
@@ -174,8 +201,8 @@ def main() -> None:
         vault = Path(scratch) / VAULT_FOLDER
         vault.mkdir()
         (vault / VAULT_NOTE[0]).write_text(VAULT_NOTE[1], encoding="utf-8")
-        with transcription_service(MEETING["text"]) as service:
-            configuration = prepare(Path(scratch) / "hub", key, transcription=service)
+        with transcription_service(MEETING["text"]) as service, notes_model(NOTE["text"]) as model:
+            configuration = prepare(Path(scratch) / "hub", key, transcription=service, model=model)
             # The first command that opens the store creates it, sealed with the test key.
             code = run(configuration, "pair-code").strip()
             with serving(configuration) as url:
