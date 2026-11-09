@@ -6,6 +6,7 @@ never retried: the action may have run on the Mac.
 """
 
 from .assistant.access import disabled_message
+from .device_groups import refusal_message as device_group_message
 from .errors import render
 from .private_route import json_response
 
@@ -130,6 +131,8 @@ def failure(exc):
     }.get(code, "Could not complete the request")
     if code == "agent_access_disabled" and numbers is not None:
         message = disabled_message(str(numbers.get("agent_id")), str(numbers.get("group")))
+    if code == "device_capability_missing" and numbers is not None:
+        message = device_group_message(numbers)
     if code == "skill_not_enabled" and numbers is not None:
         enabled = str(numbers.get("enabled")).replace(",", ", ") or "none"
         message = f"Agent «{numbers.get('agent_id')}» has no enabled skill named «{numbers.get('name')}»; enabled skills: {enabled}"

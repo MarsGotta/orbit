@@ -1,4 +1,4 @@
-import type { CalendarAttendeeSnapshot } from "../../bridge/generated/CalendarAttendeeSnapshot";
+import type { CalendarAttendeeSnapshot } from "orbit-ui/bridge/generated/CalendarAttendeeSnapshot";
 
 /** Invented people: Nubaria's team and Hoteles Ribera, its client. */
 export const people = {

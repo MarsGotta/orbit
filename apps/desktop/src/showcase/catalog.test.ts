@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { composeView } from "../state/app-view";
-import { applyFrame } from "../state/feature-frame";
+import { composeView } from "orbit-ui/state/app-view";
+import { applyFrame } from "orbit-ui/state/feature-frame";
 import { baseViews, bootstrapOf, framesOf } from "./base";
 import { scenarios } from "./catalog";
 

@@ -1,5 +1,5 @@
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
-import type { RecentMeetingSnapshot } from "../../bridge/generated/RecentMeetingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
+import type { RecentMeetingSnapshot } from "orbit-ui/bridge/generated/RecentMeetingSnapshot";
 import type { Views } from "../scenario";
 import { DAILY_ID } from "./notes-list";
 import { at, MINUTE } from "./time";

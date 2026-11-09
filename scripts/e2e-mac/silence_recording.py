@@ -27,7 +27,7 @@ def bounds(rust_constant) -> dict[str, tuple[float, str]]:
         rust_constant("crates/orbit-core/src/audio_signal.rs", "SAMPLE_DELIVERY_TIMEOUT_MS") / 1000
     )
     drain = rust_constant("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
-    http = rust_constant("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
+    http = rust_constant("crates/orbit-hub-client/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
     # The real run re-asked every 3–16 s. That is not a PCM delivery bound.
     # Allow one answer interval for a positive post-expiry observation; absence
     # remains a test timeout, never permission for production to close.

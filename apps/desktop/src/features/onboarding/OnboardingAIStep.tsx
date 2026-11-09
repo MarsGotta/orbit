@@ -1,8 +1,8 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AgentPort } from "../settings/agents/use-agent-config";
-import { AIProviderEditor } from "../settings/AIProviderEditor";
-import { useAISettings } from "../settings/use-ai-settings";
+import type { AgentPort } from "orbit-ui/features/settings/agents/use-agent-config";
+import { AIProviderEditor } from "orbit-ui/features/settings/AIProviderEditor";
+import { useAISettings } from "orbit-ui/features/settings/use-ai-settings";
 import { Step } from "./OnboardingSteps";
 
 export function AIStep({ agent }: { agent?: AgentPort }) {

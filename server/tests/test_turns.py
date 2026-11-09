@@ -33,12 +33,6 @@ async def test_an_expired_interrupt_blocks_resend_without_replacing_the_turn(ref
         await runtime.handle(
             "chat.interrupt", InterruptParams(session_id=session, turn_id=turn), str(uuid4())
         )
-        now[0] = 1030.0
-        with pytest.raises(HubError) as busy:
-            await runtime.handle(
-                "chat.send", SendParams(text="before deadline", session_id=session), str(uuid4())
-            )
-        assert busy.value.code == "session_busy"
         assert store.chat.session(owner, session)["status"] == "interrupting"
         now[0] = 1031.0
         with pytest.raises(HubError) as expired:

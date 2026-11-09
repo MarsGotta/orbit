@@ -1,8 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AppView as AppSnapshot } from "../state/app-view";
-import { ShellSlots, TopBarLeading } from "./shell-slots";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { ShellSlots, TopBarLeading } from "orbit-ui/shell/shell-slots";
 import { TopBar } from "./TopBar";
 
 function snapshot(change: Record<string, unknown> = {}): AppSnapshot {

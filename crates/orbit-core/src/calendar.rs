@@ -38,7 +38,7 @@ pub use writes::*;
 /// Protects nothing beyond the layout: past fourteen columns a column is
 /// narrower than an event title. It is not a read limit — a month and the
 /// agenda are wider and read whole. The interface copies it once
-/// (`apps/desktop/src/features/calendar/range.ts`), held to this value by
+/// (`packages/orbit-ui/features/calendar/range.ts`), held to this value by
 /// `scripts/tests/test_constants_copies.py`.
 pub const MAX_GRID_DAYS: u8 = 14;
 

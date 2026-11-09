@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Image } from "@tauri-apps/api/image";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { AddedAttachment } from "./generated/AddedAttachment";
+import type { AddedAttachment } from "orbit-ui/bridge/generated/AddedAttachment";
 
 /** Where a new attachment's bytes come from; the daemon reads or captures them. */
 export type AttachmentSource =

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
+from .private_audio import for_child
 from .protocol import HubError
 
 # JSON, not audio: 16 MiB admits word-scale intervals for a day, but prevents
@@ -58,20 +59,22 @@ def normalize_voices(payload: dict, duration_ms: int) -> dict:
 
 
 async def separate(
-    configuration, audio_fd: int, duration_ms: int, *, max_speakers: int | None = None
+    configuration, audio, duration_ms: int, *, max_speakers: int | None = None
 ) -> dict:
+    """The voices of `audio`, a final pass's private file (`private_audio`)."""
     if configuration is None:
         raise HubError("diarization_not_configured", "Local separation configuration missing")
     script = Path(__file__).with_name("diarization_process.py")
+    path, inherited = for_child(audio)
     try:
         process = await asyncio.create_subprocess_exec(
             str(configuration.python),
             str(script),
-            f"/proc/self/fd/{audio_fd}",
+            path,
             str(configuration.bundle),
             str(configuration.gpu_lock),
             *([] if max_speakers is None else [str(max_speakers)]),
-            pass_fds=(audio_fd,),
+            pass_fds=inherited,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
             start_new_session=True,

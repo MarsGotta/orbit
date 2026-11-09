@@ -15,17 +15,18 @@ from .storage import is_storage_full
 
 class MethodRoute(Enum):
     DEVICE_REPLY = "device_reply"
-    RUNTIME = "runtime"
-    SUBMIT_LANE = "submit_lane"
+    IN_LOOP = "in_loop"
+    OWN_LANE = "own_lane"
+    CONVERSATION_LANE = "conversation_lane"
 
 
 METHODS = {
-    "chat.send": MethodRoute.SUBMIT_LANE,
-    "chat.observe": MethodRoute.RUNTIME,
-    "chat.interrupt": MethodRoute.RUNTIME,
-    "approval.respond": MethodRoute.RUNTIME,
-    "clarify.respond": MethodRoute.RUNTIME,
-    "ping": MethodRoute.RUNTIME,
+    "chat.send": MethodRoute.OWN_LANE,
+    "chat.observe": MethodRoute.IN_LOOP,
+    "chat.interrupt": MethodRoute.CONVERSATION_LANE,
+    "approval.respond": MethodRoute.OWN_LANE,
+    "clarify.respond": MethodRoute.OWN_LANE,
+    "ping": MethodRoute.IN_LOOP,
     "device.reply": MethodRoute.DEVICE_REPLY,
 }
 
@@ -55,7 +56,7 @@ class Socket:
     # Lanes outlive the viewer that opened them: their receipts are durable
     # and their prompts must not be cancelled mid-flight.
     in_flight: set[asyncio.Task] = field(default_factory=set)
-    # The last control lane of each conversation, which the next one follows.
+    # The last interrupt's lane of each conversation, which the next one follows.
     controls: dict[str, asyncio.Task] = field(default_factory=dict)
 
 

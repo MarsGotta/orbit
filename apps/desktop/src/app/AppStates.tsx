@@ -1,8 +1,8 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useEffect, useState } from "react";
-import { Button } from "../design/Button";
-import { Icon } from "../design/Icon";
-import { Spinner } from "../design/Spinner";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { Spinner } from "orbit-ui/design/Spinner";
 
 import styles from "./AppStates.module.css";
 

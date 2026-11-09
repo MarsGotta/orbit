@@ -1,16 +1,16 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, type ReactNode } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { Agent } from "../../bridge/generated/Agent";
-import { AssistantAvatar } from "../../design/AssistantAvatar";
-import { Button } from "../../design/Button";
-import { Loading } from "../../design/Spinner";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import { AssistantAvatar } from "orbit-ui/design/AssistantAvatar";
+import { Button } from "orbit-ui/design/Button";
+import { Loading } from "orbit-ui/design/Spinner";
 
-import { colorOf } from "../assistant/assistants";
-import { SignInWaiting } from "../assistant/SignInNotice";
-import { useSignIn } from "../assistant/use-sign-in";
-import type { AgentPort } from "../settings/agents/use-agent-config";
-import { usePrimary } from "../settings/use-primary";
+import { colorOf } from "orbit-ui/features/assistant/assistants";
+import { SignInWaiting } from "orbit-ui/features/assistant/SignInNotice";
+import { useSignIn } from "orbit-ui/features/assistant/use-sign-in";
+import type { AgentPort } from "orbit-ui/features/settings/agents/use-agent-config";
+import { usePrimary } from "orbit-ui/features/settings/use-primary";
 import { readyAgents, type Cast } from "./cast";
 import { Step } from "./OnboardingSteps";
 import styles from "./OnboardingView.module.css";

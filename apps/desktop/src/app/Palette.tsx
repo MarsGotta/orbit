@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
-import { Icon } from "../design/Icon";
-import { useModalFocus } from "../design/use-modal-focus";
-import { useCopy } from "../i18n/CopyProvider";
+import { Icon } from "orbit-ui/design/Icon";
+import { useModalFocus } from "orbit-ui/design/use-modal-focus";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { matchCommands, paletteGroups, type PaletteCommand } from "./palette-commands";
 import { AskRow, CommandRow } from "./PaletteRows";
 import styles from "./Palette.module.css";

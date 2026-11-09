@@ -4,6 +4,7 @@ Every refusal is a `HubError` with its code and numbers; the app's handler
 renders it in the step-2 format, with the request's `op`.
 """
 
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 
@@ -118,6 +119,20 @@ def digest_of(value: str | None) -> str | None:
     return value
 
 
+def since_of(value: str | None) -> int:
+    """A change number from a query: ASCII digits only, so that neither a sign,
+    spaces, `_` nor other scripts' digits pass as one."""
+    if value is not None and value.isascii() and value.isdigit():
+        # Past the 4,300 digits `int` reads it refuses, as for any other text.
+        with suppress(ValueError):
+            return int(value)
+    raise HubError(
+        "invalid_parameters",
+        "since must be a whole number: the latest change the Mac read",
+        numbers={"field": "since"},
+    )
+
+
 def integer(value: str | None, field: str, *, default: int, minimum: int, maximum: int) -> int:
     if value is None:
         return default
@@ -188,6 +203,7 @@ def mount(
     recording_changed,
     transcription_signal,
     diarization_configured,
+    changes,
 ):
     routes = _Routes(
         store,
@@ -203,6 +219,8 @@ def mount(
     )
     dictionaries.mount(app, store, identity, bounded_body, routes.run)
     _mount_listing(app, routes)
+    # Before `/v1/recordings/{recording_id}`, which would take «changes» as an id.
+    _mount_changes(app, routes.identity, changes)
     _mount_recording(app, routes)
     _mount_final_pass(app, routes)
     _mount_user_edits(app, routes)
@@ -287,6 +305,17 @@ def _mount_listing(app, routes: _Routes):
             )
         )
         return JSONResponse(saved)
+
+
+def _mount_changes(app, identity, changes):
+    """Which meetings changed after a number this hub gave (`runtime.recording_changes`)."""
+
+    @app.get("/v1/recordings/changes")
+    async def changed_recordings(request: Request, since: str | None = None):
+        # The token before anything else: no answer, not even `latest`, without it.
+        identity(request)
+        number = since_of(since)
+        return JSONResponse({"latest": changes.latest, "recordings": changes.since(number)})
 
 
 def _mount_recording(app, routes: _Routes):

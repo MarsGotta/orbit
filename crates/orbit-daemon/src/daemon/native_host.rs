@@ -21,6 +21,15 @@ struct HostStateFields<'a> {
     shortcut_failures: Option<Vec<orbit_core::topics::status::ShortcutFailure>>,
 }
 
+/// What a `ready` says the device is; today's helper says neither.
+#[derive(Deserialize)]
+struct ReadyDevice {
+    #[serde(default)]
+    kind: Option<orbit_core::device::DeviceKind>,
+    #[serde(default)]
+    capabilities: Option<Vec<orbit_core::device::DeviceGroup>>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct HostIdentity {
     pub id: String,
@@ -58,6 +67,9 @@ pub(super) struct NativeHost {
     cut_from: Option<HostIdentity>,
     calendar_backend_available: bool,
     pub(super) shortcut_failures: Option<Vec<orbit_core::topics::status::ShortcutFailure>>,
+    /// What the last `ready` said the device is. Kept when the helper goes
+    /// away: the device does not change kind.
+    device: orbit_core::device::DeviceProfile,
 }
 
 impl NativeHost {
@@ -67,6 +79,10 @@ impl NativeHost {
 
     pub(super) fn calendar_backend_available(&self) -> bool {
         self.calendar_backend_available
+    }
+
+    pub(super) fn device(&self) -> orbit_core::device::DeviceProfile {
+        self.device
     }
 
     pub(super) fn observe(&mut self, event: &Value) -> HostUpdate {
@@ -80,8 +96,20 @@ impl NativeHost {
                 self.shortcut_failures = None;
                 self.identity = None;
                 self.cut_from = None;
-                // The daemon launches the helper bundled with this version.
-                self.calendar_backend_available = true;
+                // The relay already dropped a `ready` whose kind or groups
+                // are unknown (`native_event_invalid`), so this decodes.
+                if let Ok(device) = ReadyDevice::deserialize(event) {
+                    self.device = orbit_core::device::DeviceProfile::declared(
+                        device.kind,
+                        device.capabilities.as_deref(),
+                    );
+                }
+                // The daemon launches the helper bundled with this version,
+                // which has a calendar reader when its device handles the
+                // calendar. This is what stops the engine's own reads.
+                self.calendar_backend_available = self
+                    .device
+                    .handles(orbit_core::device::DeviceGroup::Calendar);
                 HostUpdate {
                     authority_changed: true,
                     ..HostUpdate::default()

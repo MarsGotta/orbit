@@ -72,13 +72,12 @@ class Agent:
         """What answers: `claude-code` or `codex` for an official-tool agent, else its kind."""
         return self.kind
 
-    def voice(self, *, listening=False) -> SpeechBackend:
-        """The agent's speech, or the refusal that names the agent and why it has none."""
-        unavailable = getattr(self.speech, "no_dictation" if listening else "unvoiced", False)
-        if self.speech is None or unavailable:
+    def voice(self) -> SpeechBackend:
+        """The agent's read-aloud, or the refusal that names the agent and why it has none."""
+        if self.speech is None or getattr(self.speech, "unvoiced", False):
             raise HubError(
                 "speech_not_configured",
-                f"{self.name} («{self.id}») does not have {('listening' if listening else 'speech')}: the assistant of type {self.kind} does not have {('configured dictation' if listening else 'a voice for reading aloud')}",
+                f"{self.name} («{self.id}») does not have speech: the assistant of type {self.kind} does not have a voice for reading aloud",
                 http_status=503,
                 numbers={"agent_id": self.id},
             )
@@ -113,7 +112,8 @@ class Agents:
 
     Two defaults, kept apart on purpose. `default` is `orbit.toml`'s: it owns
     conversations stored before agents existed, speaks for an orbit-mcp that
-    names no agent and lends its voice to dictation and to an agent without
+    names no agent, dictates with its own dictation when no `listening` is
+    chosen (`Transcriber.interactive`) and lends its voice to an agent without
     one, so changing the primary never moves those. `primary_id` is the
     profile's: `ready`'s `default_agent_id` and the agent of a turn that
     names none."""

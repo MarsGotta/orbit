@@ -1,7 +1,7 @@
-import { getCopy } from "../../i18n";
+import { getCopy } from "orbit-ui/i18n";
 import { reportRefused } from "../../app/report-failure";
 import { panelOpenUrl } from "../../bridge/panel-port";
-import type { DaemonPort } from "../../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 
 /**
  * Opens a link of Deimos's answer through the panel's own order.

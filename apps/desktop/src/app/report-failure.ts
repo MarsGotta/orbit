@@ -1,9 +1,9 @@
-import type { DaemonPort } from "../bridge/port";
-import type { ReadPage } from "../bridge/reads";
-import { refusalOf } from "../bridge/refusal";
-import type { OrbitState } from "../state/orbit-store";
-import type { DirectCall } from "../state/ceilings";
-import { newOp, refusalReport } from "./interceptor";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import type { ReadPage } from "orbit-ui/bridge/reads";
+import { refusalOf } from "orbit-ui/bridge/refusal";
+import type { OrbitState } from "orbit-ui/state/orbit-store";
+import type { DirectCall } from "orbit-ui/state/ceilings";
+import { newOp, refusalReport } from "orbit-ui/state/interceptor";
 
 /** Runs a call through the registry of what is in flight; as is, without one. */
 type Track = OrbitState["track"];

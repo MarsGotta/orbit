@@ -1,9 +1,9 @@
-import { useCopy } from "../i18n/CopyProvider";
-import { localizeMessage } from "./interceptor";
-import { Toast } from "../design/Toast";
-import type { NoticeAction } from "../i18n";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import { localizeMessage } from "orbit-ui/state/interceptor";
+import { Toast } from "orbit-ui/design/Toast";
+import type { NoticeAction } from "orbit-ui/i18n";
 import { FailureActions, FailureHelp } from "./FailureActions";
-import type { Message } from "./interceptor";
+import type { Message } from "orbit-ui/state/interceptor";
 export interface NoticeBannerProps {
   messages: Message[];
   onAction: (action: NoticeAction) => void;

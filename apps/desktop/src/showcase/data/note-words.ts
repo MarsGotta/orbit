@@ -1,6 +1,6 @@
-import type { DictionaryEntry } from "../../bridge/generated/DictionaryEntry";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { DictionaryEntry } from "orbit-ui/bridge/generated/DictionaryEntry";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { library } from "./library";
 import { reviewNote } from "./note-open";
 import { at } from "./time";

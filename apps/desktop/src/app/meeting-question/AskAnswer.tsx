@@ -1,7 +1,7 @@
-import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
-import { Button } from "../../design/Button";
-import { Spinner } from "../../design/Spinner";
-import { useCopy } from "../../i18n/CopyProvider";
+import type { MeetingQuestionSnapshot } from "orbit-ui/bridge/generated/MeetingQuestionSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { Spinner } from "orbit-ui/design/Spinner";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { causeText } from "./copy";
 import { AnswerText } from "./QuestionCard";
 import styles from "./AskMenu.module.css";

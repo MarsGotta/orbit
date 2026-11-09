@@ -1,9 +1,10 @@
 # Orbit Hub
 
-Private bridge between Orbit devices and existing assistant profiles in Hermes.
-Importing it does not install another agent, change the profile or start services.
-`orbit.toml` may list several agents (`[[agents]]`, one Hermes profile each);
-without them the hub is one agent, `default`. The kinds of agent and how a new
+Private bridge between Orbit devices and their assistants: Hermes profiles,
+Claude Code, Codex or OpenAI-compatible models. Importing it does not install
+another agent, change a profile or start services.
+`orbit.toml` may list several agents (`[[agents]]`, each of one kind); without
+them the hub is one Hermes agent, `default`. The kinds of agent and how a new
 kind plugs in are in `orbit_hub/assistant/agents.py`.
 
 The hub keeps no calendar copy. The assistant reads it directly from
@@ -36,14 +37,38 @@ uv run orbit-hub --config /path/to/orbit.toml serve --host 0.0.0.0 --tls-cert /p
 `init` creates an AES-256 key with mode 0600 and a private SQLite database.
 It is an explicit one-time operation: it never replaces an existing key, and
 it refuses a data directory that already holds a database.
-The administrator must provision the Hermes backend credential in the mode-0600
-file specified by `hermes_credential_file`; it is not obtained or copied automatically.
+With a Hermes agent, the administrator must provision the Hermes backend
+credential in the mode-0600 file specified by `hermes_credential_file`; it is
+not obtained or copied automatically. A hub without Hermes agents needs neither
+`hermes_url` nor that file.
 The Mac receives only its revocable device token.
 
 The pairing code expires after five minutes, allows one use and appears only
 in administrator output. Tokens and codes are stored as hashes of random secrets.
 Names, messages, receipts, metadata, audio and transcripts use AES-GCM with
-authenticated context; there is no plaintext fallback.
+authenticated context; there is no plaintext fallback. A sealed value has one
+of two forms:
+
+- today's form: nonce (12 bytes) | AES-256-GCM ciphertext and its 16-byte tag,
+  with the value's context as associated data;
+- the marked form: `"OHK1"` (4 bytes) | key id (8) | nonce (12) | AES-256-GCM
+  ciphertext and tag. The key id is the first 8 bytes of
+  HMAC-SHA256(storage key, `"orbit.storage.key-id.v1"`): derived from the key,
+  never stored, so a backup restored with its key matches, and it reveals
+  nothing of the key. The associated data is the 12-byte header (mark and key
+  id) followed by the context, so neither can be swapped.
+
+In both forms the storage key is the 32 bytes of the key file and the context
+is encoded as UTF-8. The two forms do not separate their associated data, so
+no context may begin with `OHK1`.
+
+This hub reads both forms and writes only today's, which every earlier hub
+reads. A value that begins with this key's header and holds at least an empty
+marked value (40 bytes) is tried as marked first; anything that does not open
+that way is read as today's form, since a random nonce may begin with the
+header. A mark of another key does not open. On the key check the database is
+refused with the same wrong-key error as today; any other row marked with
+another key fails when that row is read.
 
 ```sh
 uv run orbit-hub --config /path/to/orbit.toml devices

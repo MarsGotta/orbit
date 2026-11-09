@@ -44,6 +44,7 @@ class Services:
     bridge: object
     bridge_waiters: dict
     hub_version: Callable[[], str]
+    changes: object
 
 
 def mount(
@@ -58,6 +59,7 @@ def mount(
     bridge,
     bridge_waiters,
     hub_version,
+    changes,
 ):
     services = Services(
         settings,
@@ -70,6 +72,7 @@ def mount(
         bridge,
         bridge_waiters,
         hub_version,
+        changes,
     )
 
     @app.websocket("/v1/ws")
@@ -127,6 +130,8 @@ def ready(services: Services, socket: Socket) -> dict:
             "device_id": socket.device,
             "hub_protocol": HUB_PROTOCOL,
             "hub_version": services.hub_version(),
+            # Which hub answers (`storage.schema.hub_id`), as `/health` says it.
+            "hub_id": services.store.hub_id,
             # The primary's, for Macs from before agents (0.9.0), whose turns
             # name none and so go to it.
             "assistant_name": agents.by_id[agents.primary_id].name,
@@ -144,6 +149,10 @@ def ready(services: Services, socket: Socket) -> dict:
             # then deletes nothing and says so (contracts/hub-v1.md).
             "recording_delete": True,
             "chat_observe": True,
+            # The latest meeting change (`runtime.recording_changes`), read
+            # once this socket already listens: a later change reaches it as
+            # a notice. Absent from a 0.17 hub: the Mac reads the list.
+            "change": services.changes.latest,
         },
     )
 

@@ -1,4 +1,4 @@
-import { Icon } from "../design/Icon";
+import { Icon } from "orbit-ui/design/Icon";
 import type { PaletteCommand } from "./palette-commands";
 import styles from "./Palette.module.css";
 

@@ -1,4 +1,4 @@
-import type { AppCommand } from "../bridge/generated";
+import type { AppCommand } from "orbit-ui/bridge/generated";
 import { withOpenNote } from "./base";
 import { approvalAnswered } from "./data/chat-approval";
 import { reviewNote } from "./data/note-open";

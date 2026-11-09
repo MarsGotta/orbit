@@ -130,7 +130,7 @@ impl Supervisor {
     /// Launches the supervision on a thread of its own. Its events go through
     /// `route`: the loop's channel alone, or that and the capture task's.
     pub fn spawn(
-        path: Option<PathBuf>,
+        link: Box<dyn HelperLink>,
         commands: mpsc::Receiver<Value>,
         route: impl Into<NativeRoute>,
         supervision: Supervision,
@@ -148,7 +148,7 @@ impl Supervisor {
                 {
                     Ok(runtime) => {
                         let life = Life {
-                            path,
+                            link,
                             commands,
                             route,
                             stopped,
@@ -205,7 +205,7 @@ impl Supervisor {
 /// What the supervision keeps across a panic of its own: the daemon's
 /// commands, in order, the route its events take and the stop.
 struct Life {
-    path: Option<PathBuf>,
+    link: Box<dyn HelperLink>,
     commands: mpsc::Receiver<Value>,
     route: NativeRoute,
     stopped: watch::Receiver<bool>,
@@ -222,7 +222,7 @@ impl Life {
     fn run(mut self, runtime: &tokio::runtime::Runtime) -> HelperEnd {
         loop {
             let run = supervise(
-                self.path.clone(),
+                self.link.as_mut(),
                 &mut self.commands,
                 self.route.clone(),
                 self.stopped.clone(),
@@ -249,13 +249,13 @@ impl Life {
 /// The supervision's whole life on its own thread: `run`, and the fall it
 /// announces when the relaunches run out.
 async fn supervise(
-    path: Option<PathBuf>,
+    link: &mut dyn HelperLink,
     commands: &mut mpsc::Receiver<Value>,
     route: NativeRoute,
     stopped: watch::Receiver<bool>,
 ) -> HelperEnd {
     let stopping = stopped.clone();
-    match run_with(path, commands, route.clone(), stopped).await {
+    match run_with(link, commands, route.clone(), stopped).await {
         Ok(end) => end,
         Err(_) => {
             // The daemon latches the capture on this; a supervision
@@ -276,31 +276,28 @@ async fn supervise(
 /// Supervises the helper until `stop` turns true, the command channel closes
 /// or the relaunches run out. `stop` is how the daemon ends it in order.
 pub async fn run(
-    path: Option<PathBuf>,
+    link: Box<dyn HelperLink>,
     commands: mpsc::Receiver<Value>,
     route: impl Into<NativeRoute>,
     stop: watch::Receiver<bool>,
 ) -> Result<HelperEnd> {
     let mut commands = commands;
-    run_with(path, &mut commands, route.into(), stop).await
+    let mut link = link;
+    run_with(link.as_mut(), &mut commands, route.into(), stop).await
 }
 
 async fn run_with(
-    path: Option<PathBuf>,
+    link: &mut dyn HelperLink,
     commands: &mut mpsc::Receiver<Value>,
     route: NativeRoute,
     mut stop: watch::Receiver<bool>,
 ) -> Result<HelperEnd> {
-    let path = path.context("Native helper not configured")?;
-    if !path.is_absolute() {
-        anyhow::bail!("The helper requires an absolute path");
-    }
     let mut consecutive_failures: u32 = 0;
     loop {
         if *stop.borrow() {
             return Ok(HelperEnd::NotRunning);
         }
-        let (bridge_result, saw_ready) = launch(&path, commands, &route, &mut stop).await;
+        let (bridge_result, saw_ready) = launch(link, commands, &route, &mut stop).await;
         let bridge_error = match bridge_result {
             Ok(end) => return Ok(end),
             Err(error) => error,
@@ -334,7 +331,7 @@ async fn run_with(
 /// One launch of the helper and its bridge, with the tap that forwards the
 /// bridge's events through `route`. Says whether the helper said `ready`.
 async fn launch(
-    path: &std::path::Path,
+    link: &mut dyn HelperLink,
     commands: &mut mpsc::Receiver<Value>,
     route: &NativeRoute,
     stop: &mut watch::Receiver<bool>,
@@ -355,9 +352,11 @@ async fn launch(
             }
         }
     });
-    let bridge = run_helper_bridge(path, commands, bridge_tx_for_bridge, stop);
     #[cfg(test)]
-    let bridge = panic_when_asked(path, bridge);
+    let trigger = link.panic_trigger();
+    let bridge = run_helper_bridge(link, commands, bridge_tx_for_bridge, stop);
+    #[cfg(test)]
+    let bridge = panic_when_asked(trigger, bridge);
     let bridge_result = bridge.await;
     // Closing the original sender (the bridge task already dropped its
     // clone) is what signals the tap to finish.
@@ -386,8 +385,13 @@ async fn announce_loss(route: &NativeRoute, error: &anyhow::Error) {
 
 /// Ends a helper in order: `shutdown`, then its input closed, then
 /// [`HELPER_EXIT_GRACE`] for it to leave while its output keeps being read, and
-/// only then `SIGKILL`. The child is always reaped before this returns.
-pub(super) async fn close_helper<R, W>(mut child: Child, reader: R, mut writer: W) -> HelperEnd
+/// only then `SIGKILL`. A process is always reaped before this returns; a
+/// link without one has left when its output ends.
+pub(super) async fn close_helper<R, W>(
+    process: Option<Box<dyn HelperProcess>>,
+    reader: R,
+    mut writer: W,
+) -> HelperEnd
 where
     R: AsyncBufRead + Unpin,
     W: AsyncWrite + Unpin,
@@ -406,7 +410,10 @@ where
         }
     };
     // End of input: the helper's other signal to leave, and the only one
-    // a helper that missed `shutdown` can still get.
+    // a helper that missed `shutdown` can still get. A pipe split in memory
+    // closes on `shutdown`, not on dropping its writing half; a child's stdin
+    // closes when it is dropped.
+    let _ = tokio::time::timeout_at(deadline, writer.shutdown()).await;
     drop(writer);
     // Its last frames — the shutdown receipt, a final state — are read and
     // dropped, so a full pipe cannot keep it from leaving.
@@ -414,11 +421,22 @@ where
     let mut sink = tokio::io::sink();
     let drain = tokio::io::copy_buf(&mut reader, &mut sink);
     tokio::pin!(drain);
+    let Some(mut process) = process else {
+        // Without a process, the helper has gone when its output ends.
+        return match tokio::time::timeout_at(deadline, drain).await {
+            Ok(_) => HelperEnd::Exited {
+                code: None,
+                signal: None,
+                asked,
+            },
+            Err(_) => HelperEnd::Killed { asked },
+        };
+    };
     let mut drained = false;
     let left = tokio::time::timeout_at(deadline, async {
         loop {
             tokio::select! {
-                status = child.wait() => return status,
+                status = process.wait() => return status,
                 _ = &mut drain, if !drained => drained = true,
             }
         }
@@ -434,19 +452,24 @@ where
             }
         }
         _ => {
-            let _ = child.kill().await;
+            process.kill().await;
             HelperEnd::Killed { asked }
         }
     }
 }
 
-/// A test asks the supervision to panic while its helper runs by creating
-/// `<helper>.panic` beside the helper; it is removed as the panic fires.
-/// Nothing in a build without tests looks for it.
+/// A test asks the supervision to panic while its helper runs by creating the
+/// file its link names (`<helper>.panic` beside a launched helper); it is
+/// removed as the panic fires. Nothing in a build without tests looks for it.
 #[cfg(test)]
 #[allow(clippy::panic, reason = "a test injects this panic on purpose")]
-async fn panic_when_asked<T>(path: &std::path::Path, bridge: impl Future<Output = T>) -> T {
-    let trigger = path.with_extension("panic");
+async fn panic_when_asked<T>(
+    trigger: Option<std::path::PathBuf>,
+    bridge: impl Future<Output = T>,
+) -> T {
+    let Some(trigger) = trigger else {
+        return bridge.await;
+    };
     tokio::pin!(bridge);
     loop {
         tokio::select! {

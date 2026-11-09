@@ -605,7 +605,7 @@ def test_the_draft_is_looked_for_in_webkit_s_own_storage(tmp_path):
 
 
 def test_the_texts_of_the_draft_check_are_the_app_s():
-    source = ROOT / "apps" / "desktop" / "src"
+    source = ROOT / "packages" / "orbit-ui"
     assert drafts_panel_checks.TEXTS["recovered"] == harness_copy.text("assistant.draftRecovered")
     assert drafts_panel_checks.TEXTS["composer"] == harness_copy.text("assistant.composerPrefix")
     drafts = (source / "state" / "local-drafts.ts").read_text(encoding="utf-8")
@@ -755,7 +755,7 @@ def test_silence_waits_follow_the_rust_constants(monkeypatch):
         + original("crates/orbit-core/src/audio_signal.rs", "SAMPLE_DELIVERY_TIMEOUT_MS") / 1000
     )
     finalizing = original("crates/orbit-core/src/lib.rs", "FINALIZING_TIMEOUT_MS") / 1000
-    http = original("crates/orbit-daemon/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
+    http = original("crates/orbit-hub-client/src/hub.rs", "HUB_HTTP_TIMEOUT_SECONDS")
     assert (
         waits["silence-saved"][0]
         == 2 * 47

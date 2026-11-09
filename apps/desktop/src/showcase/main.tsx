@@ -7,15 +7,22 @@ import { baseHub, baseViews } from "./base";
 import { scenarios } from "./catalog";
 import { startShowcaseClock } from "./clock";
 import { NOW } from "./data/time";
-import { followTheme } from "../design/theme";
+import { installAttachments } from "orbit-ui/bridge/attachments";
+import { installClipboard } from "orbit-ui/bridge/clipboard";
+import { followTheme } from "orbit-ui/design/theme";
+import * as attachments from "../bridge/attachments";
+import * as clipboard from "../bridge/clipboard";
 import { ShowcaseIndex } from "./ShowcaseIndex";
 import { AnnexSheet } from "./sheet/AnnexSheet";
 import { DesignSheet } from "./sheet/DesignSheet";
 import { installDaemon, publish } from "./ipc";
 import type { Scenario } from "./scenario";
-import "../design/fonts.css";
-import "../design/tokens.css";
+import "orbit-ui/design/fonts.css";
+import "orbit-ui/design/tokens.css";
 import "../styles.css";
+
+installClipboard(clipboard);
+installAttachments(attachments);
 
 /** What the capture script reads: the scenarios, and when the one shown is settled. */
 declare global {

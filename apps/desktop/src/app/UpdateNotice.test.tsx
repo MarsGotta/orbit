@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { UpdateSnapshot } from "../bridge/generated/UpdateSnapshot";
+import type { UpdateSnapshot } from "orbit-ui/bridge/generated/UpdateSnapshot";
 import { UpdateNotice } from "./UpdateNotice";
 
 const available: UpdateSnapshot = {

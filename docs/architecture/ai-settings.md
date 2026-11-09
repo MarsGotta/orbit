@@ -18,7 +18,7 @@ shown from their existing account status, with a link to Asistentes.
 | Function | Existing configuration and consumer | Override |
 |---|---|---|
 | Meeting transcription | `config.Settings.meeting_transcription`, `meeting_transcription.MeetingTranscriber`; draft `transcription.TranscriptionWorker` and final `meeting_final_pass.FinalPassWorker` | `transcription_preferences.Transcriber` resolves provider/model, retains dictionary hints and pins the choice for durable jobs. Whisper uses the configured endpoint/model; MAI retains its native OpenRouter adapter. |
-| Listening: voice notes and calls | `assistant/speech.SpeechBackend`; `assistant/hermes_speech.HermesSpeech` or `assistant/openai_speech.OpenAISpeech`, selected by the default assistant | `Transcriber.interactive` resolves `listening` separately; untouched listening delegates to the original speech backend. Explicit hub listening uses configured Whisper. |
+| Listening: voice notes and calls | `assistant/speech.SpeechBackend`; `assistant/hermes_speech.HermesSpeech` or `assistant/openai_speech.OpenAISpeech`, selected by the default assistant | `Transcriber.interactive` resolves `listening` separately; untouched listening delegates to the default agent's own dictation (Hermes, `openai`), and a default agent without one (Claude Code, Codex) uses configured Whisper, as explicit hub listening does. |
 | Assistant speech | Hermes profile or `assistant/openai_settings.SpeechSettings` (`base_url`, `model`, `voice`, optional key file), via `OpenAISpeech` | `ai/consumers.FunctionSpeech` wraps each configured agent and resolves speech per clip. Original voice names are preserved when available; otherwise the compatible endpoint receives `alloy`, also used by the probe. Agents without their own voice retain the default-agent fallback. |
 | Meeting summary and note | `config.Settings.processing`, `processing.ProcessingClient`, `notes/worker.NotesWorker` | `ai/consumers.FunctionProcessing` resolves `meeting_notes` once per note, including all map/reduce parts, preserving the operator's reasoning, context and request budgets. An app provider also works without an operator processing entry. |
 | Vault distillation and review | Existing vault `maintenance_model`; otherwise the operator processing model | `vault` is stored only. Vault settings read back the effective model; no maintenance job is introduced. |
@@ -38,7 +38,12 @@ The whole validation has a 20-second deadline, including catalog download and
 all probes, and refuses a concurrent settings write rather than building an
 unbounded wait queue. Local discovery admits 32 models; cloud catalogs admit
 2048 and use capability metadata. OpenRouter validates the credential with
-the existing MAI silence probe because its catalog itself is public.
+the existing MAI silence probe because its catalog itself is public. An
+`api` provider (any OpenAI-compatible API) reads its catalog with its key, up
+to 2048 models, and probes none: a paid API is never sent test requests. Its
+`models` are the ones the person names with their capabilities, refused with
+`ai_models_missing` when absent or empty (before the catalog is read) and with
+`ai_models_invalid` when one is not in the catalog.
 Catalog/probe responses are limited to 2 MiB. The complete stored registry is
 limited to 512 KiB, leaving room for operator descriptions in the Mac's
 existing response envelope, and there are at most 64 configured providers.

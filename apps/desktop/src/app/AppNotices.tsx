@@ -1,9 +1,9 @@
 import { useCallback } from "react";
-import type { NoticeAction } from "../i18n";
+import type { NoticeAction } from "orbit-ui/i18n";
 import type { AppContentProps } from "./App";
-import { ToastStack } from "../design/Toast";
-import { MeetingNoteNotice } from "../features/notes/MeetingNoteNotice";
-import { UnseenWriteOutcomes } from "../features/calendar/edit/UnseenWriteOutcomes";
+import { ToastStack } from "orbit-ui/design/Toast";
+import { MeetingNoteNotice } from "orbit-ui/features/notes/MeetingNoteNotice";
+import { UnseenWriteOutcomes } from "orbit-ui/features/calendar/edit/UnseenWriteOutcomes";
 import { UpdateNotice } from "./UpdateNotice";
 import { NoticeBanner } from "./NoticeBanner";
 import { bannerMessages } from "./visible-error";

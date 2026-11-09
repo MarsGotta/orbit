@@ -164,7 +164,7 @@ mod wire_tests {
         generated.push_str(&serde_json::to_string_pretty(&features)?);
         generated.push_str(" as const satisfies Record<AppCommand[\"command\"], FeatureId>;\n");
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apps/desktop/src/bridge/generated/commandFeatures.ts");
+            .join("../../packages/orbit-ui/bridge/generated/commandFeatures.ts");
         std::fs::write(path, generated).map_err(serde_json::Error::io)?;
         let declaration = PanelOrder::decl();
         let orders: std::collections::BTreeMap<_, _> = declaration
@@ -178,7 +178,7 @@ mod wire_tests {
             serde_json::to_string_pretty(&orders)?
         );
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../apps/desktop/src/bridge/generated/panelOrders.ts");
+            .join("../../packages/orbit-ui/bridge/generated/panelOrders.ts");
         std::fs::write(path, generated).map_err(serde_json::Error::io)?;
         Ok(())
     }

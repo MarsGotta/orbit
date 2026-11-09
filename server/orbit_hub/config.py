@@ -23,9 +23,12 @@ from .urls import protected_url
 class Settings:
     data_dir: Path
     key_file: Path
-    hermes_url: str
-    hermes_credential_file: Path
     meeting_transcription: MeetingTranscriptionConfiguration
+    # Where the Hermes agents are served and the credential the hub sends it.
+    # Required only when an agent is of kind hermes (the implicit one is);
+    # a leftover value with no Hermes agent is accepted and not used.
+    hermes_url: str | None = None
+    hermes_credential_file: Path | None = None
     # The implicit agent's, when there is no `[[agents]]` (`assistant.agents`).
     config_file: Path | None = None
     tls_key_file: Path | None = None
@@ -71,8 +74,13 @@ class Settings:
                 "storage_quota_bytes must be a positive number of bytes; remove it to let "
                 "the disk set the limit"
             )
-        protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
-        self.agent_configurations()
+        hermes = self.hermes_agent()
+        if hermes is not None:
+            for key in ("hermes_url", "hermes_credential_file"):
+                if getattr(self, key) is None:
+                    raise ValueError(f'{key} is required: agent "{hermes.id}" is of kind hermes')
+        if self.hermes_url is not None:
+            protected_url(self.hermes_url, allow_insecure_localhost=self.allow_insecure_localhost)
         self.assistant_tool_settings()
         self.assistant_jail_roots()
 
@@ -106,6 +114,12 @@ class Settings:
             assistant_name=self.assistant_name,
             profile=self.profile,
         )
+
+    def hermes_agent(self) -> AgentConfiguration | None:
+        """The first configured agent of kind hermes, if any: what makes Hermes
+        a dependency of this hub. Agents added from Orbit are never Hermes."""
+        agents, _ = self.agent_configurations()
+        return next((agent for agent in agents if agent.kind == "hermes"), None)
 
     @classmethod
     def load(cls, path: Path) -> "Settings":

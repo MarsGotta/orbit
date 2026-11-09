@@ -2,13 +2,14 @@
 
 import re
 from itertools import pairwise
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
+from .device_groups import DEVICE_GROUPS, DEVICE_KINDS
 from .errors import HubError  # also re-exported: the public protocol error
-from .identifiers import RecordingId
+from .identifiers import RecordingId, canonical_uuid
 
 
 class StrictModel(BaseModel):
@@ -28,9 +29,27 @@ HUB_PROTOCOL = 1
 MAX_BRIDGE_CODE_BYTES = 64
 
 
+# An installation's id as a device sends it: a canonical UUID, 36 lowercase
+# hexadecimal characters with hyphens.
+InstallationId = Annotated[str, Field(min_length=36, max_length=36), AfterValidator(canonical_uuid)]
+
+
 class PairRequest(StrictModel):
     code: str = Field(min_length=16, max_length=160)
     name: str = Field(min_length=1, max_length=80)
+    # What the device is and the groups it handles (`device_groups`); one
+    # that says neither is a Mac that handles every group.
+    kind: Literal[DEVICE_KINDS] = "mac"
+    capabilities: list[Literal[DEVICE_GROUPS]] | None = None
+    # The id of the Orbit installation that pairs; none is unknown. Kept,
+    # never read by the hub: two pairings of one installation stay two devices.
+    installation_id: InstallationId | None = None
+
+    @model_validator(mode="after")
+    def _groups_once(self):
+        if self.capabilities is not None and len(set(self.capabilities)) != len(self.capabilities):
+            raise ValueError("a device group is repeated")
+        return self
 
 
 class DeviceSummary(StrictModel):
@@ -42,6 +61,10 @@ class DeviceSummary(StrictModel):
     connected: bool
     assistant_turn_active: bool | None = None
     last_seen: float = Field(ge=0)
+    # Absent from an older hub, whose devices are all Macs that handle
+    # everything: None is every group (`device_groups.handled`).
+    kind: Literal[DEVICE_KINDS] = "mac"
+    capabilities: list[str] | None = None
 
 
 class Frame(StrictModel):

@@ -1,7 +1,9 @@
 # Orbit engineering contract
 
-Orbit is the macOS companion for a personal assistant running in Hermes, with
-its own hub for meetings, notes and conversations. Interface catalogue copy is
+Orbit is the macOS companion for a personal assistant, with its own hub for
+meetings, notes, conversations, dictation and AI settings. Hermes is one of the
+agents a hub can offer, beside Claude Code, Codex and any OpenAI-compatible
+model. Interface catalogue copy is
 English and Spanish; repository documentation is English; code uses clear English names. Read the
 [architecture](docs/architecture/README.md), [self-hosting guide](docs/self-hosting.md)
 and [contributing guide](CONTRIBUTING.md). The historical Orbit agent harness is unrelated.

@@ -1,4 +1,4 @@
-import type { CalendarViewKind } from "../../bridge/generated/CalendarViewKind";
+import type { CalendarViewKind } from "orbit-ui/bridge/generated/CalendarViewKind";
 import { at } from "../data/time";
 import type { Scenario } from "../scenario";
 import { calendar, calendarStates, withAgenda } from "./calendar-states";

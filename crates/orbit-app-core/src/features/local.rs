@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct LocalView {
     pub profile: Option<ProfileSettingsSnapshot>,
     pub login_item: LoginItemState,
@@ -16,18 +16,21 @@ pub struct LocalView {
 pub type View = LocalView;
 
 pub fn project(input: &FeatureInput<'_>) -> View {
+    #[cfg(feature = "updater")]
+    let install_blocked =
+        crate::UpdateService::installation_blocker_reason(input.topics).map(|reason| {
+            input
+                .copy
+                .text(crate::PresentationText::UpdateBlocked(reason))
+        });
+    #[cfg(not(feature = "updater"))]
+    let install_blocked = None;
     LocalView {
         profile: (*input.local.profile).clone(),
         login_item: (*input.local.login_item).clone(),
         notifications: (*input.local.notifications).clone(),
         update: UpdateSnapshot {
-            install_blocked: crate::UpdateService::installation_blocker_reason(input.topics).map(
-                |reason| {
-                    input
-                        .copy
-                        .text(crate::PresentationText::UpdateBlocked(reason))
-                },
-            ),
+            install_blocked,
             ..(*input.local.update).clone()
         },
         onboarding_done: input.local.onboarding_done,
@@ -44,7 +47,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "command", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum LocalCommand {
     LoginItem { on: bool },
     DesktopStatus,

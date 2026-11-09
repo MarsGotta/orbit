@@ -1,7 +1,7 @@
-import type { Agent } from "../../bridge/generated/Agent";
-import type { AgentCall } from "../../bridge/generated/AgentCall";
-import type { AgentOutcome } from "../../bridge/generated/AgentOutcome";
-import type { SignInAttempt } from "../../bridge/generated/SignInAttempt";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
+import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { AgentOutcome } from "orbit-ui/bridge/generated/AgentOutcome";
+import type { SignInAttempt } from "orbit-ui/bridge/generated/SignInAttempt";
 import type { Views } from "../scenario";
 import { message } from "./chat";
 import { ARES, DEIMOS, PHOBOS } from "./status";

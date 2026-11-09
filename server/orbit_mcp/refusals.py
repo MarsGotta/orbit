@@ -79,10 +79,17 @@ def _walk_sentence(detail) -> str:
     return notice if isinstance(notice, str) else ""
 
 
+def _subject(selection: DeviceSelection) -> str:
+    """How a sentence names the chosen device: «The Mac» only for a Mac."""
+    device = selection.device
+    return "The Mac" if device is None or device.kind == "mac" else "That device"
+
+
 def _device_unavailable(code: str, selection: DeviceSelection) -> CallToolResult:
-    """A Mac that is not connected, said with when it was seen or re-paired."""
+    """A device that is not connected, said with when it was seen or re-paired."""
     device = selection.device
     name = device.name if device is not None else selection.requested_name
+    subject = _subject(selection)
     newer = [
         candidate
         for candidate in selection.same_name
@@ -92,15 +99,28 @@ def _device_unavailable(code: str, selection: DeviceSelection) -> CallToolResult
     if newer:
         latest = max(newer, key=lambda candidate: (candidate.paired_at, candidate.id))
         message = (
-            f"The Mac is not connected to Orbit. {name} was paired again "
+            f"{subject} is not connected to Orbit. {name} was paired again "
             f"{seen_ago(latest.paired_at)}; use the new identity."
         )
     elif device is not None:
-        message = (
-            f"The Mac is not connected to Orbit. {name} was last seen {seen_ago(device.last_seen)}."
-        )
+        message = f"{subject} is not connected to Orbit. {name} was last seen {seen_ago(device.last_seen)}."
     else:
-        message = f"The Mac is not connected to Orbit: {name}."
+        message = f"{subject} is not connected to Orbit: {name}."
+    return CallToolResult(content=[_text_content(f"{code}: {message}")], isError=True)
+
+
+def _device_capability_missing(code: str, refusal, selection) -> CallToolResult:
+    """An order the hub did not relay: the device does not handle its group.
+
+    Said by the device's name, never its id, and never as «the Mac»."""
+    refusal = refusal if isinstance(refusal, dict) else {}
+    device = selection.device if selection is not None else None
+    name = device.name if device is not None else "That device"
+    message = (
+        f"{name} is a {refusal.get('kind')} and does not handle «{refusal.get('group')}»: "
+        f"that device cannot answer {refusal.get('capability')}. "
+        "It is not a permission; ask a device that handles it."
+    )
     return CallToolResult(content=[_text_content(f"{code}: {message}")], isError=True)
 
 
@@ -375,6 +395,8 @@ def error_result(
     spoken_code = _spoken_code(code, detail)
     message = ERROR_MESSAGES.get(spoken_code)
     refusal = detail.get("refusal") if isinstance(detail, dict) else None
+    if code == "device_capability_missing":
+        return _device_capability_missing(code, refusal, selection)
     if isinstance(refusal, dict) and code in REFINED_MESSAGES:
         message = REFINED_MESSAGES[code](message, refusal, detail)
     if message is None:

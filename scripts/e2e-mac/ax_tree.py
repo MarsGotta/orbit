@@ -26,7 +26,7 @@ _LINE = re.compile(
     r"(?: \[(?P<attributes>(?:[^\[\]]|\[[^\]]*\])*)\])?$"
 )
 # «00:12», «12:34» or «1:02:03»: how the note screen writes a turn's offset
-# (formatTimestamp, apps/desktop/src/features/notes/notes-format.ts).
+# (formatTimestamp, packages/orbit-ui/features/notes/notes-format.ts).
 TIME = re.compile(r"^(?:(\d+):)?(\d{2}):(\d{2})$")
 
 

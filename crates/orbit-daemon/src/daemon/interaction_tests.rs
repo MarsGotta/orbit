@@ -523,7 +523,7 @@ async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub);
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -531,6 +531,7 @@ async fn stop_writes_interrupt_to_the_hub_socket_before_retiring_it() -> Result<
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     let (_, connected) = received_events
         .recv()
@@ -575,7 +576,7 @@ async fn an_old_privacy_latch_cannot_send_a_new_interrupt() -> Result<()> {
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub);
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -583,6 +584,7 @@ async fn an_old_privacy_latch_cannot_send_a_new_interrupt() -> Result<()> {
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     let (_, connected) = received_events
         .recv()
@@ -657,7 +659,7 @@ async fn rearmed_maintenance_keeps_the_new_hub_socket() -> Result<()> {
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub);
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -665,6 +667,7 @@ async fn rearmed_maintenance_keeps_the_new_hub_socket() -> Result<()> {
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     let (_, connected) = received_events
         .recv()
@@ -692,7 +695,7 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
     let (events, _received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub);
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -700,6 +703,7 @@ async fn a_hub_socket_that_cannot_open_is_reported_as_an_unconfirmed_interrupt()
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     {
         let fixture_source: Option<String> = Some("selected".into());
@@ -739,7 +743,7 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
     let (events, _received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub.clone());
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -747,6 +751,7 @@ async fn failed_hub_drain_reports_both_unsent_frames() -> Result<()> {
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     hub.send(crate::hub::command("queued", "ping", json!({}))?)
         .await?;
@@ -794,7 +799,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
     let (events, mut received_events) = tokio::sync::mpsc::channel(4);
     runtime.link.outbound.install(hub);
     runtime.link.task = Some(tokio::spawn(crate::hub::run(
-        runtime.settings.clone(),
+        crate::config::hub_endpoint(&runtime.settings),
         "synthetic-token".into(),
         true,
         commands,
@@ -802,6 +807,7 @@ async fn privacy_stop_interrupts_the_live_turn_and_keeps_it_hidden() -> Result<(
             generation: runtime.state.generation(),
             sender: events,
         },
+        orbit_ipc::new_op,
     )));
     let (_, connected) = received_events
         .recv()

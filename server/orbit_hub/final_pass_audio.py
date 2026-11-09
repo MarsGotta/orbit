@@ -1,27 +1,19 @@
 """The audio of a final pass: each track rebuilt from its verified chunks, and
-the windows sent to Whisper, all in anonymous memory files through ffmpeg."""
+the windows sent to Whisper, all in private files (`private_audio`) through
+ffmpeg."""
 
 import hashlib
 import io
-import os
 import subprocess
 import wave
-from contextlib import contextmanager
 
 from . import meeting_transcript_integrity as integrity
 from .meeting_transcription import MAX_AUDIO_BYTES, REQUEST_TIMEOUT_SECONDS
 from .meetings import repository
+from .private_audio import for_child, private_file
 from .protocol import HubError
 
 OPUS_BITRATE = 24_000
-
-
-@contextmanager
-def memory_file():
-    # Linux hub only: memfd has no directory entry or plaintext fallback.
-    descriptor = os.memfd_create("orbit-final-audio", os.MFD_CLOEXEC)
-    with os.fdopen(descriptor, "w+b") as handle:
-        yield handle
 
 
 def ffmpeg(arguments, descriptors, capture_stderr=False):
@@ -68,7 +60,7 @@ def prepare_track(repo, job, track, target):
         if not any(item["track"] == track for item in manifest["tracks"]):
             return False
         began = manifest["started_at_ms"]
-    with memory_file() as source:
+    with private_file() as source:
         with wave.open(source, "wb") as output:
             for body, metadata, checksum in repo.chunks(job, track):
                 if hashlib.sha256(body).hexdigest() != checksum:
@@ -109,10 +101,11 @@ def prepare_track(repo, job, track, target):
         if started is None:
             return False
         source.seek(0)
+        (source_path, source_fds), (target_path, target_fds) = map(for_child, (source, target))
         ffmpeg(
             [
                 "-i",
-                f"/proc/self/fd/{source.fileno()}",
+                source_path,
                 "-ac",
                 "1",
                 "-ar",
@@ -121,18 +114,19 @@ def prepare_track(repo, job, track, target):
                 "pcm_s16le",
                 "-f",
                 "wav",
-                f"/proc/self/fd/{target.fileno()}",
+                target_path,
             ],
-            (source.fileno(), target.fileno()),
+            source_fds + target_fds,
         )
     target.seek(0)
     return True
 
 
 def encode_window(pcm):
-    with memory_file() as source, memory_file() as target:
+    with private_file() as source, private_file() as target:
         source.write(pcm)
         source.seek(0)
+        (source_path, source_fds), (target_path, target_fds) = map(for_child, (source, target))
         ffmpeg(
             [
                 "-f",
@@ -142,7 +136,7 @@ def encode_window(pcm):
                 "-ac",
                 "1",
                 "-i",
-                f"/proc/self/fd/{source.fileno()}",
+                source_path,
                 "-c:a",
                 "libopus",
                 "-b:a",
@@ -151,9 +145,9 @@ def encode_window(pcm):
                 "off",
                 "-f",
                 "ogg",
-                f"/proc/self/fd/{target.fileno()}",
+                target_path,
             ],
-            (source.fileno(), target.fileno()),
+            source_fds + target_fds,
         )
         target.seek(0)
         audio = target.read(MAX_AUDIO_BYTES + 1)
@@ -166,16 +160,18 @@ def encode_window(pcm):
         return audio
 
 
-def silence_report(descriptor):
-    """ffmpeg's silence detection over a prepared track, read by `window_ends`.
+def silence_report(audio):
+    """ffmpeg's silence detection over a prepared track (its private file),
+    read by `window_ends`.
 
     Diagnostic ffmpeg has its own existing 300 s budget."""
+    path, descriptors = for_child(audio)
     return ffmpeg(
         [
             "-v",
             "info",
             "-i",
-            f"/proc/self/fd/{descriptor}",
+            path,
             "-af",
             (
                 f"silencedetect=noise={integrity.SILENCE_NOISE_DB}dB:"
@@ -185,6 +181,6 @@ def silence_report(descriptor):
             "null",
             "-",
         ],
-        (descriptor,),
+        descriptors,
         True,
     )

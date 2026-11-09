@@ -1,5 +1,5 @@
-import type { BriefingAgendaSnapshot } from "../../bridge/generated/BriefingAgendaSnapshot";
-import type { BriefingNextSnapshot } from "../../bridge/generated/BriefingNextSnapshot";
+import type { BriefingAgendaSnapshot } from "orbit-ui/bridge/generated/BriefingAgendaSnapshot";
+import type { BriefingNextSnapshot } from "orbit-ui/bridge/generated/BriefingNextSnapshot";
 import type { Views } from "../scenario";
 import { designReview, events, riberaCall } from "./agenda";
 import { OWNER_FIRST } from "./status";

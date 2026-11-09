@@ -159,7 +159,7 @@ pub struct CalendarInventoryPage {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct CalendarWindow {
     #[cfg_attr(feature = "ts", ts(type = "number"))]

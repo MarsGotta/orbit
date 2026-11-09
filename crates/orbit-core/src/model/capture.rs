@@ -74,6 +74,38 @@ pub struct TrackProgress {
     pub last_chunk_at_ms: i64,
 }
 
+/// Non-sensitive capture facts. Track is a machine identifier such as mic_local.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChunkMetadata {
+    pub id: String,
+    pub recording_id: String,
+    pub track: String,
+    /// Explicit capture scope shared by this recording's tracks. None denotes
+    /// legacy/unknown provenance, never an epoch inferred from a timestamp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capture_epoch_id: Option<String>,
+    pub sequence: u64,
+    pub sample_rate: u32,
+    pub channels: u16,
+    pub frames: u64,
+    /// Native capture clock, shared between tracks; never synthesized from wall time.
+    pub monotonic_ns: u64,
+    /// First observed sample offset in this recording track. Resume preserves
+    /// the counter even when a new explicit capture epoch starts.
+    pub first_sample: u64,
+    /// Estimated UTC Unix milliseconds when the first frame reached the receiver.
+    pub started_at_ms: i64,
+}
+
+/// A local receipt is returned only after the blob and journal are synchronized.
+/// It does not claim remote persistence or power-loss certification on hardware.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChunkReceipt {
+    pub metadata: ChunkMetadata,
+    pub bytes: u64,
+    pub sha256: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordingInterruption {
     pub cause: RecordingInterruptionCause,

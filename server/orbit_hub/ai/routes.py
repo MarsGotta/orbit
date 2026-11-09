@@ -28,6 +28,56 @@ def refuse_busy(lock):
         )
 
 
+def refuse_provider(provider_id, provider):
+    """What is refused before any provider is contacted."""
+    if re.fullmatch(r"[a-z0-9-]{1,64}", provider_id) is None or provider_id in (
+        "hub",
+        "operator",
+    ):
+        raise HubError("ai_provider_invalid", "Invalid provider identifier")
+    if (provider.kind == "openrouter") != (provider_id == "openrouter"):
+        raise HubError("ai_provider_invalid", "OpenRouter uses its own provider registry")
+    if provider.kind == "openrouter" and provider.base_url != OPENROUTER_URL:
+        raise HubError("ai_provider_invalid", "The OpenRouter URL cannot be changed")
+    if provider.kind == "api" and not provider.models:
+        # Refused before the catalogue is read: an API is never probed, so
+        # its models are only the ones the person names.
+        raise HubError(
+            "ai_models_missing",
+            "Name the models you use from this API and what each one does",
+            numbers={"count": 0},
+        )
+
+
+def saved_models(provider, detected):
+    """The models stored for `provider`: those named for an `api` provider;
+    otherwise those discovered, or their corrected capabilities."""
+    if provider.models is None:
+        return detected
+    models = [m.model_dump() for m in provider.models]
+    if provider.kind == "api":
+        check_named(models, detected)
+    elif {m["id"] for m in models} != {m["id"] for m in detected}:
+        raise HubError("ai_models_invalid", "Correct only the models returned by the provider")
+    return models
+
+
+def check_named(named, catalogue):
+    """An `api` provider's named models must all be in its catalogue."""
+    ids = [model["id"] for model in named]
+    listed = {model["id"] for model in catalogue}
+    unlisted = [model for model in dict.fromkeys(ids) if model not in listed]
+    if unlisted:
+        shown = ", ".join(unlisted[:3]) + (
+            f" and {len(unlisted) - 3} more" if len(unlisted) > 3 else ""
+        )
+        raise HubError(
+            "ai_models_invalid",
+            f"{len(unlisted)} of the {len(ids)} models named are not in its catalogue: {shown}",
+            numbers={"count": len(unlisted), "named": len(ids), "catalogue": len(listed)},
+        )
+
+
 def mount(app, registry, identity, bounded_body, executor, changed=lambda: None):
     lock = asyncio.Lock()
 
@@ -53,15 +103,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
     async def save(provider_id: str, request: Request):
         device = identity(request)
         provider = await payload(request, Provider)
-        if re.fullmatch(r"[a-z0-9-]{1,64}", provider_id) is None or provider_id in (
-            "hub",
-            "operator",
-        ):
-            raise HubError("ai_provider_invalid", "Invalid provider identifier")
-        if (provider.kind == "openrouter") != (provider_id == "openrouter"):
-            raise HubError("ai_provider_invalid", "OpenRouter uses its own provider registry")
-        if provider.kind == "openrouter" and provider.base_url != OPENROUTER_URL:
-            raise HubError("ai_provider_invalid", "The OpenRouter URL cannot be changed")
+        refuse_provider(provider_id, provider)
         refuse_busy(lock)
         async with lock:
             active(device)
@@ -84,18 +126,7 @@ def mount(app, registry, identity, bounded_body, executor, changed=lambda: None)
             key = provider.api_key or kept
             if provider.kind == "openrouter" and not key:
                 raise HubError("ai_key_missing", "Enter the OpenRouter key")
-            detected = await discover(provider, key)
-            models = (
-                [m.model_dump() for m in provider.models]
-                if provider.models is not None
-                else detected
-            )
-            if provider.models is not None and {m["id"] for m in models} != {
-                m["id"] for m in detected
-            }:
-                raise HubError(
-                    "ai_models_invalid", "Correct only the models returned by the provider"
-                )
+            models = saved_models(provider, await discover(provider, key))
             active(device)
             await in_store(executor, registry.save_provider, provider_id, provider, models, key)
             changed()

@@ -6,7 +6,11 @@ and sign-in/out use it. Claude's SDK transport prefixes the CLI; Codex's RPC
 transport prefixes `app-server`. Their children, including Orbit MCP, inherit
 that namespace. A full-mount `/bin/true` probe precedes admission; missing bwrap
 or failed namespace/mount creation refuses startup with actionable Spanish copy
-and the existing `agent_adapter_missing` wire code.
+and the existing `agent_adapter_missing` wire code. Bubblewrap is Linux's: on a
+hub running on another system (a Mac), `launch()` refuses first, before the
+secret scan, the arguments or any process, with `assistant_jail_unavailable`
+(`service`); conversations and sign-in/out both reach it, and Hermes, the
+generic agent, meetings and the final pass keep working.
 
 For an example hub rooted at `/opt/orbit/data`, a Codex agent `aster` with
 workspace `/home/example/project`, the argument groups are:

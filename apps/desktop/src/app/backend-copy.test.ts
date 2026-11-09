@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { configureCopy, getCopy } from "../i18n";
-import { receive } from "./interceptor";
-import { request } from "../features/vault/api";
-import type { Refusal } from "../bridge/refusal";
+import { configureCopy, getCopy } from "orbit-ui/i18n";
+import { receive } from "orbit-ui/state/interceptor";
+import { request } from "orbit-ui/features/vault/api";
+import type { Refusal } from "orbit-ui/bridge/refusal";
 
 afterEach(() => configureCopy("es", ["es-ES"], "Deimos"));
 

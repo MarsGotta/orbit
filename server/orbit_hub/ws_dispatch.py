@@ -1,10 +1,11 @@
 """Answering one request frame of a Mac, in its own lane.
 
 A frame's reservation (its operation id or its safety target) is taken in
-the read loop; its answer runs here, off the read loop: a `chat.send` in a
-lane of its own, a control in its conversation's lane, after the controls of
-that conversation read before it. Every lane delivers its answer and records
-its durable receipt; none is cancelled when its socket closes.
+the read loop; its answer runs here, off the read loop: a `chat.send` or an
+answer to a question in a lane of its own, an interrupt in its conversation's
+lane, after the interrupts of that conversation read before it. Every lane
+delivers its answer and records its durable receipt; none is cancelled when
+its socket closes.
 """
 
 import asyncio
@@ -117,8 +118,8 @@ def in_lane(socket: Socket, answer: Callable[[], Awaitable[None]]) -> asyncio.Ta
 def in_conversation_lane(
     socket: Socket, session_id: str, answer: Callable[[], Awaitable[None]]
 ) -> None:
-    """Run a control after the controls of its conversation read before it,
-    never in the read loop: its wait for the agent or for the conversation's
+    """Run an interrupt after the interrupts of its conversation read before
+    it, never in the read loop: its wait for the agent or for the conversation's
     admission holds only that conversation."""
     before = socket.controls.get(session_id)
 

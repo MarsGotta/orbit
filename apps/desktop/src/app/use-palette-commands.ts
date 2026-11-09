@@ -1,9 +1,9 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { ErrorOrigin } from "../state/orbit-store";
-import type { AppView } from "../state/app-view";
-import type { ViewId } from "../state/ui";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ErrorOrigin } from "orbit-ui/state/orbit-store";
+import type { AppView } from "orbit-ui/state/app-view";
+import type { ViewId } from "orbit-ui/state/ui";
 
 import { askAssistant, paletteCommands, type PaletteActions } from "./palette-commands";
 import type { PaletteProps } from "./Palette";

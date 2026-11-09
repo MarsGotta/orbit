@@ -1,10 +1,12 @@
 """Paired devices and the codes that pair them."""
 
 import hashlib
+import json
 import secrets
 import time
 from uuid import uuid4
 
+from ..device_groups import handled
 from ..protocol import HubError
 
 
@@ -33,7 +35,19 @@ class DeviceRepository:
             )
         return code
 
-    def pair(self, code: str, name: str, now: float) -> dict:
+    def pair(
+        self,
+        code: str,
+        name: str,
+        now: float,
+        *,
+        kind: str = "mac",
+        capabilities: list[str] | None = None,
+        installation_id: str | None = None,
+    ) -> dict:
+        """Pair a device with what it said it is (`protocol.PairRequest`
+        validated it). `capabilities` None is every group, kept as NULL; a
+        list is kept as the device said it, `[]` included."""
         device_id, token = str(uuid4()), secrets.token_urlsafe(32)
         with self.store.transaction() as db:
             changed = db.execute(
@@ -44,13 +58,17 @@ class DeviceRepository:
                 raise HubError("invalid_pairing", "Invalid, used or expired code")
             self.store.ensure_capacity(len(name.encode()) + 1024)
             db.execute(
-                "INSERT INTO devices(id,name,token_hash,created,last_seen) VALUES (?,?,?,?,?)",
+                "INSERT INTO devices(id,name,token_hash,created,last_seen,kind,capabilities,"
+                "installation_id) VALUES (?,?,?,?,?,?,?,?)",
                 (
                     device_id,
                     self.store.encrypt(name.encode(), f"device:{device_id}"),
                     digest(token),
                     now,
                     now,
+                    kind,
+                    None if capabilities is None else json.dumps(capabilities),
+                    installation_id,
                 ),
             )
         return {"device_id": device_id, "token": token}
@@ -91,9 +109,11 @@ class DeviceRepository:
         return [dict(row) for row in rows]
 
     def active(self) -> list[dict]:
+        """The devices not revoked, with what each is and handles; never
+        their installation's id, which nobody reads yet."""
         with self.store.reading() as db:
             rows = db.execute(
-                "SELECT id,name,created,COALESCE(last_seen,created) AS last_seen"
+                "SELECT id,name,created,COALESCE(last_seen,created) AS last_seen,kind,capabilities"
                 " FROM devices WHERE revoked=0 ORDER BY created,id"
             ).fetchall()
         return [
@@ -102,9 +122,19 @@ class DeviceRepository:
                 "name": self.store.decrypt(row["name"], f"device:{row['id']}").decode("utf-8"),
                 "paired_at": row["created"],
                 "last_seen": row["last_seen"],
+                "kind": row["kind"],
+                "capabilities": _groups(row["capabilities"]),
             }
             for row in rows
         ]
+
+    def handling(self, device_id: str) -> tuple[str, list[str]] | None:
+        """What `device_id` is and the groups it handles; None when unknown."""
+        with self.store.reading() as db:
+            row = db.execute(
+                "SELECT kind,capabilities FROM devices WHERE id=?", (device_id,)
+            ).fetchone()
+        return None if row is None else (row["kind"], _groups(row["capabilities"]))
 
     def mark_seen(self, device_id: str, seen_at: float) -> None:
         with self.store.transaction() as db:
@@ -112,3 +142,8 @@ class DeviceRepository:
                 "UPDATE devices SET last_seen=MAX(last_seen,?) WHERE id=? AND revoked=0",
                 (seen_at, device_id),
             )
+
+
+def _groups(stored: str | None) -> list[str]:
+    """The groups a row keeps: NULL, a device that said none, is every group."""
+    return handled(None if stored is None else json.loads(stored))

@@ -30,6 +30,7 @@ RETIRED = re.compile(
 # Where each part keeps its copy.
 SOURCES = (
     ("apps/desktop/src", (".ts", ".tsx")),
+    ("packages/orbit-ui", (".ts", ".tsx")),
     ("apps/desktop/src-tauri/src", (".rs",)),
     ("crates", (".rs",)),
     ("native/macos/Sources", (".swift",)),
@@ -64,7 +65,7 @@ def retired_copy():
                 # The model comparison explicitly names what changes; the
                 # existing redo action keeps the brand's «Rehacer transcripción».
                 comparison = (
-                    path.relative_to(ROOT).as_posix() == "apps/desktop/src/i18n/es/transcription.ts"
+                    path.relative_to(ROOT).as_posix() == "packages/orbit-ui/i18n/es/transcription.ts"
                     and line.strip() == 'compare: "Volver a transcribir con…",'
                 )
                 if RETIRED.search(line) and not comparison:

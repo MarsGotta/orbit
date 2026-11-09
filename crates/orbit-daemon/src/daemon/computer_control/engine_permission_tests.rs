@@ -289,6 +289,7 @@ async fn withdrawing_the_permission_stops_the_engine_and_says_why() -> Result<()
             accessibility: h.runtime.state.capabilities().accessibility_state(),
             screen_recording: h.runtime.state.capabilities().screen_state(),
             calendar: orbit_core::device_bridge::CalendarPermission::Granted,
+            device: orbit_core::device::DeviceProfile::default(),
         },
     );
     assert_eq!(

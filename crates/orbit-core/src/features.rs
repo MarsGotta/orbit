@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "ts",
-    ts(export, export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(rename_all = "snake_case")]
 pub enum FeatureId {

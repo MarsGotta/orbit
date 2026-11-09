@@ -1,4 +1,4 @@
-import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
+import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
 import type { Views } from "../scenario";
 
 // The Macs the first run's scenarios start from.

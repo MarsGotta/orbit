@@ -20,7 +20,7 @@ NAMES = Messages(
     }
 )
 
-# The app's own texts (apps/desktop/src/i18n/es/assistant.ts): the
+# The app's own texts (packages/orbit-ui/i18n/es/assistant.ts): the
 # composer's label, `Mensaje para ${assistantName}`, and `draftRecovered`. The
 # dry-run test checks them against that file.
 TEXTS = Aliases({"composer": "assistant.composerPrefix", "recovered": "assistant.draftRecovered"})

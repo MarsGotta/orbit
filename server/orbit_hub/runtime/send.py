@@ -1,10 +1,11 @@
 """One turn of a conversation, from `chat.send` to the agent's prompt.
 
 A send is checked (its meeting, its handover, its files, its agent), admitted
-under its own conversation's admission (`Conversations.admitting`), where the
-agent's connection opens, its session opens or reopens and the turn commits;
-then the prompt goes to the agent outside every lock. A history the agent
-still loads is waited for outside the admission (`resume.Resumes`).
+under its own conversation's admission (`Conversations.admitting`), where it
+waits for the turn under way, the agent's connection opens, its session opens
+or reopens and the turn commits; then the prompt goes to the agent outside
+every lock. A history the agent still loads is waited for outside the
+admission (`resume.Resumes`).
 """
 
 import asyncio
@@ -22,6 +23,15 @@ from .work import TurnWork
 _UNKNOWN_OUTCOME = "The previous turn's outcome is uncertain; open a new session (session.new) or wait for reconciliation"
 # What a voice note's turn tells the agent, and never shows the user.
 _READ_ALOUD = "[Orbit will read your response aloud: reply in text only, without generating audio]"
+# Messages of one conversation not yet through its admission. What it protects:
+# each is a lane holding its text and its decrypted attachments, up to 32 MiB
+# a message (`MAX_MESSAGE_ATTACHMENT_BYTES`), for as long as the turn under way
+# lasts (minutes, in a long turn), so a client that repeats would otherwise
+# fill the hub's memory. Why 4: the Mac sends one message each time the person speaks
+# over the answer, two barge-ins in a row need 2, and this is double that; the
+# Mac's real rate was not measured. It does not limit other conversations, nor
+# a conversation's sends one at a time with no turn under way.
+MAX_WAITING_TURNS = 4
 
 
 class TurnSender:
@@ -52,7 +62,17 @@ class TurnSender:
             if params.attachments
             else []
         )
-        async with runtime.conversations.admitting(params.session_id):
+        # Counted on arrival, with nothing awaited before its entry is added:
+        # inside the admission it would already be holding its text and files,
+        # and two sends could pass the ceiling together.
+        waiting = runtime.conversations.waiting(params.session_id)
+        if waiting >= MAX_WAITING_TURNS:
+            raise HubError(
+                "too_many_waiting_turns",
+                f"{waiting + 1} messages would be waiting for the current turn; maximum {MAX_WAITING_TURNS}. Wait for the answer",
+                numbers={"count": waiting + 1, "max": MAX_WAITING_TURNS},
+            )
+        async with runtime.conversations.admitting(params.session_id, request_id):
             admitted = await self._admit(params)
             session_id, agent_id, connection, binding, loading = admitted
             waits = runtime.resumes.must_wait(agent_id, binding, loading)
@@ -94,10 +114,41 @@ class TurnSender:
         runtime.resumes.refuse_other_reopen(session_id, connection)
         if session_id is None:
             session_id = await self._open_session(params, agent_id, connection)
-        runtime.expire_stale_interrupt(session_id)
+        await self._turn_settled(session_id)
         self._startable(session_id)
         binding, loading = await runtime.resumes.reopen(session_id, agent_id, connection)
         return session_id, agent_id, connection, binding, loading
+
+    async def _turn_settled(self, session_id: str) -> None:
+        """Hold this send, inside its admission, until the conversation's turn
+        under way is over, its interrupt runs out of time or the runtime ends.
+
+        Sends wait in arrival order, because the admission takes them that way.
+        Nothing polls: the wait sleeps until `DeviceRuntime.wake_waiting_sends`
+        says something moved, or until the interrupt's deadline on the hub's
+        clock, which is the only way out with no event behind it. A turn still
+        answering has no deadline and holds this send for as long as it lasts.
+        """
+        runtime = self.runtime
+        while True:
+            runtime.expire_stale_interrupt(session_id)
+            state = runtime.turn_state(session_id)
+            if can_start_turn(state) or state is TurnState.OUTCOME_UNKNOWN:
+                return
+            self._refuse_after_the_end()
+            deadline = runtime.interrupt_deadlines.get(session_id)
+            await runtime.until_woken(None if deadline is None else deadline - runtime.now())
+
+    def _refuse_after_the_end(self) -> None:
+        """Refused when this device was revoked or its runtime closed; a
+        revocation closes the runtime too, and it is the cause to name."""
+        runtime = self.runtime
+        if runtime.revoked or not runtime.store.devices.is_active(runtime.device):
+            raise HubError("revoked", "Device revoked")
+        if runtime.closed:
+            raise HubError(
+                "session_resume_closed", "The Orbit session closed; the message was not sent"
+            )
 
     async def _open_session(self, params, agent_id: str, connection) -> str:
         runtime = self.runtime
@@ -153,12 +204,7 @@ class TurnSender:
         session_id, agent_id, connection, binding, _ = admitted
         runtime = self.runtime
         async with runtime.conversations.committing(session_id):
-            if runtime.revoked or not runtime.store.devices.is_active(runtime.device):
-                raise HubError("revoked", "Device revoked")
-            if runtime.closed:
-                raise HubError(
-                    "session_resume_closed", "The Orbit session closed; the message was not sent"
-                )
+            self._refuse_after_the_end()
             if (
                 runtime.connections.get(agent_id) is not connection
                 or not connection.connected

@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AppView as AppSnapshot } from "../state/app-view";
-import * as ui from "../state/ui";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import * as ui from "orbit-ui/state/ui";
 import { Sidebar } from "./Sidebar";
 
 describe("the views that stay", () => {

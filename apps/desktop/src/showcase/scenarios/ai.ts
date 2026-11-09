@@ -1,4 +1,4 @@
-import type { AiSettings } from "../../bridge/generated/AiSettings";
+import type { AiSettings } from "orbit-ui/bridge/generated/AiSettings";
 import { newMac } from "./first-run-macs";
 import type { Scenario } from "../scenario";
 

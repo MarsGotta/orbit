@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import { CopyProvider } from "../../i18n/CopyProvider";
-import type { AppView } from "../../state/app-view";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import type { AppView } from "orbit-ui/state/app-view";
 import { OnboardingView } from "./OnboardingView";
 
 it.each([

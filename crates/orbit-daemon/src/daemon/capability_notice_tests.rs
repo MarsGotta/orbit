@@ -303,7 +303,7 @@ async fn oversized_hub_refusal_keeps_body_size_and_ceiling() -> Result<()> {
     );
     runtime.settings.hub_url = Some(one_shot_http(response.into_bytes()).await?.to_string());
     let failure = crate::hub::transcribe(
-        &runtime.settings,
+        &crate::config::hub_endpoint(&runtime.settings),
         TOKEN,
         true,
         vec![0],

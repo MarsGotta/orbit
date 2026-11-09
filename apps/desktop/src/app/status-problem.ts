@@ -1,11 +1,11 @@
-import { getCopy } from "../i18n";
+import { getCopy } from "orbit-ui/i18n";
 
-import type { AppCommand } from "../bridge/generated";
-import type { HubLinkConnection } from "../bridge/generated/HubLinkConnection";
-import { hasSavedPairing } from "../bridge/hub-state";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { HubLinkConnection } from "orbit-ui/bridge/generated/HubLinkConnection";
+import { hasSavedPairing } from "orbit-ui/bridge/hub-state";
 
-import type { AppView as AppSnapshot } from "../state/app-view";
-import { settingsRoute } from "../state/ui";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { settingsRoute } from "orbit-ui/state/ui";
 
 /** What fixes a notice: a section of Settings, an order, or pairing again. */
 export type NoticeFix =

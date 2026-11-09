@@ -1,6 +1,6 @@
-import type { NoteProgressSnapshot } from "../../bridge/generated/NoteProgressSnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
-import type { NoteReadSnapshot } from "../../bridge/generated/NoteReadSnapshot";
+import type { NoteProgressSnapshot } from "orbit-ui/bridge/generated/NoteProgressSnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
+import type { NoteReadSnapshot } from "orbit-ui/bridge/generated/NoteReadSnapshot";
 import { REVIEW_ID } from "./notes-list";
 import { speakers, turns } from "./transcript";
 import { at, MINUTE } from "./time";

@@ -1,5 +1,5 @@
-import type { BriefingPreviousActions } from "../../bridge/generated/BriefingPreviousActions";
-import type { BriefingSnapshot } from "../../bridge/generated/BriefingSnapshot";
+import type { BriefingPreviousActions } from "orbit-ui/bridge/generated/BriefingPreviousActions";
+import type { BriefingSnapshot } from "orbit-ui/bridge/generated/BriefingSnapshot";
 import { recordingMeeting } from "../data/recording";
 import type { Scenario, Views } from "../scenario";
 import { withMeeting } from "./recording";

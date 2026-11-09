@@ -1,0 +1,21 @@
+[package]
+name = "orbit-mac"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orbit-core = { path = "../orbit-core" }
+orbit-ipc = { path = "../orbit-ipc" }
+anyhow.workspace = true
+tokio = { version = "1.48", features = ["macros", "process", "rt", "signal", "time"] }
+rustix = { version = "1.1", features = ["process"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6.3", features = ["apple-native"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

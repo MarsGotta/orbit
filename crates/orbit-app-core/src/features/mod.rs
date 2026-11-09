@@ -70,7 +70,7 @@ pub(crate) fn feature_availability(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "state", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum FeatureAvailability {
     Current,
     Stale {
@@ -212,7 +212,7 @@ macro_rules! features {
     ($($variant:ident => $module:ident),+ $(,)?) => {
         #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
         #[serde(tag = "feature", rename_all = "snake_case")]
-        #[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+        #[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
         pub enum FeatureFrame {
             $($variant {
                 revision: FrameRevision,
@@ -269,7 +269,7 @@ macro_rules! features {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct FrameRevision {
     #[ts(type = "number")]
     pub epoch: u64,

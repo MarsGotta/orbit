@@ -48,7 +48,7 @@ def launch_failure(service: str, path: str, error: OSError) -> HubError:
 
 
 def validate_linux_executable(service, path):
-    """Retain exec-format diagnostics when bwrap becomes the direct child.
+    """Retain exec-format diagnostics when the jail (bubblewrap) becomes the direct child.
 
     The Linux kernel accepts ELF and scripts with an interpreter line; unlike
     some shells it does not execute headerless text. No vendor is run here.

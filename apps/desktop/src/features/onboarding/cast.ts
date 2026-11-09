@@ -1,8 +1,8 @@
-import { getCopy } from "../../i18n";
-import type { Agent } from "../../bridge/generated/Agent";
+import { getCopy } from "orbit-ui/i18n";
+import type { Agent } from "orbit-ui/bridge/generated/Agent";
 
-import type { AppView as AppSnapshot } from "../../state/app-view";
-import { agentsOf } from "../assistant/agents";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import { agentsOf } from "orbit-ui/state/agents";
 
 /**
  * Who is who in the first run: the hub's own assistant (the one Orbit does

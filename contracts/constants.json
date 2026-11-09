@@ -391,7 +391,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/notes/private-notes-draft.ts",
+        "file": "packages/orbit-ui/features/notes/private-notes-draft.ts",
         "name": "MAX_PRIVATE_NOTES_CHARS",
         "unit": "characters"
       }
@@ -1012,7 +1012,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "PERMISSION_LIFETIME_MS",
         "unit": "milliseconds"
       }
@@ -1031,7 +1031,7 @@
         "unit": "days"
       },
       {
-        "file": "apps/desktop/src/features/calendar/range.ts",
+        "file": "packages/orbit-ui/features/calendar/range.ts",
         "name": "MAX_GRID_DAYS",
         "unit": "days"
       }
@@ -1112,7 +1112,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "WRITE_LIFETIME_MS",
         "unit": "milliseconds"
       }
@@ -1355,7 +1355,7 @@
         "unit": "version"
       },
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "TYPED_REFUSAL_HUB_PROTOCOL",
         "unit": "version"
       }
@@ -1374,12 +1374,12 @@
         "unit": "seconds"
       },
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "HUB_VOICE_DEADLINE_SECONDS",
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "HUB_VOICE_DEADLINE_SECONDS",
         "unit": "seconds"
       }
@@ -1474,7 +1474,7 @@
   {
     "copies": [
       {
-        "file": "apps/desktop/src/i18n/es/shell.ts",
+        "file": "packages/orbit-ui/i18n/es/shell.ts",
         "name": "problem",
         "unit": "texts"
       }
@@ -1734,12 +1734,76 @@
   {
     "copies": [
       {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_GROUPS",
+        "unit": "texts"
+      }
+    ],
+    "name": "DEVICE_GROUPS",
+    "resource": "the groups of orders a paired device says it handles, in the order the hub's inventory lists them; a device that says none handles every one. Not an agent's access groups. A new group is added here. Its Rust copy is orbit_core::device::DeviceGroup::ALL, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
+    "source": "python",
+    "unit": "texts",
+    "value": [
+      "system_audio",
+      "screen",
+      "selected_text",
+      "folders",
+      "calendar",
+      "call_detection",
+      "shortcuts",
+      "control"
+    ]
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_KINDS",
+        "unit": "texts"
+      }
+    ],
+    "name": "DEVICE_KINDS",
+    "resource": "what a device says it is, at pairing (hub-v1) and in its helper's ready (native-v1); a device that says nothing is a Mac. Its Rust copy is orbit_core::device::DeviceKind::ALL, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
+    "source": "python",
+    "unit": "texts",
+    "value": [
+      "mac",
+      "phone"
+    ]
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/device_groups.py",
+        "name": "DEVICE_GROUP",
+        "unit": "groups"
+      }
+    ],
+    "name": "DEVICE_CAPABILITY_GROUPS",
+    "resource": "the device group of each order the hub relays to a device (device.request), which the hub and the device refuse as device_capability_missing when the device does not handle it. Its Rust copy is orbit_core::device_bridge::Capability::device_group, which its Rust test compares (crates/orbit-core/tests/device_groups.rs)",
+    "source": "python",
+    "unit": "groups",
+    "value": {
+      "calendar_read": "calendar",
+      "control_tools": "control",
+      "files_list": "folders",
+      "files_read": "folders",
+      "files_search": "folders",
+      "perform_action": "control",
+      "screen_sources": "screen",
+      "screenshot": "screen",
+      "selected_text": "selected_text"
+    }
+  },
+  {
+    "copies": [
+      {
         "file": "crates/orbit-ipc/src/ipc.rs",
         "name": "CALL_TIMEOUT_SECONDS",
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "CALL_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1758,7 +1822,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "ATTACHMENT_CALL_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1772,12 +1836,12 @@
   {
     "copies": [
       {
-        "file": "crates/orbit-daemon/src/hub.rs",
+        "file": "crates/orbit-hub-client/src/hub.rs",
         "name": "HUB_HTTP_TIMEOUT_SECONDS",
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "HUB_HTTP_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1796,7 +1860,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "DOWNLOAD_TIMEOUT_SECONDS",
         "unit": "seconds"
       }
@@ -1815,7 +1879,7 @@
         "unit": "seconds"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "READ_WAIT_SECONDS",
         "unit": "seconds"
       }
@@ -1834,7 +1898,7 @@
         "unit": "pages"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "MAX_LIST_PAGES",
         "unit": "pages"
       }
@@ -1853,7 +1917,7 @@
         "unit": "pages"
       },
       {
-        "file": "apps/desktop/src/state/ceilings.ts",
+        "file": "packages/orbit-ui/state/ceilings.ts",
         "name": "MAX_TURN_PAGES",
         "unit": "pages"
       }
@@ -1872,7 +1936,7 @@
         "unit": "nanoseconds"
       },
       {
-        "file": "apps/desktop/src/features/calendar/edit/pending.ts",
+        "file": "packages/orbit-ui/features/calendar/edit/pending.ts",
         "name": "DEADLINE_MARGIN_MS",
         "unit": "milliseconds"
       }
@@ -1910,7 +1974,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/briefing/PersonalReminder.tsx",
+        "file": "packages/orbit-ui/features/briefing/PersonalReminder.tsx",
         "name": "MAX_REMINDER_CHARS",
         "unit": "characters"
       }
@@ -2284,7 +2348,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_NAME_CHARS",
         "unit": "characters"
       }
@@ -2303,7 +2367,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_URL_CHARS",
         "unit": "characters"
       }
@@ -2322,7 +2386,7 @@
         "unit": "characters"
       },
       {
-        "file": "apps/desktop/src/features/settings/ai-limits.ts",
+        "file": "packages/orbit-ui/features/settings/ai-limits.ts",
         "name": "MAX_AI_PROVIDER_KEY_CHARS",
         "unit": "characters"
       }

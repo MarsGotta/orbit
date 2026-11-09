@@ -1,9 +1,9 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useCallback, useState } from "react";
 import { useStore } from "zustand";
-import type { DaemonPort } from "../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 
-import { createOrbitStore } from "../state/orbit-store";
+import { createOrbitStore } from "orbit-ui/state/orbit-store";
 import { useCrashReporting } from "./use-crash-reporting";
 import { useOrbitConnection } from "./useOrbitConnection";
 

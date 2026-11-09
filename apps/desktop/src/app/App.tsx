@@ -1,6 +1,6 @@
-import type { DaemonPort } from "../bridge/port";
-import { CopyProvider } from "../i18n/CopyProvider";
-import { primaryAgentName } from "../features/assistant/agents";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
+import { primaryAgentName } from "orbit-ui/state/agents";
 import { useAppStore } from "./use-app-store";
 import { AppRoot } from "./AppRoot";
 export type { AppContentProps } from "./AppRoot";

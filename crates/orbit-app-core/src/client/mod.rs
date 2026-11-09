@@ -1,8 +1,9 @@
 use crate::{
-    AppCommand, AppError, AppSnapshot, LoginItemState, UpdateSnapshot, UpdateState,
+    AppCommand, AppError, AppSnapshot, LoginItemState, UpdateSnapshot,
     calendar::{CalendarClock, CalendarCoordinator, LocalClock, SystemCalendarClock},
-    projection::project_update,
 };
+#[cfg(feature = "updater")]
+use crate::{UpdateState, projection::project_update};
 use orbit_core::{calendar::CalendarWindow, calendar_control::CalendarCommand, protocol::Command};
 use orbit_ipc::{LocalClient, Paths};
 use std::{
@@ -30,7 +31,7 @@ const PROFILE_NAME_FILE: &str = "app-profile-name";
 /// as it is there.
 const READ_WAIT: Duration = Duration::from_secs(READ_WAIT_SECONDS);
 /// In seconds, as the interface reads it for the calendar orders' ceilings
-/// (`apps/desktop/src/state/ceilings.ts`, `contracts/constants.json`).
+/// (`packages/orbit-ui/state/ceilings.ts`, `contracts/constants.json`).
 const READ_WAIT_SECONDS: u64 = 10;
 const MAX_PROFILE_NAME_CHARS: usize = 80;
 const MAX_PROFILE_NAME_BYTES: usize = MAX_PROFILE_NAME_CHARS * 4;

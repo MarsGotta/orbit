@@ -1,13 +1,13 @@
-import { AttentionRow } from "../../design/AttentionRow";
-import { Button } from "../../design/Button";
-import { CalendarEvent, type CalendarEventProps } from "../../design/CalendarEvent";
-import { Card } from "../../design/Card";
-import { Dialog } from "../../design/Dialog";
-import { EmptyState } from "../../design/EmptyState";
-import { Field } from "../../design/Field";
-import { Popover } from "../../design/Popover";
-import { SidebarItem, type SidebarItemProps } from "../../design/SidebarItem";
-import { Toast } from "../../design/Toast";
+import { AttentionRow } from "orbit-ui/design/AttentionRow";
+import { Button } from "orbit-ui/design/Button";
+import { CalendarEvent, type CalendarEventProps } from "orbit-ui/design/CalendarEvent";
+import { Card } from "orbit-ui/design/Card";
+import { Dialog } from "orbit-ui/design/Dialog";
+import { EmptyState } from "orbit-ui/design/EmptyState";
+import { Field } from "orbit-ui/design/Field";
+import { Popover } from "orbit-ui/design/Popover";
+import { SidebarItem, type SidebarItemProps } from "orbit-ui/design/SidebarItem";
+import { Toast } from "orbit-ui/design/Toast";
 import styles from "./DesignSheet.module.css";
 
 const close = () => undefined;

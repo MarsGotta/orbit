@@ -1,9 +1,9 @@
-import { useCopy } from "../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, useLayoutEffect, useRef, useState, type Ref } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
-import { Button } from "../design/Button";
-import { useFeedback } from "../design/feedback";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
 
 import styles from "./DiscardRecording.module.css";
 

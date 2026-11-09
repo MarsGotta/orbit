@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { macPermissions } from "../../i18n/es/permissions";
-import { es } from "../../i18n/es";
+import { macPermissions } from "orbit-ui/i18n/es/permissions";
+import { es } from "orbit-ui/i18n/es";
 import { PermissionsStep } from "./OnboardingAccessSteps";
 
 afterEach(cleanup);

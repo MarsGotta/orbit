@@ -67,7 +67,7 @@ macro_rules! notice_keys {
         #[cfg_attr(
             feature = "ts",
             derive(ts_rs::TS),
-            ts(export_to = "../../apps/desktop/src/bridge/generated/")
+            ts(export_to = "../../packages/orbit-ui/bridge/generated/")
         )]
         #[serde(rename_all = "snake_case")]
         pub enum NoticeKey {
@@ -204,7 +204,7 @@ impl<'de> Deserialize<'de> for Token {
 #[cfg_attr(
     feature = "ts",
     derive(ts_rs::TS),
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 #[serde(untagged)]
 pub enum DataValue {
@@ -263,7 +263,7 @@ pub type NoticeData = BTreeMap<NoticeKey, DataValue>;
 #[cfg_attr(
     feature = "ts",
     derive(ts_rs::TS),
-    ts(export_to = "../../apps/desktop/src/bridge/generated/")
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
 )]
 pub struct Notice {
     pub code: NoticeCode,

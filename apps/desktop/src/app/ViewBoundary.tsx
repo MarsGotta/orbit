@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import { ViewError } from "../design/ViewError";
+import { ViewError } from "orbit-ui/design/ViewError";
 
 interface Props {
   children: ReactNode;

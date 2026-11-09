@@ -1,10 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AppBootstrap, AppCommand } from "../../bridge/generated";
-import type { DaemonPort } from "../../bridge/port";
+import type { AppBootstrap, AppCommand } from "orbit-ui/bridge/generated";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { secondsLeft } from "../../app/call-countdown";
-import { TEST_NOW_MS } from "../../test-clock";
+import { TEST_NOW_MS } from "orbit-ui/test-clock";
 import { PanelApp } from "./PanelApp";
 
 afterEach(() => {

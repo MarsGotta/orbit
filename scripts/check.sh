@@ -15,7 +15,7 @@ source "$CHECK_DIR/runner.sh"
 
 DEFAULT_ZONES=(rust guards hub ui)
 KNOWN_ZONES=(rust guards hub ui)
-GENERATED_TYPES="$ROOT/apps/desktop/src/bridge/generated"
+GENERATED_TYPES="$ROOT/packages/orbit-ui/bridge/generated"
 # The daemon as a process of its own, target/debug/orbit: what the hub's e2e,
 # app-core's tests and the daemon's process tests start. It is not shipped:
 # the published daemon is compiled inside orbit-desktop.
@@ -284,6 +284,14 @@ run_rust_zone() {
     cargo clippy -p orbit-desktop --features pruebas --all-targets --locked -- -D warnings
   check_run rust-test-pruebas "rust · Orbit Pruebas identity and test bridge" --needs env-rust --cwd "$ROOT" \
     --report cargo -- cargo test -p orbit-core -p orbit-desktop --features orbit-desktop/pruebas --locked --no-fail-fast
+  # The engine built without its control client. Only this package: beside
+  # orbit-app-core, whose dev-dependency on the engine asks for its default
+  # features, cargo would unify the feature back on and the file would compile
+  # to 0 tests, which this step's report refuses as an empty suite.
+  check_run rust-engine-without-control "rust · the engine without its control client" --needs env-rust --cwd "$ROOT" \
+    --report cargo -- cargo test -p "$DAEMON_PACKAGE" --no-default-features --locked --test engine_without_control
+  check_run rust-app-core-without-updater "rust · app-core compiles without its updater" --needs env-rust --cwd "$ROOT" -- \
+    cargo check -p orbit-app-core --lib --no-default-features --locked
   # orbit-app-core's tests write the TypeScript of the bridge.
   check_run rust-generated "rust · generated TypeScript up to date" --after rust-test-app --cwd "$ROOT" -- \
     python3 -B "$CHECK_DIR/generated.py" compare "$GENERATED_TYPES" "$LOG_DIR/generated.json"
@@ -295,11 +303,14 @@ run_rust_zone() {
 # server/.venv is there: without it, a fresh machine failed 11 guards with
 # "Network connectivity is disabled" (CI, 2026-10-21).
 run_guards_zone() {
-  # The source's own limits: they read text only and need no environment.
+  # The source's own limits: they read text only and need no environment,
+  # except guards-layers, which reads the workspace with cargo metadata.
   check_run guards-sizes "guards · 500 lines per file, 80 per function, and their ratchet" --cwd "$ROOT" -- \
     python3 -B "$CHECK_DIR/sizes.py"
   check_run guards-boundaries "guards · a domain uses another only through its handle and types" \
     --cwd "$ROOT" -- python3 -B "$CHECK_DIR/boundaries.py"
+  check_run guards-layers "guards · each package uses only what its layer allows, and Runtime only shrinks" \
+    --needs env-rust --cwd "$ROOT" -- python3 -B "$CHECK_DIR/layers.py"
   check_run guards "guards" --needs env-rust --needs env-hub --cwd "$ROOT" --report "unittest:$LOG_DIR/guards.json" -- \
     python3 -B "$CHECK_DIR/unittest_runner.py" scripts/tests "$LOG_DIR/guards.json"
 }

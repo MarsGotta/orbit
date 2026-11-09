@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { Button, RecordButton } from "../../design/Button";
-import { Checkbox } from "../../design/Checkbox";
-import { useFeedback } from "../../design/feedback";
-import { Field } from "../../design/Field";
-import { Icon } from "../../design/Icon";
-import { RadioList } from "../../design/RadioList";
-import { Segmented } from "../../design/Segmented";
-import { StatusPill } from "../../design/StatusPill";
-import { Switch } from "../../design/Switch";
-import { Tabs } from "../../design/Tabs";
+import { Button, RecordButton } from "orbit-ui/design/Button";
+import { Checkbox } from "orbit-ui/design/Checkbox";
+import { useFeedback } from "orbit-ui/design/feedback";
+import { Field } from "orbit-ui/design/Field";
+import { Icon } from "orbit-ui/design/Icon";
+import { RadioList } from "orbit-ui/design/RadioList";
+import { Segmented } from "orbit-ui/design/Segmented";
+import { StatusPill } from "orbit-ui/design/StatusPill";
+import { Switch } from "orbit-ui/design/Switch";
+import { Tabs } from "orbit-ui/design/Tabs";
 import styles from "./DesignSheet.module.css";
 
 // A press in the sheet that the hub never answers: the control keeps waiting.

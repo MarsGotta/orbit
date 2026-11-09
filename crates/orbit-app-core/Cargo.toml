@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 build = "build.rs"
 
+# The app's own updater. On by default, so the app keeps it; `default-features =
+# false` builds app-core without it.
+[features]
+default = ["updater"]
+updater = []
+
 [dependencies]
 chrono.workspace = true
 iana-time-zone = "0.1"

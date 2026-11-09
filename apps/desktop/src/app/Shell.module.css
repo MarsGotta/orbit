@@ -24,81 +24,10 @@
 }
 
 /* Keep macOS's overlay traffic lights clear when navigation is folded away. */
-.app[data-sidebar-hidden] .columnHost:empty + .mainColumn > header,
-.app[data-sidebar-hidden] .listHeader {
+.app[data-sidebar-hidden] {
+  --o-list-header-inset: 88px;
+}
+
+.app[data-sidebar-hidden] .columnHost:empty + .mainColumn > header {
   padding-left: 88px;
-}
-
-/* The 272 px list of Meetings and Assistant, the window's full height. */
-.listColumn {
-  width: var(--o-w-list);
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  border-right: 1px solid var(--o-line);
-  background: var(--o-side);
-}
-
-.listHeader {
-  height: var(--o-w-topbar);
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--o-space-6);
-  padding: 0 var(--o-space-10) 0 18px;
-  border-bottom: 1px solid var(--o-line);
-}
-
-.listHeader h2 {
-  margin: 0 auto 0 0;
-  font: var(--o-text-h3);
-}
-
-.listBody {
-  min-height: 0;
-  flex: 1;
-  padding: var(--o-space-6) var(--o-space-8) var(--o-space-12);
-  overflow-y: auto;
-}
-
-/* «Ajustes / Privacidad y permisos». */
-.crumbs ol {
-  display: flex;
-  align-items: center;
-  gap: var(--o-space-8);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--o-ink3);
-  font: 400 13px/1.4 var(--o-font-sans);
-}
-
-.crumbs li {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--o-space-8);
-}
-
-.crumbs li + li::before {
-  content: "/";
-  color: var(--o-ink3);
-}
-
-.crumbs a {
-  color: var(--o-ink3);
-  text-decoration: none;
-}
-
-.crumbs a:hover {
-  color: var(--o-ink);
-}
-
-.crumbs [aria-current="page"] {
-  overflow: hidden;
-  color: var(--o-ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

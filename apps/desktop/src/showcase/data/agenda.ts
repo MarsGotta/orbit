@@ -1,5 +1,5 @@
-import type { CalendarEventSnapshot } from "../../bridge/generated/CalendarEventSnapshot";
-import type { CalendarItemSnapshot } from "../../bridge/generated/CalendarItemSnapshot";
+import type { CalendarEventSnapshot } from "orbit-ui/bridge/generated/CalendarEventSnapshot";
+import type { CalendarItemSnapshot } from "orbit-ui/bridge/generated/CalendarItemSnapshot";
 import type { Views } from "../scenario";
 import { daily, event, monthEvents, weeklyReview } from "./agenda-month";
 import { guests, people } from "./people";

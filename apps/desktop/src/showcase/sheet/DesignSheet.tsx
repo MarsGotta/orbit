@@ -1,7 +1,7 @@
-import { BrandMark } from "../../design/Brand";
-import { Button } from "../../design/Button";
-import { Icon } from "../../design/Icon";
-import { toggleTheme, useTheme } from "../../design/theme";
+import { BrandMark } from "orbit-ui/design/Brand";
+import { Button } from "orbit-ui/design/Button";
+import { Icon } from "orbit-ui/design/Icon";
+import { toggleTheme, useTheme } from "orbit-ui/design/theme";
 import { ColorSection, TypeSection } from "./BaseSections";
 import { ChoicesSection, ControlsSection } from "./ControlSections";
 import { IconsSection, MotionSection } from "./IconSections";

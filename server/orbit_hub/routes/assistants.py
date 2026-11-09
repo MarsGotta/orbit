@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict
 from ..assistant import access
 from ..assistant.agent_config import AgentConfigStore
 from ..assistant.agents import SERVICE_NAMES, Agents
+from ..assistant.backend import ConnectionLost
 from ..assistant.roster import Profile
 from ..errors import HubError
 from ..log import report
@@ -74,6 +75,9 @@ async def _stop_processes(runtimes: dict, agent_id: str) -> None:
         connection = runtime.connections.pop(agent_id, None)
         if connection is not None:
             await connection.close()
+            # No backend reports a close the hub asked for, and a turn left
+            # under way would hold every message waiting behind it for ever.
+            await runtime.on_event(agent_id, ConnectionLost())
 
 
 def mount(

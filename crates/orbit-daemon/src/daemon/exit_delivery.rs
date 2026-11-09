@@ -18,8 +18,9 @@
 //! hub that failed a moment ago may answer now. A privacy stop sends nothing,
 //! and neither does a Mac without a hub or whose hub link was offline at the
 //! quit.
-use super::upload_outcome::{self, ChunkPut};
+use super::upload_outcome;
 use super::*;
+use crate::hub::ChunkPut;
 use std::collections::BTreeSet;
 use std::time::Instant;
 
@@ -92,8 +93,14 @@ impl Runtime {
         while let Some(closure) = self.next_closure()? {
             let job_id = closure.job.id.clone();
             self.mark_running(&job_id).await?;
-            let result =
-                super::finalize::post_closure(&base, &token, &closure, &orbit_ipc::new_op()).await;
+            let result = crate::hub::post_closure(
+                &base,
+                &token,
+                &closure.recording_id,
+                &closure.manifest,
+                &orbit_ipc::new_op(),
+            )
+            .await;
             self.settle_exit_transfer(job_id, result).await?;
             sent.closures += 1;
         }
@@ -139,7 +146,7 @@ impl Runtime {
             receipt,
             bytes,
         };
-        let result = upload_outcome::put_chunk(put, &orbit_ipc::new_op()).await;
+        let result = crate::hub::put_chunk(put, &orbit_ipc::new_op()).await;
         self.settle_exit_transfer(job.id, result).await
     }
 

@@ -1,81 +1,14 @@
 //! The account's full name, which names the user's microphone on the hub:
 //! read once off the loop, and sent to the hub each time it connects.
 use super::{NoteEvent, Outcome, Runtime, deliver};
-use crate::daemon::ticketed::DeadlineKind;
 use crate::hub_notes::NoteHub;
 use orbit_core::notes as core;
-use std::time::Duration;
 
 /// After the profile could not reach the hub it goes again no sooner than
 /// this: the hub is down or the network is, and once every thirty seconds
 /// keeps a failing hub from being asked every second. Not a deadline: the
 /// name goes again at the next connection anyway.
 const RETRY_AFTER_MS: i64 = 30_000;
-
-/// How long the account's full name may take. macOS answers `id -F` from
-/// Directory Services in milliseconds; if opendirectoryd hangs, the read hangs
-/// with it. Two seconds is far above a healthy answer; meanwhile the hub names
-/// the microphone «Micrófono local». It bounds this one read, which runs off
-/// the daemon loop.
-const ACCOUNT_NAME: DeadlineKind = DeadlineKind::new(
-    "account_name",
-    Duration::from_secs(2),
-    "the account name is read off the loop and never holds a privacy stop",
-);
-
-/// The full name of the account (`pw_gecos`) from a program that prints it,
-/// `id -F` on macOS: any failure or a late answer is «Yo», never an error.
-// Used on macOS, and by its test everywhere.
-#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
-pub(super) async fn read_account_name(program: &std::path::Path, deadline: Duration) -> String {
-    let output = tokio::time::timeout(
-        deadline,
-        tokio::process::Command::new(program)
-            .arg("-F")
-            .stdin(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .kill_on_drop(true)
-            .output(),
-    )
-    .await;
-    let gecos = match output {
-        Ok(Ok(output)) if output.status.success() => String::from_utf8(output.stdout).ok(),
-        Ok(Ok(_) | Err(_)) | Err(_) => None,
-    };
-    core::owner_name(gecos.as_deref())
-}
-
-/// macOS keeps accounts in Directory Services, so `/etc/passwd` does not hold
-/// them there; elsewhere (development) `/etc/passwd` is read.
-async fn account_full_name() -> String {
-    #[cfg(target_os = "macos")]
-    {
-        read_account_name(std::path::Path::new("/usr/bin/id"), ACCOUNT_NAME.duration()).await
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let read = tokio::task::spawn_blocking(|| {
-            let uid = rustix::process::getuid().as_raw().to_string();
-            std::fs::read_to_string("/etc/passwd")
-                .ok()
-                .and_then(|passwd| {
-                    passwd.lines().find_map(|line| {
-                        let fields = line.split(':').collect::<Vec<_>>();
-                        if fields.get(2) == Some(&uid.as_str()) {
-                            fields.get(4).map(|gecos| (*gecos).to_owned())
-                        } else {
-                            None
-                        }
-                    })
-                })
-        });
-        let gecos = match tokio::time::timeout(ACCOUNT_NAME.duration(), read).await {
-            Ok(Ok(gecos)) => gecos,
-            Ok(Err(_)) | Err(_) => None,
-        };
-        core::owner_name(gecos.as_deref())
-    }
-}
 
 impl Runtime {
     pub(super) fn start_owner_lookup(&mut self) {
@@ -86,10 +19,11 @@ impl Runtime {
         notes.owner_lookup_started = true;
         let events = notes.events.clone();
         let supervision = self.supervision.clone();
+        let read = self.owner.read();
         tokio::spawn(async move {
             // A panic reads as an account without a name, as a failed read.
             let name = supervision
-                .guard(crate::supervision::Actor::NoteOwner, account_full_name())
+                .guard(crate::supervision::Actor::NoteOwner, read)
                 .await
                 .unwrap_or_else(|_| core::owner_name(None));
             deliver(&events, NoteEvent::Owner { name }).await;

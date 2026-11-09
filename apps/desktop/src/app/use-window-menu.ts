@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
-import type { DaemonPort } from "../bridge/port";
-import type { AppCommand } from "../bridge/generated";
-import type { MenuAction, MenuState } from "../bridge/window-menu";
-import type { AppView } from "../state/app-view";
-import { useUiStore } from "../state/ui";
-import { followWindowPreferences, useWindowPreferences } from "../state/window-preferences";
-import { useWindowActions } from "../state/window-actions";
-import { goTo } from "../features/assistant/assistant-route";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MenuAction, MenuState } from "orbit-ui/bridge/window-menu";
+import type { AppView } from "orbit-ui/state/app-view";
+import { useUiStore } from "orbit-ui/state/ui";
+import { followWindowPreferences, useWindowPreferences } from "orbit-ui/state/window-preferences";
+import { useWindowActions } from "orbit-ui/state/window-actions";
+import { goTo } from "orbit-ui/features/assistant/assistant-route";
 
 function menuState(snapshot: AppView | null, find: boolean, recoverTemplate: boolean): MenuState {
   const { sidebar, scale } = useWindowPreferences.getState();

@@ -32,7 +32,9 @@ impl TestDaemon {
                 let result = match tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build() {
                     Ok(runtime) => {
                         let result = runtime.block_on(async {
-                            let run = orbit_daemon::daemon::run_embedded(paths, true, helper, connected, end);
+                            let platform = orbit_daemon::platform::Platform::system(&paths, true, helper)
+                                .map_err(|error| format!("{error:#}"))?;
+                            let run = orbit_daemon::daemon::run_embedded(paths, true, platform, connected, end);
                             tokio::pin!(run);
                             tokio::pin!(connection);
                             tokio::pin!(cancelled);

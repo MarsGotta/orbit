@@ -663,7 +663,12 @@ async fn malformed_audio_bridge_loss_carries_its_cause_to_the_daemon() -> Result
     let (_send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(32);
     let (_stop, never) = tokio::sync::watch::channel(false);
-    let task = tokio::spawn(run(Some(script), commands, events, never));
+    let task = tokio::spawn(run(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        never,
+    ));
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
     let disconnected = loop {
         let event = timeout(
@@ -709,7 +714,12 @@ async fn the_managed_helper_runs_with_stdio_managed_under_supervision() -> Resul
     let (send, commands) = mpsc::channel(1);
     let (events, mut received) = mpsc::channel(4);
     let (_stop, never) = tokio::sync::watch::channel(false);
-    let task = tokio::spawn(run(Some(script), commands, events, never));
+    let task = tokio::spawn(run(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        never,
+    ));
     let first = timeout(Duration::from_secs(2), received.recv())
         .await?
         .context("the managed helper must report ready")?;
@@ -804,7 +814,12 @@ async fn stop_sends_shutdown_closes_the_input_and_lets_the_helper_leave() -> Res
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        Default::default(),
+    );
     helper_ready(&mut observed).await?;
     let end = helper.stop(&mut observed).await;
     assert_eq!(
@@ -843,7 +858,12 @@ async fn a_helper_that_does_not_leave_is_killed_after_its_grace() -> Result<()> 
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        Default::default(),
+    );
     helper_ready(&mut observed).await?;
     let asked = std::time::Instant::now();
     let end = helper.stop(&mut observed).await;
@@ -875,7 +895,12 @@ async fn heartbeats_reach_the_helper_while_the_daemon_runtime_is_held() -> Resul
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        Default::default(),
+    );
     helper_ready(&mut observed).await?;
     let beats = || {
         std::fs::read_to_string(&received)
@@ -918,7 +943,12 @@ async fn a_stop_during_the_relaunch_wait_launches_nothing_more() -> Result<()> {
     )?;
     let (_send, commands) = mpsc::channel(1);
     let (events, mut observed) = mpsc::channel(8);
-    let helper = Supervisor::spawn(Some(script), commands, events, Default::default());
+    let helper = Supervisor::spawn(
+        Box::new(crate::platform::system::ProcessHelper::new(script)?),
+        commands,
+        events,
+        Default::default(),
+    );
     // The fall is announced before the supervisor starts its wait: the event,
     // not a sleep, says the supervisor is now between launches.
     let fell = timeout(Duration::from_secs(10), observed.recv())

@@ -99,16 +99,18 @@ async def _request(socket: Socket, frame, request_id) -> None:
     def answer():
         return dispatch(socket, frame, params, request_id, safety_target)
 
-    if METHODS[frame.method] is MethodRoute.SUBMIT_LANE:
-        # The prompt runs in its own lane so controls and pings are answered
-        # while the agent has not acknowledged it. The lane is never
-        # cancelled: its receipt is durable and a submit that may have
-        # reached the agent is not retried.
-        in_lane(socket, answer)
-    elif frame.method in {"ping", "chat.observe"}:
+    route = METHODS[frame.method]
+    if route is MethodRoute.IN_LOOP:
         await answer()
-    else:
+    elif route is MethodRoute.CONVERSATION_LANE:
         in_conversation_lane(socket, params.session_id, answer)
+    else:
+        # A prompt or an answer to a question runs in its own lane, so controls
+        # and pings are answered while the agent has not acknowledged it, and
+        # an answer is never held behind a cut parked with a waiting message.
+        # The lane is never cancelled: its receipt is durable and a submit
+        # that may have reached the agent is not retried.
+        in_lane(socket, answer)
 
 
 def _reserve_control(socket: Socket, frame, params, request_id, target) -> dict | None:
@@ -123,6 +125,12 @@ def _reserve_control(socket: Socket, frame, params, request_id, target) -> dict 
         safety.target_key("approval.respond", owner, runtime.turn_ids[owner], interaction)
         for interaction, (owner, kind, _) in runtime.pending.items()
         if kind == "approval" and owner in runtime.turn_ids
+    )
+    # An interrupt parked with a send still waiting keeps its receipt, or the
+    # same interrupt sent again would be applied twice.
+    live_targets.update(
+        safety.target_key("chat.interrupt", session, waiting)
+        for session, waiting in runtime.conversations.waiting_sends()
     )
     return safety.reserve(
         store,

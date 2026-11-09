@@ -1,20 +1,20 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../../bridge/generated";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
-import type { MeetingQuestionSnapshot } from "../../bridge/generated/MeetingQuestionSnapshot";
-import type { MessagesPage } from "../../bridge/reads";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
+import type { MeetingQuestionSnapshot } from "orbit-ui/bridge/generated/MeetingQuestionSnapshot";
+import type { MessagesPage } from "orbit-ui/bridge/reads";
 import { QuestionCard } from "../../app/meeting-question/QuestionCard";
-import type { AppView as AppSnapshot } from "../../state/app-view";
-import AssistantView from "./AssistantView";
-import { conversationView } from "./conversation";
-import { MessageList } from "./MessageList";
-import { ShellSlots, useShellSlots } from "../../app/shell-slots";
-import { AssistantSessions } from "./AssistantSessions";
-import { sessionWhen } from "./session-title";
-import { es } from "../../i18n/es";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
+import AssistantView from "orbit-ui/features/assistant/AssistantView";
+import { conversationView } from "orbit-ui/features/assistant/conversation";
+import { MessageList } from "orbit-ui/features/assistant/MessageList";
+import { ShellSlots, useShellSlots } from "orbit-ui/shell/shell-slots";
+import { AssistantSessions } from "orbit-ui/features/assistant/AssistantSessions";
+import { sessionWhen } from "orbit-ui/features/assistant/session-title";
+import { es } from "orbit-ui/i18n/es";
 
 /** The window's list column, where the conversations are drawn. */
 function ColumnHost() {

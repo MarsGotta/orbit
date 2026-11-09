@@ -14,7 +14,7 @@ import wave
 from pathlib import Path
 
 from orbit_hub.meeting_diarization import DiarizationConfiguration, separate
-from orbit_hub.meeting_final_pass import memory_file
+from orbit_hub.private_audio import private_file
 
 
 async def test_real_local_diarization_boundary():
@@ -24,7 +24,7 @@ async def test_real_local_diarization_boundary():
         gpu_lock=Path(os.environ["ORBIT_DIARIZATION_GPU_LOCK"]),
     )
     source = Path(os.environ["ORBIT_DIARIZATION_WAV"])
-    with source.open("rb") as original, memory_file() as audio:  # noqa: ASYNC230 - explicit offline acceptance fixture
+    with source.open("rb") as original, private_file() as audio:  # noqa: ASYNC230 - explicit offline acceptance fixture
         while chunk := original.read(1024 * 1024):
             audio.write(chunk)
         audio.seek(0)
@@ -36,7 +36,7 @@ async def test_real_local_diarization_boundary():
         if bound is not None:
             assert int(bound) >= 1
         async with asyncio.timeout(duration_ms / 500 + 600):
-            result = await separate(configuration, audio.fileno(), duration_ms, **options)
+            result = await separate(configuration, audio, duration_ms, **options)
     assert result["spans"] and set(result) == {"spans"}
     print({"voices": len({span["voice"] for span in result["spans"]})})
 

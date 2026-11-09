@@ -1,7 +1,7 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useId, type FormEvent, type ReactNode } from "react";
-import type { PermissionSnapshot } from "../../bridge/generated/PermissionSnapshot";
-import { Field } from "../../design/Field";
+import type { PermissionSnapshot } from "orbit-ui/bridge/generated/PermissionSnapshot";
+import { Field } from "orbit-ui/design/Field";
 
 import { readyAgents, type Cast } from "./cast";
 import type { PairingState } from "./OnboardingView";

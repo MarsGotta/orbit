@@ -48,7 +48,12 @@ _CHECK_OUTCOME = {
 }
 # Work that is under way: asking again later succeeds without anyone fixing
 # anything, so the advice is a wait, never "do not retry".
-_IN_PROGRESS = {"note_queued", "note_generating", "note_waiting_transcript"}
+_IN_PROGRESS = {
+    "note_queued",
+    "note_generating",
+    "note_waiting_transcript",
+    "too_many_waiting_turns",
+}
 _AFTER_FIX = {
     "invalid_parameters",
     "unauthorized",
@@ -181,6 +186,8 @@ def render(
         busy
         or family in {"too_large", "too_many", "not_found"}
         or code in _AFTER_FIX
+        # No honest time to give: the turn under way lasts what it lasts.
+        or code in _IN_PROGRESS
         or (code is not None and code.endswith(("_too_large", "_not_found")))
     ):
         disposition = {"kind": "after_fix"}

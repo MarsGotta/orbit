@@ -223,7 +223,8 @@ fn refused_engine(refusal: &Refusal, retry_at_ms: Option<i64>) -> crate::EngineS
         | Refusal::OutsideFolders { .. }
         | Refusal::FolderUnavailable { .. }
         | Refusal::FileUnavailable { .. }
-        | Refusal::FileTooLarge { .. } => crate::EngineSnapshot::Unknown,
+        | Refusal::FileTooLarge { .. }
+        | Refusal::DeviceCapabilityMissing { .. } => crate::EngineSnapshot::Unknown,
     }
 }
 

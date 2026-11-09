@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
-import { CopyProvider } from "../i18n/CopyProvider";
+import { CopyProvider } from "orbit-ui/i18n/CopyProvider";
 import { recordingMeeting } from "../showcase/data/recording";
 import { RecordingCard } from "./RecordingCard";
 import { RecordingCard as PanelRecordingCard } from "../features/call-panel/CallPanel";

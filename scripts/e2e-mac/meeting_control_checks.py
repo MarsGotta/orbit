@@ -37,7 +37,7 @@ class Skipped(Exception):
     reason says why, and the check is not passed."""
 
 
-# The app's own texts (apps/desktop/src/i18n/es): recording.ts
+# The app's own texts (packages/orbit-ui/i18n/es): recording.ts
 # `recordingMute` and `discard`, notes.ts `mutedMicrophone`, the list's
 # `section`, `refresh`, `loadMore`, its day groups and what it says before
 # it is read (`loadingIndex`, `indexFailed`, `needsHub`),

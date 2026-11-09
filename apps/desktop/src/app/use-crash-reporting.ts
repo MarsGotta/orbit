@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { OrbitState } from "../state/orbit-store";
+import type { OrbitState } from "orbit-ui/state/orbit-store";
 
 /**
  * An error nobody caught, in a handler or a promise, goes through the

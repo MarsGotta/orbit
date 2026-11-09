@@ -8,11 +8,16 @@ dependency answered. Why one failed goes to the hub's own log.
 Probed, in parallel, each the cheapest real way:
 - ``whisper``: the meeting STT (``[meeting_transcription]``), ``GET /health``,
   which must answer 2xx. The configured service must expose that route.
-- ``hermes``: the Hermes serve the chat uses (``hermes_url``). No health route
-  of Hermes is relied on: any HTTP answer below 500 to ``GET /`` counts, which
+- ``hermes``: the Hermes serve the Hermes agents use (``hermes_url``), only
+  when an agent configured in ``orbit.toml`` is of kind hermes; a leftover
+  ``hermes_url`` with no Hermes agent is not a dependency. No health route of
+  Hermes is relied on: any HTTP answer below 500 to ``GET /`` counts, which
   proves the server is up and answering HTTP, not that a turn would succeed.
-  Voice STT and TTS go through the same Hermes, so they are not a separate
-  dependency.
+  A Hermes agent's own dictation and read-aloud go through the same Hermes, so
+  they are not a separate dependency. Dictation and read-aloud chosen in
+  Settings › AI, and the dictation of an agent without its own, are other
+  services: the meeting STT above, or a provider the app chose, which is not
+  probed here.
 - ``processing``: the notes model (``[processing]``), only when configured;
   any HTTP answer below 500 to ``GET`` on its endpoint. A 5xx is what a proxy
   in front of a stopped model answers. No credential is sent.
@@ -61,8 +66,9 @@ def _answers(status: int) -> bool:
 def probes_for(settings) -> tuple[Probe, ...]:
     probes = [
         Probe("whisper", settings.meeting_transcription.endpoint.rstrip("/") + "/health", _success),
-        Probe("hermes", settings.hermes_url.rstrip("/") + "/", _answers),
     ]
+    if settings.hermes_agent() is not None:
+        probes.append(Probe("hermes", settings.hermes_url.rstrip("/") + "/", _answers))
     if settings.processing is not None:
         probes.append(Probe("processing", settings.processing.endpoint, _answers))
     return tuple(probes)

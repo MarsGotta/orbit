@@ -1,0 +1,24 @@
+[package]
+name = "orbit-hub-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+orbit-core = { path = "../orbit-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio = { version = "1.48", features = ["full"] }
+futures-util = "0.3"
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-native-roots"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "stream"] }
+
+[dev-dependencies]
+tokio = { version = "1.48", features = ["test-util"] }
+uuid.workspace = true
+
+[lints]
+workspace = true

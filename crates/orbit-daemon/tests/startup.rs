@@ -553,7 +553,9 @@ async fn embedded_recovery_serves_privacy_stop_without_a_listener() -> Result<()
             let (ended, end) = tokio::sync::watch::channel(None);
             let daemon_paths = paths.clone();
             let task = tokio::task::spawn_local(async move {
-                let result = daemon::run_embedded(daemon_paths, true, None, connected, end).await;
+                let platform = orbit_daemon::platform::Platform::system(&daemon_paths, true, None)?;
+                let result =
+                    daemon::run_embedded(daemon_paths, true, platform, connected, end).await;
                 ended.send_replace(Some(match &result {
                     Ok(()) => ipc::DaemonEnded::Closed,
                     Err(error) => ipc::DaemonEnded::Failed(format!("{error:#}")),

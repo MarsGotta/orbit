@@ -27,11 +27,11 @@ impl NotesHandle {
     }
 
     /// The hub connected: the owner name goes to it, what is owed goes now,
-    /// and the list may have changed while it was away.
+    /// and any meeting may have changed while it was away.
     pub(super) fn notes_hub_ready(&mut self) {
         self.profile_owed = true;
         self.profile_due_ms = i64::MIN;
-        self.head.touch();
+        self.invalidate_note_reads();
         self.outbox_hub_ready();
     }
 
@@ -53,6 +53,8 @@ mod outbox;
 mod outbox_tests;
 mod owner;
 pub(super) mod reads;
+#[cfg(test)]
+mod reconnect_tests;
 mod reminders;
 mod send;
 mod supervised;
@@ -61,8 +63,6 @@ mod tests;
 
 pub(super) use library::LibraryRuntime;
 pub(super) use outbox::{Lane, Outbox};
-#[cfg(test)]
-use owner::read_account_name;
 
 /// Answers waiting for the daemon loop: at most one owner name, one profile,
 /// one deletion on this Mac and [`outbox::MAX_LANES_IN_FLIGHT`] lanes are in

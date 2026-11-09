@@ -10,7 +10,7 @@ fn state(generation: u64, stopped: bool) -> Value {
 
 fn available() -> NativeHost {
     let mut host = NativeHost::default();
-    host.observe(&json!({"event":"ready", "capabilities":["application_identity"]}));
+    host.observe(&json!({"event":"ready"}));
     host.observe(&state(4, false));
     host
 }
@@ -29,7 +29,8 @@ fn startup_and_state_do_not_invent_backend_support() {
 #[test]
 fn every_ready_clears_identity_and_requires_fresh_readback() {
     let mut host = available();
-    for capabilities in [json!(["application_identity"]), json!([]), json!(null)] {
+    // Whatever the device says it handles, a ready starts over.
+    for capabilities in [json!(["screen"]), json!([]), json!(null)] {
         let update = host.observe(&json!({"event":"ready", "capabilities":capabilities,
             "native_instance_id":INSTANCE, "privacy_generation":4, "privacy_stopped":false}));
         assert!(update.authority_changed);
@@ -180,9 +181,7 @@ fn reducing_facts_does_not_write_state_or_emit_effects() -> anyhow::Result<()> {
     let (mut runtime, mut native) = crate::daemon::audio::tests::fixture(directory.path())?;
     let before = runtime.state.clone();
     runtime.fixture_store.save_snapshot(&before)?;
-    runtime
-        .helper
-        .observe_host(&json!({"event":"ready","capabilities":["application_identity"]}));
+    runtime.helper.observe_host(&json!({"event":"ready"}));
     runtime.helper.observe_host(&state(4, false));
     assert!(runtime.helper.observe_host(&state(5, true)).privacy_stopped);
     assert_eq!(runtime.state, before);

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { OrbitState } from "../state/orbit-store";
-import type { ViewId } from "../state/ui";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { OrbitState } from "orbit-ui/state/orbit-store";
+import type { ViewId } from "orbit-ui/state/ui";
 
 /** Sends a command tagged with the view whose error slot receives its refusal. */
 export function useScopedSend(send: OrbitState["send"], view: ViewId) {

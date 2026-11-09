@@ -15,7 +15,7 @@ pub(super) struct RecoveryService<'a> {
     pub(super) diagnostics: crate::diagnostics::DiagnosticLog,
     pub(super) state: State,
     pub(super) calls: &'a mut mpsc::Receiver<Call>,
-    pub(super) signals: &'a mut shutdown::Signals,
+    pub(super) signals: &'a mut dyn StopSignals,
     pub(super) listener: &'a mut Option<JoinHandle<Result<()>>>,
     pub(super) progress: watch::Receiver<RecoveryStep>,
     pub(super) started: Instant,

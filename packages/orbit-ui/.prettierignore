@@ -1,0 +1,3 @@
+node_modules
+bridge/generated/*.ts
+*.tsbuildinfo

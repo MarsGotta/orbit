@@ -1,5 +1,5 @@
-import type { AgentConfig } from "../../bridge/generated/AgentConfig";
-import type { SkillDocument } from "../../bridge/generated/SkillDocument";
+import type { AgentConfig } from "orbit-ui/bridge/generated/AgentConfig";
+import type { SkillDocument } from "orbit-ui/bridge/generated/SkillDocument";
 
 // The hub's ceilings: a personality of 16 KiB, 128 skills of 64 KiB each
 // (`orbit_hub/assistant/agent_config.py`, `skills.py`).

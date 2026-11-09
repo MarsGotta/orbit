@@ -1,29 +1,34 @@
-import type { AppView as AppSnapshot } from "../state/app-view";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { useEffect, useMemo, useState } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { DaemonPort } from "../bridge/port";
-import { AssistantSessions } from "../features/assistant/AssistantSessions";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import { AssistantSessions } from "orbit-ui/features/assistant/AssistantSessions";
 import { onboardingWasCompleted } from "../features/onboarding/OnboardingView";
-import { initializeUiStore, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
+import {
+  initializeUiStore,
+  useUiStore,
+  type SettingsSection,
+  type ViewId,
+} from "orbit-ui/state/ui";
 import { NotResponding, Starting } from "./AppStates";
 import type { useAppStore } from "./use-app-store";
 import { useErrorSelection } from "./error-selection";
 import { Main } from "./Main";
-import type { Message } from "./interceptor";
+import type { Message } from "orbit-ui/state/interceptor";
 import { reportingAgent, reportingReads } from "./report-failure";
 import type { OnboardingRequest } from "./Onboarding";
 import { Overlays, useCommandDispatch } from "./AppOverlays";
 import { Palette } from "./Palette";
-import { ShellSlots, useShellSlots } from "./shell-slots";
+import { ShellSlots, useShellSlots } from "orbit-ui/shell/shell-slots";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import styles from "./Shell.module.css";
 import { usePaletteCommands, type PaletteContent } from "./use-palette-commands";
 import { FailureActionsProvider } from "./FailureActions";
 import { useScopedSend } from "./use-scoped-send";
-import { OrbitStoreProvider } from "../state/use-in-flight";
-import { flushBeforeQuit } from "../state/quit-flush";
-import { useWindowPreferences } from "../state/window-preferences";
+import { OrbitStoreProvider } from "orbit-ui/state/use-in-flight";
+import { flushBeforeQuit } from "orbit-ui/state/quit-flush";
+import { useWindowPreferences } from "orbit-ui/state/window-preferences";
 import { useWindowMenu } from "./use-window-menu";
 
 export interface AppContentProps {

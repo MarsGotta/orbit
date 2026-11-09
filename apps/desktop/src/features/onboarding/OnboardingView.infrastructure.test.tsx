@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { AppView } from "../../state/app-view";
-import { es } from "../../i18n/es";
+import type { AppView } from "orbit-ui/state/app-view";
+import { es } from "orbit-ui/i18n/es";
 import { OnboardingView } from "./OnboardingView";
 
 afterEach(() => {

@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import type { DaemonPort } from "../bridge/port";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { baseViews, bootstrapOf, withOpenNote } from "../showcase/base";
 import { App } from "./App";
-import { useWindowActions } from "../state/window-actions";
+import { useWindowActions } from "orbit-ui/state/window-actions";
 
 afterEach(() => {
   cleanup();

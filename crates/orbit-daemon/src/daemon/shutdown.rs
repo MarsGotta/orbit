@@ -7,12 +7,11 @@
 //! hostage forever, and whoever waits for the daemon knows the one number to
 //! wait for.
 use super::{Command, Runtime};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use orbit_core::notice::{Notice, NoticeCode, NoticeKey};
 use orbit_core::wire::native::NativeEventHeader;
 use serde_json::Value;
 use std::time::{Duration, Instant};
-use tokio::signal::unix::{Signal, SignalKind, signal};
 
 /// How long an orderly closure may take, from the moment it is latched to the
 /// moment the daemon stops waiting and declares what is still in memory.
@@ -197,36 +196,6 @@ impl Shutdown {
                     "audio" | "gap" | "response" | "helper_disconnected"
                 )
             })
-    }
-}
-
-/// SIGINT and SIGTERM, installed before anything else starts. SIGTERM is what
-/// launchd sends at logout and what `kill` sends; SIGINT is a terminal's
-/// Ctrl-C. Both used to differ — only SIGINT was heard, so SIGTERM killed the
-/// daemon without its closure — and both now open the same door.
-pub(super) struct Signals {
-    interrupt: Signal,
-    terminate: Signal,
-}
-
-impl Signals {
-    pub(super) fn install() -> Result<Self> {
-        Ok(Self {
-            interrupt: signal(SignalKind::interrupt())
-                .context("Could not handle SIGINT for orderly closure")?,
-            terminate: signal(SignalKind::terminate())
-                .context("Could not handle SIGTERM for orderly closure")?,
-        })
-    }
-
-    /// The next termination signal, by name. A stream that ended can never
-    /// deliver again, so it waits for ever rather than for nothing.
-    pub(super) async fn next(&mut self) -> &'static str {
-        tokio::select! {
-            Some(()) = self.interrupt.recv() => "SIGINT",
-            Some(()) = self.terminate.recv() => "SIGTERM",
-            else => std::future::pending::<&'static str>().await,
-        }
     }
 }
 

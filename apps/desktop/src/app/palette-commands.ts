@@ -1,9 +1,9 @@
-import { getCopy, type Catalogue } from "../i18n";
-import type { AppCommand } from "../bridge/generated";
-import type { IconName } from "../design/Icon";
+import { getCopy, type Catalogue } from "orbit-ui/i18n";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { IconName } from "orbit-ui/design/Icon";
 
-import type { ErrorOrigin } from "../state/orbit-store";
-import type { ViewId } from "../state/ui";
+import type { ErrorOrigin } from "orbit-ui/state/orbit-store";
+import type { ViewId } from "orbit-ui/state/ui";
 
 export type PaletteGroup = "actions" | "goTo" | "privacy";
 

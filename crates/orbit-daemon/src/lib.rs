@@ -4,17 +4,19 @@
 
 pub mod capture;
 pub mod config;
+#[cfg(feature = "control")]
 pub use orbit_control::cua;
+#[cfg(not(feature = "control"))]
+#[path = "control_absent.rs"]
+pub mod cua;
 pub mod daemon;
 pub mod diagnostics;
 pub mod error_reports;
-pub mod hub;
-pub mod hub_agents;
-pub mod hub_notes;
-pub mod hub_vault;
+pub use orbit_hub_client::{hub, hub_agents, hub_notes, hub_vault};
 pub use orbit_ipc as ipc;
 pub mod native;
 pub use orbit_ipc::permissions;
+pub mod platform;
 pub mod retry;
 pub mod speech;
 pub mod supervision;

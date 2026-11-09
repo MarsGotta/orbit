@@ -466,7 +466,7 @@ async fn ai_settings_cross_the_mac_without_echoing_provider_credentials()
 
 fn distillation_reply(method: &str, path: &str) -> (&'static str, Value) {
     let mut proposal: Value = serde_json::from_str(include_str!(
-        "../../../apps/desktop/src/features/vault/__fixtures__/distillation.json"
+        "../../../packages/orbit-ui/features/vault/__fixtures__/distillation.json"
     ))
     .unwrap();
     if path.contains("/distillations?") {

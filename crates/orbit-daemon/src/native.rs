@@ -22,14 +22,13 @@ pub use supervisor::{
 };
 pub use wire::{command, encode_command_line, wav};
 
+use crate::platform::{HelperLink, HelperProcess};
 use anyhow::{Context, Result};
 use orbit_core::limits::{MAX_HELPER_COMMAND_LINE_BYTES, MAX_HELPER_EVENT_LINE_BYTES};
 use orbit_core::wire::native::{NativeCommandHeader, NativeEvent, NativeEventHeader};
 use serde_json::{Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    path::PathBuf,
-    process::Stdio,
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -38,36 +37,35 @@ use std::{
 };
 use tokio::{
     io::{AsyncBufRead, AsyncWrite, AsyncWriteExt, BufReader},
-    process::{Child, Command},
     sync::{Mutex, mpsc, oneshot, watch},
     time::Instant,
 };
+
+// The test modules below take their imports from here.
+#[cfg(test)]
+use std::path::PathBuf;
 
 /// One command written to the helper, heartbeat included. A helper whose pipe
 /// is full for this long is not reading, and the bridge is declared down.
 const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub(super) async fn run_helper_bridge(
-    path: &std::path::Path,
+    link: &mut dyn HelperLink,
     commands: &mut mpsc::Receiver<Value>,
     events: mpsc::Sender<Value>,
     stop: &mut watch::Receiver<bool>,
 ) -> Result<HelperEnd> {
-    let mut child = Command::new(path)
-        .arg("--stdio")
-        .arg("--managed")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .kill_on_drop(true)
-        .spawn()?;
-    let mut reader = BufReader::new(child.stdout.take().context("Helper stdout missing")?);
-    let mut writer = child.stdin.take().context("Helper stdin missing")?;
+    let pipes = link.open()?;
+    let mut process = pipes.process;
+    let mut reader = BufReader::new(pipes.reader);
+    let mut writer = pipes.writer;
     match bridge_inner(&mut reader, &mut writer, commands, events, stop).await {
         // Asked to stop, or nobody left to send commands: end it in order.
-        Ok(()) => Ok(close_helper(child, reader, writer).await),
+        Ok(()) => Ok(close_helper(process, reader, writer).await),
         Err(error) => {
-            let _ = child.kill().await;
+            if let Some(process) = process.as_mut() {
+                process.kill().await;
+            }
             Err(error)
         }
     }

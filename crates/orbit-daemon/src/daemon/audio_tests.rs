@@ -85,6 +85,11 @@ pub(in crate::daemon) fn fixture(
             closing: false,
             online_at_close: false,
             privacy_retirement_owed: false,
+            secrets: std::sync::Arc::new(crate::platform::system::SystemSecrets {
+                paths: paths.clone(),
+                development: true,
+            }),
+            owner: std::sync::Arc::new(crate::platform::system::SystemOwner),
             paths,
             settings: Settings::default(),
             development: true,

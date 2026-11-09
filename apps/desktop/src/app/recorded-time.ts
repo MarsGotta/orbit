@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 
 interface Pauses {
   recording: string | null;

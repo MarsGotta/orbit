@@ -8,6 +8,7 @@ import asyncio
 import json
 import socket
 import time
+import uuid
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import replace
 
@@ -156,4 +157,8 @@ async def test_health_is_unchanged(environment):
     async with hub(environment, whisper=closed_port_url(), hermes=closed_port_url()) as http:
         response = await http.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "protocol": 1}
+    answer = response.json()
+    # The hub's own id came later; the rest of the answer is as it was.
+    hub_id = answer.pop("hub_id")
+    assert str(uuid.UUID(hub_id)) == hub_id
+    assert answer == {"ok": True, "protocol": 1}

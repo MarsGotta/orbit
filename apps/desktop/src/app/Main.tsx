@@ -1,16 +1,30 @@
-import { settingsSectionKey } from "../state/ui";
-import { useCopy } from "../i18n/CopyProvider";
-import type { AppView as AppSnapshot } from "../state/app-view";
+import { settingsSectionKey } from "orbit-ui/state/ui";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
+import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
 import { lazy as reactLazy, Suspense, useEffect } from "react";
-import type { AppCommand } from "../bridge/generated";
-import type { DaemonPort } from "../bridge/port";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 
-import { routeFor, useUiStore, type SettingsSection, type ViewId } from "../state/ui";
+import { routeFor, useUiStore, type SettingsSection, type ViewId } from "orbit-ui/state/ui";
 import styles from "./Main.module.css";
-import { Breadcrumbs, TopBarLeading } from "./shell-slots";
+import { Breadcrumbs, TopBarLeading } from "orbit-ui/shell/shell-slots";
 import { ViewBoundary } from "./ViewBoundary";
 
-import BriefingView from "../features/briefing/BriefingView";
+import BriefingView from "orbit-ui/features/briefing/BriefingView";
+import type { SettingsFrameSections } from "orbit-ui/features/settings/frame-sections";
+import { LoginItem } from "../settings/NativeSettings";
+import { missingPermissions, SystemPermissions } from "../settings/Permissions";
+import { ThisMac } from "../settings/ThisMac";
+import { Updates } from "../settings/Updates";
+
+/** The pieces of Settings only this Mac can show (see `frame-sections`). */
+export const macSettingsSections: SettingsFrameSections = {
+  missingPermissions,
+  thisDevice: (props) => <ThisMac {...props} />,
+  loginItem: (props) => <LoginItem {...props} />,
+  updates: (props) => <Updates {...props} />,
+  systemPermissions: (props) => <SystemPermissions {...props} />,
+};
 
 /** The loader of every view below that is loaded on demand. */
 const lazyViewLoaders: Array<() => Promise<unknown>> = [];
@@ -25,17 +39,17 @@ const lazy: typeof reactLazy = (load) => {
   return reactLazy(load);
 };
 
-const CalendarView = lazy(() => import("../features/calendar/CalendarView"));
-const NotesView = lazy(() => import("../features/notes/NotesView"));
-const VaultView = lazy(() => import("../features/vault/VaultView"));
-const AssistantView = lazy(() => import("../features/assistant/AssistantView"));
-const SettingsView = lazy(() => import("../features/settings/SettingsView"));
+const CalendarView = lazy(() => import("orbit-ui/features/calendar/CalendarView"));
+const NotesView = lazy(() => import("orbit-ui/features/notes/NotesView"));
+const VaultView = lazy(() => import("orbit-ui/features/vault/VaultView"));
+const AssistantView = lazy(() => import("orbit-ui/features/assistant/AssistantView"));
+const SettingsView = lazy(() => import("orbit-ui/features/settings/SettingsView"));
 
 /**
  * Loads the module of every lazy view now, instead of when each is first shown.
  *
  * The app never calls this: loading on demand is the point of `lazy`. The unit
- * suite does, before the first test of each file (`src/test-setup.ts`), so a test that renders one of these views waits for what it asks
+ * suite does, before the first test of each file (`packages/orbit-ui/test-setup.ts`), so a test that renders one of these views waits for what it asks
  * about and not for an import racing the query's budget.
  */
 export async function loadLazyViews(): Promise<void> {
@@ -152,6 +166,7 @@ function SettingsRoute({
   const settings = {
     agent,
     vault,
+    frame: macSettingsSections,
     error,
     onReopenOnboarding,
     send,

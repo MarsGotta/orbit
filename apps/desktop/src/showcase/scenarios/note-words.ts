@@ -1,7 +1,7 @@
-import type { AppCommand } from "../../bridge/generated";
-import type { DictionaryRequest } from "../../bridge/generated/DictionaryRequest";
-import type { NoteLibrarySnapshot } from "../../bridge/generated/NoteLibrarySnapshot";
-import type { OpenNoteSnapshot } from "../../bridge/generated/OpenNoteSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { DictionaryRequest } from "orbit-ui/bridge/generated/DictionaryRequest";
+import type { NoteLibrarySnapshot } from "orbit-ui/bridge/generated/NoteLibrarySnapshot";
+import type { OpenNoteSnapshot } from "orbit-ui/bridge/generated/OpenNoteSnapshot";
 import { withOpenNote } from "../base";
 import { wordsLibrary, wordsNote, withTerm } from "../data/note-words";
 import type { Scenario, Step, Views } from "../scenario";

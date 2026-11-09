@@ -1,6 +1,7 @@
 //! The daemon's life in order: its start and recovery, the loop, its closure.
 use super::*;
 
+#[cfg(feature = "mac")]
 pub async fn run(paths: Paths, development: bool) -> Result<()> {
     run_with_helper(paths, development, None).await
 }
@@ -8,20 +9,16 @@ pub async fn run(paths: Paths, development: bool) -> Result<()> {
 /// The whole daemon, until its closure ends. Orbit.app runs it on a thread of
 /// its own (`apps/desktop/src-tauri/src/daemon_thread.rs`); the
 /// development binary `orbit` runs it on its main thread.
+#[cfg(feature = "mac")]
 pub async fn run_with_helper(
     paths: Paths,
     development: bool,
     helper_override: Option<std::path::PathBuf>,
 ) -> Result<()> {
+    let platform = Platform::system(&paths, development, helper_override)?;
     // The startup future measured 113,328 bytes on the caller's stack. Keep
     // that future on the heap so ordinary 2 MiB test threads can run it.
-    Box::pin(run_with_helper_inner(
-        paths,
-        development,
-        helper_override,
-        None,
-    ))
-    .await
+    Box::pin(run_with_helper_inner(paths, development, platform, None)).await
 }
 
 /// The embedded daemon exposes its existing call queue and topic watches.
@@ -30,14 +27,14 @@ pub async fn run_with_helper(
 pub async fn run_embedded(
     paths: Paths,
     development: bool,
-    helper_override: Option<std::path::PathBuf>,
+    platform: Platform,
     connected: tokio::sync::oneshot::Sender<ipc::LocalClient>,
     ended: watch::Receiver<Option<ipc::DaemonEnded>>,
 ) -> Result<()> {
     Box::pin(run_with_helper_inner(
         paths,
         development,
-        helper_override,
+        platform,
         Some((connected, ended)),
     ))
     .await
@@ -51,7 +48,7 @@ type LocalEnds = (
 /// What the process holds from its first line to its last: the signals, the
 /// instance lock, the order queue, the topics and the IPC listener.
 pub(super) struct Process {
-    pub(super) signals: shutdown::Signals,
+    pub(super) signals: Box<dyn StopSignals>,
     _instance: std::fs::File,
     pub(super) calls: mpsc::Receiver<Call>,
     pub(super) topic_board: topics::TopicBoard,
@@ -64,7 +61,7 @@ impl Process {
         startup::RecoveryIo {
             log_root,
             calls: &mut self.calls,
-            signals: &mut self.signals,
+            signals: self.signals.as_mut(),
             listener: &mut self.listener,
         }
     }
@@ -95,20 +92,16 @@ struct Saved {
 pub(super) async fn run_with_helper_inner(
     paths: Paths,
     development: bool,
-    helper_override: Option<std::path::PathBuf>,
+    platform: Platform,
     local: Option<LocalEnds>,
 ) -> Result<()> {
-    if helper_override
-        .as_ref()
-        .is_some_and(|path| !path.is_absolute())
-    {
-        bail!("The helper requires an absolute path");
-    }
-    // Before anything starts, so SIGTERM is never the default kill.
-    // Process-wide: inside the app they are the app's too, and the app
-    // installs none of its own, so a SIGTERM to Orbit closes the daemon in
-    // order and the app follows it.
-    let signals = shutdown::Signals::install()?;
+    // The signals were installed with the platform, before anything starts.
+    let Platform {
+        helper,
+        secrets,
+        signals,
+        owner,
+    } = platform;
     paths.initialize()?;
     let instance = ipc::lock_instance(&paths)?;
     let socket_enabled = local.is_none() || orbit_core::orbit_bundle::LOCAL_SOCKET;
@@ -126,19 +119,21 @@ pub(super) async fn run_with_helper_inner(
         settings.error_reports,
     );
     error_reports.report_panics();
-    let key = storage_key(&paths, development)?;
+    let key = storage_key(&paths, secrets.as_ref())?;
     let mut store = store_actor::StoreActor::open_bootstrap(&paths.store, key)?;
     let saved = load_saved(&mut store, &settings)?;
     let mut process = open_process(&paths, signals, instance, socket_enabled, local).await?;
     let boot = runtime_build::Boot {
         paths,
         development,
-        helper_override,
+        helper,
+        secrets,
+        owner,
         settings,
         error_reports,
         key,
     };
-    let (mut runtime, channels, helper_path) =
+    let (mut runtime, channels, helper) =
         Box::pin(start_runtime(boot, store, saved, &mut process)).await?;
     if let Some(cleanup) = &mut process.listener_cleanup {
         cleanup.disarm();
@@ -147,7 +142,7 @@ pub(super) async fn run_with_helper_inner(
         &mut runtime,
         &mut process,
         channels,
-        helper_path,
+        helper,
     ))
     .await
 }
@@ -200,7 +195,7 @@ fn load_saved(store: &mut Store, settings: &Settings) -> Result<Saved> {
 /// so a closing order or a signal can reach a start that is still recovering.
 async fn open_process(
     paths: &Paths,
-    signals: shutdown::Signals,
+    signals: Box<dyn StopSignals>,
     instance: std::fs::File,
     socket_enabled: bool,
     local: Option<LocalEnds>,
@@ -261,11 +256,11 @@ async fn bind_listener(
 /// The store recovered, the writer started, the environment prepared and the
 /// runtime built and recovered: everything before the helper is launched.
 async fn start_runtime(
-    mut boot: runtime_build::Boot,
+    boot: runtime_build::Boot,
     store: Store,
     saved: Saved,
     process: &mut Process,
-) -> Result<(Runtime, Channels, Option<std::path::PathBuf>)> {
+) -> Result<runtime_build::Built> {
     let snapshot_gate = std::sync::Arc::new(tokio::sync::Mutex::new(()));
     let (worker_done, _) = tokio::sync::watch::channel(false);
     let direct_stop = startup::StopStore::Direct {
@@ -306,14 +301,8 @@ async fn start_runtime(
         snapshot_gate,
     };
     let checkpoint = startup::RecoveryCheckpoint { state, started };
-    let (checkpoint, prepared) = Box::pin(prepare(
-        &mut boot,
-        checkpoint,
-        &stop_store,
-        &mut io,
-        written,
-    ))
-    .await?;
+    let (checkpoint, prepared) =
+        Box::pin(prepare(&boot, checkpoint, &stop_store, &mut io, written)).await?;
     let recovered = runtime_build::Recovered {
         store_actor,
         supervision,
@@ -323,7 +312,7 @@ async fn start_runtime(
         work_rx,
         restart_recording: restart_recording.as_ref(),
     };
-    let (mut runtime, channels, helper_path) = runtime_build::build_runtime(boot, recovered)?;
+    let (mut runtime, channels, helper) = runtime_build::build_runtime(boot, recovered)?;
     // Restored records were already reported; recovery notices are new entries.
     runtime.turn.reported_sequence = reported_sequence;
     runtime.begin_fresh_turn(orbit_core::notice::ReportSource::Daemon);
@@ -336,7 +325,7 @@ async fn start_runtime(
         live,
     ))
     .await?;
-    Ok((runtime, channels, helper_path))
+    Ok((runtime, channels, helper))
 }
 
 /// What the writer already holds of the recovery, for its runtime snapshot.
@@ -346,10 +335,10 @@ struct Written<'a> {
     snapshot_gate: std::sync::Arc<tokio::sync::Mutex<()>>,
 }
 
-/// The environment (helper, credentials, diagnostics) and the runtime's own
+/// The environment (credentials, diagnostics) and the runtime's own
 /// recovery snapshot, each a served step a closing order can still reach.
 async fn prepare(
-    boot: &mut runtime_build::Boot,
+    boot: &runtime_build::Boot,
     checkpoint: startup::RecoveryCheckpoint,
     stop_store: &startup::StopStore,
     io: &mut startup::RecoveryIo<'_>,
@@ -357,9 +346,9 @@ async fn prepare(
 ) -> Result<(startup::RecoveryCheckpoint, startup::PreparedEnvironment)> {
     let preparation = tokio::task::spawn_blocking({
         let paths = boot.paths.clone();
-        let development = boot.development;
-        let helper_override = boot.helper_override.take();
-        move || startup::prepare_environment(paths, development, helper_override)
+        let secrets = boot.secrets.clone();
+        let native = boot.helper.is_some();
+        move || startup::prepare_environment(paths, secrets, native)
     });
     let (checkpoint, prepared) = startup::serve_step(
         checkpoint,

@@ -1,6 +1,6 @@
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { ChatSessionSummary } from "../../bridge/generated/ChatSessionSummary";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatSessionSummary } from "orbit-ui/bridge/generated/ChatSessionSummary";
 import type { Views } from "../scenario";
 import { mailAnswer, prepAnswer, queryAnswer } from "./chat-answers";
 import { at, MINUTE } from "./time";

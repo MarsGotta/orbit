@@ -84,6 +84,10 @@ ERROR_MESSAGES = {
     "hub_response_without_code": "The hub returned an error without a code; check the hub version and state.",
     "internal_error": "Orbit encountered an internal failure while preparing the response.",
     "device_unavailable": "The Mac is not connected to Orbit. Check that Orbit is open and connected.",
+    # A device that does not handle the group the order belongs to (a phone
+    # has no screen), as it said when it paired or as its own helper says:
+    # the hub or the device itself refused it.
+    "device_capability_missing": "That device does not handle the group this order belongs to, so it cannot answer it. It is not a permission; ask a device that handles it.",
     # What lets Deimos see and act on a Mac is the macOS permission the user
     # grants, and nothing else. Each code names the one that is missing.
     "accessibility_permission_required": "macOS has not granted Orbit Accessibility on that Mac, so it cannot use the computer. Grant it in System Settings › Privacy & Security › Accessibility.",

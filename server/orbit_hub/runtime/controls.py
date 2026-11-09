@@ -1,8 +1,10 @@
 """A conversation's controls: interrupting its turn, answering its questions.
 
-Each runs whole under its conversation's lock, in arrival order, after the
-sends of that conversation admitted before it (`Conversations.controlling`);
-never behind another conversation.
+Each runs whole under its conversation's lock, in arrival order, never behind
+another conversation. Only an interrupt also waits for the sends of its
+conversation admitted before it (`Conversations.controlling`), so it reaches
+the turn it names. An answer names a question of a turn already sent: waiting
+for a send queued behind that turn would wait for the answer itself.
 """
 
 from dataclasses import replace
@@ -19,7 +21,13 @@ class Controls:
 
     async def handle(self, method: str, params) -> tuple[str, dict]:
         runtime = self.runtime
-        async with runtime.conversations.controlling(params.session_id):
+        conversations = runtime.conversations
+        entered = (
+            conversations.controlling(params.session_id, params.turn_id)
+            if method == "chat.interrupt"
+            else conversations.committing(params.session_id)
+        )
+        async with entered:
             if not runtime.store.devices.is_active(runtime.device):
                 raise HubError("revoked", "Device revoked")
             binding, connection = runtime.require_live(params.session_id)
@@ -43,6 +51,9 @@ class Controls:
             runtime.interrupt_deadlines[params.session_id] = (
                 runtime.now() + INTERRUPT_DEADLINE_SECONDS
             )
+            # A send may have started waiting while the agent took the cut,
+            # when the turn had no deadline to wake it.
+            runtime.wake_waiting_sends()
         return "chat.interrupted", {"session_id": params.session_id, "status": "requested"}
 
     def _pending(self, kind: str, params):

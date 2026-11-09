@@ -206,10 +206,15 @@ impl EmbeddedDaemon {
                 {
                     Ok(runtime) => {
                         let result = runtime.block_on(async {
+                            let platform = orbit_daemon::platform::Platform::system(
+                                &daemon_paths,
+                                launch.development,
+                                launch.helper,
+                            )?;
                             let run = orbit_daemon::daemon::run_embedded(
                                 daemon_paths,
                                 launch.development,
-                                launch.helper,
+                                platform,
                                 connected,
                                 thread_end,
                             );

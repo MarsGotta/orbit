@@ -15,17 +15,18 @@ logger = get_logger(__name__)
 def mount(
     app, store, identity, bounded_body, validate_wav, settings, agents, transcriptions, turn_inputs
 ):
-    """Dictation is the default agent's: it is the user's input to whichever
-    agent they talk to, not anyone's voice. Read-aloud is the voice of the
-    agent the request names, or the default agent's when it names none or that
-    agent has no voice of its own. Without any voice, the refusal names the
-    agent and the cause before any audio is read or made."""
+    """Dictation is the hub's: it is the user's input to whichever agent they
+    talk to, not anyone's voice. Settings › AI's `listening` hears it when
+    chosen; otherwise the default agent's own dictation (Hermes), or the hub's
+    `[meeting_transcription]` for an agent without one
+    (`Transcriber.interactive`). Read-aloud is the voice of the agent the
+    request names, or the default agent's when it names none or that agent has
+    no voice of its own. Without any voice, the refusal names the agent and the
+    cause before any audio is made."""
 
     @app.post("/v1/audio/transcribe")
     async def transcribe(request: Request):
         device = identity(request)
-        if getattr(transcriptions.meetings, "requires_default_speech", True):
-            agents.default.voice(listening=True)
         body = await bounded_body(request, settings.max_audio_bytes, "audio")
         validate_wav(body)
         try:

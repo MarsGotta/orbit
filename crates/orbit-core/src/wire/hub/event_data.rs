@@ -43,6 +43,11 @@ pub struct ReadyData {
     pub hub_protocol: Option<u64>,
     #[serde(default)]
     pub hub_version: Option<String>,
+    /// The hub's own id, the same its `/health` says: which hub answers at
+    /// this address. Absent from an older hub; nothing on the Mac keeps or
+    /// compares it yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_id: Option<String>,
     #[serde(default)]
     pub device_version: Option<String>,
 }

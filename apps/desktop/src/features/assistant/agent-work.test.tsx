@@ -1,16 +1,16 @@
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppBootstrap, AppCommand, FeatureFrame } from "../../bridge/generated";
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatMessage } from "../../bridge/generated/ChatMessage";
-import type { ChatPending } from "../../bridge/generated/ChatPending";
-import type { WorkItem } from "../../bridge/generated/WorkItem";
-import type { DaemonPort } from "../../bridge/port";
+import type { AppBootstrap, AppCommand, FeatureFrame } from "orbit-ui/bridge/generated";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatMessage } from "orbit-ui/bridge/generated/ChatMessage";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
+import type { WorkItem } from "orbit-ui/bridge/generated/WorkItem";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { PanelApp } from "../call-panel/PanelApp";
-import { AgentWorkView, workSummary } from "./AgentWork";
-import { MessageList } from "./MessageList";
-import { PendingCard } from "./PendingCard";
+import { AgentWorkView, workSummary } from "orbit-ui/features/assistant/AgentWork";
+import { MessageList } from "orbit-ui/features/assistant/MessageList";
+import { PendingCard } from "orbit-ui/features/assistant/PendingCard";
 
 // What the agent does in a turn (hub-v1 chat.item), and its questions with
 // the choices it offered.

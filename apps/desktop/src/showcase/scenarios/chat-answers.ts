@@ -1,5 +1,5 @@
-import type { AgentWork } from "../../bridge/generated/AgentWork";
-import type { ChatPending } from "../../bridge/generated/ChatPending";
+import type { AgentWork } from "orbit-ui/bridge/generated/AgentWork";
+import type { ChatPending } from "orbit-ui/bridge/generated/ChatPending";
 import { message, SESSION } from "../data/chat";
 import { NOW } from "../data/time";
 import type { HubData, Scenario } from "../scenario";

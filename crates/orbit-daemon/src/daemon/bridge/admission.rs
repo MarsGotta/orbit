@@ -175,6 +175,12 @@ impl Runtime {
             calendar: orbit_core::device_bridge::CalendarPermission::from_authorization(
                 self.calendar.view.authorization,
             ),
+            // What the helper's last `ready` said this device handles, less
+            // what this build has no client for.
+            #[cfg(feature = "control")]
+            device: self.helper.device(),
+            #[cfg(not(feature = "control"))]
+            device: crate::cua::served_by_this_build(self.helper.device()),
         }
     }
 

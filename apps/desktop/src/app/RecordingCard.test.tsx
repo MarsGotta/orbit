@@ -1,10 +1,10 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AppCommand } from "../bridge/generated";
-import type { MeetingSnapshot } from "../bridge/generated/MeetingSnapshot";
-import type { DaemonPort } from "../bridge/port";
-import { createOrbitStore } from "../state/orbit-store";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import { createOrbitStore } from "orbit-ui/state/orbit-store";
 import { RecordingCard } from "./RecordingCard";
 import { messageFor } from "./visible-error";
 

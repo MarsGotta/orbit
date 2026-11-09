@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct StatusView {
     pub availability: FeatureAvailability,
     pub connection: ConnectionSnapshot,
@@ -40,7 +40,7 @@ pub struct StatusView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub struct StatusSettingsView {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -308,7 +308,7 @@ pub fn apply(view: &View, snapshot: &mut AppSnapshot) {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "command", rename_all = "snake_case")]
-#[ts(export, export_to = "../../apps/desktop/src/bridge/generated/")]
+#[ts(export, export_to = "../../packages/orbit-ui/bridge/generated/")]
 pub enum StatusCommand {
     OpenUrl {
         url: String,

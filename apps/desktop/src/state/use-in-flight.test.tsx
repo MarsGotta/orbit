@@ -1,12 +1,17 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { AppBootstrap, FeatureFrame, FeatureId } from "../bridge/generated";
-import type { DaemonPort } from "../bridge/port";
-import type { SessionPage } from "../bridge/reads";
+import type { AppBootstrap, FeatureFrame, FeatureId } from "orbit-ui/bridge/generated";
+import type { DaemonPort } from "orbit-ui/bridge/port";
+import type { SessionPage } from "orbit-ui/bridge/reads";
 import { reportingReads } from "../app/report-failure";
-import { createOrbitStore, type OrbitStore } from "./orbit-store";
-import { OrbitStoreProvider, useInFlight, useNoStateYet, useTrack } from "./use-in-flight";
+import { createOrbitStore, type OrbitStore } from "orbit-ui/state/orbit-store";
+import {
+  OrbitStoreProvider,
+  useInFlight,
+  useNoStateYet,
+  useTrack,
+} from "orbit-ui/state/use-in-flight";
 
 // The hooks the loading states are drawn from, over the window's store.
 

@@ -1,5 +1,5 @@
-import type { Notice } from "../../bridge/generated/Notice";
-import type { SettingsHubSnapshot } from "../../bridge/generated/SettingsHubSnapshot";
+import type { Notice } from "orbit-ui/bridge/generated/Notice";
+import type { SettingsHubSnapshot } from "orbit-ui/bridge/generated/SettingsHubSnapshot";
 import type { Views } from "../scenario";
 
 type Status = Views["status"];

@@ -247,7 +247,7 @@ impl AttachmentContext {
 
     fn token(&self) -> Result<&str> {
         Ok(crate::hub::access(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             self.token.as_deref(),
             self.privacy_stopped,
             self.connection.clone(),
@@ -296,7 +296,7 @@ impl AttachmentContext {
     ) -> Result<Attachment> {
         let token = self.token()?;
         crate::hub::attachment_from_capture(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             token,
             self.development,
             capture_id,
@@ -309,7 +309,7 @@ impl AttachmentContext {
 
     async fn upload(&self, token: &str, name: &str, bytes: Vec<u8>) -> Result<Attachment> {
         crate::hub::upload_attachment(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             token,
             self.development,
             name,
@@ -375,7 +375,7 @@ impl AttachmentContext {
             .into());
         }
         crate::hub::fetch_attachment(
-            &self.settings,
+            &crate::config::hub_endpoint(&self.settings),
             token,
             self.development,
             attachment_id,

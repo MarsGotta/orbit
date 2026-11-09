@@ -2936,10 +2936,11 @@ dependencies = [
  "chrono",
  "directories",
  "futures-util",
- "keyring",
  "orbit-control",
  "orbit-core",
+ "orbit-hub-client",
  "orbit-ipc",
+ "orbit-mac",
  "orbit-store",
  "png 0.18.1",
  "rand 0.9.5",
@@ -2988,6 +2989,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "orbit-hub-client"
+version = "0.15.0"
+dependencies = [
+ "anyhow",
+ "futures-util",
+ "orbit-core",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "tokio",
+ "tokio-tungstenite",
+ "uuid",
+]
+
+[[package]]
 name = "orbit-ipc"
 version = "0.15.0"
 dependencies = [
@@ -3002,6 +3020,19 @@ dependencies = [
  "tokio",
  "toml 0.9.12+spec-1.1.0",
  "uuid",
+]
+
+[[package]]
+name = "orbit-mac"
+version = "0.15.0"
+dependencies = [
+ "anyhow",
+ "keyring",
+ "orbit-core",
+ "orbit-ipc",
+ "rustix",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

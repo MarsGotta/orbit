@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { panelOrders } from "./generated/panelOrders";
-import type { PanelOrder } from "./generated/PanelOrder";
-import type { AppCommand, CommandReceipt } from "./generated";
-import type { DaemonPort } from "./port";
+import { panelOrders } from "orbit-ui/bridge/generated/panelOrders";
+import type { PanelOrder } from "orbit-ui/bridge/generated/PanelOrder";
+import type { AppCommand, CommandReceipt } from "orbit-ui/bridge/generated";
+import type { DaemonPort } from "orbit-ui/bridge/port";
 import { TauriPort } from "./tauri-port";
 
 /**

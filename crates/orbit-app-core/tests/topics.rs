@@ -59,7 +59,7 @@ async fn ordered_shutdown_keeps_the_closing_notice_and_ends_reads_explicitly()
 
 /// A list read the orderly closure cuts says so with the one cause the
 /// interface takes for «Orbit is closing», not a failure
-/// (`apps/desktop/src/state/state-failures.ts`, `CLOSED_IN_ORDER`).
+/// (`packages/orbit-ui/state/state-failures.ts`, `CLOSED_IN_ORDER`).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_notes_read_cut_by_the_orderly_close_names_that_cause() -> Result<(), Box<dyn Error>> {
     let directory = tempfile::tempdir()?;

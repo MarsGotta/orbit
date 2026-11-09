@@ -63,7 +63,7 @@ without running them. Pass one or more zones to run only those:
 
 | Zone | What it checks |
 |---|---|
-| `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` and the test bridge with `pruebas`, and that the generated TypeScript is current |
+| `rust` | `cargo fmt`, strict Clippy, `cargo test` for every workspace crate in two Cargo feature groups (the daemon and its crates; the app), `orbit-core` and the test bridge with `pruebas`, the engine without its control client, app-core without its updater, and that the generated TypeScript is current |
 | `guards` | The size limits and the domain boundaries (below), then the Python guards in `scripts/tests`: shared constants and their copies, packaging, installer and release scripts. The `scripts/tests` step runs after the hub's environment step and is skipped, saying why, without it: the hub publish guards build a release with the real `uv` offline, from the cache that syncing `server/.venv` fills |
 | `hub` | Ruff and Ruff format over the hub and the harness, the hub's pytest suite, including end-to-end tests against the real daemon binary, and the real-test harness's dry run |
 | `ui` | Lint, typecheck, Vitest and the production build of `apps/desktop` |
@@ -93,7 +93,7 @@ one and on entries the code no longer has.
 A skipped test is not a passed test. The gate fails on any skip that is not
 listed, with its reason, in `scripts/check/allowed-skips.toml`. Never weaken,
 skip or delete a test to get green. The TypeScript in
-`apps/desktop/src/bridge/generated/` is written by `cargo test` of
+`packages/orbit-ui/bridge/generated/` is written by `cargo test` of
 `orbit-app-core`; commit it exactly as the test writes it.
 
 Every pull request and every push to `main` runs the whole gate on Linux in

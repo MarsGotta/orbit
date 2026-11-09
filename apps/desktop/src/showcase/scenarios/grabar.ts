@@ -1,4 +1,4 @@
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import { idleMeeting, recordingMeeting } from "../data/recording";
 import { at, NOW } from "../data/time";
 import type { Scenario, Views } from "../scenario";

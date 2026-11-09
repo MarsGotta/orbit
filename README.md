@@ -5,9 +5,10 @@
   </picture>
 </h1>
 
-Orbit is a macOS companion for a personal assistant running in
+Orbit is a macOS companion for a personal assistant. The assistant can be
 [Hermes Agent](https://github.com/NousResearch/hermes-agent), the open-source
-agent by Nous Research. It brings together the calendar, meeting recording,
+agent by Nous Research, Claude Code, Codex or any model behind an
+OpenAI-compatible API; a hub can offer several. It brings together the calendar, meeting recording,
 notes, chat and voice, and lets the assistant see and use the Mac through macOS
 permissions. The app's interface is in Spanish. The assistant name defaults to
 Deimos and is configured on the hub (see
@@ -15,8 +16,11 @@ Deimos and is configured on the hub (see
 
 Orbit has its own hub: the single source of meetings, transcripts, notes and
 conversations. The Mac records, encrypts and uploads audio, then reads results
-from the hub. Hermes owns the assistant's identity, models and provider
-credentials. A local, durable privacy stop cuts capture, playback and transfers.
+from the hub, which also hears dictation and lets each person choose, in
+Ajustes › IA, the transcription and note models: on their own machine or behind
+any OpenAI-compatible API. A Hermes agent keeps its identity, models and
+provider credentials in Hermes. A local, durable privacy stop cuts capture,
+playback and transfers.
 
 ## Status
 
@@ -29,8 +33,9 @@ hub). The interface is in Spanish only. Changes are listed in the
 
 - Apple Silicon and macOS 15 or later. The local “Oye Deimos” meeting wake phrase
   requires macOS 26; earlier systems use the question button.
-- Your own Orbit hub, Hermes profile and transcription service for chat, voice
-  and meeting processing. See [self-hosting](docs/self-hosting.md).
+- Your own Orbit hub and transcription service for chat, voice and meeting
+  processing, and an assistant: a Hermes profile (optional), Claude Code,
+  Codex or an OpenAI-compatible model. See [self-hosting](docs/self-hosting.md).
 - Microphone permission for recording; Screen Recording for system or app audio
   and screenshots; Accessibility for computer control and selected text;
   Calendars for the local calendar. Orbit requests the relevant system permission.

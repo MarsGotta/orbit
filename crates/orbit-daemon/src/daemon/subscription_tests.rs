@@ -40,7 +40,8 @@ async fn shutdown_records_numeric_turn_counts_without_turn_content() -> Result<(
             let (_directory, paths) = fixture()?;
             let daemon_paths = paths.clone();
             let mut daemon = tokio::task::spawn_local(async move {
-                run_with_helper_inner(daemon_paths, true, None, None).await
+                let platform = crate::platform::Platform::system(&daemon_paths, true, None)?;
+                run_with_helper_inner(daemon_paths, true, platform, None).await
             });
             ready(&paths, &mut daemon).await?;
             ipc::request(&paths, Command::Shutdown).await?;
@@ -93,7 +94,8 @@ async fn command_receipt_revisions_are_already_published_by_the_actor() -> Resul
             let (_directory, paths) = fixture()?;
             let daemon_paths = paths.clone();
             let mut daemon = tokio::task::spawn_local(async move {
-                run_with_helper_inner(daemon_paths, true, None, None).await
+                let platform = crate::platform::Platform::system(&daemon_paths, true, None)?;
+                run_with_helper_inner(daemon_paths, true, platform, None).await
             });
             ready(&paths, &mut daemon).await?;
             let (_initial, mut subscription) =

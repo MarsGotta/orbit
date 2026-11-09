@@ -1,10 +1,10 @@
 import { act, render, screen } from "@testing-library/react";
 import { expect, it } from "vitest";
-import type { AppBootstrap, FeatureFrame } from "../bridge/generated";
-import type { DaemonPort, FrameListener } from "../bridge/port";
-import { spanish } from "./es";
-import { english } from "./en";
-import { receive } from "../app/interceptor";
+import type { AppBootstrap, FeatureFrame } from "orbit-ui/bridge/generated";
+import type { DaemonPort, FrameListener } from "orbit-ui/bridge/port";
+import { spanish } from "orbit-ui/i18n/es";
+import { english } from "orbit-ui/i18n/en";
+import { receive } from "orbit-ui/state/interceptor";
 import { PanelApp } from "../features/call-panel/PanelApp";
 
 it("uses the hub name in the panel and wake status as frames arrive", async () => {

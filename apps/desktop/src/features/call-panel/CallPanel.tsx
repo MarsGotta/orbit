@@ -1,15 +1,15 @@
-import { useCopy } from "../../i18n/CopyProvider";
+import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import { useState } from "react";
-import type { AppCommand } from "../../bridge/generated";
-import type { CallPanelSnapshot } from "../../bridge/generated/CallPanelSnapshot";
-import type { MeetingSnapshot } from "../../bridge/generated/MeetingSnapshot";
+import type { AppCommand } from "orbit-ui/bridge/generated";
+import type { CallPanelSnapshot } from "orbit-ui/bridge/generated/CallPanelSnapshot";
+import type { MeetingSnapshot } from "orbit-ui/bridge/generated/MeetingSnapshot";
 import { secondsLeft } from "../../app/call-countdown";
 import { DiscardButton, DiscardQuestion, useDiscardQuestion } from "../../app/DiscardRecording";
-import { Button } from "../../design/Button";
-import { useFeedback } from "../../design/feedback";
+import { Button } from "orbit-ui/design/Button";
+import { useFeedback } from "orbit-ui/design/feedback";
 
-import { mmss } from "../../time-format";
-import { useNow } from "../../use-now";
+import { mmss } from "orbit-ui/time-format";
+import { useNow } from "orbit-ui/use-now";
 import styles from "./CallPanel.module.css";
 
 /** A panel order; its promise settles with the daemon's receipt. */

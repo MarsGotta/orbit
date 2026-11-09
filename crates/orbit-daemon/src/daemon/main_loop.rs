@@ -47,7 +47,7 @@ pub(super) async fn serve(
     runtime: &mut Runtime,
     process: &mut run::Process,
     mut channels: run::Channels,
-    helper_path: Option<std::path::PathBuf>,
+    helper_link: Option<Box<dyn HelperLink>>,
 ) -> Result<()> {
     // Only now, with nothing left that can fail the startup: a helper launched
     // earlier could be left behind by a startup error.
@@ -55,12 +55,12 @@ pub(super) async fn serve(
     // The task runs with or without a helper: chunks a previous run sealed
     // still go up from it.
     let capture = spawn_capture(runtime, &mut channels);
-    if helper_path.is_some() {
+    if let Some(link) = helper_link {
         let commands = channels.native_commands.take();
         let route = channels.native_route.take();
         if let (Some(commands), Some(route)) = (commands, route) {
             helper = Some(native::Supervisor::spawn(
-                helper_path,
+                link,
                 commands,
                 route,
                 runtime.supervision.clone(),
