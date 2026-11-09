@@ -55,6 +55,10 @@ NOTE_TEMPLATE = {
     ],
 }
 TRANSCRIPTION = {"model": "whisper"}
+# A function's choice, written after the transcription preference (writing the
+# preference takes the transcription choices back). No provider: none can be
+# taken back by a route, and while one is kept no route reads the preference.
+AI_CHOICE = {"function": "meeting_transcription", "provider_id": "hub", "model": "whisper"}
 PERSONALITY = "You are Cedar. You answer briefly and plainly."
 SKILL = {
     "name": "cedar-digest",
@@ -97,6 +101,12 @@ def write(url: str, code: str, vault: Path) -> dict:
         template = {key: value for key, value in NOTE_TEMPLATE.items() if key != "id"}
         answer(http.put(f"/v1/note-templates/{NOTE_TEMPLATE['id']}", json=template))
         answer(http.put("/v1/settings/transcription", json=TRANSCRIPTION))
+        answer(
+            http.put(
+                f"/v1/settings/ai/functions/{AI_CHOICE['function']}",
+                json={"provider_id": AI_CHOICE["provider_id"], "model": AI_CHOICE["model"]},
+            )
+        )
         answer(http.put(f"/v1/agents/{AGENT_ID}/personality", json={"text": PERSONALITY}))
         answer(
             http.put(f"/v1/agents/{AGENT_ID}/skills/{SKILL['name']}", json={"content": SKILL_FILE})
@@ -110,6 +120,7 @@ def write(url: str, code: str, vault: Path) -> dict:
         "dictionary": DICTIONARY,
         "note_template": {**NOTE_TEMPLATE, "forked_from": None},
         "transcription": {**TRANSCRIPTION, "key_configured": False},
+        "ai_choice": AI_CHOICE,
         "agent": {
             "id": AGENT_ID,
             "personality": PERSONALITY,

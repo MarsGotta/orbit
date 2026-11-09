@@ -14,9 +14,11 @@ stays out of it, that the sample database is the one today's hub writes, that
 it holds nothing a hub changes on its own as time passes or when it starts,
 that no device token of the sample and no path of this machine is kept beside
 it (the kit pairs its own device on its copy), and that the kit reads, through
-the network, every sealed column the first two slices cover, and notices when
-a hub reads one of them wrong. The second slice reads through a signed private
-route too, signed as the contract writes it.
+the network, every sealed column the first three slices cover, and notices
+when a hub reads one of them wrong. The second slice reads through a signed
+private route too, signed as the contract writes it; the third signs with the
+meetings key as well, and reads the AI settings, which hide the transcription
+preference from every route while they hold a choice.
 """
 
 import ast
@@ -78,12 +80,25 @@ SECOND_SLICE = {
     "agent_skills.body": r"agent-skill:[^:]+:[^:]+",
     "vault_configuration.body": r"vault-configuration:v1",
 }
-COLUMNS = {**FIRST_SLICE, **SECOND_SLICE}
+# The third slice, first part: the AI settings. While they hold a provider or
+# a function's choice, the hub reads the transcription preference from them
+# and its own row (first slice) by no route; a choice is taken back by a route
+# (`operator`), a provider by none. So the sample holds a choice and no
+# provider, and the kit reads the choice, takes it back, and then reads the
+# preference.
+THIRD_SLICE = {
+    "ai_settings.body": r"hub-ai-settings",
+}
+COLUMNS = {**FIRST_SLICE, **SECOND_SLICE, **THIRD_SLICE}
 # Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
-# The signed route the kit must reach, by its protocol: `devices.name` shows
-# through no other route.
-SIGNED_READS = {"/internal/v1/devices": "orbit_device_bridge_v1"}
+# The signed routes the kit must reach, by their protocol: `devices.name` shows
+# through no other route, and the meetings key signs the assistant's reads of
+# meetings (an empty list in this part: the meetings come in the next).
+SIGNED_READS = {
+    "/internal/v1/devices": "orbit_device_bridge_v1",
+    "/internal/v1/meetings/list": "orbit_meetings_bridge_v1",
+}
 # The headers of a signed private request, as the contract has to name them:
 # a kit written from the contract alone has to know them.
 SIGNED_HEADERS = [
@@ -418,7 +433,8 @@ def test_reading_the_kit_for_hub_imports():
 
 def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(environment, tmp_path):
     """The sample opens with its test key, has exactly the schema today's hub
-    builds, a row in each column of the first slice, and stays under its cap."""
+    builds, a row in each column of the slices, AI settings with a choice and
+    no provider, and stays under its cap."""
     require_kit()
     settings, store, _ = environment
     names = [
@@ -445,9 +461,21 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
     try:
         with sqlite3.connect(f"file:{data / 'hub.sqlite3'}?mode=ro", uri=True) as db:
             sealed = [row[0] for row in db.execute("SELECT body FROM vault_configuration")]
+            settings_rows = [row[0] for row in db.execute("SELECT body FROM ai_settings")]
         opened = [sample.decrypt(body, "vault-configuration:v1").decode() for body in sealed]
+        ai = [json.loads(sample.decrypt(body, "hub-ai-settings")) for body in settings_rows]
     finally:
         sample.close()
+    # A choice the kit can read and take back; a provider would hide the
+    # transcription preference from every route for good.
+    assert ai and all(document["functions"] for document in ai), (
+        f"the sample's AI settings hold no function's choice: {ai}"
+    )
+    providers = sorted(name for document in ai for name in document["providers"])
+    assert not providers, (
+        f"the sample's AI settings hold providers {providers}: no route takes one back, "
+        "so the transcription preference would be read by none"
+    )
 
     create_app(settings)  # today's hub, with the tables its domains create
     store.close()
@@ -516,9 +544,9 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
 
 def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     """The kit passes against today's hub run as a program, works on a copy,
-    loads nothing of the hub, reaches the signed device list with a signature
-    the hub admits, and the hub opened every column of both slices while
-    serving it."""
+    loads nothing of the hub, reaches the signed device list and the signed
+    meetings list with signatures the hub admits, and the hub opened every
+    column of the three slices while serving it."""
     require_kit()
     before = sha256(GOLDEN)
     run = run_kit(tmp_path, "plain")
@@ -553,7 +581,7 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
 
 @pytest.mark.parametrize("column", sorted(COLUMNS))
 def test_the_kit_notices_a_hub_that_reads_a_column_wrong(tmp_path, column):
-    """A hub that opens one column of either slice into another value
+    """A hub that opens one column of any slice into another value
     (a person's text gets ` ~`) must make the kit fail, not skip or pass."""
     require_kit()
     run = run_kit(tmp_path, "changed", corrupt=COLUMNS[column])

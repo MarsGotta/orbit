@@ -10,10 +10,11 @@ here imports the hub, so the same kit tests a hub written in any language.
 The configuration is invented and names the keys today's hub reads: a
 loopback hub without TLS, meeting transcription pointed at a closed port, one
 API agent (`cedar`, of kind openai) whose model is behind that closed port, a
-Hermes address and credential that nothing uses, and the device bridge's key
-id with a key the kit draws anew for each folder it prepares. The kit signs a
-private request with that key as `contracts/hub-v1.md` writes it («Private
-meetings for the assistant»).
+Hermes address and credential that nothing uses, and the key ids of the device
+bridge and of the meetings bridge, each with a key the kit draws anew for each
+folder it prepares. The kit signs a private request with the key of its
+protocol as `contracts/hub-v1.md` writes it («Private meetings for the
+assistant»).
 """
 
 import hashlib
@@ -62,12 +63,23 @@ OUTPUT_TAIL_CHARS = 4000
 # The invented API agent: what the sample's personality and skill belong to.
 AGENT_ID = "cedar"
 AGENT_NAME = "Cedar"
-# The device bridge, as the contract signs it.
+# The operator's meeting transcription model, behind the closed port.
+OPERATOR_TRANSCRIPTION_MODEL = "invented-whisper"
+# The private protocols, as the contract signs them: each with its section of
+# the configuration, its headers' prefix, its key id and the file of the hub's
+# folder that holds its key.
 BRIDGE_PROTOCOL = "orbit_device_bridge_v1"
-BRIDGE_HEADERS = "x-orbit-bridge-"
-BRIDGE_KEY_ID = "contract-kit"
-BRIDGE_KEY_FILE = "bridge-credential"
-BRIDGE_KEY_BYTES = 32
+MEETINGS_PROTOCOL = "orbit_meetings_bridge_v1"
+PRIVATE_PROTOCOLS = {
+    BRIDGE_PROTOCOL: ("device_bridge", "x-orbit-bridge-", "contract-kit", "bridge-credential"),
+    MEETINGS_PROTOCOL: (
+        "meetings_bridge",
+        "x-orbit-meetings-",
+        "contract-kit-meetings",
+        "meetings-credential",
+    ),
+}
+PRIVATE_KEY_BYTES = 32
 # The variables that name the hub's implicit agent: beside `[[agents]]` the hub refuses to start.
 IMPLICIT_AGENT_VARIABLES = ("ORBIT_HUB_PROFILE", "ORBIT_HUB_ASSISTANT_NAME")
 
@@ -102,8 +114,8 @@ def _secret_file(path: Path, value: bytes) -> None:
 
 def prepare(folder: Path, key: bytes, database: Path | None = None) -> Path:
     """A hub's folder: data 0700, the key in a file of its own (0600), a new
-    device bridge key (0600), an invented configuration and, when given, a
-    copy of `database` as the hub's. Answers the configuration's path."""
+    key for each private protocol (0600), an invented configuration and, when
+    given, a copy of `database` as the hub's. Answers the configuration's path."""
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     data, home = folder / "data", folder / "home"
     data.mkdir(mode=0o700)
@@ -112,8 +124,14 @@ def prepare(folder: Path, key: bytes, database: Path | None = None) -> Path:
     _secret_file(key_file, key)
     credential = folder / "hermes-credential"
     _secret_file(credential, b"invented-hermes-credential\n")
-    bridge_key = folder / BRIDGE_KEY_FILE
-    _secret_file(bridge_key, secrets.token_bytes(BRIDGE_KEY_BYTES))
+    private = []
+    for section, _, key_id, private_key_file in PRIVATE_PROTOCOLS.values():
+        _secret_file(folder / private_key_file, secrets.token_bytes(PRIVATE_KEY_BYTES))
+        private += (
+            f"[{section}]",
+            f"key_id = {_toml(key_id)}",
+            f"credential_file = {_toml(folder / private_key_file)}",
+        )
     # The agent's orbit-mcp configuration: the hub only checks that it exists.
     tools = folder / "orbit-mcp.toml"
     tools.write_text("# Invented: no tool of the agent runs under the kit.\n")
@@ -132,10 +150,8 @@ def prepare(folder: Path, key: bytes, database: Path | None = None) -> Path:
                 "allow_insecure_localhost = true",
                 "[meeting_transcription]",
                 f'endpoint = "http://127.0.0.1:{CLOSED_PORT}"',
-                'model = "invented-whisper"',
-                "[device_bridge]",
-                f"key_id = {_toml(BRIDGE_KEY_ID)}",
-                f"credential_file = {_toml(bridge_key)}",
+                f"model = {_toml(OPERATOR_TRANSCRIPTION_MODEL)}",
+                *private,
                 "[[agents]]",
                 f"id = {_toml(AGENT_ID)}",
                 f"name = {_toml(AGENT_NAME)}",
@@ -281,30 +297,34 @@ def pair_device(url: str, code: str, name: str) -> dict:
     return response.json()
 
 
-def signed_headers(configuration: Path, path: str, body: bytes = b"") -> dict[str, str]:
-    """The device bridge's headers for a request to `path` with `body`, signed
-    now with the key of the hub's folder: seven lines (the protocol, `POST`
-    whatever the method, the path, the key id, the time in Unix milliseconds,
-    a UUID nonce, the body's SHA-256), HMAC-SHA256 in lowercase hexadecimal."""
-    key = (configuration.parent / BRIDGE_KEY_FILE).read_bytes()
+def signed_headers(
+    configuration: Path, path: str, body: bytes = b"", protocol: str = BRIDGE_PROTOCOL
+) -> dict[str, str]:
+    """The headers of `protocol` for a request to `path` with `body`, signed
+    now with that protocol's key of the hub's folder: seven lines (the
+    protocol, `POST` whatever the method, the path, the key id, the time in
+    Unix milliseconds, a UUID nonce, the body's SHA-256), HMAC-SHA256 in
+    lowercase hexadecimal."""
+    _, headers, key_id, key_file = PRIVATE_PROTOCOLS[protocol]
+    key = (configuration.parent / key_file).read_bytes()
     issued_at_ms, nonce = str(time.time_ns() // 1_000_000), str(uuid.uuid4())
     lines = (
-        BRIDGE_PROTOCOL,
+        protocol,
         "POST",
         path,
-        BRIDGE_KEY_ID,
+        key_id,
         issued_at_ms,
         nonce,
         hashlib.sha256(body).hexdigest(),
     )
     signature = hmac.new(key, "\n".join(lines).encode(), hashlib.sha256).hexdigest()
     values = {
-        "key-id": BRIDGE_KEY_ID,
+        "key-id": key_id,
         "issued-at-ms": issued_at_ms,
         "nonce": nonce,
         "signature": signature,
     }
-    return {f"{BRIDGE_HEADERS}{name}": value for name, value in values.items()}
+    return {f"{headers}{name}": value for name, value in values.items()}
 
 
 def device_client(url: str, token: str) -> httpx.Client:
@@ -315,15 +335,18 @@ def device_client(url: str, token: str) -> httpx.Client:
 @pytest.fixture(scope="module")
 def sample_configuration(tmp_path_factory) -> Path:
     """The configuration of the hub that serves a copy of the sample: its
-    folder holds the device bridge key the kit signs with."""
+    folder holds the private protocols' keys the kit signs with."""
     folder = tmp_path_factory.mktemp("sample-hub") / "hub"
     return prepare(folder, read_test_key(), GOLDEN)
 
 
 @pytest.fixture(scope="module")
 def sample_signature(sample_configuration):
-    """Signs, when called, a device bridge request to the hub serving the sample."""
-    return lambda path, body=b"": signed_headers(sample_configuration, path, body)
+    """Signs, when called, a private request to the hub serving the sample
+    (the device bridge's unless another protocol is named)."""
+    return lambda path, body=b"", protocol=BRIDGE_PROTOCOL: signed_headers(
+        sample_configuration, path, body, protocol
+    )
 
 
 @pytest.fixture(scope="module")

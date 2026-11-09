@@ -8,11 +8,19 @@ fields it does not keep are not compared. The kit reads as a
 device it pairs itself on the copy: none of these values belongs to the
 device that wrote it. A device's name shows only in the device bridge's
 list, a private route the kit signs as the contract writes it and calls
-without the device's credential.
+without the device's credential; the meetings list is signed the same way,
+with the meetings key.
 """
+
+import json
 
 pytest_plugins = ("kit_hub",)
 DEVICES_PATH = "/internal/v1/devices"
+MEETINGS_LIST_PATH = "/internal/v1/meetings/list"
+MEETINGS_PROTOCOL = "orbit_meetings_bridge_v1"
+# `operator` takes a function's choice back, to the default the hub's
+# configuration names (`kit_hub.OPERATOR_TRANSCRIPTION_MODEL`).
+TAKEN_BACK = {"provider_id": "operator", "model": "invented-whisper"}
 
 
 def ok(response) -> dict:
@@ -57,8 +65,19 @@ def test_a_note_template_reads_back_field_by_field(sample_hub):
         assert custom[0][field] == written[field], field
 
 
-def test_the_transcription_preference_reads_back(sample_hub):
+def test_the_ai_choice_reads_back_and_once_taken_back_the_transcription_preference(sample_hub):
+    # One test: while the choice is kept, no route reads the preference, and
+    # the order of the tests on the module's hub is not fixed.
     http, manifest = sample_hub
+    written = manifest["ai_choice"]
+    functions = ok(http.get("/v1/settings/ai"))["functions"]
+    chosen = [
+        (function["provider_id"], function["model"])
+        for function in functions
+        if function["id"] == written["function"]
+    ]
+    assert chosen == [(written["provider_id"], written["model"])]
+    ok(http.put(f"/v1/settings/ai/functions/{written['function']}", json=TAKEN_BACK))
     read = ok(http.get("/v1/settings/transcription"))
     for field, value in manifest["transcription"].items():
         assert read[field] == value, field
@@ -74,6 +93,19 @@ def test_a_device_name_reads_back_in_the_signed_device_list(sample_hub, sample_s
     read = ok(http.send(request))["devices"]
     named = [device["name"] for device in read if device["id"] == written["id"]]
     assert named == [written["name"]]
+
+
+def test_the_signed_meetings_list_of_the_sample_is_empty(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    body = json.dumps({"device_id": manifest["device"]["id"], "since_ms": 0, "limit": 10}).encode()
+    headers = {
+        "content-type": "application/json",
+        **sample_signature(MEETINGS_LIST_PATH, body, MEETINGS_PROTOCOL),
+    }
+    # Only the signature, as for the device list.
+    request = http.build_request("POST", MEETINGS_LIST_PATH, content=body, headers=headers)
+    del request.headers["authorization"]
+    assert ok(http.send(request)) == {"meetings": [], "more": False}
 
 
 def test_an_agent_personality_reads_back_whole(sample_hub):
