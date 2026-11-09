@@ -21,7 +21,9 @@ meetings key as well, and reads the AI settings, which hide the transcription
 preference from every route while they hold a choice, and a meeting the
 sample's device recorded by HTTP and an invented transcription service
 transcribed, and that meeting's note, which an invented model wrote, with the
-user's edits and the ones a regeneration set aside. The kit also records a
+user's edits and the ones a regeneration set aside, and the vault proposal the
+hub prepared on its own from that note, which the invented model wrote too,
+quoting the transcript. The kit also records a
 meeting of its own against an invented transcription service and an invented
 notes model it starts on loopback, and every process it starts (its hubs and
 its invented services) ends with it.
@@ -113,16 +115,29 @@ MEETING_SLICE = {
 # model the hub reaches on loopback, with what it was asked with (a template
 # of the sample), the user's edits and the edits a regeneration set aside. Of
 # the sample's device, as above. Not yet the final pass (it asks for
-# diarization), the voices and the distillation: a written note and a vault
-# make today's hub prepare a proposal on its own, so the sample holds one, but
-# the kit reads it in a later part.
+# diarization) and the voices.
 NOTE_SLICE = {
     "recording_notes.note": r"note-note:{device}:[^:]+",
     "recording_notes.inputs": r"note-inputs:{device}:[^:]+",
     "recording_notes.edits": r"note-edits:{device}:[^:]+",
     "recording_notes.superseded": r"note-superseded:{device}:[^:]+",
 }
-COLUMNS = {**FIRST_SLICE, **SECOND_SLICE, **THIRD_SLICE, **MEETING_SLICE, **NOTE_SLICE}
+# The third slice, fourth part: the vault proposal a written note and a vault
+# make today's hub prepare on its own, proposed (the invented model's answer
+# quotes the transcript and writes one meeting note). Its context names the
+# proposal, not the device: `{proposal}` is one of the sample's, since the kit's
+# own meeting gets a proposal too.
+PROPOSAL_SLICE = {
+    "vault_distillations.body": r"vault-distillation:{proposal}",
+}
+COLUMNS = {
+    **FIRST_SLICE,
+    **SECOND_SLICE,
+    **THIRD_SLICE,
+    **MEETING_SLICE,
+    **NOTE_SLICE,
+    **PROPOSAL_SLICE,
+}
 # Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
 # The signed routes the kit must reach, by their protocol: `devices.name` shows
@@ -298,6 +313,28 @@ async def completed(self, *arguments, **keywords):
 
 
 processing.ProcessingClient.complete_json = completed
+
+from orbit_hub.distillation import routes as proposals
+
+real_listing, real_proposal = proposals.listing, proposals.proposal
+
+
+def asked(line):
+    with open(LOG, "a") as out:
+        out.write(json.dumps({"pid": os.getpid(), "argv": sys.argv[1:], **line}) + "\\n")
+
+
+async def listed(service, meeting_id, *arguments, **keywords):
+    asked({"proposals_of": meeting_id})
+    return await real_listing(service, meeting_id, *arguments, **keywords)
+
+
+async def answered(service, proposal_id):
+    asked({"proposal": proposal_id})
+    return await real_proposal(service, proposal_id)
+
+
+proposals.listing, proposals.proposal = listed, answered
 from orbit_hub.cli import main
 
 main()
@@ -370,20 +407,26 @@ def machine_paths() -> list[str]:
     return sorted(path for path in paths if path not in ("/", "/tmp"))
 
 
-def sample_devices() -> list[str]:
-    """The ids of the devices the sample holds, read from a copy (SQLite
-    leaves -wal and -shm beside a WAL database it opens, even read-only)."""
+def sample_ids(table: str, column: str = "id") -> list[str]:
+    """A column of a table's rows in the sample (their ids unless another is
+    named), read from a copy (SQLite leaves -wal and -shm beside a WAL
+    database it opens, even read-only)."""
     with tempfile.TemporaryDirectory() as scratch:
-        copy = Path(scratch) / "devices.sqlite3"
+        copy = Path(scratch) / "ids.sqlite3"
         shutil.copy(GOLDEN, copy)
         with sqlite3.connect(f"file:{copy}?mode=ro", uri=True) as db:
-            return sorted(row[0] for row in db.execute("SELECT id FROM devices"))
+            return sorted(row[0] for row in db.execute(f"SELECT {column} FROM {table}"))
 
 
 def context_of(column: str) -> str:
-    """The context a column is opened with; a meeting's names a device of the sample."""
-    devices = "|".join(re.escape(device) for device in sample_devices())
-    return COLUMNS[column].replace("{device}", f"(?:{devices})")
+    """The context a column is opened with; a meeting's names a device of the
+    sample, a vault proposal's one of the sample's proposals."""
+    context = COLUMNS[column]
+    for marker, table in (("{device}", "devices"), ("{proposal}", "vault_distillations")):
+        if marker in context:
+            ids = "|".join(re.escape(identity) for identity in sample_ids(table))
+            context = context.replace(marker, f"(?:{ids})")
+    return context
 
 
 def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
@@ -587,8 +630,9 @@ def test_reading_the_kit_for_hub_imports():
 def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(environment, tmp_path):
     """The sample opens with its test key, has exactly the schema today's hub
     builds, a row in each column of the slices, AI settings with a choice and
-    no provider, no work a serving hub (with a notes model or without) would
-    pick up on its own, and stays under its cap."""
+    no provider, only proposed vault proposals, of its meeting, no work a
+    serving hub (with a notes model or without) would pick up on its own, and
+    stays under its cap."""
     require_kit()
     settings, store, _ = environment
     names = [
@@ -616,8 +660,16 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
         with sqlite3.connect(f"file:{data / 'hub.sqlite3'}?mode=ro", uri=True) as db:
             sealed = [row[0] for row in db.execute("SELECT body FROM vault_configuration")]
             settings_rows = [row[0] for row in db.execute("SELECT body FROM ai_settings")]
+            proposal_rows = db.execute(
+                "SELECT id, device_id, recording, state, body FROM vault_distillations"
+            ).fetchall()
+            recorded = set(db.execute("SELECT device_id, recording FROM recording_manifests"))
         opened = [sample.decrypt(body, "vault-configuration:v1").decode() for body in sealed]
         ai = [json.loads(sample.decrypt(body, "hub-ai-settings")) for body in settings_rows]
+        proposals = [
+            (row, json.loads(sample.decrypt(row[4], "vault-distillation:" + row[0])))
+            for row in proposal_rows
+        ]
     finally:
         sample.close()
     # A choice the kit can read and take back; a provider would hide the
@@ -630,6 +682,18 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
         f"the sample's AI settings hold providers {providers}: no route takes one back, "
         "so the transcription preference would be read by none"
     )
+    # The proposal the hub prepared for the sample's meeting, as a reviewer
+    # finds it: proposed, quoting the transcript, with its changes. A failed
+    # one is an error kept in the sample, and nothing moves it.
+    assert proposals, "the sample holds no vault proposal"
+    unproposed = [
+        f"{row[0]}: {row[3]}, {value['status']} {value.get('error')}"
+        for row, value in proposals
+        if not (row[3] == value["status"] == "proposed" and value["quotes"] and value["changes"])
+    ]
+    assert not unproposed, f"the sample holds vault proposals not proposed: {unproposed}"
+    elsewhere = [row[0] for row, _ in proposals if (row[1], row[2]) not in recorded]
+    assert not elsewhere, f"the sample holds vault proposals of no meeting of its own: {elsewhere}"
 
     create_app(settings)  # today's hub, with the tables its domains create
     store.close()
@@ -677,7 +741,10 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
     assert not kept, f"a device token of the sample is kept in {kept}: pair the kit's own"
     # The vault's folder is a path on the hub that wrote the sample: an
     # invented one, and so is every text kept beside the sample.
-    texts = {"the vault's configuration": "\n".join(opened)}
+    texts = {
+        "the vault's configuration": "\n".join(opened),
+        "the vault proposals": "\n".join(json.dumps(value) for _, value in proposals),
+    }
     texts |= {
         str(path.relative_to(ROOT)): path.read_bytes().decode("utf-8", "replace")
         for folder in (KIT, SAMPLE)
@@ -701,7 +768,8 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     loads nothing of the hub, reaches the signed device list and the signed
     meetings list, transcript and note with signatures the hub admits, the hub
     opened every column of the three slices while serving it (a meeting's, of
-    the sample's device), and transcribed a meeting of the kit's own through an
+    the sample's device; a vault proposal's, of the sample's), was asked for
+    the sample's vault proposal by its meeting and by its id, and transcribed a meeting of the kit's own through an
     invented service on loopback and wrote its note through an invented model
     on loopback."""
     require_kit()
@@ -734,6 +802,14 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
         if (path, protocol) not in admitted
     ]
     assert not unsigned, f"the hub admitted no signed request to {unsigned} from the kit"
+    # The sample's vault proposal, through the list of its meeting's proposals
+    # and by its id: the two routes a hub answers it by.
+    listed = {line["proposals_of"] for line in served if "proposals_of" in line}
+    unlisted = sorted(set(sample_ids("vault_distillations", "recording")) - listed)
+    assert not unlisted, f"the kit never asked for the vault proposals of meetings {unlisted}"
+    asked = {line["proposal"] for line in served if "proposal" in line}
+    unasked = sorted(set(sample_ids("vault_distillations")) - asked)
+    assert not unasked, f"the kit never asked for the vault proposals {unasked} by their id"
     # The kit's own meeting: the hub sent its audio to a service the kit
     # started on loopback, which answered some text (a failed call is not
     # written down).

@@ -141,7 +141,6 @@ def write(url: str, code: str, vault: Path) -> dict:
         answer(
             http.put(f"/v1/agents/{AGENT_ID}/skills/{SKILL['name']}", json={"content": SKILL_FILE})
         )
-        answer(http.put("/v1/vault/config", json={**VAULT, "path": str(vault)}))
         recording = MEETING["id"]
         record_meeting(http, recording, MEETING["started_at_ms"])
         wait_for_transcript(http, recording)
@@ -167,7 +166,12 @@ def write(url: str, code: str, vault: Path) -> dict:
         note = wait_for_note(http, recording)
         edit = {"base_revision": note["revision"], "title": NOTE["title"]}
         answer(http.put(f"{note_path}/edits", json=edit))
-        wait_for_proposals(http, recording)
+        # The vault last: the hub prepares a proposal for a written note once,
+        # from the meeting's title and speaker as they are then.
+        answer(http.put("/v1/vault/config", json={**VAULT, "path": str(vault)}))
+        proposals = wait_for_proposals(http, recording)
+        if [entry["status"] for entry in proposals] != ["proposed"]:
+            raise SystemExit(f"the hub prepared no single proposed vault proposal: {proposals}")
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
@@ -188,6 +192,18 @@ def write(url: str, code: str, vault: Path) -> dict:
             **NOTE,
             "template_id": NOTE_TEMPLATE["id"],
             "sections": [section["name"] for section in NOTE_TEMPLATE["sections"]],
+        },
+        # What the invented model proposed: the transcript's one line quoted
+        # whole (at its start, 0 ms) and a new meeting note adding its text.
+        "proposal": {
+            "id": proposals[0]["id"],
+            "summary": NOTE["text"],
+            "quote": {"at_ms": 0, "speaker": speaker["name"], "text": MEETING["text"]},
+            "note": {
+                "path": f"{MEETING['title']}.md",
+                "title": MEETING["title"],
+                "text": MEETING["text"],
+            },
         },
     }
 

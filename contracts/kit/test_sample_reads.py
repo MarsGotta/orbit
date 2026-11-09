@@ -228,6 +228,36 @@ def test_an_agent_skill_reads_back_whole(sample_hub):
     assert read["content"] == written["content"]
 
 
+def assert_the_proposal_written(read: dict, manifest: dict) -> None:
+    """`read` is the sample's vault proposal, field by field as the manifest keeps it."""
+    written = manifest["proposal"]
+    assert read["id"] == written["id"]
+    assert read["status"] == "proposed"
+    assert read["meeting_id"] == manifest["meeting"]["id"]
+    assert read["title"] == manifest["meeting"]["title"]
+    assert read["summary"] == written["summary"]
+    quote = written["quote"]
+    assert [(item["at_ms"], item["speaker"], item["text"]) for item in read["quotes"]] == [
+        (quote["at_ms"], quote["speaker"], quote["text"])
+    ]
+    note = written["note"]
+    assert [(change["path"], change["title"]) for change in read["changes"]] == [
+        (note["path"], note["title"])
+    ]
+    assert [line["after"] for line in read["changes"][0]["lines"]] == [note["text"]]
+    assert read["new_source"]["summary"] == written["summary"]
+
+
+def test_the_vault_proposal_reads_back_by_its_meeting_and_by_its_id(sample_hub):
+    http, manifest = sample_hub
+    meeting = manifest["meeting"]["id"]
+    listed = ok(http.get("/v1/vault/distillations", params={"meeting_id": meeting}))["entries"]
+    assert len(listed) == 1, listed
+    assert_the_proposal_written(listed[0], manifest)
+    read = ok(http.get(f"/v1/vault/distillations/{manifest['proposal']['id']}"))
+    assert_the_proposal_written(read, manifest)
+
+
 def test_the_vault_configuration_reads_back_field_by_field(sample_hub):
     http, manifest = sample_hub
     read = ok(http.get("/v1/vault/config"))

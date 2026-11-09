@@ -28,7 +28,10 @@ The hub writes a meeting's note with the notes model its configuration names
 thread too, answers `POST /v1/chat/completions` as OpenAI's API does: it fills
 the JSON schema the hub sends (`response_format.json_schema.schema`) with
 every property of each object, one element in each list and the text it was
-started with in anything else.
+started with in anything else. Asked for a vault proposal (the schema named
+`orbit_distillation`), it answers a valid one instead: that text as its
+summary, the first transcript line the hub sent quoted whole, and one new
+`meeting` note, titled after the meeting, adding that line's text.
 """
 
 import hashlib
@@ -130,6 +133,8 @@ NOTE_SECONDS = 60
 NOTE_POLL_SECONDS = 0.1
 # A vault proposal in these states will still move on its own.
 PROPOSAL_UNDER_WAY = ("queued", "preparing", "applying")
+# The schema name the hub asks a vault proposal with.
+DISTILLATION_SCHEMA = "orbit_distillation"
 
 
 class HubFailed(Exception):
@@ -442,11 +447,33 @@ def filled(schema: dict, text: str):
     return text
 
 
+def distillation(request: dict, text: str) -> dict:
+    """A valid vault proposal for the meeting the hub sent (as JSON in its last
+    message): `text` as its summary, the transcript's first line quoted whole,
+    and one new `meeting` note titled after the meeting whose one added line is
+    that quote's text."""
+    meeting = json.loads(request["messages"][-1]["content"])["meeting"]
+    line = meeting["lines"][0]
+    quote = {"id": "q1", "at_ms": line["at_ms"], "speaker": line["speaker"], "text": line["text"]}
+    cited = [quote["id"]]
+    note = {
+        "path": f"{meeting['title']}.md",
+        "title": meeting["title"],
+        "properties": [{"key": "type", "after": "meeting", "quote_ids": cited}],
+        "lines": [{"section": "", "before": "", "after": line["text"], "quote_ids": cited}],
+    }
+    return {"summary": text, "quotes": [quote], "changes": [note]}
+
+
 def completion_answer(request: dict, text: str) -> dict:
-    """What the invented notes model answers a `chat/completions` request:
-    the schema it was sent, filled with `text`, as one finished choice."""
-    schema = request["response_format"]["json_schema"]["schema"]
-    content = json.dumps(filled(schema, text))
+    """What the invented notes model answers a `chat/completions` request: a
+    vault proposal when the schema is `DISTILLATION_SCHEMA`, else the schema it
+    was sent filled with `text`; as one finished choice."""
+    form = request["response_format"]["json_schema"]
+    if form.get("name") == DISTILLATION_SCHEMA:
+        content = json.dumps(distillation(request, text))
+    else:
+        content = json.dumps(filled(form["schema"], text))
     return {
         "model": request.get("model", NOTES_MODEL),
         "choices": [
