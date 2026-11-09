@@ -18,7 +18,11 @@ the network, every sealed column the first three slices cover, and notices
 when a hub reads one of them wrong. The second slice reads through a signed
 private route too, signed as the contract writes it; the third signs with the
 meetings key as well, and reads the AI settings, which hide the transcription
-preference from every route while they hold a choice.
+preference from every route while they hold a choice, and a meeting the
+sample's device recorded by HTTP and an invented transcription service
+transcribed. The kit also records a meeting of its own against an invented
+transcription service it starts on loopback, and every process it starts (its
+hubs and its invented services) ends with it.
 """
 
 import ast
@@ -37,6 +41,7 @@ import tempfile
 import time
 import tomllib
 from pathlib import Path
+from urllib.parse import urlsplit
 from xml.etree import ElementTree
 
 import pytest
@@ -89,15 +94,31 @@ SECOND_SLICE = {
 THIRD_SLICE = {
     "ai_settings.body": r"hub-ai-settings",
 }
-COLUMNS = {**FIRST_SLICE, **SECOND_SLICE, **THIRD_SLICE}
+# The third slice, second part: a meeting the sample's device recorded by HTTP
+# (a chunk and its close), transcribed by an invented service, with a title,
+# a speaker's name and private notes. The contexts name the device that
+# recorded it (`{device}`, the sample's): the kit records a meeting of its own
+# too, on the device it pairs, so only these tell the sample's values apart.
+# Not yet the final pass (it asks for diarization), the voices, the note and
+# the distillation: they come in the next part.
+MEETING_SLICE = {
+    "recording_manifests.body": r"manifest:{device}:[^:]+",
+    "transcription_groups.manifest": r"group:{device}:[^:]+",
+    "group_transcripts.body": r"group-transcript:{device}:[^:]+",
+    "recording_titles.body": r"recording-title:{device}:[^:]+",
+    "recording_speakers.body": r"recording-speakers:{device}:[^:]+",
+    "recording_private_notes.body": r"recording-private-notes:{device}:[^:]+",
+}
+COLUMNS = {**FIRST_SLICE, **SECOND_SLICE, **THIRD_SLICE, **MEETING_SLICE}
 # Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
 # The signed routes the kit must reach, by their protocol: `devices.name` shows
 # through no other route, and the meetings key signs the assistant's reads of
-# meetings (an empty list in this part: the meetings come in the next).
+# meetings: the list (with the sample's meeting in it) and its transcript.
 SIGNED_READS = {
     "/internal/v1/devices": "orbit_device_bridge_v1",
     "/internal/v1/meetings/list": "orbit_meetings_bridge_v1",
+    "/internal/v1/meetings/transcript": "orbit_meetings_bridge_v1",
 }
 # The headers of a signed private request, as the contract has to name them:
 # a kit written from the contract alone has to know them.
@@ -120,6 +141,20 @@ CHANGED_BY_THE_HUB = {
     "a transcription job left running": "transcription_jobs WHERE state='running'",
     "a transcription group left running": "transcription_groups WHERE state='running'",
     "a final pass left running": "recording_final_passes WHERE state='running'",
+    # Work a serving hub picks up on its own: a chunk not in a group yet, a
+    # group waiting for (another) try at the transcription service, a final
+    # pass waiting its turn, a note waiting for its transcript or its model,
+    # and a recording whose close never came (open: its chunks and no manifest).
+    "a transcription job not grouped yet": "transcription_jobs WHERE state='pending'",
+    "a transcription group waiting to be sent": "transcription_groups WHERE state='pending'",
+    "a final pass waiting its turn": "recording_final_passes WHERE state='queued'",
+    "a note waiting to be written": (
+        "recording_notes WHERE state IN ('queued','generating','waiting_transcript')"
+    ),
+    "a recording left open": (
+        "chunks AS c WHERE NOT EXISTS (SELECT 1 FROM recording_manifests AS m "
+        "WHERE m.device_id = c.device_id AND m.recording = c.recording)"
+    ),
 }
 # What could be a device token: the hub makes them with token_urlsafe(32).
 TOKEN_LIKE = re.compile(r"[A-Za-z0-9_-]{20,}")
@@ -201,6 +236,22 @@ def admitted(self, *arguments, **keywords):
 
 
 private_auth.Authenticator.admit = admitted
+
+from orbit_hub import meeting_transcription
+
+real_transcribe = meeting_transcription.MeetingTranscriber.transcribe
+
+
+async def transcribed(self, *arguments, **keywords):
+    result = await real_transcribe(self, *arguments, **keywords)
+    with open(LOG, "a") as out:
+        line = {"pid": os.getpid(), "argv": sys.argv[1:], "transcribed": self.url,
+                "chars": len(result.text)}
+        out.write(json.dumps(line) + "\\n")
+    return result
+
+
+meeting_transcription.MeetingTranscriber.transcribe = transcribed
 from orbit_hub.cli import main
 
 main()
@@ -273,6 +324,22 @@ def machine_paths() -> list[str]:
     return sorted(path for path in paths if path not in ("/", "/tmp"))
 
 
+def sample_devices() -> list[str]:
+    """The ids of the devices the sample holds, read from a copy (SQLite
+    leaves -wal and -shm beside a WAL database it opens, even read-only)."""
+    with tempfile.TemporaryDirectory() as scratch:
+        copy = Path(scratch) / "devices.sqlite3"
+        shutil.copy(GOLDEN, copy)
+        with sqlite3.connect(f"file:{copy}?mode=ro", uri=True) as db:
+            return sorted(row[0] for row in db.execute("SELECT id FROM devices"))
+
+
+def context_of(column: str) -> str:
+    """The context a column is opened with; a meeting's names a device of the sample."""
+    devices = "|".join(re.escape(device) for device in sample_devices())
+    return COLUMNS[column].replace("{device}", f"(?:{devices})")
+
+
 def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
     """The kit, in its own process, against today's hub run as a program
     through a wrapper that writes down each value the hub opens (and, with
@@ -288,6 +355,9 @@ def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
         "KIT_WATCH_LOG": str(log),
         "KIT_WATCH_MODULES": str(modules),
         "KIT_WATCH_CORRUPT": corrupt,
+        # Inherited by every process the kit starts, unless it takes it away:
+        # how the processes of this run are told apart once the kit has ended.
+        "KIT_WATCH_RUN": str(work),
         "PYTHONPATH": str(work),
     }
     environment.pop("PYTEST_ADDOPTS", None)
@@ -326,11 +396,17 @@ def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
             kit.kill()
             kit.wait()
         finally:
-            # Pass, fail or time out: each hub the kit started must be gone.
+            # Pass, fail or time out: each hub the kit started must be gone,
+            # and so must every other process it started (its invented services).
             left = stop_hubs_left(log, work)
+            others = stop_processes_left(work)
     output = (work / "kit.out").read_text(errors="replace")[-4000:]
     assert not timed_out, f"the kit ran past {KIT_RUN_SECONDS} s:\n{output}"
     assert not left, f"the kit left its hub running (pids {left}): it must stop it\n{output}"
+    assert not others, (
+        f"the kit left processes it started running ({others}): its hubs and its invented "
+        f"services must end with it\n{output}"
+    )
     counts = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
     if junit.exists():
         for suite in ElementTree.parse(junit).getroot().iter("testsuite"):
@@ -377,6 +453,37 @@ def stop_hubs_left(log: Path, work: Path) -> list[int]:
     while (
         left := [pid for pid in sorted(pids) if running(pid, marker)]
     ) and time.monotonic() < deadline:
+        time.sleep(0.1)
+    for pid in left:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
+    return left
+
+
+def run_processes(work: Path) -> dict[int, str]:
+    """This user's processes (not zombies) started under the kit of this run:
+    their environment holds `KIT_WATCH_RUN` with this run's folder. By pid,
+    with the start of their command line."""
+    marker = f"KIT_WATCH_RUN={work}".encode() + b"\0"
+    found = {}
+    for proc in Path("/proc").glob("[0-9]*") if Path("/proc").is_dir() else []:
+        try:
+            if marker not in (proc / "environ").read_bytes():
+                continue
+            state = (proc / "stat").read_text().rsplit(")", 1)[1].split()[0]
+            command = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+        except (OSError, IndexError):
+            continue
+        if state != "Z" and int(proc.name) != os.getpid():
+            found[int(proc.name)] = command[:200]
+    return found
+
+
+def stop_processes_left(work: Path) -> dict[int, str]:
+    """The processes of this run still running once the kit has ended (after
+    the same grace as a hub), killed."""
+    deadline = time.monotonic() + HUB_EXIT_SECONDS
+    while (left := run_processes(work)) and time.monotonic() < deadline:
         time.sleep(0.1)
     for pid in left:
         with contextlib.suppress(ProcessLookupError):
@@ -434,7 +541,8 @@ def test_reading_the_kit_for_hub_imports():
 def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(environment, tmp_path):
     """The sample opens with its test key, has exactly the schema today's hub
     builds, a row in each column of the slices, AI settings with a choice and
-    no provider, and stays under its cap."""
+    no provider, no work a serving hub would pick up on its own, and stays
+    under its cap."""
     require_kit()
     settings, store, _ = environment
     names = [
@@ -545,8 +653,10 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
 def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     """The kit passes against today's hub run as a program, works on a copy,
     loads nothing of the hub, reaches the signed device list and the signed
-    meetings list with signatures the hub admits, and the hub opened every
-    column of the three slices while serving it."""
+    meetings list and transcript with signatures the hub admits, the hub
+    opened every column of the three slices while serving it (a meeting's, of
+    the sample's device), and transcribed a meeting of the kit's own through an
+    invented service on loopback."""
     require_kit()
     before = sha256(GOLDEN)
     run = run_kit(tmp_path, "plain")
@@ -566,8 +676,8 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     opened = {line["context"] for line in served if "context" in line}
     unread = [
         column
-        for column, context in COLUMNS.items()
-        if not any(re.fullmatch(context, seen) for seen in opened)
+        for column in COLUMNS
+        if not any(re.fullmatch(context_of(column), seen) for seen in opened)
     ]
     assert not unread, f"the hub never opened {unread} while serving the kit"
     admitted = {(line["signed"], line["protocol"]) for line in served if "signed" in line}
@@ -577,6 +687,20 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
         if (path, protocol) not in admitted
     ]
     assert not unsigned, f"the hub admitted no signed request to {unsigned} from the kit"
+    # The kit's own meeting: the hub sent its audio to a service the kit
+    # started on loopback, which answered some text (a failed call is not
+    # written down).
+    transcribed = [
+        line
+        for line in served
+        if "transcribed" in line
+        and line["chars"] > 0
+        and urlsplit(line["transcribed"]).hostname in ("127.0.0.1", "localhost", "::1")
+    ]
+    assert transcribed, (
+        "the hub transcribed nothing through a service on loopback while serving the kit: "
+        "the kit records a meeting of its own against an invented transcription service"
+    )
 
 
 @pytest.mark.parametrize("column", sorted(COLUMNS))
@@ -584,7 +708,7 @@ def test_the_kit_notices_a_hub_that_reads_a_column_wrong(tmp_path, column):
     """A hub that opens one column of any slice into another value
     (a person's text gets ` ~`) must make the kit fail, not skip or pass."""
     require_kit()
-    run = run_kit(tmp_path, "changed", corrupt=COLUMNS[column])
+    run = run_kit(tmp_path, "changed", corrupt=context_of(column))
     counts = run["counts"]
     assert run["code"] != 0 and (counts["failures"] or counts["errors"]), (
         f"the kit passed with {column} read wrong: {counts}\n{run['output'][-1500:]}"

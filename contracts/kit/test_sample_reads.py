@@ -8,8 +8,10 @@ fields it does not keep are not compared. The kit reads as a
 device it pairs itself on the copy: none of these values belongs to the
 device that wrote it. A device's name shows only in the device bridge's
 list, a private route the kit signs as the contract writes it and calls
-without the device's credential; the meetings list is signed the same way,
-with the meetings key.
+without the device's credential; the meetings list and a meeting's
+transcript are signed the same way, with the meetings key, for the device
+that recorded the sample's meeting. The kit also records a meeting of its own
+and reads back what its invented transcription service answered.
 """
 
 import json
@@ -17,6 +19,7 @@ import json
 pytest_plugins = ("kit_hub",)
 DEVICES_PATH = "/internal/v1/devices"
 MEETINGS_LIST_PATH = "/internal/v1/meetings/list"
+MEETINGS_TRANSCRIPT_PATH = "/internal/v1/meetings/transcript"
 MEETINGS_PROTOCOL = "orbit_meetings_bridge_v1"
 # `operator` takes a function's choice back, to the default the hub's
 # configuration names (`kit_hub.OPERATOR_TRANSCRIPTION_MODEL`).
@@ -95,17 +98,63 @@ def test_a_device_name_reads_back_in_the_signed_device_list(sample_hub, sample_s
     assert named == [written["name"]]
 
 
-def test_the_signed_meetings_list_of_the_sample_is_empty(sample_hub, sample_signature):
-    http, manifest = sample_hub
-    body = json.dumps({"device_id": manifest["device"]["id"], "since_ms": 0, "limit": 10}).encode()
-    headers = {
-        "content-type": "application/json",
-        **sample_signature(MEETINGS_LIST_PATH, body, MEETINGS_PROTOCOL),
-    }
-    # Only the signature, as for the device list.
-    request = http.build_request("POST", MEETINGS_LIST_PATH, content=body, headers=headers)
+def signed_meetings(http, sign, path: str, payload: dict) -> dict:
+    """A meetings bridge read with only the signature, as for the device list."""
+    body = json.dumps(payload).encode()
+    headers = {"content-type": "application/json", **sign(path, body, MEETINGS_PROTOCOL)}
+    request = http.build_request("POST", path, content=body, headers=headers)
     del request.headers["authorization"]
-    assert ok(http.send(request)) == {"meetings": [], "more": False}
+    return ok(http.send(request))
+
+
+def test_the_signed_meetings_list_holds_the_samples_meeting(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    written = manifest["meeting"]
+    payload = {"device_id": manifest["device"]["id"], "since_ms": 0, "limit": 100}
+    read = signed_meetings(http, sample_signature, MEETINGS_LIST_PATH, payload)["meetings"]
+    # The list may hold other meetings (the kit's own).
+    listed = [meeting for meeting in read if meeting["recording_id"] == written["id"]]
+    assert len(listed) == 1, read
+    for field in ("title", "started_at_ms", "duration_ms"):
+        assert listed[0][field] == written[field], field
+
+
+def test_the_signed_transcript_names_the_speaker_and_their_words(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    written = manifest["meeting"]
+    payload = {
+        "device_id": manifest["device"]["id"],
+        "recording_id": written["id"],
+        "format": "text",
+    }
+    read = signed_meetings(http, sample_signature, MEETINGS_TRANSCRIPT_PATH, payload)
+    assert f"{written['speaker']['name']}: {written['text']}" in read["text"], read["text"]
+
+
+def test_a_meeting_reads_back_field_by_field(sample_hub):
+    http, manifest = sample_hub
+    written = manifest["meeting"]
+    read = ok(http.get(f"/v1/recordings/{written['id']}"))
+    for field in ("title", "started_at_ms", "duration_ms"):
+        assert read[field] == written[field], field
+    assert read["private_notes"]["text"] == written["private_notes"]
+    speaker = written["speaker"]
+    # The whole list: a speaker the sample does not hold is read wrong too.
+    named = [(item["key"], item["name"]) for item in read["speakers"]]
+    assert named == [(speaker["key"], speaker["name"])]
+    turns = ok(http.get(f"/v1/recordings/{written['id']}/turns"))["turns"]
+    assert [(turn["speaker_key"], turn["text"]) for turn in turns] == [
+        (speaker["key"], written["text"])
+    ]
+
+
+def test_a_meeting_the_kit_records_is_transcribed_by_its_service(
+    sample_hub, kit_meeting, kit_transcription
+):
+    http, _ = sample_hub
+    _, text = kit_transcription
+    turns = ok(http.get(f"/v1/recordings/{kit_meeting}/turns"))["turns"]
+    assert [turn["text"] for turn in turns] == [text]
 
 
 def test_an_agent_personality_reads_back_whole(sample_hub):

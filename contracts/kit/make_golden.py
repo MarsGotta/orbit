@@ -29,12 +29,17 @@ from kit_hub import (
     DATABASE_NAME,
     GOLDEN,
     MANIFEST,
+    MEETING_SECONDS,
+    MEETING_TRACK,
     TEST_KEY,
     device_client,
     pair_device,
     prepare,
+    record_meeting,
     run,
     serving,
+    transcription_service,
+    wait_for_transcript,
 )
 
 DEVICE_NAME = "Cedar test Mac"
@@ -71,6 +76,17 @@ SKILL_FILE = (
 VAULT_FOLDER = "Cedar notes"
 VAULT_NOTE = ("Cedar ideas.md", "# Cedar ideas\n\nA garden for the invented Cedar team.\n")
 VAULT = {"kind": "folder", "link_style": "wikilink"}
+# A meeting the device records over HTTP, which the invented service
+# transcribes, and what the device then writes on it. Each text has a space:
+# the person's text the hub keeps.
+MEETING = {
+    "id": "6a1e4c2b-8d3f-4b5a-9c7e-2f0d1b3a5c4e",
+    "started_at_ms": 1767258000000,
+    "text": "The Cedar roadmap draft is ready for the weekly sync",
+    "title": "Cedar roadmap review",
+    "speaker": {"key": MEETING_TRACK, "name": "Rowan Cedar"},
+    "private_notes": "Ask about the Cedar launch date",
+}
 
 
 def answer(response: httpx.Response) -> dict:
@@ -84,7 +100,8 @@ def write(url: str, code: str, vault: Path) -> dict:
 
     Nothing today's hub deletes or changes on its own, as time passes or when
     it starts: no attachment (one no message holds is deleted after an hour),
-    no conversation, transcription or final pass under way."""
+    no conversation, transcription or final pass under way: the meeting is
+    read once its transcript is ready and its final pass is no longer under way."""
     paired = pair_device(url, code, DEVICE_NAME)
     with device_client(url, paired["token"]) as http:
         answer(http.put(f"/v1/reminders/{TITLE_DIGEST}", json=REMINDER))
@@ -112,6 +129,23 @@ def write(url: str, code: str, vault: Path) -> dict:
             http.put(f"/v1/agents/{AGENT_ID}/skills/{SKILL['name']}", json={"content": SKILL_FILE})
         )
         answer(http.put("/v1/vault/config", json={**VAULT, "path": str(vault)}))
+        recording = MEETING["id"]
+        record_meeting(http, recording, MEETING["started_at_ms"])
+        wait_for_transcript(http, recording)
+        answer(http.put(f"/v1/recordings/{recording}/title", json={"title": MEETING["title"]}))
+        speaker = MEETING["speaker"]
+        answer(
+            http.put(
+                f"/v1/recordings/{recording}/speakers",
+                json={"names": {speaker["key"]: speaker["name"]}},
+            )
+        )
+        answer(
+            http.put(
+                f"/v1/recordings/{recording}/private-notes",
+                json={"text": MEETING["private_notes"], "base_revision": 0},
+            )
+        )
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
@@ -127,6 +161,7 @@ def write(url: str, code: str, vault: Path) -> dict:
             "skill": {**SKILL, "content": SKILL_FILE},
         },
         "vault": {**VAULT, "path": str(vault)},
+        "meeting": {**MEETING, "duration_ms": MEETING_SECONDS * 1000},
     }
 
 
@@ -139,11 +174,12 @@ def main() -> None:
         vault = Path(scratch) / VAULT_FOLDER
         vault.mkdir()
         (vault / VAULT_NOTE[0]).write_text(VAULT_NOTE[1], encoding="utf-8")
-        configuration = prepare(Path(scratch) / "hub", key)
-        # The first command that opens the store creates it, sealed with the test key.
-        code = run(configuration, "pair-code").strip()
-        with serving(configuration) as url:
-            manifest = write(url, code, vault)
+        with transcription_service(MEETING["text"]) as service:
+            configuration = prepare(Path(scratch) / "hub", key, transcription=service)
+            # The first command that opens the store creates it, sealed with the test key.
+            code = run(configuration, "pair-code").strip()
+            with serving(configuration) as url:
+                manifest = write(url, code, vault)
         data = configuration.parent / "data"
         left = sorted(path.name for path in data.glob(f"{DATABASE_NAME}-*"))
         if left:

@@ -1,7 +1,7 @@
 {
-  "hub_id": "dc47e7ee-462c-4947-93c2-ac75d118c2a0",
+  "hub_id": "43652a31-80e4-4939-98d5-d782d88b51f5",
   "device": {
-    "id": "f2cd7d0d-2bac-40da-88a8-9a50a6e3c8b9",
+    "id": "f9b876c4-c669-48be-84b7-04847a9ef13d",
     "name": "Cedar test Mac"
   },
   "reminder": {
@@ -50,6 +50,18 @@
   "vault": {
     "kind": "folder",
     "link_style": "wikilink",
-    "path": "/tmp/orbit-golden-zxq4t9qg/Cedar notes"
+    "path": "/tmp/orbit-golden-b0a1hejg/Cedar notes"
+  },
+  "meeting": {
+    "id": "6a1e4c2b-8d3f-4b5a-9c7e-2f0d1b3a5c4e",
+    "started_at_ms": 1767258000000,
+    "text": "The Cedar roadmap draft is ready for the weekly sync",
+    "title": "Cedar roadmap review",
+    "speaker": {
+      "key": "mic_local",
+      "name": "Rowan Cedar"
+    },
+    "private_notes": "Ask about the Cedar launch date",
+    "duration_ms": 2000
   }
 }

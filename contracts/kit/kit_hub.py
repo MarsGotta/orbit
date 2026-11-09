@@ -8,30 +8,43 @@ then `POST /v1/pair`), with that device's bearer token. Nothing
 here imports the hub, so the same kit tests a hub written in any language.
 
 The configuration is invented and names the keys today's hub reads: a
-loopback hub without TLS, meeting transcription pointed at a closed port, one
+loopback hub without TLS, meeting transcription pointed at an invented service
+the kit starts on loopback when it is given one (else at a closed port), one
 API agent (`cedar`, of kind openai) whose model is behind that closed port, a
 Hermes address and credential that nothing uses, and the key ids of the device
 bridge and of the meetings bridge, each with a key the kit draws anew for each
 folder it prepares. The kit signs a private request with the key of its
 protocol as `contracts/hub-v1.md` writes it («Private meetings for the
 assistant»).
+
+A meeting is recorded as a device records it: one chunk of microphone audio
+over `PUT /v1/chunks/{id}` with its capture headers, then its close. The
+invented transcription service answers `POST /v1/audio/transcriptions` as
+OpenAI's API does, with the text it was started with; it runs in a thread of
+the kit's process, so it ends with the kit whatever happens.
 """
 
 import hashlib
 import hmac
+import io
 import json
+import math
 import os
 import secrets
 import shlex
 import shutil
 import signal
 import socket
+import struct
 import subprocess
 import sys
+import threading
 import time
 import uuid
+import wave
 from collections.abc import Iterator
 from contextlib import contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import httpx
@@ -82,6 +95,26 @@ PRIVATE_PROTOCOLS = {
 PRIVATE_KEY_BYTES = 32
 # The variables that name the hub's implicit agent: beside `[[agents]]` the hub refuses to start.
 IMPLICIT_AGENT_VARIABLES = ("ORBIT_HUB_PROFILE", "ORBIT_HUB_ASSISTANT_NAME")
+# A recorded meeting: one chunk of the local microphone, 16-bit mono WAV. A
+# tone, not silence: the hub sends no audio that is only digital silence.
+MEETING_TRACK = "mic_local"
+MEETING_SECONDS = 2
+MEETING_SAMPLE_RATE = 16000
+TONE_HERTZ = 440
+TONE_AMPLITUDE = 8000
+# The meeting's capture clock, as a device's: an arbitrary monotonic origin.
+MEETING_MONOTONIC_NS = 1_000_000_000
+# The hub closed the measured meeting's transcription in under 2 s; thirty
+# times that, so only a hub that never transcribes fails.
+TRANSCRIPT_SECONDS = 60
+TRANSCRIPT_POLL_SECONDS = 0.1
+# A final pass in these states will still move on its own.
+FINAL_PASS_UNDER_WAY = ("queued", "running")
+# What the invented transcription service says its language is.
+SERVICE_LANGUAGE = "en"
+# The kit's own meeting, on the device it pairs: another id than the sample's.
+KIT_MEETING_ID = "0b9d7e5f-3c1a-4e2d-8f6b-7a9c1e3d5b2f"
+KIT_MEETING_STARTED_AT_MS = 1767261600000
 
 
 class HubFailed(Exception):
@@ -112,10 +145,13 @@ def _secret_file(path: Path, value: bytes) -> None:
     path.chmod(0o600)
 
 
-def prepare(folder: Path, key: bytes, database: Path | None = None) -> Path:
+def prepare(
+    folder: Path, key: bytes, database: Path | None = None, transcription: str | None = None
+) -> Path:
     """A hub's folder: data 0700, the key in a file of its own (0600), a new
     key for each private protocol (0600), an invented configuration and, when
-    given, a copy of `database` as the hub's. Answers the configuration's path."""
+    given, a copy of `database` as the hub's and meeting transcription at the
+    `transcription` service's URL. Answers the configuration's path."""
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     data, home = folder / "data", folder / "home"
     data.mkdir(mode=0o700)
@@ -149,7 +185,7 @@ def prepare(folder: Path, key: bytes, database: Path | None = None) -> Path:
                 f"hermes_credential_file = {_toml(credential)}",
                 "allow_insecure_localhost = true",
                 "[meeting_transcription]",
-                f'endpoint = "http://127.0.0.1:{CLOSED_PORT}"',
+                f"endpoint = {_toml(transcription or f'http://127.0.0.1:{CLOSED_PORT}')}",
                 f"model = {_toml(OPERATOR_TRANSCRIPTION_MODEL)}",
                 *private,
                 "[[agents]]",
@@ -332,12 +368,146 @@ def device_client(url: str, token: str) -> httpx.Client:
     return httpx.Client(base_url=url, headers={"Authorization": f"Bearer {token}"}, timeout=30)
 
 
+def transcription_answer(text: str) -> dict:
+    """What the invented service answers: the text, its language and its
+    words spread evenly over the meeting."""
+    words = text.split()
+    step = MEETING_SECONDS / len(words)
+    return {
+        "text": text,
+        "language": SERVICE_LANGUAGE,
+        "words": [
+            {"start": round(index * step, 3), "end": round((index + 1) * step, 3), "word": word}
+            for index, word in enumerate(words)
+        ],
+    }
+
+
+class _TranscriptionHandler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        self.rfile.read(int(self.headers.get("content-length", 0)))
+        if self.path != "/v1/audio/transcriptions":
+            self.send_error(404)
+            return
+        body = json.dumps(transcription_answer(self.server.text)).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *arguments) -> None:
+        pass
+
+
+@contextmanager
+def transcription_service(text: str) -> Iterator[str]:
+    """An invented transcription service on a free loopback port, in a thread
+    of this process, answering `text` to every audio; yields its URL."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _TranscriptionHandler)
+    server.text = text
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def tone_wav() -> bytes:
+    """`MEETING_SECONDS` of a tone, 16-bit mono WAV."""
+    frames = MEETING_SECONDS * MEETING_SAMPLE_RATE
+    samples = (
+        round(TONE_AMPLITUDE * math.sin(2 * math.pi * TONE_HERTZ * index / MEETING_SAMPLE_RATE))
+        for index in range(frames)
+    )
+    output = io.BytesIO()
+    with wave.open(output, "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(MEETING_SAMPLE_RATE)
+        audio.writeframes(struct.pack(f"<{frames}h", *samples))
+    return output.getvalue()
+
+
+def _answered(response: httpx.Response) -> dict:
+    if response.status_code != 200:
+        raise HubFailed(
+            f"{response.request.method} {response.request.url.path} answered "
+            f"{response.status_code}: {response.text}"
+        )
+    return response.json()
+
+
+def record_meeting(http: httpx.Client, recording: str, started_at_ms: int) -> None:
+    """A meeting as a device records it: one chunk of the local microphone with
+    its capture headers, then its close."""
+    audio = tone_wav()
+    frames = MEETING_SECONDS * MEETING_SAMPLE_RATE
+    timing = {
+        "started-at-ms": started_at_ms,
+        "monotonic-ns": MEETING_MONOTONIC_NS,
+        "first-sample": 0,
+        "frames": frames,
+        "sample-rate": MEETING_SAMPLE_RATE,
+        "channels": 1,
+    }
+    headers = {
+        "content-type": "audio/wav",
+        "x-orbit-recording": recording,
+        "x-orbit-track": MEETING_TRACK,
+        "x-orbit-sequence": "0",
+        "x-orbit-sha256": hashlib.sha256(audio).hexdigest(),
+        **{f"x-orbit-{name}": str(value) for name, value in timing.items()},
+    }
+    _answered(http.put(f"/v1/chunks/{recording}.{MEETING_TRACK}.0", content=audio, headers=headers))
+    manifest = {
+        "tracks": [
+            {"track": MEETING_TRACK, "chunk_count": 1, "last_sequence": 0, "total_frames": frames}
+        ],
+        "gaps": 0,
+        "started_at_ms": started_at_ms,
+        "finalized_at_ms": started_at_ms + MEETING_SECONDS * 1000,
+    }
+    _answered(http.post(f"/v1/recordings/{recording}/finalize", json=manifest))
+
+
+def wait_for_transcript(http: httpx.Client, recording: str) -> dict:
+    """The recording's document once its transcript is ready and no final
+    pass is under way; fails past `TRANSCRIPT_SECONDS`."""
+    deadline = time.monotonic() + TRANSCRIPT_SECONDS
+    while True:
+        document = _answered(http.get(f"/v1/recordings/{recording}"))
+        transcript = document["transcript"]
+        final = transcript.get("final_pass") or {}
+        if transcript["state"] == "ready" and final.get("state") not in FINAL_PASS_UNDER_WAY:
+            return document
+        if time.monotonic() >= deadline:
+            raise HubFailed(
+                f"recording {recording} was not transcribed within {TRANSCRIPT_SECONDS} s: "
+                f"{transcript}"
+            )
+        time.sleep(TRANSCRIPT_POLL_SECONDS)
+
+
 @pytest.fixture(scope="module")
-def sample_configuration(tmp_path_factory) -> Path:
+def kit_transcription():
+    """The invented service the sample's hub transcribes the kit's own
+    meeting with: its URL and the text it answers."""
+    text = "The contract kit recorded this invented meeting"
+    with transcription_service(text) as url:
+        yield url, text
+
+
+@pytest.fixture(scope="module")
+def sample_configuration(tmp_path_factory, kit_transcription) -> Path:
     """The configuration of the hub that serves a copy of the sample: its
-    folder holds the private protocols' keys the kit signs with."""
+    folder holds the private protocols' keys the kit signs with, and its
+    meeting transcription is the kit's invented service."""
     folder = tmp_path_factory.mktemp("sample-hub") / "hub"
-    return prepare(folder, read_test_key(), GOLDEN)
+    return prepare(folder, read_test_key(), GOLDEN, kit_transcription[0])
 
 
 @pytest.fixture(scope="module")
@@ -360,3 +530,13 @@ def sample_hub(sample_configuration) -> Iterator[tuple[httpx.Client, dict]]:
         paired = pair_device(url, code, KIT_DEVICE_NAME)
         with device_client(url, paired["token"]) as http:
             yield http, manifest
+
+
+@pytest.fixture(scope="module")
+def kit_meeting(sample_hub) -> str:
+    """A meeting the kit records on the sample's hub as its own device, once
+    its service has transcribed it; answers its id."""
+    http, _ = sample_hub
+    record_meeting(http, KIT_MEETING_ID, KIT_MEETING_STARTED_AT_MS)
+    wait_for_transcript(http, KIT_MEETING_ID)
+    return KIT_MEETING_ID
