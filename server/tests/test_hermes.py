@@ -140,7 +140,13 @@ async def test_gateway_handshake_rpc_stream_and_resume(environment, tmp_path):
                 break
             await asyncio.sleep(0.01)
         assert events[0] == MessageChunk("runtime-fixture", "synthetic")
-        assert received[0]["params"]["profile"] == "deimos"
+        assert received[0] == {
+            "jsonrpc": "2.0",
+            "id": received[0]["id"],
+            "method": "client.capabilities",
+            "params": {"server_requests": True},
+        }
+        assert received[1]["params"]["profile"] == "deimos"
         assert await connection.resume_session("stored-fixture") == ResumedSession(
             "resumed-fixture", "stored-fixture", None, None
         )
@@ -336,6 +342,13 @@ async def test_session_create_declares_orbit_and_the_device(environment, tmp_pat
                 }
             )
         )
+        declaration = json.loads(await ws.recv())
+        received.append(declaration)
+        await ws.send(
+            json.dumps(
+                {"jsonrpc": "2.0", "id": declaration["id"], "result": {"server_requests": []}}
+            )
+        )
         request = json.loads(await ws.recv())
         received.append(request)
         await ws.send(
@@ -369,9 +382,10 @@ async def test_session_create_declares_orbit_and_the_device(environment, tmp_pat
         await connection.create_session()
         await connection.close()
 
-    assert received[0]["method"] == "session.create"
-    assert received[0]["params"]["source"] == "orbit"
-    assert "Sample Mac" in received[0]["params"]["title"]
+    assert received[0]["method"] == "client.capabilities"
+    assert received[1]["method"] == "session.create"
+    assert received[1]["params"]["source"] == "orbit"
+    assert "Sample Mac" in received[1]["params"]["title"]
 
 
 async def test_transcription_contract_is_json_not_multipart(environment, tmp_path, monkeypatch):

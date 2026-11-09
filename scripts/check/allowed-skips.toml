@@ -27,3 +27,13 @@ reason = "a repeatable manual measurement on the Mac (the command is next to the
 suite = "hub-pytest"
 test = "tests.test_assistant_jail::test_real_jail_hides_secrets_and_confines_writes"
 reason = "only when bwrap --ro-bind / / true fails: this environment denies nested user namespaces; the reviewer must run outside the sandbox"
+
+[[skip]]
+suite = "hub-pytest"
+test = "tests.test_hermes_contract_current::test_the_contract_is_what_the_installed_hermes_declares"
+reason = "only where Hermes is not installed (GitHub's runner): it asks the installed Hermes whether contracts/hermes-server-requests.json is still what its models declare; there the hub's tests read the stored file"
+
+[[skip]]
+suite = "hub-pytest"
+test = "tests.test_hermes_contract_current::test_what_the_hub_writes_back_passes_the_installed_hermes_models"
+reason = "only where Hermes is not installed (GitHub's runner): it validates what the hub writes back with the installed Hermes's own models; there the stored contract checks it in test_hermes_server_requests"

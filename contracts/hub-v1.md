@@ -359,6 +359,42 @@ state. Clients consume that response without clearing or restoring any current
 interaction; the current snapshot remains authoritative. Deduplicated responses
 retain this marker and never repeat the upstream action.
 
+Hermes asks the person with JSON-RPC requests from server to client
+(`approval`, `clarify`, `sudo`…), sent only to a client that declared it
+answers them. On every connection to Hermes, after `gateway.ready` and before
+any session, the hub sends `client.capabilities {"server_requests":true}`. A
+Hermes older than these requests answers -32601 and keeps asking with its
+events (`approval.request`, `clarify.request`), answered as before by
+`approval.respond` and `clarify.respond`. Any other refusal fails the
+connection, and the turn that opened it, with `hermes_capabilities_refused`
+(`upstream_code`, Hermes's code): without the declaration Hermes withdraws
+every approval at once. An `approval` request becomes `approval.required` and
+a `clarify` request `clarify.required`, as above; their `request_id` is
+Hermes's request id (`srq-…`). An approval is answered with `request.answer
+{id, result:{choice}}` (`ok` is `applied:true`, `expired` is
+`applied:false`); a clarification one question at a time with `clarify.lock`
+(`remaining` as above). A clarification of several questions answered without
+`question_id` is refused with `clarify_question_required` (`questions`), a
+question Hermes does not know (4002) with `clarify_question_unknown`. The
+single question of an older Hermes (`{question, choices?}` without
+`questions`) is shown the same way and answered with `request.answer
+{id, result:{answer}}`. What Orbit does not show is refused at once with an
+error whose message names the cause: Hermes's window requests (`preview.read`,
+`preview.act`, `terminal.read`, `window.read`, `tour`) with 4404, Hermes's
+"not shown here", which leaves them to a Hermes window that shows the session;
+`sudo`, `secret` and any other method with -32601 and a `chat.status`
+`kind:"warning"` naming the method; a request for a session this connection
+does not hold, or that no conversation on the device shows, with an error; and
+a request beyond 64 open on one connection with an error carrying the count
+and the ceiling, and a warning. When Hermes withdraws a request
+(`request.cancel`), its card leaves with `interaction.expired` and a
+`chat.status` warning carrying Hermes's reason (up to 64 characters); a later
+answer is `interaction_not_found` and nothing reaches Hermes. When the
+connection drops, its open requests are forgotten and the turn is
+`outcome_unknown` as before; nothing is answered or repeated on the next
+connection, and the open requests a `session.resume` returns are not shown
+again: Hermes withdraws them at its deadline.
+
 Interrupt and explicit deny use a separate encrypted durable safety ledger that
 does not consult content admission quota. It deduplicates by bound target, with
 128 active targets per device; new retry UUID aliases do not create more rows.

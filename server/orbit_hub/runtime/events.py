@@ -48,27 +48,28 @@ class TurnEvents:
         self.retries: dict[str, str] = {}
         self.streams: dict[str, tuple[str, MarkerStream]] = {}
 
-    async def on_event(self, agent_id: str, event: AssistantEvent) -> None:
-        """One event from this device's connection to the agent `agent_id`."""
+    async def on_event(self, agent_id: str, event: AssistantEvent) -> bool:
+        """One event from this device's connection to the agent `agent_id`;
+        True only when it registered a question the Mac can answer."""
         runtime = self.runtime
         if isinstance(event, ConnectionLost):
             await self.connection_lost(agent_id)
-            return
+            return False
         if not runtime.store.devices.is_active(runtime.device):
-            return
+            return False
         key = (agent_id, event.session_id)
         if self._resume_progress(key, event):
-            return
+            return False
         session_id = runtime.bindings.get(key)
         if session_id is None:
-            return
+            return False
         if isinstance(event, UnreadableUpdate):
             # Never a turn event: an unreadable update must not end or retire anything.
             await self.status(session_id, runtime.turn_ids.get(session_id), "warning", event.text)
-            return
+            return False
         turn_id = runtime.turn_ids.get(session_id)
         if turn_id is None:
-            return
+            return False
         if isinstance(event, TurnFailed):
             await self.fail_turn(agent_id, session_id, turn_id, event)
         elif isinstance(event, TurnError):
@@ -84,6 +85,7 @@ class TurnEvents:
             await self.complete(agent_id, key, session_id, turn_id, event)
         elif isinstance(event, PermissionRequested | ClarificationRequested):
             await self.requested(session_id, turn_id, event)
+            return True
         elif isinstance(event, RequestExpired):
             await self.expired(session_id, turn_id, event)
         elif isinstance(event, StatusNotice):
@@ -97,6 +99,7 @@ class TurnEvents:
             if (work := runtime.work.get(session_id)) is not None:
                 work.record(item)
             await runtime.publish(emit("chat.item", {"session_id": session_id, **item}, turn_id))
+        return False
 
     def _stream(self, session_id: str, turn_id: str) -> MarkerStream:
         """The turn's stream; a new turn's replaces what an earlier one left."""

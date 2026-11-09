@@ -1,8 +1,9 @@
 """Hermes as the hub's assistant and voice. Device credentials never reach Hermes.
 
 The chat goes over Hermes's gateway WebSocket (`/api/ws`, JSON-RPC); this
-module calls its methods and names their refusals, and `hermes_events` turns
-its events into the typed interface of `backend`. Dictation and read-aloud go
+module calls its methods (`hermes_refusals` names their refusals),
+`hermes_events` turns its events into the typed interface of `backend`, and
+`hermes_requests` shows or refuses the questions it asks as requests. Dictation and read-aloud go
 over the same Hermes's HTTP audio endpoints (`hermes_speech`).
 Each agent of kind `hermes` is one Hermes profile on the hub's one Hermes
 (`hermes_url`, `hermes_credential_file`).
@@ -13,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import re
 from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass
@@ -39,21 +39,14 @@ from .backend import (
     UnreadableReceipt,
 )
 from .hermes_credential import credential
-from .hermes_events import RESUME_HISTORY_ERROR_PREFIX, HermesEvents
+from .hermes_events import HermesEvents
+from .hermes_refusals import HERMES_IMAGE_REFUSALS, METHOD_NOT_FOUND, rpc_failure
+from .hermes_requests import HermesRequests, remaining_question_ids
 from .hermes_speech import HermesSpeech
 
 if TYPE_CHECKING:
     from ..config import Settings
     from .agents import AgentConfiguration
-
-# What Hermes's `image.attach_bytes` refusals mean (tui_gateway/
-# prompt_attachments.py and methods_prompt.py, read 2026-10-22).
-HERMES_IMAGE_REFUSALS = {
-    4016: "does not support that image type",
-    4017: "could not decode it",
-    4018: "exceeds its 25 MiB per-image ceiling",
-}
-
 
 # The gateway methods the hub calls; any other is refused before it is sent.
 RPC_METHODS = {
@@ -67,85 +60,17 @@ RPC_METHODS = {
     "image.attach_bytes",
     "image.detach",
     "session.interrupt",
+    # Answers to the events of a Hermes older than its requests.
     "approval.respond",
     "clarify.respond",
+    # Its requests to the hub (`hermes_requests`): the declaration that the
+    # hub answers them, and the answers with a receipt.
+    "client.capabilities",
+    "request.answer",
+    "clarify.lock",
 }
 # Existing RPC receipt budget; it bounds one acknowledgement, not a model turn.
 RPC_TIMEOUT_SECONDS = 30
-
-
-def _rpc_failure(method: str, error: dict) -> HubError:
-    """What a Hermes RPC error means, by method and code."""
-    code = error.get("code")
-    if method == "image.attach_bytes" and code in {4016, 4017, 4018}:
-        # 4016 an extension it does not take, 4017 bytes it cannot
-        # decode, 4018 over its 25 MiB ceiling.
-        return HubError(
-            "attachment_refused",
-            f"Hermes did not accept a message image (code {code})",
-            numbers={"upstream_code": code},
-        )
-    if method in {"prompt.submit", "image.attach_bytes"} and code == 4001:
-        return HubError(
-            "session_runtime_not_found",
-            "Hermes could not find the active session (code 4001); the message was not accepted and can be resent after resuming",
-        )
-    if method == "session.resume":
-        refusal = _resume_failure(code, error.get("message"))
-        if refusal is not None:
-            return refusal
-    return HubError("upstream_rejected", f"Hermes refused the operation (code {code})")
-
-
-def _resume_failure(code: object, reason: object) -> HubError | None:
-    """Why Hermes refused a `session.resume`, when its code and message say."""
-    if code == -32601:
-        return HubError(
-            "session_resume_unsupported",
-            "This Hermes version cannot resume stored sessions (code -32601)",
-        )
-    if code == 4007 and reason == "session not found":
-        return HubError(
-            "session_resume_not_found",
-            "Hermes no longer retains the stored conversation (code 4007); local history is still available",
-        )
-    if code == 4007 and reason == "session no longer live; retry resume":
-        return HubError(
-            "session_resume_race",
-            "Hermes closed the session while resuming (code 4007); try again",
-        )
-    if code == 4130:
-        numbers = (
-            re.search(r"\((\d+) messages; limit (\d+)\)", reason)
-            if isinstance(reason, str)
-            else None
-        )
-        if numbers is not None:
-            return HubError(
-                "session_resume_too_large",
-                f"Hermes cannot resume {numbers[1]} messages; limit {numbers[2]} (code 4130)",
-            )
-        return HubError(
-            "session_resume_too_large",
-            "Hermes refused to resume due to size (code 4130); no count or limit was supplied",
-        )
-    if code == 4009 and reason == "session disconnect interrupt settling":
-        return HubError(
-            "session_resume_busy",
-            "Hermes is still closing the previous turn (code 4009); wait",
-        )
-    if code == 5000 and isinstance(reason, str):
-        if reason.startswith("Session storage is unavailable:"):
-            return HubError(
-                "session_resume_storage_unavailable",
-                "Hermes cannot open its session store (code 5000)",
-            )
-        if reason.startswith(RESUME_HISTORY_ERROR_PREFIX):
-            return HubError(
-                "session_resume_history_unreadable",
-                "Hermes could not read stored history (code 5000); the message was not sent",
-            )
-    return None
 
 
 @dataclass(frozen=True)
@@ -202,6 +127,7 @@ class HermesConnection:
         self._ready = asyncio.Event()
         self._closing = False
         self._events = HermesEvents(on_event, device)
+        self._requests = HermesRequests(on_event, self._write, self.rpc, device)
         # One `session.resume` at a time on this connection: Hermes's resume
         # path has races of its own (4007, 4009) and was only ever driven one
         # at a time. Only resumes wait for it: turns, controls and the other
@@ -230,10 +156,24 @@ class HermesConnection:
             await asyncio.wait_for(self._ready.wait(), 15)
             if not self.epoch:
                 raise ValueError("Missing gateway.ready replay_epoch")
+            await self._declare()
         except Exception as exc:
-            report(event="hermes_connect_failed", code="upstream_unavailable")
             await self.close()
+            if isinstance(exc, HubError) and exc.code == "hermes_capabilities_refused":
+                report(event="hermes_connect_failed", code=exc.code)
+                raise
+            report(event="hermes_connect_failed", code="upstream_unavailable")
             raise HubError("upstream_unavailable", "Could not connect to Hermes") from exc
+
+    async def _declare(self) -> None:
+        """Tell Hermes, before any session, that this connection answers its
+        requests: without it Hermes withdraws every approval at once. A Hermes
+        older than its requests (-32601) keeps asking with events."""
+        try:
+            await self.rpc("client.capabilities", {"server_requests": True})
+        except HubError as exc:
+            if (exc.numbers or {}).get("upstream_code") != METHOD_NOT_FOUND:
+                raise
 
     async def _read(self) -> None:
         # The connection outlives the request that opened it.
@@ -252,6 +192,8 @@ class HermesConnection:
                         self._ready.set()
                     else:
                         await self.receive(params)
+                elif isinstance(frame.get("method"), str):
+                    await self._requests.receive(frame, self.live_sessions)
                 elif (future := self._pending.pop(str(frame.get("id")), None)) is not None:
                     if not future.done():
                         future.set_result(frame)
@@ -262,6 +204,7 @@ class HermesConnection:
         finally:
             self._ready.set()
             self.live_sessions.clear()
+            self._requests.forget()
             for future in self._pending.values():
                 if not future.done():
                     future.set_exception(
@@ -276,7 +219,13 @@ class HermesConnection:
 
     async def receive(self, params: dict) -> None:
         """One Hermes event, as the typed event it means; the rest is dropped."""
-        await self._events.receive(params)
+        if params.get("type") == "request.cancel":
+            await self._requests.cancel(params.get("payload"))
+        else:
+            await self._events.receive(params)
+
+    async def _write(self, frame: dict) -> None:
+        await self._ws.send(json.dumps(frame))
 
     async def rpc(self, method: str, params: dict) -> dict:
         if not self.connected:
@@ -295,7 +244,7 @@ class HermesConnection:
                 error = frame["error"] if isinstance(frame["error"], dict) else {}
                 if method in {"prompt.submit", "image.attach_bytes"} and error.get("code") == 4001:
                     self.live_sessions.discard(params.get("session_id"))
-                raise _rpc_failure(method, error)
+                raise rpc_failure(method, error)
             if not isinstance(result := frame.get("result"), dict):
                 raise HubError("upstream_protocol", "Invalid Hermes response")
             return result
@@ -424,6 +373,8 @@ class HermesConnection:
     ) -> PermissionReceipt:
         # Hermes's own vocabulary (`once`, `session`, `always`, `deny`): the
         # runtime admits only a choice the request offered.
+        if self._requests.holds(request_id):
+            return await self._requests.answer_permission(request_id, choice)
         result = await self.rpc(
             "approval.respond",
             {"session_id": session_id, "request_id": request_id, "choice": choice},
@@ -439,22 +390,20 @@ class HermesConnection:
     async def respond_clarification(
         self, session_id: str, request_id: str, answer: str, question_id: str | None
     ) -> ClarificationReceipt:
+        if self._requests.holds(request_id):
+            return await self._requests.answer_clarification(request_id, answer, question_id)
         params = {"session_id": session_id, "request_id": request_id, "answer": answer}
         if question_id:
             params["question_id"] = question_id
         result = await self.rpc("clarify.respond", params)
-        status, remaining = result.get("status"), result.get("remaining", [])
-        if (
-            status not in {"ok", "expired"}
-            or not isinstance(remaining, list)
-            or len(remaining) > 32
-            or not all(isinstance(item, str) and 1 <= len(item) <= 128 for item in remaining)
-        ):
+        status = result.get("status")
+        remaining = remaining_question_ids(result.get("remaining", []))
+        if status not in {"ok", "expired"} or remaining is None:
             raise UnreadableReceipt(
                 "upstream_protocol",
                 "Hermes did not confirm the clarification; it will not be repeated",
             )
-        return ClarificationReceipt(status, tuple(remaining))
+        return ClarificationReceipt(status, remaining)
 
     async def turn_stopped(self, session_id: str) -> bool:
         result = await self.rpc("session.status", {"session_id": session_id})

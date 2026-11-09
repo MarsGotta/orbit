@@ -509,7 +509,11 @@ def test_a_session_refuses_another_agent_with_both_ids(environment, tmp_path):
     }
     assert "Lyra" in refused["data"]["message"]
     # Nothing reached Hermes for the refused turn.
-    assert [method for _, method, _ in hermes.calls] == ["session.create", "prompt.submit"]
+    assert [method for _, method, _ in hermes.calls] == [
+        "client.capabilities",
+        "session.create",
+        "prompt.submit",
+    ]
 
 
 @pytest.mark.parametrize("with_session", [False, True])

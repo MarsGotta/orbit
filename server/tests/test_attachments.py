@@ -287,7 +287,12 @@ def test_an_image_reaches_hermes_with_image_attach_bytes_before_the_prompt(envir
     assert ready["attachments"] == attachments.limits()
     assert done["event"] == "chat.completed", done
     methods = [method for _, method, _ in hermes.calls]
-    assert methods == ["session.create", "image.attach_bytes", "prompt.submit"]
+    assert methods == [
+        "client.capabilities",
+        "session.create",
+        "image.attach_bytes",
+        "prompt.submit",
+    ]
     [(_, _, staged)] = [call for call in hermes.calls if call[1] == "image.attach_bytes"]
     assert staged["content_base64"] == "data:image/png;base64," + base64.b64encode(PNG).decode()
     assert staged["ext"] == "png"

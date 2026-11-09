@@ -241,7 +241,12 @@ class SyntheticHermes:
                 while True:
                     request = await ws.receive_json()
                     method, params = request["method"], request.get("params", {})
-                    if method == "session.create":
+                    if method == "client.capabilities":
+                        # The hub declares it answers Hermes's requests; this
+                        # peer never sends one.
+                        assert params == {"server_requests": True}
+                        result = {"server_requests": []}
+                    elif method == "session.create":
                         assert params["profile"] == "deimos"
                         result = {"session_id": str(uuid4()), "stored_session_id": str(uuid4())}
                     elif method == "prompt.submit":

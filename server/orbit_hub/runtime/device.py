@@ -338,9 +338,10 @@ class DeviceRuntime:
             raise
         return connection
 
-    async def on_event(self, agent_id: str, event: AssistantEvent) -> None:
-        """One event from this device's connection to the agent `agent_id`."""
-        await self.events.on_event(agent_id, event)
+    async def on_event(self, agent_id: str, event: AssistantEvent) -> bool:
+        """One event from this device's connection to the agent `agent_id`;
+        True when it showed a question (`EventSink`)."""
+        return await self.events.on_event(agent_id, event)
 
     def require_live(self, session_id: str) -> tuple[dict, AssistantConnection]:
         """The session and its agent's connection, which holds it live."""

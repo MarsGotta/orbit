@@ -284,7 +284,10 @@ AssistantEvent = (
     | ActivityItem
     | ConnectionLost
 )
-EventSink = Callable[[AssistantEvent], Awaitable[None]]
+# True when the event showed the person a question they can answer (a
+# `PermissionRequested` or `ClarificationRequested` registered as a card); any
+# other value, it did not (a revoked device, a session no conversation shows).
+EventSink = Callable[[AssistantEvent], Awaitable[bool | None]]
 
 
 class AssistantConnection(Protocol):
