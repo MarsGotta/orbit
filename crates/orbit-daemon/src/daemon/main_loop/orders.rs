@@ -2,8 +2,8 @@
 //! off it, and answered with the topics' revisions they produced.
 use super::*;
 
-/// Reads, Ajustes › Agentes, the attachment orders and a reminder's save
-/// change nothing of the daemon's state: they are answered off the loop.
+/// Reads, Ajustes › Agentes, Notes and plugin calls, the attachment orders
+/// and a reminder's save change nothing of the daemon's state: they are answered off the loop.
 fn off_loop(command: &Command) -> bool {
     matches!(
         command,
@@ -11,6 +11,7 @@ fn off_loop(command: &Command) -> bool {
             | Command::Read { .. }
             | Command::Agent { .. }
             | Command::Vault { .. }
+            | Command::Plugin { .. }
             | Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
             | Command::AttachmentSave { .. }
@@ -70,6 +71,20 @@ impl MainLoop<'_> {
             runtime.serve_agent(call.clone(), id, reply);
         } else if let Command::Vault { call } = command {
             runtime.serve_vault(call.clone(), id, reply);
+        } else if let Command::Plugin { plugin, call } = command {
+            let hub = runtime.hub_access().and_then(|_| {
+                runtime
+                    .note_hub()
+                    .ok_or(orbit_core::refusal::Refusal::NotPaired)
+            });
+            plugin::serve_plugin(
+                hub,
+                &mut runtime.reads.tasks,
+                plugin.clone(),
+                call.clone(),
+                id,
+                reply,
+            );
         } else if matches!(
             command,
             Command::AttachmentAdd {

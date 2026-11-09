@@ -44,6 +44,7 @@ mod files;
 mod generic;
 mod helper;
 mod hub;
+mod plugin;
 mod privacy;
 mod recording;
 mod updates;
@@ -60,7 +61,7 @@ pub use privacy::{Permission, missing_permission_name, missing_system_permission
 pub use updates::{InstallLogIssue, UpdateCause, UpdateNetworkCause, UpdateSizeSource};
 
 parameter_enum!(Resource { Subscriptions => "subscriptions", IpcResponse => "ipc_response", IpcRequest => "ipc_request", HubResponse => "hub_response", Message => "message", Recording => "recording", Session => "session", Audio => "audio", Calendar => "calendar", Source => "source", Capture => "capture", ComputerAction => "computer_action", Storage => "storage", Folder => "folder", File => "file" });
-parameter_enum!(Operation { IpcRequest => "ipc_request", Subscription => "subscription", Chat => "chat", SessionList => "session_list", Interaction => "interaction", Recording => "recording", Audio => "audio", AudioSession => "audio_session", AudioDrain => "audio_drain", Capture => "capture", Playback => "playback", Call => "call", Calendar => "calendar", ComputerAction => "computer_action", Storage => "storage", Pairing => "pairing", VoiceTranscription => "voice_transcription", PrivacyStop => "privacy_stop", Files => "files" });
+parameter_enum!(Operation { IpcRequest => "ipc_request", Subscription => "subscription", Chat => "chat", SessionList => "session_list", Interaction => "interaction", Recording => "recording", Audio => "audio", AudioSession => "audio_session", AudioDrain => "audio_drain", Capture => "capture", Playback => "playback", Call => "call", Calendar => "calendar", ComputerAction => "computer_action", Storage => "storage", Pairing => "pairing", VoiceTranscription => "voice_transcription", PrivacyStop => "privacy_stop", Files => "files", PluginCall => "plugin_call" });
 parameter_enum!(Parameter { Text => "text", Duration => "duration", Title => "title", ApplicationPid => "application_pid", Request => "request", Selection => "selection", Identifier => "identifier", Meeting => "meeting" });
 
 /// The end of the chain: every domain's codes, gathered in the order the
@@ -125,6 +126,7 @@ use files::files_refusals;
 use generic::generic_refusals;
 use helper::helper_refusals;
 use hub::hub_refusals;
+use plugin::plugin_refusals;
 use privacy::privacy_refusals;
 use recording::recording_refusals;
 use updates::updates_refusals;
@@ -132,7 +134,7 @@ use updates::updates_refusals;
 generic_refusals! { [
     app_refusals, recording_refusals, calendar_refusals, assistant_refusals,
     control_refusals, files_refusals, privacy_refusals, updates_refusals,
-    hub_refusals, helper_refusals, refusal_catalogue
+    hub_refusals, helper_refusals, plugin_refusals, refusal_catalogue
 ] ; }
 
 impl Refusal {

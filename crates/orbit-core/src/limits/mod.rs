@@ -32,6 +32,7 @@ mod helper;
 mod hub;
 mod ipc;
 mod notes;
+mod plugin;
 mod recording;
 mod voice;
 
@@ -45,6 +46,7 @@ pub use hub::{
     MAX_HUB_HTTP_BODY_BYTES, MAX_HUB_INCOMING_FRAME_BYTES, MAX_HUB_OUTGOING_FRAME_BYTES,
 };
 pub use ipc::{MAX_COMMAND_RESPONSE_BYTES, MAX_DEFAULT_COMMAND_BYTES, MAX_IPC_LINE_BYTES};
+pub use plugin::{PLUGIN_CALL_MAX_BYTES, PLUGIN_ID_MAX_CHARS, PLUGIN_RESPONSE_MAX_BYTES};
 pub use voice::MAX_SPEECH_CLIP_BYTES;
 
 /// Every bound another language copies, domain by domain
@@ -60,6 +62,7 @@ pub fn registry() -> Vec<Limit> {
         recording::limits(),
         notes::limits(),
         calendar::limits(),
+        plugin::limits(),
     ]
     .into_iter()
     .flatten()

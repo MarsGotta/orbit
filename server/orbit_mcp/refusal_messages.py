@@ -165,6 +165,8 @@ ERROR_MESSAGES = {
     "folder_unavailable": "That assistant folder cannot be opened now.",
     "file_unavailable": "That file in the assistant's folders cannot be read as requested.",
     "file_too_large": "That file is larger than Orbit reads for its type.",
+    "plugin_call_too_large": "The plugin call is larger than the stated maximum; it never reached the hub. Send a smaller input.",
+    "plugin_response_too_large": "The plugin's call reached the hub and may have taken effect; its answer is larger than the stated maximum the device reads, and nothing of it was delivered. Check its outcome before calling again.",
     # A folder request that ended without an answer: nothing to check after
     # it, and no «source» in it.
     "files_timeout": "The Mac did not finish reading the assistant's folders in time and delivered nothing. Request it again.",

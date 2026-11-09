@@ -18,6 +18,12 @@ pub(super) const MAX_VOICE_NOTE_RESPONSE_FRAME_BYTES: usize = 12 * 1024 * 1024;
 // envelope. It bounds one answer, not the file, which has its own ceiling.
 pub(super) const MAX_ATTACHMENT_RESPONSE_FRAME_BYTES: usize =
     orbit_core::limits::MAX_ATTACHMENT_BYTES.div_ceil(3) * 4 + 64 * 1024;
+// One plugin call's answer: the hub's whole body the device admitted
+// (`PLUGIN_RESPONSE_MAX_BYTES`) and 64 KiB for its envelope, so what the
+// device took from the hub reaches the caller whole. It bounds one line,
+// not the answer, which has its own ceiling.
+pub(super) const MAX_PLUGIN_RESPONSE_FRAME_BYTES: usize =
+    orbit_core::limits::PLUGIN_RESPONSE_MAX_BYTES + 64 * 1024;
 
 pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
     match reply {
@@ -32,6 +38,7 @@ pub(super) fn encode_reply(reply: Reply) -> Result<Vec<u8>> {
         Reply::Vault(response) => {
             encode_with_limit(&response, orbit_core::vault::MAX_VAULT_RESPONSE_BYTES)
         }
+        Reply::Plugin(response) => encode_with_limit(&response, MAX_PLUGIN_RESPONSE_FRAME_BYTES),
         Reply::Attachment(response) => {
             encode_with_limit(&response, MAX_ATTACHMENT_RESPONSE_FRAME_BYTES)
         }

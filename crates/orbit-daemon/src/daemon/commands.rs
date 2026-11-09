@@ -13,6 +13,7 @@ macro_rules! off_loop_orders {
             | Command::Read { .. }
             | Command::Agent { .. }
             | Command::Vault { .. }
+            | Command::Plugin { .. }
             | Command::AttachmentAdd { .. }
             | Command::AttachmentFetch { .. }
             | Command::AttachmentSave { .. }

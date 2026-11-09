@@ -177,4 +177,15 @@ export const refusalEntries: Record<RefusalCode, RefusalEntry> = {
   // A device that does not handle an order's group; no screen of the app
   // asks such a device yet, and the bridge's notice is silent.
   device_capability_missing: failed,
+  // A plugin call or its answer over its size, refused by this Mac.
+  plugin_call_too_large: {
+    class: "failed",
+    text: (r) =>
+      `The request to the plugin is ${formatQuantity(r.bytes)} bytes; the maximum is ${formatQuantity(r.max_bytes)}.`,
+  },
+  plugin_response_too_large: {
+    class: "failed",
+    text: (r) =>
+      `The plugin’s answer is ${formatQuantity(r.bytes)} bytes; the maximum is ${formatQuantity(r.max_bytes)}.`,
+  },
 };

@@ -118,6 +118,7 @@ impl LocalClient {
             Reply::Topics(_)
             | Reply::VoiceNoteAudio(_)
             | Reply::Vault(_)
+            | Reply::Plugin(_)
             | Reply::Agent(_)
             | Reply::Attachment(_) => {
                 bail!("The daemon delivered another response kind to a command")
@@ -143,6 +144,7 @@ impl LocalClient {
             },
             Reply::VoiceNoteAudio(_) => bail!("The daemon delivered audio instead of the read"),
             Reply::Vault(_) => bail!("The daemon delivered a vault instead of the read"),
+            Reply::Plugin(_) => bail!("The daemon delivered a plugin call instead of the read"),
             Reply::Agent(_) => bail!("The daemon delivered an agent instead of the read"),
             Reply::Attachment(_) => bail!("The daemon delivered an attachment instead of the read"),
         }
@@ -176,6 +178,7 @@ impl LocalClient {
             },
             Reply::Topics(_) => bail!("The daemon delivered a read instead of audio"),
             Reply::Vault(_) => bail!("The daemon delivered a vault instead of the read"),
+            Reply::Plugin(_) => bail!("The daemon delivered a plugin call instead of audio"),
             Reply::Agent(_) => bail!("The daemon delivered an agent instead of audio"),
             Reply::Attachment(_) => bail!("The daemon delivered an attachment instead of audio"),
         }
@@ -199,7 +202,8 @@ impl LocalClient {
             Reply::Topics(_)
             | Reply::VoiceNoteAudio(_)
             | Reply::Attachment(_)
-            | Reply::Vault(_) => {
+            | Reply::Vault(_)
+            | Reply::Plugin(_) => {
                 bail!("The daemon delivered another response kind for the agent")
             }
         }
@@ -217,6 +221,30 @@ impl LocalClient {
                 None => bail!("The daemon refused the vault read without a cause"),
             },
             _ => bail!("The daemon delivered another response kind for the vault"),
+        }
+    }
+
+    /// One call to a plugin on the hub. Never kept, interpreted or repeated
+    /// by the Mac; the device's own refusal comes back as `Failed`.
+    pub async fn plugin(
+        &self,
+        plugin: String,
+        call: orbit_core::plugin::PluginCall,
+    ) -> Result<orbit_core::plugin::PluginOutcome> {
+        match self.call(Command::Plugin { plugin, call }, None).await? {
+            Reply::Plugin(response) => Ok(response.outcome),
+            // During recovery the actor answers any call with its refusal.
+            Reply::Command(response) => match response.refusal {
+                Some(refusal) => Err(refusal.into()),
+                None => bail!("The daemon refused the plugin call without a cause"),
+            },
+            Reply::Topics(_)
+            | Reply::VoiceNoteAudio(_)
+            | Reply::Vault(_)
+            | Reply::Agent(_)
+            | Reply::Attachment(_) => {
+                bail!("The daemon delivered another response kind for the plugin call")
+            }
         }
     }
 
@@ -246,7 +274,11 @@ impl LocalClient {
                 Some(refusal) => Err(refusal.into()),
                 None => bail!("The daemon delivered a command instead of an attachment"),
             },
-            Reply::Topics(_) | Reply::VoiceNoteAudio(_) | Reply::Vault(_) | Reply::Agent(_) => {
+            Reply::Topics(_)
+            | Reply::VoiceNoteAudio(_)
+            | Reply::Vault(_)
+            | Reply::Plugin(_)
+            | Reply::Agent(_) => {
                 bail!("The daemon delivered another response kind instead of an attachment")
             }
         }

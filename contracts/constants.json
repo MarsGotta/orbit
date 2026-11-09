@@ -2445,6 +2445,11 @@
         "file": "server/orbit_hub/plugins.py",
         "name": "PLUGIN_CALL_MAX_BYTES",
         "unit": "bytes"
+      },
+      {
+        "file": "crates/orbit-core/src/limits/plugin.rs",
+        "name": "PLUGIN_CALL_MAX_BYTES",
+        "unit": "bytes"
       }
     ],
     "name": "PLUGIN_CALL_MAX_BYTES",
@@ -2452,5 +2457,38 @@
     "source": "python",
     "unit": "bytes",
     "value": 1048576
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/plugins.py",
+        "name": "PLUGIN_ID_MAX_CHARS",
+        "unit": "characters"
+      },
+      {
+        "file": "crates/orbit-core/src/limits/plugin.rs",
+        "name": "PLUGIN_ID_MAX_CHARS",
+        "unit": "characters"
+      }
+    ],
+    "name": "PLUGIN_ID_MAX_CHARS",
+    "resource": "a plugin's id, one path segment of the call route",
+    "source": "python",
+    "unit": "characters",
+    "value": 32
+  },
+  {
+    "copies": [
+      {
+        "file": "crates/orbit-core/src/limits/plugin.rs",
+        "name": "PLUGIN_RESPONSE_MAX_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "PLUGIN_RESPONSE_MAX_BYTES",
+    "resource": "one plugin call's answer, read whole by the device",
+    "source": "rust",
+    "unit": "bytes",
+    "value": 4194304
   }
 ]

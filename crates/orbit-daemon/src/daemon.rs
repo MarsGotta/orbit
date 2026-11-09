@@ -78,6 +78,7 @@ mod meeting_question;
 mod meeting_runtime;
 mod native_events;
 mod native_host;
+mod plugin;
 mod read_dispatch;
 mod reads;
 mod recording_notes;
