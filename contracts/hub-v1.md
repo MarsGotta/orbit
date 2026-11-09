@@ -2698,3 +2698,33 @@ The plugins of this hub, ordered by `id`, each manifest as its file says it.
 | reply | `plugins` | [[manifest](plugin-v1.md#manifest)] | ordered by `id` |
 
 It has no refusals of its own.
+
+### `POST /v1/plugins/{id}/call`
+
+One call of a plugin, as [plugin-v1.md](plugin-v1.md#call) defines it. Notes
+(`vault`) has nine, each the device's vault call with the same `call` tag and
+its other fields in `input`: `config` (`{}`), `configure`
+(`{configuration}`), `disconnect` (`{}`), `read` (`{request}`),
+`list_distillations` (`{meeting_id, page}`, `meeting_id` null or text),
+`distillation` (`{id}`), `prepare_distillation` (`{meeting_id}`),
+`review_distillation` (`{id, review}`) and `distillation_action` (`{id,
+action}`, `action` one of `apply`, `discard`, `undo`, `prepare`). Each answers
+as its route answers: that route's body is `value`, and its refusals pass
+unchanged, with their status, `code`, `message` and `refusal`. An `input`
+without its fields, with others or of another type is `400
+vault_invalid_request`. The hub does not keep, log, repeat or time a call; a
+Notes call has its connector's limits, as its route has.
+
+| in | field | type | |
+|---|---|---|---|
+| path | `id` | string | the plugin's `id` |
+| body | `name` | string | one of the plugin's calls |
+| body | `input` | object | the call's arguments; `{}` when it has none |
+| reply | `value` | any JSON | what the call answers |
+
+| status | code | numbers | cause |
+|---|---|---|---|
+| 404 | `plugin_not_installed` | | the hub has no plugin with that `id`, whatever its shape as one path segment; the body is not read. An empty `id`, or one with `/` (also as `%2F`), names no route: `404` with no `code` |
+| 413 | `plugin_call_too_large` | `bytes`, `max_bytes` | a body over `PLUGIN_CALL_MAX_BYTES`, 1 MiB; `bytes` is what had arrived when it was seen |
+| 400 | `invalid_request` | | a body that is not an object of exactly `name`, a text, and `input`, an object; an empty body too |
+| 404 | `plugin_call_unknown` | | the plugin has no call with that `name`; the refusal does not repeat it |

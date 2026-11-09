@@ -11,18 +11,29 @@ hub started without one's routes would leave its view broken with no cause.
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+
+from .errors import HubError
+
+# One of a plugin's calls: given the caller's device and the call's `input`,
+# the answer of the route it stands for, whose body becomes the call's `value`.
+Call = Callable[[str, dict], Awaitable[Response]]
 
 # The longest plugin `id`. It protects the call route and every notice, where
 # the `id` travels; the same measure as an agent's `id`, not measured. It does
 # not limit a plugin's `name` or the names of its calls.
 PLUGIN_ID_MAX_CHARS = 32
+# The largest body of a plugin call. It protects the device's local channel and
+# the hub's memory: a device admits at most 1 MiB for a local order today, so
+# through a device no larger call reaches the hub anyway. It does not limit the
+# answer or the data a plugin keeps.
+PLUGIN_CALL_MAX_BYTES = 1048576
 API_VERSION = 1
 FIELDS = ("id", "version", "name", "orbit_plugin_api", "views", "permissions", "logic")
 # A plugin's refusals are `<id>_<cause>`: these would read as the hub's own.
@@ -47,7 +58,8 @@ class ManifestError(ValueError):
 class Plugin:
     """One plugin of this hub.
 
-    `mount(app, hub, identity, bounded_body, transport)` mounts its routes;
+    `mount(app, hub, identity, bounded_body, transport)` mounts its routes and
+    returns its calls by name, for `POST /v1/plugins/{id}/call`;
     `recording_tables` are deleted with a meeting, by device and recording.
     `assistant_tools` is the access group it offers the assistants, if any: the
     group's name and its `orbit-mcp` tools. Offering one needs the
@@ -55,7 +67,7 @@ class Plugin:
     """
 
     manifest: dict[str, Any]
-    mount: Callable[..., None]
+    mount: Callable[..., dict[str, Call]]
     recording_tables: tuple[str, ...]
     assistant_tools: tuple[str, tuple[str, ...]] | None = None
 
@@ -208,11 +220,62 @@ def _permission(permission, logic) -> str | None:
     return f"permission {permission!r} is not in the vocabulary"
 
 
-def mount(app, plugins: tuple[Plugin, ...], identity) -> None:
-    """`GET /v1/plugins`: each plugin's manifest as its file says, by `id`."""
+def mount(app, plugins: tuple[Plugin, ...], identity, calls: dict[str, dict[str, Call]]) -> None:
+    """`GET /v1/plugins`: each plugin's manifest as its file says, by `id`; and
+    `POST /v1/plugins/{id}/call`, with `calls` by plugin `id` and call name.
+
+    A call is not kept, logged, repeated or timed here: its plugin answers it
+    as its own route would, within that route's own limits.
+    """
     listing = [plugin.manifest for plugin in plugins]
 
     @app.get("/v1/plugins")
     async def installed(request: Request):
         identity(request)
         return JSONResponse({"plugins": listing})
+
+    @app.post("/v1/plugins/{id}/call")
+    async def call(id: str, request: Request):
+        caller = identity(request)
+        # Whatever its shape, an `id` the hub has no plugin for is that, and
+        # the body is not read for it.
+        if id not in calls:
+            raise HubError("plugin_not_installed", "The hub has no such plugin.", 404)
+        name, input = _call(await _body(request))
+        function = calls[id].get(name)
+        if function is None:
+            raise HubError("plugin_call_unknown", "The plugin has no such call.", 404)
+        answer = await function(caller, input)
+        # The route's body is already JSON: it goes into `value` as written.
+        return Response(b'{"value":' + answer.body + b"}", media_type="application/json")
+
+
+async def _body(request: Request) -> bytes:
+    """The call's body, refused past `PLUGIN_CALL_MAX_BYTES` with what had arrived."""
+    body = bytearray()
+    async for piece in request.stream():
+        if len(body) + len(piece) > PLUGIN_CALL_MAX_BYTES:
+            raise HubError(
+                "plugin_call_too_large",
+                f"A plugin call is at most {PLUGIN_CALL_MAX_BYTES} bytes.",
+                413,
+                numbers={"bytes": len(body) + len(piece), "max_bytes": PLUGIN_CALL_MAX_BYTES},
+            )
+        body.extend(piece)
+    return bytes(body)
+
+
+def _call(body: bytes) -> tuple[str, dict]:
+    """The `name` and `input` of a call, or `400 invalid_request` for any other body."""
+    try:
+        call = json.loads(body)
+    except (ValueError, RecursionError):
+        call = None
+    if (
+        not isinstance(call, dict)
+        or set(call) != {"name", "input"}
+        or not isinstance(call["name"], str)
+        or not isinstance(call["input"], dict)
+    ):
+        raise HubError("invalid_request", "A plugin call is an object of name and input.", 400)
+    return call["name"], call["input"]

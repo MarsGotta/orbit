@@ -2438,5 +2438,19 @@
     "source": "python",
     "unit": "seconds",
     "value": 120
+  },
+  {
+    "copies": [
+      {
+        "file": "server/orbit_hub/plugins.py",
+        "name": "PLUGIN_CALL_MAX_BYTES",
+        "unit": "bytes"
+      }
+    ],
+    "name": "PLUGIN_CALL_MAX_BYTES",
+    "resource": "a plugin call's request body, within the device's local channel",
+    "source": "python",
+    "unit": "bytes",
+    "value": 1048576
   }
 ]

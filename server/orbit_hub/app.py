@@ -69,8 +69,8 @@ def create_app(
 
 
 def mount_routes(app: FastAPI, hub: composition.Hub) -> None:
-    """Each domain's routes, the device WebSocket, the list of plugins and each
-    plugin's routes, in the order they match."""
+    """Each domain's routes, the device WebSocket, each plugin's routes, and
+    the list of plugins and their calls, in the order they match."""
     store, settings = hub.store, hub.settings
 
     def identity(request) -> str:
@@ -81,9 +81,11 @@ def mount_routes(app: FastAPI, hub: composition.Hub) -> None:
 
     _mount_meetings(app, hub, identity, transport)
     _mount_devices(app, hub, identity)
-    plugins.mount(app, hub.plugins, identity)
-    for plugin in hub.plugins:
-        plugin.mount(app, hub, identity, bounded_body, transport)
+    calls = {
+        plugin.id: plugin.mount(app, hub, identity, bounded_body, transport)
+        for plugin in hub.plugins
+    }
+    plugins.mount(app, hub.plugins, identity, calls)
 
 
 def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> None:
