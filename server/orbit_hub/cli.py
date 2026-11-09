@@ -1,5 +1,7 @@
 """Local administrator commands. Starting the service is always explicit."""
 
+from __future__ import annotations
+
 import argparse
 import json
 import sqlite3
@@ -7,12 +9,14 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .backup import BackupError, nightly, restore_copy
-from .config import Settings
 from .protocol import HubError
-from .storage import Store, initialize
 from .urls import LOOPBACK_HOSTS
+
+if TYPE_CHECKING:
+    from .config import Settings
 
 
 def parser() -> argparse.ArgumentParser:
@@ -44,6 +48,11 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
     try:
+        # Imported here: both read the plugin registry, and a manifest the hub
+        # does not take is refused below in one line, as any other cause.
+        from .config import Settings
+        from .storage import Store, initialize
+
         settings = Settings.load(args.config)
         if args.command == "init":
             initialize(settings.data_dir, settings.key_file)
@@ -66,6 +75,8 @@ def main() -> None:
 
 
 def restore(settings: Settings, copy: Path) -> None:
+    from .storage import Store
+
     size = restore_copy(copy, settings.data_dir)
     try:
         Store(settings.data_dir, settings.key_file).close()
@@ -114,6 +125,8 @@ def serve(settings: Settings, args) -> None:
 
 def administer(settings: Settings, args) -> None:
     """The commands on the devices: a pairing code, a revocation, the list."""
+    from .storage import Store
+
     store = Store(settings.data_dir, settings.key_file)
     try:
         if args.command == "pair-code":

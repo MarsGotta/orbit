@@ -3,7 +3,8 @@
 A plugin is its manifest (`orbit-plugin.json`, `contracts/plugin-v1.md`), a
 function that mounts its routes, and the tables of its own keyed by
 `(device_id, recording)`, which leave the hub with that meeting. The hub reads
-every manifest each time it is built. A manifest outside the contract stops the
+every manifest each time it is built, and once on import, for the assistant's
+access groups (`assistant/access.py`). A manifest outside the contract stops the
 hub with its file and its cause: the plugins are code of this repository, and a
 hub started without one's routes would leave its view broken with no cause.
 """
@@ -35,7 +36,8 @@ _DOMAIN = re.compile(r"[a-z0-9.-]+")
 
 
 class ManifestError(ValueError):
-    """A manifest the hub does not take; the text names its file and the cause.
+    """A manifest the hub does not take; the text names its file, or its plugin,
+    and the cause.
 
     A `ValueError`, so `orbit-hub` stops with that one line, as for its configuration.
     """
@@ -47,11 +49,24 @@ class Plugin:
 
     `mount(app, hub, identity, bounded_body, transport)` mounts its routes;
     `recording_tables` are deleted with a meeting, by device and recording.
+    `assistant_tools` is the access group it offers the assistants, if any: the
+    group's name and its `orbit-mcp` tools. Offering one needs the
+    `assistant_tools` permission in the manifest.
     """
 
     manifest: dict[str, Any]
     mount: Callable[..., None]
     recording_tables: tuple[str, ...]
+    assistant_tools: tuple[str, tuple[str, ...]] | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            self.assistant_tools is not None
+            and "assistant_tools" not in self.manifest["permissions"]
+        ):
+            raise ManifestError(
+                f"plugin {self.id!r} offers assistant tools without the permission assistant_tools"
+            )
 
     @property
     def id(self) -> str:

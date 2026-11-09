@@ -9,10 +9,12 @@ from .routes import mount as mount_vault
 MANIFEST = Path(__file__).with_name("orbit-plugin.json")
 # The proposals name the meeting they were prepared from: they go with it.
 RECORDING_TABLES = ("vault_distillations",)
+# The access group the assistants see for Notes, and its orbit-mcp tools.
+ASSISTANT_TOOLS = ("notes", ("orbit_notes_search", "orbit_note_read", "orbit_notes_index"))
 
 
 def notes() -> Plugin:
-    return Plugin(read_manifest(MANIFEST), mount, RECORDING_TABLES)
+    return Plugin(read_manifest(MANIFEST), mount, RECORDING_TABLES, ASSISTANT_TOOLS)
 
 
 def mount(app, hub, identity, bounded_body, transport) -> None:
