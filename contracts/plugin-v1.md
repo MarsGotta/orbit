@@ -1,6 +1,7 @@
 # Orbit plugin protocol v1
 
-Status: proposed. Nothing implements this contract yet.
+Status: proposed. The hub reads the manifests (`GET /v1/plugins`, `hub-v1.md`);
+nothing else implements this contract yet.
 
 ## Manifest
 

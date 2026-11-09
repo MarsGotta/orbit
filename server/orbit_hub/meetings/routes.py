@@ -164,6 +164,8 @@ class _Routes:
     recording_changed: Any
     transcription_signal: Any
     diarization_configured: bool
+    # The plugins' tables keyed by device and recording, deleted with a meeting.
+    plugin_tables: tuple[str, ...]
 
     async def run(self, function):
         return await in_store(self.store_executor, function)
@@ -204,6 +206,7 @@ def mount(
     transcription_signal,
     diarization_configured,
     changes,
+    plugin_tables,
 ):
     routes = _Routes(
         store,
@@ -216,6 +219,7 @@ def mount(
         recording_changed,
         transcription_signal,
         diarization_configured,
+        plugin_tables,
     )
     dictionaries.mount(app, store, identity, bounded_body, routes.run)
     _mount_listing(app, routes)
@@ -345,7 +349,9 @@ def _mount_recording(app, routes: _Routes):
         recording = recording_of(recording_id)
         device = await routes.recording_device(request, recording)
         removed = await routes.run(
-            lambda: deletion.delete(routes.store, device, recording, routes.now())
+            lambda: deletion.delete(
+                routes.store, device, recording, routes.now(), routes.plugin_tables
+            )
         )
         # Counts only: never the title nor anything of the meeting.
         logger.info(

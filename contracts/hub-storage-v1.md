@@ -275,9 +275,10 @@ and the new one renamed.
 `vault_configuration` and `vault_working_copy` (the vault) and
 `vault_distillations` (the distillation), each by its domain when the hub
 builds its application. A database opened only by `init` or the other
-administration commands has the other 40, and deleting a recording asks
-`sqlite_master` whether `vault_distillations` exists before it deletes from
-it.
+administration commands has the other 40. Deleting a recording deletes from
+`vault_distillations`, a table of the Notes plugin, without asking whether it
+exists: the hub creates it when it builds the application that serves the
+deletion.
 
 **Fifteen tables are inserted by position** (`INSERT INTO t VALUES (…)`):
 `ai_settings`, `chunk_receipts`, `chunks`, `group_transcripts`,
@@ -1197,8 +1198,9 @@ Written by: `distillation/repository.py`.
 ## Deleting a recording
 
 Deleting a recording (`meetings/deletion.py`) removes, in one transaction,
-the rows of one device's recording from 18 tables, most of them other
-domains', children before their parents:
+the rows of one device's recording from 17 tables of the hub, most of them
+other domains', children before their parents, and then from its plugins'
+tables:
 
 1. by its chunks: `transcripts`, `transcription_jobs`, `chunk_receipts`,
    `transcription_group_chunks`;
@@ -1206,9 +1208,11 @@ domains', children before their parents:
 3. by the recording: `transcription_groups`, `chunks`, `recording_manifests`,
    `recording_final_passes`, `recording_final_transcripts`,
    `recording_voices`, `recording_speakers`, `recording_private_notes`,
-   `recording_titles`, `recording_languages`, `recording_notes`,
-   `vault_distillations` (when the table exists) and
-   `recording_dictionaries`.
+   `recording_titles`, `recording_languages`, `recording_notes` and
+   `recording_dictionaries`;
+4. the tables keyed by device and recording that each plugin of the hub
+   names (`plugins.py`): today `vault_distillations`, of Notes, which the hub
+   creates when it builds its application.
 
 Then it adds the recording to `deleted_recordings` (`INSERT OR IGNORE`), so
 nothing of it is taken again. The tables are named in variables, so a search

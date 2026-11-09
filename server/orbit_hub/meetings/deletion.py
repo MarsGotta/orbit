@@ -2,9 +2,10 @@
 
 “Delete meeting” and “End without saving” on the Mac: its audio, its live
 transcript, what the final pass made of it, its note with its tasks, its
-speakers, its private notes, its title, its language and its choice of
-dictionaries leave the hub in one transaction. The dictionaries themselves
-stay: they are the person's, shared by the meetings and series that use them.
+speakers, its private notes, its title, its language, its choice of
+dictionaries and what the hub's plugins keep of it leave the hub in one
+transaction. The dictionaries themselves stay: they are the person's, shared
+by the meetings and series that use them.
 
 Only the named recording, resolved by the authenticated route to its original
 device, never by a pattern. The hub keeps every recording in its database,
@@ -43,7 +44,6 @@ _BY_RECORDING = (
     "recording_titles",
     "recording_languages",
     "recording_notes",
-    "vault_distillations",
     "recording_dictionaries",
 )
 
@@ -68,11 +68,15 @@ def refuse_if_deleted(db, device: str, recording: str) -> None:
         )
 
 
-def delete(store, device: str, recording: str, now: float) -> dict[str, int]:
+def delete(
+    store, device: str, recording: str, now: float, plugin_tables: tuple[str, ...] = ()
+) -> dict[str, int]:
     """Delete the recording in one transaction; how many rows of each kind went.
 
-    A recording the hub never had, or already deleted, is deleted too: the
-    Mac may have discarded it before any of it arrived.
+    `plugin_tables` are the plugins' own tables keyed by device and recording
+    (`plugins.recording_tables`): they go after the hub's, in the same
+    transaction. A recording the hub never had, or already deleted, is
+    deleted too: the Mac may have discarded it before any of it arrived.
     """
     removed: dict[str, int] = {}
     with store.transaction() as db:
@@ -86,14 +90,7 @@ def delete(store, device: str, recording: str, now: float) -> dict[str, int]:
                 f"DELETE FROM {table} WHERE device_id=? AND group_id IN ({_GROUPS})",
                 (device, device, recording),
             ).rowcount
-        for table in _BY_RECORDING:
-            if (
-                table == "vault_distillations"
-                and not db.execute(
-                    "SELECT 1 FROM sqlite_master WHERE name='vault_distillations'"
-                ).fetchone()
-            ):
-                continue
+        for table in (*_BY_RECORDING, *plugin_tables):
             removed[table] = db.execute(
                 f"DELETE FROM {table} WHERE device_id=? AND recording=?", (device, recording)
             ).rowcount

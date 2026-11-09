@@ -2674,3 +2674,24 @@ connected or no model is configured, so nothing was queued.
 | 404 | `distillation_not_found` | | the hub has no such proposal |
 | 409 | `distillation_vault_changed` | | the proposal belongs to another vault connection |
 | 413 | `vault_response_too_large` | `bytes`, `max_bytes` | the answer is over 4 MiB |
+
+## Plugins
+
+A plugin declares itself in an `orbit-plugin.json` manifest, as
+[plugin-v1.md](plugin-v1.md#manifest) defines it. This hub has one, Notes
+(`vault`), whose routes are [Notes (vault)](#notes-vault) and
+[Meeting distillation](#meeting-distillation); deleting a recording also
+deletes what a plugin keeps of that meeting. The hub reads every manifest each
+time it starts. A manifest outside `plugin-v1.md` stops the hub with the
+file's path and the cause (the field, view or permission that fails), instead
+of starting without that plugin's routes.
+
+### `GET /v1/plugins`
+
+The plugins of this hub, ordered by `id`, each manifest as its file says it.
+
+| in | field | type | |
+|---|---|---|---|
+| reply | `plugins` | [[manifest](plugin-v1.md#manifest)] | ordered by `id` |
+
+It has no refusals of its own.
