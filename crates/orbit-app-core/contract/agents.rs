@@ -8,6 +8,13 @@ fn export_vault_contract() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+#[test]
+fn export_plugin_contract() -> Result<(), Box<dyn std::error::Error>> {
+    orbit_core::plugin::PluginCall::export_all()?;
+    orbit_core::plugin::PluginOutcome::export_all()?;
+    Ok(())
+}
+
 app_type! {
     /// Settings › Agents: one call to the hub and what came of it. The app
     /// keeps nothing of it; the screen holds what it shows.

@@ -35,6 +35,7 @@ pub fn run() -> anyhow::Result<()> {
             commands::orbit_read_session_messages,
             commands::orbit_agent,
             commands::orbit_vault,
+            commands::orbit_plugin,
             commands::orbit_send_desktop,
             commands::orbit_panel_send,
             application_menu::orbit_menu_state,

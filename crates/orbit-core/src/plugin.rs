@@ -9,26 +9,44 @@ pub use crate::limits::{PLUGIN_CALL_MAX_BYTES, PLUGIN_ID_MAX_CHARS, PLUGIN_RESPO
 
 /// The request body of `POST /v1/plugins/{id}/call`, exactly two fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
+)]
 #[serde(deny_unknown_fields)]
 pub struct PluginCall {
     pub name: String,
+    #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
     pub input: Map<String, Value>,
 }
 
 /// What came of one call: the hub's value, the hub's refusal as it wrote
 /// it, or the device's own refusal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "ts",
+    ts(export_to = "../../packages/orbit-ui/bridge/generated/")
+)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum PluginOutcome {
     /// The `value` of the hub's `200 {"value": …}`.
-    Answered { value: Value },
+    Answered {
+        #[cfg_attr(feature = "ts", ts(type = "unknown"))]
+        value: Value,
+    },
     /// The hub's status (400 or above) and its body, `op` included.
     Refused {
         status: u16,
+        #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
         body: Map<String, Value>,
     },
     /// The device's refusal, the `refusal` object alone.
-    Failed { refusal: Refusal },
+    Failed {
+        #[cfg_attr(feature = "ts", ts(type = "Record<string, unknown>"))]
+        refusal: Refusal,
+    },
 }
 
 /// The local channel's answer to `Command::Plugin`.
