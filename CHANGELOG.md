@@ -23,7 +23,19 @@ English and Spanish; labels quoted below may use either language.
   pairs. `GET /health` and `ready` carry `hub_id`.
 - The hub numbers each meeting change; `GET /v1/recordings/changes?since=N`
   answers what changed after a number.
-- `contracts/plugin-v1.md` describes the plugin contract, on paper only.
+- `contracts/plugin-v1.md` describes the plugin contract. The hub keeps a
+  registry of its plugins, with Notes as the first; the assistant's Notes tools
+  come from that registry; and the hub answers `POST /v1/plugins/{id}/call`
+  with Notes's nine calls behind it. The engine and the app can carry a plugin
+  call to the hub and back (`orbit_plugin`), with their own refusals. No view
+  uses it yet: Notes still goes through `/v1/vault/*`.
+- Under an assistant turn, the Mac shows the hub's warnings for it (a question
+  withdrawn with its cause, an unreadable frame, a trimmed history, an
+  unconfirmed turn), up to three.
+- `contracts/hub-v1.md` names every route the hub serves, the hub's database
+  format is written down, and a contract kit reads a sample database through
+  the hub's address alone, including signed requests, meetings, notes,
+  distillation, conversations and attachments.
 
 ### Changed
 
@@ -42,6 +54,12 @@ English and Spanish; labels quoted below may use either language.
 
 ### Fixed
 
+- Hermes's approvals and clarifying questions (and `sudo` and `secret`
+  prompts) reach Orbit again as cards, and the answer goes back to Hermes. A
+  newer Hermes sent them as server-to-client requests that the hub did not
+  accept, so they were withdrawn and the order was not run.
+- Real daemons started by tests die with their test.
+- The app no longer ships nine dependencies it did not use.
 - The call card no longer counts down an absurd number of hours; it says
   whether Orbit sees your screen and how long the call has lasted.
 - The open note is read again when the hub comes back.
