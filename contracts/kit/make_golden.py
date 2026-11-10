@@ -31,17 +31,21 @@ from kit_hub import (
     MANIFEST,
     MEETING_SECONDS,
     MEETING_TRACK,
+    MEETINGS_PROTOCOL,
     TEST_KEY,
     api_agent,
     chat_turn,
     device_client,
+    invented_pdf,
     notes_model,
     pair_device,
     prepare,
     record_meeting,
     run,
     serving,
+    signed_headers,
     transcription_service,
+    upload_attachment,
     wait_for_note,
     wait_for_proposals,
     wait_for_transcript,
@@ -84,6 +88,13 @@ TURN = {
     "question": "What is left before the Cedar launch?",
     "answer": "Only the Cedar roadmap review is left before the launch",
 }
+# The files the user's message carries, uploaded before the turn in this
+# order: a text file and a one-page PDF the kit writes by hand. The page has
+# at least 32 characters of text: the hub takes one with fewer for a scan.
+TEXT_FILE = ("Cedar launch checklist.txt", "Book the room for the Cedar launch.\n")
+PDF_FILE = ("Cedar brief.pdf", "Cedar brief for the weekly team sync")
+# The assistant's read of an attached file, signed with the meetings key.
+ATTACHMENT_READ_PATH = "/internal/v1/attachments/read"
 VAULT_FOLDER = "Cedar notes"
 VAULT_NOTE = ("Cedar ideas.md", "# Cedar ideas\n\nA garden for the invented Cedar team.\n")
 VAULT = {"kind": "folder", "link_style": "wikilink"}
@@ -114,16 +125,31 @@ def answer(response: httpx.Response) -> dict:
     return response.json()
 
 
-def write(url: str, code: str, vault: Path) -> dict:
+def read_attachment(url: str, configuration: Path, device: str, attachment: str) -> dict:
+    """One file as the assistant reads it: the meetings bridge's signed read,
+    without the device's credential."""
+    body = json.dumps({"device_id": device, "attachment_id": attachment}).encode()
+    headers = {
+        "content-type": "application/json",
+        **signed_headers(configuration, ATTACHMENT_READ_PATH, body, MEETINGS_PROTOCOL),
+    }
+    read = answer(httpx.post(f"{url}{ATTACHMENT_READ_PATH}", content=body, headers=headers))
+    if read.get("next_after_index") is not None:
+        raise SystemExit(f"the file {attachment} does not fit in one read: {read}")
+    return read
+
+
+def write(url: str, code: str, vault: Path, configuration: Path) -> dict:
     """Pair the invented device and write one of each kind of value through routes.
 
     Nothing today's hub deletes or changes on its own, as time passes or when
-    it starts: no attachment (one no message holds is deleted after an hour),
-    no conversation, transcription or final pass under way: the meeting is
+    it starts: no attachment no message holds (one is deleted after an
+    hour), no conversation, transcription or final pass under way: the meeting is
     read once its transcript is ready and its final pass is no longer under way,
     its note once it is written, the vault proposal the hub prepares on its
     own for a written note once it is no longer under way, and the
-    conversation, last, once its turn is completed and kept."""
+    conversation, last, once its turn is completed and kept, with the two
+    files its user's message carries."""
     paired = pair_device(url, code, DEVICE_NAME)
     with device_client(url, paired["token"]) as http:
         answer(http.put(f"/v1/reminders/{TITLE_DIGEST}", json=REMINDER))
@@ -181,11 +207,36 @@ def write(url: str, code: str, vault: Path) -> dict:
         proposals = wait_for_proposals(http, recording)
         if [entry["status"] for entry in proposals] != ["proposed"]:
             raise SystemExit(f"the hub prepared no single proposed vault proposal: {proposals}")
-        completed = chat_turn(url, paired["token"], TURN["question"])
+        files = [
+            upload_attachment(http, TEXT_FILE[0], TEXT_FILE[1].encode()),
+            upload_attachment(http, PDF_FILE[0], invented_pdf(PDF_FILE[1])),
+        ]
+        completed = chat_turn(
+            url,
+            paired["token"],
+            TURN["question"],
+            attachments=tuple(file["id"] for file in files),
+        )
         if completed.get("status") != "completed" or completed.get("persisted") is not True:
             raise SystemExit(f"the turn with {AGENT_ID} was not completed and kept: {completed}")
         session = completed["session_id"]
         page = answer(http.get(f"/v1/sessions/{session}/messages"))
+        carried = page["messages"][0].get("attachments", [])
+        kinds = [file["kind"] for file in carried]
+        if page["messages"][0]["role"] != "user" or sorted(kinds) != ["pdf", "text"]:
+            raise SystemExit(f"the user's message does not carry a text and a PDF: {kinds}")
+        # Each file in the page's order, its text as the assistant reads it.
+        attachments = [
+            {
+                "id": file["id"],
+                "name": file["name"],
+                "kind": file["kind"],
+                "text": read_attachment(url, configuration, paired["device_id"], file["id"])[
+                    "text"
+                ],
+            }
+            for file in carried
+        ]
         hub_id = answer(http.get("/health"))["hub_id"]
     return {
         "hub_id": hub_id,
@@ -202,7 +253,8 @@ def write(url: str, code: str, vault: Path) -> dict:
         },
         "vault": {**VAULT, "path": str(vault)},
         # Each message as the conversation's page gives it: role, text and,
-        # for the agent's answer, the summary of its turn's work.
+        # for the agent's answer, the summary of its turn's work; then the
+        # files of the user's message, each with its text as the signed read gives it.
         "conversation": {
             "id": session,
             "agent_id": page["agent_id"],
@@ -214,6 +266,7 @@ def write(url: str, code: str, vault: Path) -> dict:
                 }
                 for message in page["messages"]
             ],
+            "attachments": attachments,
         },
         "meeting": {**MEETING, "duration_ms": MEETING_SECONDS * 1000},
         "note": {
@@ -256,7 +309,7 @@ def main() -> None:
             # The first command that opens the store creates it, sealed with the test key.
             code = run(configuration, "pair-code").strip()
             with serving(configuration) as url:
-                manifest = write(url, code, vault)
+                manifest = write(url, code, vault, configuration)
         data = configuration.parent / "data"
         left = sorted(path.name for path in data.glob(f"{DATABASE_NAME}-*"))
         if left:

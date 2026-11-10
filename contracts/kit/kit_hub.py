@@ -41,7 +41,9 @@ an API agent beside its orbit-mcp, so the kit writes a valid configuration for
 it: the hub's address behind the closed port, the device bridge's key of the
 hub's folder and an invented device. A turn without tools never calls it. A
 device holds a turn over `GET /v1/ws` with its bearer token: a `chat.send` to
-the agent, then the events of that turn until `chat.completed`.
+the agent, then the events of that turn until `chat.completed`. The files of a
+turn are uploaded before it (`POST /v1/attachments`) and named by its
+`chat.send`; the kit writes its PDF by hand, so it needs nothing else.
 """
 
 import hashlib
@@ -66,6 +68,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import pytest
@@ -636,17 +639,59 @@ def api_agent(text: str) -> Iterator[str]:
         yield f"{url}/v1"
 
 
-def chat_turn(url: str, token: str, text: str, agent_id: str = AGENT_ID) -> dict:
-    """A turn as a device holds it over `GET /v1/ws`: a `chat.send` of `text`
-    to `agent_id`, then that turn's events until `chat.completed`; answers its
-    data. Fails on an `error` of the turn, or past `TURN_SECONDS`."""
-    turn = str(uuid.uuid4())
-    frame = {
-        "v": 1,
-        "id": turn,
-        "method": "chat.send",
-        "params": {"text": text, "agent_id": agent_id},
+def upload_attachment(http: httpx.Client, name: str, body: bytes) -> dict:
+    """A file as a device uploads it before its turn: `POST /v1/attachments`
+    with its name (percent-encoded UTF-8) and its SHA-256; answers its
+    `attachment`, unbound until a `chat.send` names it."""
+    headers = {
+        "content-type": "application/octet-stream",
+        "x-orbit-attachment-name": quote(name, safe=""),
+        "x-orbit-sha256": hashlib.sha256(body).hexdigest(),
     }
+    return _answered(http.post("/v1/attachments", content=body, headers=headers))["attachment"]
+
+
+def invented_pdf(text: str) -> bytes:
+    """A one-page PDF written by hand whose only text is `text` (ASCII, without
+    parentheses or backslashes), in Helvetica, with its cross-reference table."""
+    stream = f"BT /F1 18 Tf 72 720 Td ({text}) Tj ET".encode("ascii")
+    objects = (
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        (
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]"
+            b" /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>"
+        ),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream),
+    )
+    document = bytearray(b"%PDF-1.4\n")
+    offsets = []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(document))
+        document += b"%d 0 obj\n%s\nendobj\n" % (number, body)
+    table = len(document)
+    document += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    document += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    document += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        table,
+    )
+    return bytes(document)
+
+
+def chat_turn(
+    url: str, token: str, text: str, agent_id: str = AGENT_ID, attachments: tuple[str, ...] = ()
+) -> dict:
+    """A turn as a device holds it over `GET /v1/ws`: a `chat.send` of `text`
+    to `agent_id`, with the ids of the files uploaded for it when there are
+    any, then that turn's events until `chat.completed`; answers its data.
+    Fails on an `error` of the turn, or past `TURN_SECONDS`."""
+    turn = str(uuid.uuid4())
+    params = {"text": text, "agent_id": agent_id}
+    if attachments:
+        params["attachments"] = list(attachments)
+    frame = {"v": 1, "id": turn, "method": "chat.send", "params": params}
     address = "ws" + url.removeprefix("http") + "/v1/ws"
     deadline = time.monotonic() + TURN_SECONDS
     headers = {"Authorization": f"Bearer {token}"}

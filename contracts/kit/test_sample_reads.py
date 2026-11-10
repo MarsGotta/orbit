@@ -12,9 +12,11 @@ without the device's credential; the meetings list and a meeting's
 transcript are signed the same way, with the meetings key, for the device
 that recorded the sample's meeting, and so is its note. A paired device reads
 every conversation, so the kit reads the sample's device's conversation with
-its own. The kit also records a meeting of its own and reads back what its
-invented transcription service answered and the note its invented notes model
-wrote, and holds a turn of its own with the API agent, which its invented
+its own, and the files its user's message carries: their names in its page,
+their text through the assistant's signed read, with the meetings key. The
+kit also records a meeting of its own and reads back what its invented
+transcription service answered and the note its invented notes model wrote,
+and holds a turn of its own with the API agent, which its invented
 agent answers.
 """
 
@@ -25,6 +27,7 @@ DEVICES_PATH = "/internal/v1/devices"
 MEETINGS_LIST_PATH = "/internal/v1/meetings/list"
 MEETINGS_TRANSCRIPT_PATH = "/internal/v1/meetings/transcript"
 MEETINGS_NOTE_PATH = "/internal/v1/meetings/note"
+ATTACHMENT_READ_PATH = "/internal/v1/attachments/read"
 MEETINGS_PROTOCOL = "orbit_meetings_bridge_v1"
 # `operator` takes a function's choice back, to the default the hub's
 # configuration names (`kit_hub.OPERATOR_TRANSCRIPTION_MODEL`).
@@ -285,6 +288,22 @@ def test_the_conversation_reads_back_message_by_message(sample_hub):
     for got, kept in zip(read, written["messages"], strict=True):
         assert got["text"] == kept["text"], kept["role"]
         assert got.get("work") == kept.get("work"), kept["role"]
+
+
+def test_the_files_of_the_users_message_read_back_by_name_and_text(sample_hub, sample_signature):
+    http, manifest = sample_hub
+    written = manifest["conversation"]
+    page = ok(http.get(f"/v1/sessions/{written['id']}/messages"))
+    user = page["messages"][0]
+    assert user["role"] == "user"
+    carried = [(file["id"], file["name"], file["kind"]) for file in user.get("attachments", [])]
+    assert carried == [(file["id"], file["name"], file["kind"]) for file in written["attachments"]]
+    for kept in written["attachments"]:
+        payload = {"device_id": manifest["device"]["id"], "attachment_id": kept["id"]}
+        read = signed_meetings(http, sample_signature, ATTACHMENT_READ_PATH, payload)
+        assert read["attachment"]["name"] == kept["name"], kept["kind"]
+        assert read["text"] == kept["text"], kept["kind"]
+        assert read["next_after_index"] is None, kept["kind"]
 
 
 def test_a_turn_the_kit_holds_is_answered_by_its_agent(sample_hub, kit_turn, kit_agent):

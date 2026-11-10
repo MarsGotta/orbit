@@ -1,7 +1,7 @@
 {
-  "hub_id": "62f958ff-5702-4021-aa8f-21c172860843",
+  "hub_id": "df0ca68b-2860-4b7b-a249-8645f0df157a",
   "device": {
-    "id": "63d35adf-6710-453c-84f9-6a42fde3a673",
+    "id": "27625d99-d5d8-4b68-93b3-b08f0f6a2789",
     "name": "Cedar test Mac"
   },
   "reminder": {
@@ -50,10 +50,10 @@
   "vault": {
     "kind": "folder",
     "link_style": "wikilink",
-    "path": "/tmp/orbit-golden-w3ltxksp/Cedar notes"
+    "path": "/tmp/orbit-golden-2x9d7c8_/Cedar notes"
   },
   "conversation": {
-    "id": "be7a31c4-36f2-4e96-8dcf-bd70da013c7c",
+    "id": "3e90fdfd-cc56-4a10-a3f4-392f95ef6bca",
     "agent_id": "cedar",
     "messages": [
       {
@@ -64,11 +64,25 @@
         "role": "assistant",
         "text": "Only the Cedar roadmap review is left before the launch",
         "work": {
-          "started_at_ms": 1794267019182,
-          "ended_at_ms": 1794267019206,
+          "started_at_ms": 1794272383347,
+          "ended_at_ms": 1794272383370,
           "tools": 0,
           "subjects": []
         }
+      }
+    ],
+    "attachments": [
+      {
+        "id": "a70da1b8-4e0f-414d-9020-a980cdaad584",
+        "name": "Cedar launch checklist.txt",
+        "kind": "text",
+        "text": "Book the room for the Cedar launch.\n"
+      },
+      {
+        "id": "ab748a77-487a-46d2-9d64-6116c9f7c948",
+        "name": "Cedar brief.pdf",
+        "kind": "pdf",
+        "text": "--- page 1 ---\nCedar brief for the weekly team sync"
       }
     ]
   },
@@ -95,7 +109,7 @@
     ]
   },
   "proposal": {
-    "id": "ccf04537-ebfe-43e7-ab22-3f8d2337b718",
+    "id": "e0398c4f-6cd7-4aac-aae9-19c064833157",
     "summary": "The Cedar roadmap draft goes to the weekly sync",
     "quote": {
       "at_ms": 0,

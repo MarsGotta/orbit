@@ -26,7 +26,9 @@ hub prepared on its own from that note, which the invented model wrote too,
 quoting the transcript; and a conversation the sample's device held with an
 API agent through the WebSocket, one turn with the agent's answer and its
 summary of the turn's work, answered by an invented agent the hub reaches on
-loopback. The kit also holds a turn of its own with that agent, records a
+loopback, and the two files the user's message carried, a text and a PDF, each
+read by its name in the conversation's page and by its text through the signed
+attachment read. The kit also holds a turn of its own with that agent, records a
 meeting of its own against an invented transcription service and an invented
 notes model it starts on loopback, and every process it starts (its hubs and
 its invented services) ends with it.
@@ -54,6 +56,7 @@ from xml.etree import ElementTree
 import pytest
 
 from orbit_hub.app import create_app
+from orbit_hub.attachments import pdf_text
 from orbit_hub.storage import Store
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -142,6 +145,14 @@ CONVERSATION_SLICE = {
     "messages.body": r"message:{session}:(?:user|assistant)",
     "messages.work": r"message-work:{session}",
 }
+# The fourth slice, third part: the files the user's message of that
+# conversation carried, a text and a PDF (only a PDF has the text of its
+# pages). Their contexts name the file: `{attachment}` is one of the sample's.
+ATTACHMENT_SLICE = {
+    "attachments.name": r"attachment:{attachment}:name",
+    "attachments.body": r"attachment:{attachment}:body",
+    "attachments.extract": r"attachment:{attachment}:extract",
+}
 COLUMNS = {
     **FIRST_SLICE,
     **SECOND_SLICE,
@@ -150,18 +161,20 @@ COLUMNS = {
     **NOTE_SLICE,
     **PROPOSAL_SLICE,
     **CONVERSATION_SLICE,
+    **ATTACHMENT_SLICE,
 }
 # Rows the sample holds beyond the slices' columns: the device that wrote them.
 ROWS = ("devices",)
 # The signed routes the kit must reach, by their protocol: `devices.name` shows
 # through no other route, and the meetings key signs the assistant's reads of
 # meetings: the list (with the sample's meeting in it), its transcript and its
-# note.
+# note, and the assistant's read of an attached file (only it shows a file's text).
 SIGNED_READS = {
     "/internal/v1/devices": "orbit_device_bridge_v1",
     "/internal/v1/meetings/list": "orbit_meetings_bridge_v1",
     "/internal/v1/meetings/transcript": "orbit_meetings_bridge_v1",
     "/internal/v1/meetings/note": "orbit_meetings_bridge_v1",
+    "/internal/v1/attachments/read": "orbit_meetings_bridge_v1",
 }
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
 # The headers of a signed private request, as the contract has to name them:
@@ -441,12 +454,13 @@ def sample_ids(table: str, column: str = "id") -> list[str]:
 def context_of(column: str) -> str:
     """The context a column is opened with; a meeting's names a device of the
     sample, a vault proposal's one of the sample's proposals, a message's one
-    of the sample's conversations."""
+    of the sample's conversations, an attached file's one of the sample's files."""
     context = COLUMNS[column]
     markers = (
         ("{device}", "devices"),
         ("{proposal}", "vault_distillations"),
         ("{session}", "sessions"),
+        ("{attachment}", "attachments"),
     )
     for marker, table in markers:
         if marker in context:
@@ -656,9 +670,10 @@ def test_reading_the_kit_for_hub_imports():
 def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(environment, tmp_path):
     """The sample opens with its test key, has exactly the schema today's hub
     builds, a row in each column of the slices, AI settings with a choice and
-    no provider, only proposed vault proposals, of its meeting, no work a
-    serving hub (with a notes model or without) would pick up on its own, and
-    stays under its cap."""
+    no provider, only proposed vault proposals, of its meeting, a text and a
+    PDF carried by its conversation's user message, no work a serving hub
+    (with a notes model or without) would pick up on its own, and stays under
+    its cap."""
     require_kit()
     settings, store, _ = environment
     names = [
@@ -695,6 +710,13 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
             message_rows = db.execute(
                 "SELECT session_id, role, body, work FROM messages ORDER BY id"
             ).fetchall()
+            first_messages = db.execute(
+                "SELECT session_id, min(id) FROM messages GROUP BY session_id"
+            ).fetchall()
+            attachment_rows = db.execute(
+                "SELECT id, device_id, session_id, message_id, kind, name, body, extract"
+                " FROM attachments ORDER BY created_ms, id"
+            ).fetchall()
             devices = {row[0] for row in db.execute("SELECT id FROM devices")}
         opened = [sample.decrypt(body, "vault-configuration:v1").decode() for body in sealed]
         ai = [json.loads(sample.decrypt(body, "hub-ai-settings")) for body in settings_rows]
@@ -712,6 +734,24 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
                 else json.loads(sample.decrypt(work, f"message-work:{session}")),
             )
             for session, role, body, work in message_rows
+        ]
+        # Each file as the signed attachment read hands it to an agent: a text
+        # file's body, a PDF's pages under their numbers.
+        files = [
+            (
+                row[:5],
+                {
+                    "id": row[0],
+                    "name": sample.decrypt(row[5], f"attachment:{row[0]}:name").decode(),
+                    "kind": row[4],
+                    "text": sample.decrypt(row[6], f"attachment:{row[0]}:body").decode()
+                    if row[7] is None
+                    else pdf_text(
+                        tuple(json.loads(sample.decrypt(row[7], f"attachment:{row[0]}:extract")))
+                    ),
+                },
+            )
+            for row in attachment_rows
         ]
     finally:
         sample.close()
@@ -760,6 +800,23 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
     assert "work" in stored[1], "the agent's answer keeps no summary of its turn's work"
     assert stored == conversation.get("messages"), (
         f"the manifest keeps {conversation.get('messages')}, the sample holds {stored}"
+    )
+    # The files the user's message carried: a text and a PDF, both of the
+    # sample's device and held by the conversation's first message (the
+    # user's), none waiting for a message; as the manifest keeps them.
+    users = dict(first_messages)
+    assert sorted(row[4] for row, _ in files) == ["pdf", "text"], (
+        f"the sample holds files of kinds {[row[4] for row, _ in files]}: a text and a PDF"
+    )
+    unheld = [
+        f"{row[0]}: device {row[1]}, conversation {row[2]}, message {row[3]}"
+        for row, _ in files
+        if row[1] not in devices or row[2] != conversation.get("id") or row[3] != users.get(row[2])
+    ]
+    assert not unheld, f"the sample holds files not carried by the user's message: {unheld}"
+    opened_files = [value for _, value in files]
+    assert opened_files == conversation.get("attachments"), (
+        f"the manifest keeps {conversation.get('attachments')}, the sample holds {opened_files}"
     )
 
     create_app(settings)  # today's hub, with the tables its domains create
@@ -832,8 +889,9 @@ def test_the_sample_database_is_today_hubs_small_and_sealed_with_a_test_key(envi
 
 def test_the_kit_reads_the_sample_through_the_network(tmp_path):
     """The kit passes against today's hub run as a program, works on a copy,
-    loads nothing of the hub, reaches the signed device list and the signed
-    meetings list, transcript and note with signatures the hub admits, the hub
+    loads nothing of the hub, reaches the signed device list, the signed
+    meetings list, transcript and note, and the signed attachment read with
+    signatures the hub admits, the hub
     opened every column of the three slices while serving it (a meeting's, of
     the sample's device; a vault proposal's, of the sample's), was asked for
     the sample's vault proposal by its meeting and by its id, and transcribed a meeting of the kit's own through an
