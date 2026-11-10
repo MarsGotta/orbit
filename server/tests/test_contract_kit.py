@@ -230,6 +230,11 @@ CHANGED_BY_THE_HUB = {
 # What could be a device token: the hub makes them with token_urlsafe(32).
 TOKEN_LIKE = re.compile(r"[A-Za-z0-9_-]{20,}")
 KIT_RUN_SECONDS = 180
+# The kit's fixture that hands a copy of the sample to the hub it serves:
+# every test that reads the sample asks for it, directly or through another
+# fixture. A hub that reads a column wrong can only make those tests fail, so
+# that run is given only their files; the run that must pass is the whole kit.
+SAMPLE_FIXTURE = "sample_configuration"
 # A hub the kit stopped may still be closing when the kit's process ends (or,
 # already stopped, wait to be reaped by its new parent): it is given this long
 # before it counts as left running. Uvicorn closes in well under a second.
@@ -377,6 +382,20 @@ MODULES_PLUGIN = """
 import json, os, sys
 
 
+def pytest_collection_modifyitems(session, config, items):
+    # With KIT_WATCH_ONLY, only the files with a test that asks for that
+    # fixture, directly or through another one, run; they are written down.
+    fixture = os.environ.get("KIT_WATCH_ONLY")
+    if not fixture:
+        return
+    files = {item.path for item in items if fixture in getattr(item, "fixturenames", ())}
+    kept = [item for item in items if item.path in files]
+    config.hook.pytest_deselected(items=[item for item in items if item.path not in files])
+    items[:] = kept
+    with open(os.environ["KIT_WATCH_SELECTED"], "w") as out:
+        json.dump(sorted(str(path) for path in files), out)
+
+
 def pytest_sessionfinish(session, exitstatus):
     with open(os.environ["KIT_WATCH_MODULES"], "w") as out:
         json.dump(sorted(sys.modules), out)
@@ -469,21 +488,25 @@ def context_of(column: str) -> str:
     return context
 
 
-def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
+def run_kit(tmp_path: Path, name: str, corrupt: str = "", only: str = "") -> dict:
     """The kit, in its own process, against today's hub run as a program
     through a wrapper that writes down each value the hub opens (and, with
-    `corrupt`, changes the ones whose context matches)."""
+    `corrupt`, changes the ones whose context matches). With `only`, a
+    fixture's name, just the kit's files with a test that asks for it."""
     work = tmp_path / name
     work.mkdir()
     (work / "watched_hub.py").write_text(WATCHED_HUB)
     (work / "kit_watch.py").write_text(MODULES_PLUGIN)
     log, modules, junit = work / "hub.log", work / "modules.json", work / "kit.xml"
+    selected = work / "selected.json"
     environment = {
         **os.environ,
         "ORBIT_KIT_HUB": shlex.join([sys.executable, str(work / "watched_hub.py")]),
         "KIT_WATCH_LOG": str(log),
         "KIT_WATCH_MODULES": str(modules),
         "KIT_WATCH_CORRUPT": corrupt,
+        "KIT_WATCH_ONLY": only,
+        "KIT_WATCH_SELECTED": str(selected),
         # Inherited by every process the kit starts, unless it takes it away:
         # how the processes of this run are told apart once the kit has ended.
         "KIT_WATCH_RUN": str(work),
@@ -548,6 +571,7 @@ def run_kit(tmp_path: Path, name: str, corrupt: str = "") -> dict:
         "counts": counts,
         "hub": lines,
         "modules": json.loads(modules.read_text()) if modules.exists() else None,
+        "selected": json.loads(selected.read_text()) if selected.exists() else None,
     }
 
 
@@ -978,12 +1002,19 @@ def test_the_kit_reads_the_sample_through_the_network(tmp_path):
 @pytest.mark.parametrize("column", sorted(COLUMNS))
 def test_the_kit_notices_a_hub_that_reads_a_column_wrong(tmp_path, column):
     """A hub that opens one column of any slice into another value
-    (a person's text gets ` ~`) must make the kit fail, not skip or pass."""
+    (a person's text gets ` ~`) must make the kit's files that read the sample
+    fail, not skip or pass."""
     require_kit()
-    run = run_kit(tmp_path, "changed", corrupt=context_of(column))
+    run = run_kit(tmp_path, "changed", corrupt=context_of(column), only=SAMPLE_FIXTURE)
+    files = [str(Path(path).relative_to(ROOT)) for path in run["selected"] or []]
+    assert files, (
+        f"no test of the kit asks for `{SAMPLE_FIXTURE}`, the fixture that serves the sample\n"
+        f"{run['output'][-1500:]}"
+    )
     counts = run["counts"]
     assert run["code"] != 0 and (counts["failures"] or counts["errors"]), (
-        f"the kit passed with {column} read wrong: {counts}\n{run['output'][-1500:]}"
+        f"the kit's files that read the sample ({files}) passed with {column} read wrong: "
+        f"{counts}\n{run['output'][-1500:]}"
     )
     assert not counts["skipped"], counts
 
