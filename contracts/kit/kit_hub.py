@@ -15,7 +15,10 @@ Hermes address and credential that nothing uses, and the key ids of the device
 bridge and of the meetings bridge, each with a key the kit draws anew for each
 folder it prepares. The kit signs a private request with the key of its
 protocol as `contracts/hub-v1.md` writes it («Private meetings for the
-assistant»).
+assistant»). Asked to, it writes the configuration without the permission
+instead (`allow_insecure_localhost = false`) and every address it names HTTPS
+on `example.test`: such a hub must refuse to serve without TLS, so nothing
+calls them.
 
 A meeting is recorded as a device records it: one chunk of microphone audio
 over `PUT /v1/chunks/{id}` with its capture headers, then its close. The
@@ -194,13 +197,16 @@ def prepare(
     transcription: str | None = None,
     model: str | None = None,
     agent: str | None = None,
+    insecure_localhost: bool = True,
 ) -> Path:
     """A hub's folder: data 0700, the key in a file of its own (0600), a new
     key for each private protocol (0600), an invented configuration and, when
     given, a copy of `database` as the hub's, meeting transcription at the
     `transcription` service's URL, the notes model at the `model` URL (with
     an invented credential, 0600) and the API agent's model at the `agent`
-    base URL. Answers the configuration's path."""
+    base URL. With `insecure_localhost` false, the configuration holds no
+    permission and the addresses not given are HTTPS on `example.test`.
+    Answers the configuration's path."""
     folder.mkdir(mode=0o700, parents=True, exist_ok=True)
     data, home = folder / "data", folder / "home"
     data.mkdir(mode=0o700)
@@ -209,6 +215,11 @@ def prepare(
     _secret_file(key_file, key)
     credential = folder / "hermes-credential"
     _secret_file(credential, b"invented-hermes-credential\n")
+    permission = "true" if insecure_localhost else "false"
+    # Where the addresses not given point: never answered.
+    unused = (
+        f"http://127.0.0.1:{CLOSED_PORT}" if insecure_localhost else "https://unused.example.test"
+    )
     private = []
     for section, _, key_id, private_key_file in PRIVATE_PROTOCOLS.values():
         _secret_file(folder / private_key_file, secrets.token_bytes(PRIVATE_KEY_BYTES))
@@ -218,13 +229,13 @@ def prepare(
             f"credential_file = {_toml(folder / private_key_file)}",
         )
     # The agent's orbit-mcp configuration: valid, so orbit-mcp starts beside a
-    # turn; the hub's address is the closed port, since no tool runs.
+    # turn; the hub's address is never answered, since no tool runs.
     tools = folder / "orbit-mcp.toml"
     bridge_section, _, bridge_key_id, bridge_key_file = PRIVATE_PROTOCOLS[BRIDGE_PROTOCOL]
     tools.write_text(
         "\n".join(
             (
-                f'hub_url = "http://127.0.0.1:{CLOSED_PORT}"',
+                f"hub_url = {_toml(unused)}",
                 f"default_device = {_toml(TOOLS_DEVICE[0])}",
                 f"[{bridge_section}]",
                 f"key_id = {_toml(bridge_key_id)}",
@@ -244,7 +255,7 @@ def prepare(
             f"endpoint = {_toml(model)}",
             f"model = {_toml(NOTES_MODEL)}",
             f"credential_file = {_toml(model_credential)}",
-            "allow_insecure_localhost = true",
+            f"allow_insecure_localhost = {permission}",
         ]
     if database is not None:
         # Always a copy: SQLite leaves -wal and -shm beside a WAL database it
@@ -256,11 +267,11 @@ def prepare(
             (
                 f"data_dir = {_toml(data)}",
                 f"key_file = {_toml(key_file)}",
-                f'hermes_url = "http://127.0.0.1:{CLOSED_PORT}"',
+                f"hermes_url = {_toml(unused)}",
                 f"hermes_credential_file = {_toml(credential)}",
-                "allow_insecure_localhost = true",
+                f"allow_insecure_localhost = {permission}",
                 "[meeting_transcription]",
-                f"endpoint = {_toml(transcription or f'http://127.0.0.1:{CLOSED_PORT}')}",
+                f"endpoint = {_toml(transcription or unused)}",
                 f"model = {_toml(OPERATOR_TRANSCRIPTION_MODEL)}",
                 *private,
                 *processing,
@@ -268,7 +279,7 @@ def prepare(
                 f"id = {_toml(AGENT_ID)}",
                 f"name = {_toml(AGENT_NAME)}",
                 'kind = "openai"',
-                f"base_url = {_toml(agent or f'http://127.0.0.1:{CLOSED_PORT}/v1')}",
+                f"base_url = {_toml(agent or f'{unused}/v1')}",
                 'model = "invented-model"',
                 f"orbit_mcp_config = {_toml(tools)}",
             )
