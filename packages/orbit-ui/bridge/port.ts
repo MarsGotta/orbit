@@ -4,6 +4,8 @@ import type { AgentCall } from "./generated/AgentCall";
 import type { VaultCall } from "./generated/VaultCall";
 import type { VaultOutcome } from "./generated/VaultOutcome";
 import type { NoticeClass } from "./generated/NoticeClass";
+import type { PluginCall } from "./generated/PluginCall";
+import type { PluginOutcome } from "./generated/PluginOutcome";
 import type { NoticeData } from "../i18n";
 import type { AssistantCursor, MessagesPage, SessionPage } from "./reads";
 import type { MenuAction, MenuState } from "./window-menu";
@@ -38,6 +40,8 @@ export interface DaemonPort {
   /** Settings › Agents: one read or order of an agent's configuration on the hub. */
   agent?(call: AgentCall): Promise<AgentAnswer>;
   vault?(call: VaultCall): Promise<VaultOutcome>;
+  /** One call to a plugin on the hub; only a failure of the local channel rejects. */
+  plugin?(plugin: string, call: PluginCall): Promise<PluginOutcome>;
   /** The main window hands over what it holds before Orbit quits (`state/quit-flush.ts`). */
   onFlushBeforeQuit?(flush: () => Promise<void>): Promise<Unsubscribe>;
   /** The floating panel opens a link of Deimos's answer. */

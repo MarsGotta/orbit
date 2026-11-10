@@ -606,6 +606,24 @@
   color: var(--o-ink3);
 }
 
+/* The hub's warnings: a quiet line under the turn, the label before the hub's words. */
+.hubWarnings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--o-ink2);
+  font: var(--o-text-meta);
+  overflow-wrap: anywhere;
+}
+
+.hubWarningLabel {
+  margin-right: 6px;
+  color: var(--o-ink3);
+}
+
 .decision {
   margin: -16px 0 0;
   color: var(--o-ink3);

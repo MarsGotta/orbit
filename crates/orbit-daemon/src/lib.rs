@@ -12,7 +12,7 @@ pub mod cua;
 pub mod daemon;
 pub mod diagnostics;
 pub mod error_reports;
-pub use orbit_hub_client::{hub, hub_agents, hub_notes, hub_vault};
+pub use orbit_hub_client::{hub, hub_agents, hub_notes, hub_plugin, hub_vault};
 pub use orbit_ipc as ipc;
 pub mod native;
 pub use orbit_ipc::permissions;

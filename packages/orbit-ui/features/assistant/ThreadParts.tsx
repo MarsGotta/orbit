@@ -51,6 +51,22 @@ export function turnFailureCode(snapshot: AppSnapshot): string | undefined {
   return typeof code === "string" ? code : undefined;
 }
 
+/** The hub's warnings about the turn, each in the hub's words after a label that says whose they are. */
+export function HubWarnings({ warnings }: { warnings: AppSnapshot["chat"]["warnings"] }) {
+  const es = useCopy();
+  if (warnings === undefined || warnings.length === 0) return null;
+  return (
+    <ul className={styles.hubWarnings}>
+      {warnings.map((text) => (
+        <li key={text}>
+          <span className={styles.hubWarningLabel}>{es.assistant.hubWarning}</span>{" "}
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** «Deimos está pensando…», with its three dots. */
 export function ActivityLine({
   activity,

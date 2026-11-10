@@ -9,6 +9,12 @@ impl Runtime {
         if self.state.session_id().as_deref() == Some(data.session_id.as_str())
             && !data.text.trim().is_empty()
         {
+            if data.kind == "warning" {
+                // Not progress: the hub's words for the person, shown in
+                // the chat as the hub wrote them.
+                self.assistant.keep_warning(&data.text);
+                return;
+            }
             if let Some(activity) =
                 crate::daemon::interactions::snapshot::retry_activity(Some(&data.kind))
             {

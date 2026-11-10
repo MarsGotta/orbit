@@ -9,7 +9,7 @@ import { ConversationTools } from "./ConversationTools";
 import { speakingShown, turnInFlight } from "./conversation";
 import { MessageList } from "./MessageList";
 import { PendingCard } from "./PendingCard";
-import { ActivityLine, turnFailure, turnQuestion } from "./ThreadParts";
+import { ActivityLine, HubWarnings, turnFailure, turnQuestion } from "./ThreadParts";
 import { readsAloud } from "../../state/agents";
 import { ThreadHead, TurnEnd, type With } from "./thread-extras";
 import { useConversation } from "./useConversation";
@@ -39,7 +39,7 @@ function waitOf(chat: AppSnapshot["chat"], decision: Decision | null) {
   return { decided, wait };
 }
 
-/** After the messages: what the agent does or waits for, what was answered, a failure. */
+/** After the messages: the hub's warnings, what the agent does or waits for, what was answered, a failure. */
 function Tail({
   decision,
   history,
@@ -66,6 +66,7 @@ function Tail({
   const failure = turnFailure(snapshot, messages, es);
   return (
     <>
+      <HubWarnings warnings={chat.warnings} />
       {(chat.pending !== null ||
         (chat.activity?.startsWith("retrying_") ?? false) ||
         chat.activity === "transcribing" ||

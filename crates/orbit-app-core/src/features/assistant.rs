@@ -61,6 +61,7 @@ pub fn project(input: &FeatureInput<'_>) -> View {
     view.history_revision = value.history_revision;
     view.pending_contract = value.pending.as_ref().map(pending_contract);
     view.work = value.work.as_deref().cloned();
+    view.warnings.clone_from(&value.warnings);
     // Voice input is the daemon's microphone. Whether the hub's voice can
     // read an answer aloud (`value.voice`, unknown until something is read)
     // says nothing about it; the call says that (`voice_unavailable`).
@@ -109,6 +110,7 @@ fn unobserved(input: &FeatureInput<'_>) -> View {
         activity: None,
         speaking: None,
         work: None,
+        warnings: Vec::new(),
     }
 }
 

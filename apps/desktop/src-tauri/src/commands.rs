@@ -58,6 +58,17 @@ pub async fn orbit_vault(
     answer
 }
 
+/// One call to a plugin on the hub. The window reads every outcome as an
+/// answer; only a failure of the local channel rejects.
+#[tauri::command]
+pub async fn orbit_plugin(
+    plugin: String,
+    call: orbit_core::plugin::PluginCall,
+    client: State<'_, DaemonClient>,
+) -> Result<orbit_core::plugin::PluginOutcome, AppError> {
+    client.plugin_call(plugin, call).await
+}
+
 pub use orbit_app_core::PanelOrder;
 
 /// The floating panel's orders: answering a call, asking Deimos, and
@@ -670,3 +681,7 @@ mod orderly_end_tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "plugin_command_tests.rs"]
+mod plugin_command_tests;

@@ -11,6 +11,7 @@ use anyhow::{Context, Result, bail};
 pub mod hub;
 pub mod hub_agents;
 pub mod hub_notes;
+pub mod hub_plugin;
 pub mod hub_vault;
 pub mod speech;
 

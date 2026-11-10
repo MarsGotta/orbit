@@ -16,6 +16,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[path = "support/harness.rs"]
+mod harness;
+use harness::answer;
 #[path = "support/helper_relay.rs"]
 mod helper_relay;
 use helper_relay::{Relay, kill_group, std_daemon};
@@ -76,9 +79,10 @@ impl Peer {
                     "shutdown" => json!({"drain_complete":true}),
                     _ => bail!("No capture or other native action is authorized in this fixture"),
                 };
-                send(
+                reply(
                     &peer_events,
-                    json!({"v":1,"event":"response","id":command["id"],
+                    name,
+                    &json!({"v":1,"event":"response","id":command["id"],
                     "ok":true,"result":result}),
                 )?;
             }
@@ -161,6 +165,17 @@ fn send(events: &Mutex<Option<File>>, value: Value) -> Result<()> {
         serde_json::to_writer(&mut *writer, &value)?;
         writer.write_all(b"\n")?;
         writer.flush()?;
+    }
+    Ok(())
+}
+
+/// The reply to `command`, unless a test has already closed the output.
+fn reply(events: &Mutex<Option<File>>, command: &str, value: &Value) -> Result<()> {
+    let mut guard = events
+        .lock()
+        .map_err(|_| anyhow::anyhow!("peer lock poisoned"))?;
+    if let Some(writer) = guard.as_mut() {
+        answer(writer, command, value)?;
     }
     Ok(())
 }

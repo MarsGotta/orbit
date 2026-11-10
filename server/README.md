@@ -46,29 +46,9 @@ The Mac receives only its revocable device token.
 The pairing code expires after five minutes, allows one use and appears only
 in administrator output. Tokens and codes are stored as hashes of random secrets.
 Names, messages, receipts, metadata, audio and transcripts use AES-GCM with
-authenticated context; there is no plaintext fallback. A sealed value has one
-of two forms:
-
-- today's form: nonce (12 bytes) | AES-256-GCM ciphertext and its 16-byte tag,
-  with the value's context as associated data;
-- the marked form: `"OHK1"` (4 bytes) | key id (8) | nonce (12) | AES-256-GCM
-  ciphertext and tag. The key id is the first 8 bytes of
-  HMAC-SHA256(storage key, `"orbit.storage.key-id.v1"`): derived from the key,
-  never stored, so a backup restored with its key matches, and it reveals
-  nothing of the key. The associated data is the 12-byte header (mark and key
-  id) followed by the context, so neither can be swapped.
-
-In both forms the storage key is the 32 bytes of the key file and the context
-is encoded as UTF-8. The two forms do not separate their associated data, so
-no context may begin with `OHK1`.
-
-This hub reads both forms and writes only today's, which every earlier hub
-reads. A value that begins with this key's header and holds at least an empty
-marked value (40 bytes) is tried as marked first; anything that does not open
-that way is read as today's form, since a random nonce may begin with the
-header. A mark of another key does not open. On the key check the database is
-refused with the same wrong-key error as today; any other row marked with
-another key fails when that row is read.
+authenticated context; there is no plaintext fallback. The two sealed forms,
+each column's context and the rest of the database's format are in the
+[storage contract](../contracts/hub-storage-v1.md).
 
 ```sh
 uv run orbit-hub --config /path/to/orbit.toml devices

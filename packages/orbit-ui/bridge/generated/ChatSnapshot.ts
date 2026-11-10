@@ -41,4 +41,10 @@ speaking?: string,
  * What the agent did in the turn in progress, or the last one:
  * its steps, plan and reasoning, and when it started and ended.
  */
-work?: AgentWork, };
+work?: AgentWork, 
+/**
+ * The hub's warnings about the open conversation, in the hub's
+ * words, oldest first: painted under the turn with a label that
+ * says they are the hub's.
+ */
+warnings?: Array<string>, };

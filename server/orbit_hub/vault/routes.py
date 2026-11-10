@@ -17,34 +17,52 @@ from .service import Vault
 BRIDGE_PATH = "/internal/v1/vault/read"
 
 
-def mount(app, store, identity, bounded_body, meetings_bridge, transport_allowed, maintenance=None):
+async def configuration(vault: Vault):
+    return JSONResponse(
+        await run_in_threadpool(vault.public), headers={"Cache-Control": "no-store"}
+    )
+
+
+async def configure(vault: Vault, config: Configuration):
+    return JSONResponse(
+        await run_in_threadpool(vault.configure, config), headers={"Cache-Control": "no-store"}
+    )
+
+
+async def disconnect(vault: Vault):
+    return JSONResponse(await run_in_threadpool(vault.disconnect))
+
+
+async def read(vault: Vault, request: Read):
+    return reply(await run_in_threadpool(vault.read, request))
+
+
+def mount(
+    app, store, identity, bounded_body, meetings_bridge, transport_allowed, maintenance=None
+) -> Vault:
+    """The vault's routes, each answered by the function of its Notes call."""
     vault = Vault(store, maintenance)
 
     @app.get("/v1/vault/config")
-    async def configuration(request: Request):
+    async def configuration_route(request: Request):
         identity(request)
-        return JSONResponse(
-            await run_in_threadpool(vault.public), headers={"Cache-Control": "no-store"}
-        )
+        return await configuration(vault)
 
     @app.put("/v1/vault/config")
-    async def configure(request: Request):
+    async def configure_route(request: Request):
         identity(request)
         config = parse(Configuration, await bounded_body(request, MAX_REQUEST_BYTES))
-        return JSONResponse(
-            await run_in_threadpool(vault.configure, config), headers={"Cache-Control": "no-store"}
-        )
+        return await configure(vault, config)
 
     @app.delete("/v1/vault/config")
-    async def disconnect(request: Request):
+    async def disconnect_route(request: Request):
         identity(request)
-        return JSONResponse(await run_in_threadpool(vault.disconnect))
+        return await disconnect(vault)
 
     @app.post("/v1/vault/read")
-    async def read(request: Request):
+    async def read_route(request: Request):
         identity(request)
-        read = parse(Read, await bounded_body(request, MAX_REQUEST_BYTES))
-        return reply(await run_in_threadpool(vault.read, read))
+        return await read(vault, parse(Read, await bounded_body(request, MAX_REQUEST_BYTES)))
 
     signed = SignedVault(vault, meetings_bridge)
     private_route(
@@ -57,6 +75,7 @@ def mount(app, store, identity, bounded_body, meetings_bridge, transport_allowed
         methods=["POST", "GET", "PUT", "DELETE"],
         failure=partial(_failure),
     )
+    return vault
 
 
 def _failure(exc):

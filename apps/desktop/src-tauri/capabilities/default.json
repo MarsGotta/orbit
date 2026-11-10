@@ -10,6 +10,7 @@
     "allow-orbit-read-session-messages",
     "allow-orbit-agent",
     "allow-orbit-vault",
+    "allow-orbit-plugin",
     "allow-orbit-send",
     "allow-orbit-menu-state",
     "allow-orbit-report",

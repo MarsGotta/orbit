@@ -1,0 +1,1 @@
+{"id":"vault","version":"1.0.0","name":{"es":"Notas","en":"Notes"},"orbit_plugin_api":1,"views":{"sidebar":true,"settings":true,"slots":[]},"permissions":["data","events:note.ready","read:meetings","assistant_tools"],"logic":"none"}

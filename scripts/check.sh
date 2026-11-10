@@ -317,9 +317,9 @@ run_guards_zone() {
 
 run_hub_zone() {
   check_run hub-ruff "hub · ruff" --needs env-hub --cwd "$ROOT/server" -- \
-    .venv/bin/ruff check orbit_hub orbit_mcp tests ../scripts/e2e-mac "$HARNESS_TEST"
+    .venv/bin/ruff check orbit_hub orbit_mcp tests ../contracts/kit ../scripts/e2e-mac "$HARNESS_TEST"
   check_run hub-format "hub · format" --needs env-hub --cwd "$ROOT/server" -- \
-    .venv/bin/ruff format --check orbit_hub orbit_mcp tests ../scripts/e2e-mac "$HARNESS_TEST"
+    .venv/bin/ruff format --check orbit_hub orbit_mcp tests ../contracts/kit ../scripts/e2e-mac "$HARNESS_TEST"
   hub_pytest hub-pytest "hub · pytest with the e2e"
   # With the hub's pytest configuration (asyncio mode), named explicitly: the
   # module lives outside server/tests, which the hub's testpaths cover.

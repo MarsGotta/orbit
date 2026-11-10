@@ -14,6 +14,21 @@ impl DaemonClient {
             .map_err(|error| AppError::from_daemon(error.as_ref()))
     }
 
+    /// One call to a plugin on the hub. The device's own refusal is an
+    /// outcome like the hub's answer; only a failure of the local channel is
+    /// an error.
+    pub async fn plugin_call(
+        &self,
+        plugin: String,
+        call: orbit_core::plugin::PluginCall,
+    ) -> Result<orbit_core::plugin::PluginOutcome, AppError> {
+        self.inner
+            .daemon
+            .plugin(plugin, call)
+            .await
+            .map_err(|error| AppError::from_daemon(error.as_ref()))
+    }
+
     /// Settings › Agents: one read or order of an agent's configuration,
     /// answered when the hub answers. Nothing is kept here: the hub is the
     /// single source, and the screen reads it again after an order.

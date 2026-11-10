@@ -131,6 +131,7 @@ fn empty_chat() -> ChatSnapshot {
         activity: None,
         speaking: None,
         work: None,
+        warnings: Vec::new(),
     }
 }
 

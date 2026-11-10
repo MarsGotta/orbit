@@ -2,15 +2,18 @@
 //! Real subprocess/Unix socket checks; no native device or provider is mocked as verified.
 use std::{
     path::Path,
-    process::{Child, Command, Stdio},
+    process::{Child, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
+#[path = "support/harness.rs"]
+mod harness;
 #[path = "support/ipc.rs"]
 mod ipc;
 #[path = "daemon_lifecycle/ipc_admission.rs"]
 mod ipc_admission;
+use harness::real_daemon;
 use orbit_core::protocol::Command as IpcCommand;
 
 struct Daemon(Child);
@@ -21,15 +24,8 @@ impl Drop for Daemon {
     }
 }
 
-fn command(path: &Path) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_orbit"));
-    command.args(["--dev", "--data-dir"]).arg(path);
-    command
-}
-
 fn start(path: &Path) -> Daemon {
-    let mut child = command(path)
-        .arg("daemon")
+    let mut child = real_daemon(path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -311,7 +307,7 @@ fn a_second_daemon_cannot_take_over_the_running_instance() {
         .tempdir_in("/tmp")
         .unwrap();
     let _first = start(directory.path());
-    let second = command(directory.path()).arg("daemon").output().unwrap();
+    let second = real_daemon(directory.path()).output().unwrap();
     assert!(!second.status.success());
     assert_eq!(status(directory.path())["privacy_stopped"], false);
 }

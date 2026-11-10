@@ -87,6 +87,10 @@ pub struct Value {
     /// it: the assistant does not hear the user, who still hears it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub microphone_muted: bool,
+    /// The hub's warnings about the open conversation, in the hub's words,
+    /// oldest first: shown as they came, never translated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
 }
 
 fn unknown_call() -> Knowledge<Option<crate::voice::CallState>> {

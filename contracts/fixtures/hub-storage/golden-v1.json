@@ -1,0 +1,125 @@
+{
+  "hub_id": "df0ca68b-2860-4b7b-a249-8645f0df157a",
+  "device": {
+    "id": "27625d99-d5d8-4b68-93b3-b08f0f6a2789",
+    "name": "Cedar test Mac"
+  },
+  "reminder": {
+    "title_digest": "30da0d7286b1d190362f38162ef4c7c0601e315525920c1a6b4cf12d7c585479",
+    "text": "Bring the Cedar roadmap draft to the weekly sync",
+    "edited_at_ms": 1767225600000
+  },
+  "dictionary": {
+    "id": "5d8f2c1e-7a3b-4e6f-9c0d-1b2a3c4d5e6f",
+    "name": "Cedar glossary"
+  },
+  "note_template": {
+    "id": "cedar-standup",
+    "name": "Cedar standup",
+    "context": "A short daily meeting of the invented Cedar team at example.test.",
+    "sections": [
+      {
+        "name": "Progress",
+        "instructions": "What each person finished since yesterday."
+      },
+      {
+        "name": "Blockers",
+        "instructions": "What stops someone, and who can help."
+      }
+    ],
+    "forked_from": null
+  },
+  "transcription": {
+    "model": "whisper",
+    "key_configured": false
+  },
+  "ai_choice": {
+    "function": "meeting_transcription",
+    "provider_id": "hub",
+    "model": "whisper"
+  },
+  "agent": {
+    "id": "cedar",
+    "personality": "You are Cedar. You answer briefly and plainly.",
+    "skill": {
+      "name": "cedar-digest",
+      "description": "Sums up the Cedar week in three points.",
+      "content": "---\nname: cedar-digest\ndescription: Sums up the Cedar week in three points.\n---\n1. Read the Cedar notes of the week.\n2. Write three short points.\n"
+    }
+  },
+  "vault": {
+    "kind": "folder",
+    "link_style": "wikilink",
+    "path": "/tmp/orbit-golden-2x9d7c8_/Cedar notes"
+  },
+  "conversation": {
+    "id": "3e90fdfd-cc56-4a10-a3f4-392f95ef6bca",
+    "agent_id": "cedar",
+    "messages": [
+      {
+        "role": "user",
+        "text": "What is left before the Cedar launch?"
+      },
+      {
+        "role": "assistant",
+        "text": "Only the Cedar roadmap review is left before the launch",
+        "work": {
+          "started_at_ms": 1794272383347,
+          "ended_at_ms": 1794272383370,
+          "tools": 0,
+          "subjects": []
+        }
+      }
+    ],
+    "attachments": [
+      {
+        "id": "a70da1b8-4e0f-414d-9020-a980cdaad584",
+        "name": "Cedar launch checklist.txt",
+        "kind": "text",
+        "text": "Book the room for the Cedar launch.\n"
+      },
+      {
+        "id": "ab748a77-487a-46d2-9d64-6116c9f7c948",
+        "name": "Cedar brief.pdf",
+        "kind": "pdf",
+        "text": "--- page 1 ---\nCedar brief for the weekly team sync"
+      }
+    ]
+  },
+  "meeting": {
+    "id": "6a1e4c2b-8d3f-4b5a-9c7e-2f0d1b3a5c4e",
+    "started_at_ms": 1767258000000,
+    "text": "The Cedar roadmap draft is ready for the weekly sync",
+    "title": "Cedar roadmap review",
+    "speaker": {
+      "key": "mic_local",
+      "name": "Rowan Cedar"
+    },
+    "private_notes": "Ask about the Cedar launch date",
+    "duration_ms": 2000
+  },
+  "note": {
+    "text": "The Cedar roadmap draft goes to the weekly sync",
+    "set_aside_title": "Cedar roadmap first notes",
+    "title": "Cedar roadmap review notes",
+    "template_id": "cedar-standup",
+    "sections": [
+      "Progress",
+      "Blockers"
+    ]
+  },
+  "proposal": {
+    "id": "e0398c4f-6cd7-4aac-aae9-19c064833157",
+    "summary": "The Cedar roadmap draft goes to the weekly sync",
+    "quote": {
+      "at_ms": 0,
+      "speaker": "Rowan Cedar",
+      "text": "The Cedar roadmap draft is ready for the weekly sync"
+    },
+    "note": {
+      "path": "Cedar roadmap review.md",
+      "title": "Cedar roadmap review",
+      "text": "The Cedar roadmap draft is ready for the weekly sync"
+    }
+  }
+}

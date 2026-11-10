@@ -52,7 +52,20 @@ pub(super) struct AssistantHandle {
     pub(super) waiting_sessions: BTreeMap<String, String>,
     pub(super) waiting_revision: Option<u64>,
     pub(super) retry: Option<orbit_core::topics::assistant::Activity>,
+    /// The hub's `warning` statuses about the open conversation, as the
+    /// hub wrote them, oldest first. Live only, like `work`: the hub does
+    /// not repeat them, so a restart or another conversation starts empty.
+    pub(super) warnings: Vec<String>,
 }
+
+/// A turn brings one or two warnings (a withdrawn question, a trimmed
+/// history); the chat shows them beside the turn and is not a log, so the
+/// newest three stay.
+const MAX_WARNINGS: usize = 3;
+/// The hub's warnings run 60 to 200 characters; a longer text is no longer
+/// a note read beside a turn. Three at this length add about 6 KB to the
+/// assistant topic.
+const MAX_WARNING_CHARS: usize = 500;
 
 impl AssistantHandle {
     /// The remote request of `kind` being served, if any.
@@ -87,6 +100,19 @@ impl AssistantHandle {
         self.speak_next = false;
     }
 
+    /// Keeps one of the hub's warnings, cut to its ceiling; a text already
+    /// shown is not shown twice.
+    pub(super) fn keep_warning(&mut self, text: &str) {
+        let text: String = text.chars().take(MAX_WARNING_CHARS).collect();
+        if self.warnings.contains(&text) {
+            return;
+        }
+        if self.warnings.len() == MAX_WARNINGS {
+            self.warnings.remove(0);
+        }
+        self.warnings.push(text);
+    }
+
     pub(super) fn new() -> Self {
         Self {
             bridge_requests: BridgeSlots::default(),
@@ -110,6 +136,7 @@ impl AssistantHandle {
             waiting_sessions: BTreeMap::new(),
             waiting_revision: None,
             retry: None,
+            warnings: Vec::new(),
             speech_notice_call_id: None,
             presence_locale: None,
             work: None,
@@ -153,6 +180,8 @@ impl Runtime {
         // turn's never stands for it.
         self.assistant.work.take_if(|work| work.turn_id != id);
         self.assistant.retry = None;
+        // The last turn's warnings were about that turn.
+        self.assistant.warnings.clear();
         // The turn's id is the Mac's id for the user's message,
         // kept in the hub's row so the app finds their turn by it.
         let params = serde_json::to_value(orbit_core::wire::hub::ChatSendParams {

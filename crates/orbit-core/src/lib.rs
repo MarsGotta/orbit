@@ -31,6 +31,7 @@ pub mod notes;
 pub mod notice;
 pub mod orbit_bundle;
 mod pending_voice;
+pub mod plugin;
 pub mod privacy_stop;
 pub mod process_listing;
 pub mod protocol;

@@ -8,6 +8,8 @@ import type {
 } from "orbit-ui/bridge/generated";
 import type { AgentAnswer } from "orbit-ui/bridge/generated/AgentAnswer";
 import type { AgentCall } from "orbit-ui/bridge/generated/AgentCall";
+import type { PluginCall } from "orbit-ui/bridge/generated/PluginCall";
+import type { PluginOutcome } from "orbit-ui/bridge/generated/PluginOutcome";
 import type { VaultCall } from "orbit-ui/bridge/generated/VaultCall";
 import type { VaultOutcome } from "orbit-ui/bridge/generated/VaultOutcome";
 import type { DaemonPort, FrameListener, Report, Unsubscribe } from "orbit-ui/bridge/port";
@@ -51,6 +53,10 @@ export class TauriPort implements DaemonPort {
 
   vault(call: VaultCall): Promise<VaultOutcome> {
     return invoke<VaultOutcome>("orbit_vault", { call });
+  }
+
+  plugin(plugin: string, call: PluginCall): Promise<PluginOutcome> {
+    return invoke<PluginOutcome>("orbit_plugin", { plugin, call });
   }
 
   snapshot(): Promise<AppBootstrap> {

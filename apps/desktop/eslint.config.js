@@ -43,8 +43,11 @@ const packageByPath = {
   message: 'Import the shared package by its name ("orbit-ui/..."), not by a path.',
 };
 
-function viewZone(view) {
+// A zone may use the inside of `view` itself: for `src/settings/`, the Mac's
+// pieces painted inside the shared Settings view.
+function viewZone(view, folder = `src/features/${view}`) {
   const others = frameViews.filter((other) => other !== view);
+  const shared = sharedViews.filter((other) => other !== view);
   const patterns = [
     tauri,
     unnormalized,
@@ -54,12 +57,12 @@ function viewZone(view) {
       message: "A view may use another view only through its entry (features/<view>).",
     },
     {
-      regex: `^orbit-ui/features/(?!(?:${PHOTO.join("|")})$)(?:${sharedViews.join("|")})/(?!index$).+`,
+      regex: `^orbit-ui/features/(?!(?:${PHOTO.join("|")})$)(?:${shared.join("|")})/(?!index$).+`,
       message: "A view of the frame may use a shared view only through its entry.",
     },
   ];
   return {
-    files: [`src/features/${view}/**/*.{ts,tsx}`],
+    files: [`${folder}/**/*.{ts,tsx}`],
     ignores: testFiles,
     linterOptions: { noInlineConfig: true },
     rules: { "no-restricted-imports": ["error", { patterns }] },
@@ -91,7 +94,8 @@ export default tseslint.config(
     ignores: ["src/bridge/**/*"],
     rules: { "no-restricted-imports": ["error", { patterns: [tauri] }] },
   },
-  ...frameViews.map(viewZone),
+  ...frameViews.map((view) => viewZone(view)),
+  viewZone("settings", "src/settings"),
   {
     // The showcase (`showcase.html`) is the app with an invented daemon: it
     // installs that daemon behind Tauri's IPC, so it imports Tauri's mocks.

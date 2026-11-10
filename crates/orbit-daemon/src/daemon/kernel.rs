@@ -119,6 +119,10 @@ impl Runtime {
                 self.assistant.detached_requests.push_back(turn.to_owned());
             }
         }
+        // The hub's warnings were about the conversation left, turn or not.
+        if change == Some(AuthorityChange::Conversation) {
+            self.assistant.warnings.clear();
+        }
         self.retire_before_snapshot(change, plan).await?;
         force_snapshot |= std::mem::take(&mut self.persisted.force_once);
         self.persist_decision(closure, force_snapshot, change, previous_state)

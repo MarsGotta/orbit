@@ -78,6 +78,7 @@ mod meeting_question;
 mod meeting_runtime;
 mod native_events;
 mod native_host;
+mod plugin;
 mod read_dispatch;
 mod reads;
 mod recording_notes;
@@ -263,4 +264,6 @@ mod response_budget_tests;
 
 #[cfg(test)]
 mod conversation_switch_tests;
+#[cfg(test)]
+mod hub_warning_tests;
 mod silence;

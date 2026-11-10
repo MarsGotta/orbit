@@ -3,7 +3,7 @@
 A later hub will write that mark; this one reads both forms and still writes
 the one every earlier hub reads, so activating an earlier hub keeps the
 database whole. The marked form is built here by hand, from its description in
-server/README.md, never with the hub's own code:
+contracts/hub-storage-v1.md, never with the hub's own code:
 
     "OHK1" (4 bytes) | key id (8) | nonce (12) | AES-256-GCM ciphertext and tag
 

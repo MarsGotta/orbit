@@ -231,6 +231,13 @@ pub enum Command {
     Vault {
         call: crate::vault::VaultCall,
     },
+    /// One call to a plugin on the hub, answered off the loop with what came
+    /// of it (`PluginResponse`); never kept, interpreted or repeated.
+    #[cfg_attr(feature = "ts", ts(skip))]
+    Plugin {
+        plugin: String,
+        call: crate::plugin::PluginCall,
+    },
     /// «Enviar informes de errores anónimos»: the user's choice, kept by the
     /// daemon with its settings. Off until they turn it on.
     LanguageSet {
@@ -422,6 +429,7 @@ impl Command {
             | Self::Read { .. }
             | Self::Agent { .. }
             | Self::Vault { .. }
+            | Self::Plugin { .. }
             | Self::Report { .. }
             | Self::Shutdown => None,
         }

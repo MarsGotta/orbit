@@ -55,12 +55,19 @@ pub enum Reply {
     Topics(TopicResponse),
     Agent(AgentResponse),
     Vault(orbit_core::vault::VaultResponse),
+    Plugin(orbit_core::plugin::PluginResponse),
     Attachment(AttachmentResponse),
 }
 
 impl From<orbit_core::vault::VaultResponse> for Reply {
     fn from(response: orbit_core::vault::VaultResponse) -> Self {
         Self::Vault(response)
+    }
+}
+
+impl From<orbit_core::plugin::PluginResponse> for Reply {
+    fn from(response: orbit_core::plugin::PluginResponse) -> Self {
+        Self::Plugin(response)
     }
 }
 

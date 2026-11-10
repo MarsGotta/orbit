@@ -1,4 +1,4 @@
-"""What each agent may use of Orbit's tools: six access groups, each on or off.
+"""What each agent may use of Orbit's tools: access groups, each on or off.
 
 A group is a set of `orbit-mcp` tools and the device-bridge capabilities (or
 meeting reads) those tools ask the hub for. Every group is on unless the user
@@ -16,11 +16,9 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+from .. import plugins
 from ..errors import PrivateError
 from .skills import Skill
-
-# In the order Settings shows them.
-GROUPS = ("screen", "control", "calendar", "meetings", "files", "notes")
 
 # The orbit-mcp tools no group gates: `orbit_devices` names the Macs, which
 # every tool needs to choose one; `orbit_attachment` reads a file the user
@@ -28,9 +26,10 @@ GROUPS = ("screen", "control", "calendar", "meetings", "files", "notes")
 # reads the agent's own configuration, nothing of the user's.
 UNGATED = frozenset({"orbit_devices", "orbit_attachment", "orbit_skill"})
 
-# The orbit-mcp tools each group opens. Settings › Agents says what each group
-# lets the agent do, not these names; contracts/constants.json registers them
-# (AGENT_ACCESS_GROUP_TOOLS).
+# The orbit-mcp tools each group opens, in the order Settings shows the groups:
+# the hub's own, then the group each plugin of the registry offers, in registry
+# order. Settings › Agents says what each group lets the agent do, not these
+# names; contracts/constants.json registers them (AGENT_ACCESS_GROUP_TOOLS).
 TOOLS = MappingProxyType(
     {
         "screen": ("orbit_windows", "orbit_screenshot", "orbit_look", "orbit_selected_text"),
@@ -38,9 +37,12 @@ TOOLS = MappingProxyType(
         "calendar": ("orbit_calendar",),
         "meetings": ("orbit_meetings", "orbit_transcript", "orbit_note"),
         "files": ("orbit_files_list", "orbit_files_search", "orbit_files_read"),
-        "notes": ("orbit_notes_search", "orbit_note_read", "orbit_notes_index"),
     }
+    | dict(
+        plugin.assistant_tools for plugin in plugins.load() if plugin.assistant_tools is not None
+    )
 )
+GROUPS = tuple(TOOLS)
 TOOL_GROUP = MappingProxyType({tool: group for group, tools in TOOLS.items() for tool in tools})
 
 # The device-bridge capability each tool asks a Mac for, by group. The

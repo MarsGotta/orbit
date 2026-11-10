@@ -36,7 +36,7 @@ from .space import SpaceRepository, is_storage_full
 # never stored, and says nothing of the key), the nonce and the ciphertext,
 # with the header bound into the associated data before the context. This hub
 # reads that form and still writes today's (nonce and ciphertext, context
-# alone), which every earlier hub reads. See server/README.md.
+# alone), which every earlier hub reads. See contracts/hub-storage-v1.md.
 KEY_MARK = b"OHK1"
 KEY_ID_LABEL = b"orbit.storage.key-id.v1"
 NONCE_BYTES = 12

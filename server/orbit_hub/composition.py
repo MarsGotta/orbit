@@ -23,6 +23,8 @@ from .device_bridge import Bridge as DeviceBridge
 from .meeting_final_pass import FinalPassWorker
 from .meetings_bridge.service import MeetingsBridgeService
 from .notes import NoteRepository, NotesWorker
+from .plugins import Plugin
+from .plugins import load as load_plugins
 from .processing import open_client as open_processing_client
 from .runtime import Runtimes, TurnInputTracker
 from .storage import Store
@@ -67,12 +69,15 @@ class Hub:
     transcriptions: TranscriptionWorker | None = None
     ai: Registry | None = None
     distillations: "Distillations | None" = None
+    plugins: tuple[Plugin, ...] = ()
     pair_attempts: dict[str, tuple[float, int]] = field(default_factory=dict)
 
 
 def build(settings: Settings, store: Store, assistant, speech, now, processing_client) -> Hub:
     """The hub over `store`. `assistant` and `speech`, when given, serve every
     configured agent: tests drive the hub with doubles."""
+    # First: a manifest outside the contract stops the hub before any of it is built.
+    plugins = load_plugins()
     # Each agent's personality, skills and access groups (Settings › Agents).
     configs = AgentConfigStore(store)
     # Each agent's profile, the primary, and the agents added from Orbit.
@@ -110,6 +115,7 @@ def build(settings: Settings, store: Store, assistant, speech, now, processing_c
         device_bridge,
         asyncio.Event(),
     )
+    hub.plugins = plugins
     hub.ai = Registry(store, settings)
     hub.ai.migrate()
     from .ai.consumers import wire_agents

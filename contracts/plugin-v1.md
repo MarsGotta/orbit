@@ -1,6 +1,7 @@
 # Orbit plugin protocol v1
 
-Status: proposed. Nothing implements this contract yet.
+Status: proposed. The hub reads the manifests (`GET /v1/plugins`, `hub-v1.md`);
+nothing else implements this contract yet.
 
 ## Manifest
 
@@ -65,6 +66,19 @@ A refusal from the hub is a status of 400 or above with the body in
 The hub checks that the plugin is installed, its `orbit_plugin_api` and its
 permissions, and then passes the call to the plugin.
 
+Before a call reaches the plugin, the hub refuses:
+
+| Status | Code | When |
+|---|---|---|
+| 401 or 403 | the hub's own | a device credential it does not accept, as on its other `/v1/` routes (`hub-v1.md`) |
+| 404 | `plugin_not_installed` | it has no plugin with that `id`, whatever the `id`'s shape as one path segment: for the hub, a malformed `id` is a plugin it does not have. An empty `id`, or one with `/` (also as `%2F`), is not a path of this route, and the hub answers `404` with no `code` |
+| 413 | `plugin_call_too_large` | the body is larger than `PLUGIN_CALL_MAX_BYTES` |
+| 400 | `invalid_request` | the body is not an object of exactly `name`, a text, and `input`, an object |
+| 404 | `plugin_call_unknown` | the plugin has no call with that `name` |
+
+`logic` `"none"` says the plugin has no process of its own: its calls, if it
+has any, are code of the hub, as Notes' are.
+
 A device does not interpret a call. It refuses one under the same conditions as
 any other request to the hub (its privacy stop on, not paired, no connection);
 beyond that it checks the shape of `id` and the two sizes in
@@ -78,6 +92,48 @@ person what to expect; if that person asks again, that is a new call.
 {"name":"add_link","input":{"url":"https://example.test/article"}}
 {"value":{"link_id":"00000000-0000-4000-8000-000000000903","unread":3}}
 ```
+
+## The device's local channel
+
+The app asks its device for a call with one order on the device's local
+channel, `plugin`, with the plugin's `id` and the call. The device answers it
+with one line whose `outcome` is one of three:
+
+- `answered`: the `value` of the hub's `200`;
+- `refused`: the hub's status and body, as the hub wrote them (`op` included);
+- `failed`: the device's own refusal, the `refusal` object alone
+  ([Refusals](#refusals)).
+
+```json
+{"v":1,"id":"00000000-0000-4000-8000-000000000905","body":{"command":"plugin","plugin":"vault","call":{"name":"config","input":{}}}}
+{"v":1,"id":"00000000-0000-4000-8000-000000000905","outcome":{"outcome":"answered","value":{"configured":false}}}
+{"v":1,"id":"00000000-0000-4000-8000-000000000905","outcome":{"outcome":"refused","status":404,"body":{"code":"plugin_not_installed","message":"El plugin no está instalado.","op":"00000000-0000-4000-8000-000000000906","refusal":{"code":"plugin_not_installed","retry":{"kind":"after_fix"}}}}}
+{"v":1,"id":"00000000-0000-4000-8000-000000000905","outcome":{"outcome":"failed","refusal":{"code":"not_paired","retry":{"kind":"after_fix"}}}}
+```
+
+`call` has exactly `name`, a text, and `input`, an object; the channel refuses
+anything else as it refuses any malformed order. The device sends `call` as the
+request body, as it writes it, once.
+
+Before sending, the device refuses a call when its privacy stop is on, when it
+is not paired, when it has no connection to the hub (also while connecting or
+once the hub revoked it), when the `id` is not `[a-z0-9_]{1,32}` and when the
+body is larger than `PLUGIN_CALL_MAX_BYTES`. It does not check the reserved
+names: for those the hub answers `plugin_not_installed`.
+
+The device reads the hub's whole body, a value or a refusal, up to
+`PLUGIN_RESPONSE_MAX_BYTES`. It waits 8 s for the hub, sending and reading
+included: longer than `PLUGIN_CALL_BUDGET_MS`, so a late plugin is the hub's
+`plugin_timeout`, and shorter than the app's 10 s, so the device's own wait is
+the cause the app sees.
+
+One answer line is at most `PLUGIN_RESPONSE_MAX_BYTES` and 64 KiB for its
+envelope, so an answer the device admitted reaches the caller whole; a line
+that still does not fit is the channel's `too_large` (`ipc_response`), as for
+any other line. An order line is at most 1 MiB with its envelope: through the
+socket, a call near `PLUGIN_CALL_MAX_BYTES` is refused by the line first
+(`too_large`, `ipc_request`), and the device's `plugin_call_too_large` is seen
+by a caller inside the device's own process.
 
 ## Events
 
@@ -145,8 +201,9 @@ When the device is the one refusing there is no HTTP status and no body: the
 refusal is the `refusal` object alone, with no outer `code` or `message`,
 whether or not the device reached the hub. A code both can give has the form of
 whoever gave it; the examples of `plugin_call_too_large` and
-`plugin_response_too_large` show the hub's. How the local channel carries that
-object is [not defined yet](#not-defined-yet).
+`plugin_response_too_large` show the hub's. The local channel carries that
+object as the `failed` outcome ([The device's local
+channel](#the-devices-local-channel)).
 
 A plugin's own refusals are coded `<id>_<cause>`, with the plugin's `id` as
 prefix, and the whole code matches `[a-z0-9_]{1,64}`.
@@ -154,7 +211,15 @@ prefix, and the whole code matches `[a-z0-9_]{1,64}`.
 | Code | Refused by | When | Numbers |
 |---|---|---|---|
 | `hub_unreachable` | `device` | The device cannot reach the hub; `since_ms` is null when it is not known | `since_ms` |
+| `not_paired` | `device` | The device is not paired with a hub; nothing is sent | none: not being paired is the whole cause |
+| `privacy_stopped` | `device` | The user's privacy stop is on; nothing is sent, and `since_ms` is null when it is not known | `since_ms` |
+| `invalid_parameter` | `device` | The `id` is not `[a-z0-9_]{1,32}`; nothing is sent. `parameter` is `identifier` and `expected` is `{"kind":"wire_type","name":"plugin_id"}` | none: the shape is the whole cause |
+| `timeout` | `device` | The hub did not answer within the device's wait, sending or reading; `operation` is `plugin_call` | `waited_ms`, `deadline_ms` |
+| `upstream_failed` | `device` | The connection was cut before the hub's answer began; `service` is `hub` | `status`, null |
+| `internal` | `device` | The device could not prepare the request; nothing is sent | `cause` |
+| `hub_reply_invalid` | `device` | The device reached the hub and got no valid answer. `field` names what was wrong: `body`, the connection was cut while reading it; `value`, a `200` that is not exactly `{"value": …}`; `refusal`, a status of 400 or above whose body is not a refusal of this contract (`code` and `refusal.code` the same `[a-z0-9_]{1,64}`, and `message` a text); `status`, any other status (redirects are not followed) | `received_bytes`, what had arrived |
 | `plugin_not_installed` | `hub` | The hub has no plugin with that `id` | none: the absent plugin is the whole cause |
+| `plugin_call_unknown` | `hub` | The plugin has no call with that `name` | none: the absent call is the whole cause, and the refusal does not repeat the `name` |
 | `plugin_api_unsupported` | `hub` | The plugin's `orbit_plugin_api`, `wanted`, is outside the range from `min` to `max` that the hub accepts | `wanted`, `min`, `max` |
 | `plugin_permission_missing` | `hub` | The plugin asks for something its manifest does not declare | none: the permission is text and travels in `message_fields.permission` |
 | `plugin_call_too_large` | `device and hub` | The request body is larger than `PLUGIN_CALL_MAX_BYTES`; `bytes` is what had arrived when that was seen, which can be less than the whole | `bytes`, `max_bytes` |
@@ -164,13 +229,24 @@ prefix, and the whole code matches `[a-z0-9_]{1,64}`.
 | `plugin_invalid_answer` | `hub` | The plugin answered something outside this contract | none: a malformed answer has no quantity to report |
 | `<id>_<cause>` | `hub` | The plugin refused by a rule of its own | none: this contract fixes no numbers here, each plugin names its own |
 
-Which `retry` each refusal carries is [not defined yet](#not-defined-yet),
-except `hub_unreachable`, whose `retry` is `check_outcome`. The `retry` in the
-other examples shows the shape only.
+Which `retry` each refusal of the hub carries is [not defined
+yet](#not-defined-yet). The device's are fixed: `after_fix` for `not_paired`,
+`privacy_stopped`, `invalid_parameter`, `plugin_call_too_large` and
+`plugin_response_too_large`; `check_outcome` for `hub_unreachable`, `timeout`,
+`upstream_failed` and `hub_reply_invalid`; `never` for `internal`. The `retry` in the hub's examples
+shows the shape only.
+
+```json
+{"code":"invalid_parameter","parameter":"identifier","expected":{"kind":"wire_type","name":"plugin_id"},"retry":{"kind":"after_fix"}}
+{"code":"timeout","operation":"plugin_call","waited_ms":8001,"deadline_ms":8000,"retry":{"kind":"check_outcome"}}
+{"code":"hub_reply_invalid","field":"body","received_bytes":11,"retry":{"kind":"check_outcome"}}
+{"code":"plugin_response_too_large","bytes":4194305,"max_bytes":4194304,"retry":{"kind":"after_fix"}}
+```
 
 ```json
 {"code":"hub_unreachable","since_ms":null,"retry":{"kind":"check_outcome"}}
 {"code":"plugin_not_installed","message":"El plugin no está instalado.","refusal":{"code":"plugin_not_installed","retry":{"kind":"after_fix"}}}
+{"code":"plugin_call_unknown","message":"El plugin no tiene esa llamada.","refusal":{"code":"plugin_call_unknown","retry":{"kind":"never"}}}
 {"code":"plugin_api_unsupported","message":"Este hub no admite la versión del plugin.","refusal":{"code":"plugin_api_unsupported","wanted":2,"min":1,"max":1,"retry":{"kind":"after_fix"}}}
 {"code":"plugin_permission_missing","message":"El plugin no declara ese permiso.","message_fields":{"permission":"read:notes"},"refusal":{"code":"plugin_permission_missing","retry":{"kind":"after_fix"}}}
 {"code":"plugin_call_too_large","message":"La llamada supera el límite.","refusal":{"code":"plugin_call_too_large","bytes":1048600,"max_bytes":1048576,"retry":{"kind":"after_fix"}}}
@@ -193,7 +269,6 @@ other examples shows the shape only.
 
 ## Not defined yet
 
-- A plugin whose logic runs inside the hub: what it puts in `logic`.
 - Logic in a separate process: the MCP version, the transport, how the process
   receives its credential, how a transport that can cut a stream fits with
   a call being never retried, how the hub holds the process to its
@@ -206,21 +281,13 @@ other examples shows the shape only.
   to, and a notice for a device that is offline or whose privacy stop is on.
 - What a plugin's logic receives when its notice is too long, lacks the
   `notices` permission or leads to a view its manifest does not declare.
-- The refusal for a malformed `id`, for a device that is not paired and for a
-  device whose privacy stop is on.
-- The HTTP status of each refusal and the `retry` of each one, except
-  `hub_unreachable`'s.
+- The HTTP status of the hub's `plugin_api_unsupported`,
+  `plugin_permission_missing`, `plugin_timeout`, `plugin_stopped`,
+  `plugin_invalid_answer` and `plugin_response_too_large`, and the `retry` of
+  every refusal of the hub.
 - The `views.slots` names: Orbit declares no slots yet, and `slots` is an empty
   list until it does.
-- The refusals the hub gives on any route, before a call reaches the plugin: a
-  device credential it does not accept, a body that is not the two fields of
-  [Call](#call).
-- The refusal when a device reached the hub but got no valid answer: the
-  connection cut, its own wait running out, or a body outside this contract.
-- How a call and its answer travel on a device's local channel, and what that
-  channel refuses on its own.
-- A call to a plugin with `logic` `"none"`, a `name` the plugin does not have,
-  and which permission a call itself is checked against: the vocabulary has none
+- Which permission a call itself is checked against: the vocabulary has none
   for a call.
 - Whether `notices`, `events:<event>` and `assistant_tools` need logic, as
   `network:<domain>` does.

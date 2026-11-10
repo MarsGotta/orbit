@@ -1,7 +1,7 @@
 import { settingsSectionKey } from "orbit-ui/state/ui";
 import { useCopy } from "orbit-ui/i18n/CopyProvider";
 import type { AppView as AppSnapshot } from "orbit-ui/state/app-view";
-import { lazy as reactLazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import type { AppCommand } from "orbit-ui/bridge/generated";
 import type { DaemonPort } from "orbit-ui/bridge/port";
 
@@ -26,35 +26,11 @@ export const macSettingsSections: SettingsFrameSections = {
   systemPermissions: (props) => <SystemPermissions {...props} />,
 };
 
-/** The loader of every view below that is loaded on demand. */
-const lazyViewLoaders: Array<() => Promise<unknown>> = [];
-
-/**
- * React's `lazy`, remembering the loader it was given so `loadLazyViews` runs
- * the very same import. Declaring a view with it is all it takes to be
- * covered: there is no second list of views to keep in step with this one.
- */
-const lazy: typeof reactLazy = (load) => {
-  lazyViewLoaders.push(load);
-  return reactLazy(load);
-};
-
 const CalendarView = lazy(() => import("orbit-ui/features/calendar/CalendarView"));
 const NotesView = lazy(() => import("orbit-ui/features/notes/NotesView"));
 const VaultView = lazy(() => import("orbit-ui/features/vault/VaultView"));
 const AssistantView = lazy(() => import("orbit-ui/features/assistant/AssistantView"));
 const SettingsView = lazy(() => import("orbit-ui/features/settings/SettingsView"));
-
-/**
- * Loads the module of every lazy view now, instead of when each is first shown.
- *
- * The app never calls this: loading on demand is the point of `lazy`. The unit
- * suite does, before the first test of each file (`packages/orbit-ui/test-setup.ts`), so a test that renders one of these views waits for what it asks
- * about and not for an import racing the query's budget.
- */
-export async function loadLazyViews(): Promise<void> {
-  await Promise.all(lazyViewLoaders.map((load) => load()));
-}
 
 export interface MainProps {
   /** A view that failed to paint: reported, and its words returned. */

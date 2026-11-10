@@ -7,7 +7,8 @@ by package): `@codemirror/autocomplete`, `@codemirror/commands`,
 `@codemirror/state`, `@codemirror/view`, `@lezer/common`, `@lezer/css`,
 `@lezer/highlight`, `@lezer/html`, `@lezer/javascript`, `@lezer/lr`,
 `@lezer/markdown`, `@marijn/find-cluster-break`, `crelt`, `style-mod` and
-`w3c-keyname`. Their versions are pinned in `apps/desktop/package.json`.
+`w3c-keyname`. Their versions are pinned in `packages/orbit-ui/package.json` and in the
+overrides of `apps/desktop/package.json`.
 
 MIT License
 

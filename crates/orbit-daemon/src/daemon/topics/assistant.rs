@@ -35,23 +35,7 @@ impl ProjectTopic for Projector {
             voice_active: state.durable.voice.voice_active,
             turn_in_flight: state.durable.assistant.active_request.is_some(),
             activity: activity(source),
-            // The voice that reads this conversation's answers, as its
-            // last reading left it; another agent's voice says nothing here.
-            voice: match source.runtime.and_then(|runtime| {
-                runtime
-                    .assistant
-                    .speech_voices
-                    .get(&runtime.reading_voice())
-                    .copied()
-            }) {
-                Some(true) => VoiceAvailability::Present,
-                Some(false) => VoiceAvailability::Absent {
-                    code: VoiceAbsence::SpeechUnavailable,
-                },
-                None => VoiceAvailability::Unknown {
-                    why: Pending::NotObservedYet,
-                },
-            },
+            voice: voice(source),
             speaking: source.runtime.and_then(|runtime| {
                 runtime
                     .assistant
@@ -71,6 +55,10 @@ impl ProjectTopic for Projector {
             microphone_muted: source
                 .runtime
                 .is_some_and(|runtime| runtime.call_microphone_muted()),
+            warnings: source
+                .runtime
+                .map(|runtime| runtime.assistant.warnings.clone())
+                .unwrap_or_default(),
         };
         let data = TopicData::Assistant(Knowledge::Present {
             value,
@@ -93,6 +81,26 @@ impl ProjectTopic for Projector {
                 },
             ),
         }
+    }
+}
+
+/// The voice that reads this conversation's answers, as its last reading
+/// left it; another agent's voice says nothing here.
+fn voice(source: &TopicSource<'_>) -> VoiceAvailability {
+    match source.runtime.and_then(|runtime| {
+        runtime
+            .assistant
+            .speech_voices
+            .get(&runtime.reading_voice())
+            .copied()
+    }) {
+        Some(true) => VoiceAvailability::Present,
+        Some(false) => VoiceAvailability::Absent {
+            code: VoiceAbsence::SpeechUnavailable,
+        },
+        None => VoiceAvailability::Unknown {
+            why: Pending::NotObservedYet,
+        },
     }
 }
 

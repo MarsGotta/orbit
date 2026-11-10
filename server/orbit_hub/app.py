@@ -1,8 +1,8 @@
 """The hub's FastAPI application: the composition root, with no logic of its own.
 
 `create_app` builds the hub (`composition`), its start and stop (`lifespan`),
-its HTTP boundary (`http_boundary`) and mounts each domain's routes and the
-device WebSocket (`ws`).
+its HTTP boundary (`http_boundary`) and mounts each domain's routes, the
+device WebSocket (`ws`) and each plugin's routes (`plugins`).
 """
 
 import time
@@ -12,7 +12,7 @@ from importlib.metadata import version as installed_version
 from fastapi import FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from . import composition, http_boundary
+from . import composition, http_boundary, plugins
 from .assistant.backend import AssistantBackend
 from .assistant.speech import SpeechBackend
 from .bridge_route import mount as mount_device_bridge
@@ -69,7 +69,8 @@ def create_app(
 
 
 def mount_routes(app: FastAPI, hub: composition.Hub) -> None:
-    """Each domain's routes, and the device WebSocket, in the order they match."""
+    """Each domain's routes, the device WebSocket, each plugin's routes, and
+    the list of plugins and their calls, in the order they match."""
     store, settings = hub.store, hub.settings
 
     def identity(request) -> str:
@@ -80,15 +81,11 @@ def mount_routes(app: FastAPI, hub: composition.Hub) -> None:
 
     _mount_meetings(app, hub, identity, transport)
     _mount_devices(app, hub, identity)
-    from .vault import mount as mount_vault
-
-    mount_vault(
-        app, store, identity, bounded_body, hub.meetings_bridge, transport, hub.distillations.model
-    )
-    from .distillation import mount as mount_distillations
-
-    app.state.distillations = hub.distillations
-    mount_distillations(app, hub.distillations, identity, bounded_body)
+    calls = {
+        plugin.id: plugin.mount(app, hub, identity, bounded_body, transport)
+        for plugin in hub.plugins
+    }
+    plugins.mount(app, hub.plugins, identity, calls)
 
 
 def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> None:
@@ -111,6 +108,7 @@ def _mount_meetings(app: FastAPI, hub: composition.Hub, identity, transport) -> 
         hub.prepare_signal,
         hub.settings.diarization is not None,
         hub.runtimes.changes,
+        plugins.recording_tables(hub.plugins),
     )
     mount_device_bridge(app, hub.device_bridge, transport)
     mount_meetings_bridge(app, hub.meetings_bridge, transport)
