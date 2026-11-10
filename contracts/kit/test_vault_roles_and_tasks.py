@@ -1,22 +1,30 @@
-"""Vault-defined roles and Tasks syntax through the authenticated reading API."""
+"""Vault-defined roles and Tasks syntax, read through `POST /v1/vault/read`.
+
+Each test writes its notes into a vault folder of its own, points the kit's
+vault hub (`kit_vault`) at it with `PUT /v1/vault/config` and reads them back
+as the device the kit paired there.
+"""
 
 import httpx
 import pytest
-from conftest import device
+import pytest_asyncio
 
-from orbit_hub.app import create_app
+pytest_plugins = ("kit_vault",)
+# Marked, not left to the asyncio mode of a configuration: the kit runs with
+# whichever configuration its caller names, or none.
+pytestmark = pytest.mark.asyncio
+# Generous for a vault read of a few notes on a loaded machine; only a hub that
+# stopped answering reaches it.
+REQUEST_SECONDS = 30
 
 
-@pytest.fixture
-async def vault(environment, tmp_path):
-    settings, store, adapter = environment
+@pytest_asyncio.fixture
+async def vault(vault_hub, tmp_path):
+    url, token = vault_hub
     root = tmp_path / "garden"
     root.mkdir()
-    app = create_app(settings, store=store, assistant=adapter, speech=adapter)
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app),
-        base_url="https://localhost",
-        headers={"Authorization": f"Bearer {device(store)['token']}"},
+        base_url=url, headers={"Authorization": f"Bearer {token}"}, timeout=REQUEST_SECONDS
     ) as client:
         response = await client.put("/v1/vault/config", json={"kind": "folder", "path": str(root)})
         assert response.status_code == 200

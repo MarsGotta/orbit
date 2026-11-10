@@ -1,9 +1,14 @@
-"""OKF lifecycle, soft conformance and reserved files through the public API."""
+"""OKF lifecycle, soft conformance and reserved files, read through
+`POST /v1/vault/read` on the kit's vault hub, with the vault of
+`test_vault_roles_and_tasks`.
+"""
 
 import pytest
-from test_vault_format import put, read
-from test_vault_format import vault as fixture_vault
+from test_vault_roles_and_tasks import put, read
+from test_vault_roles_and_tasks import vault as fixture_vault
 
+pytest_plugins = ("kit_vault",)
+pytestmark = pytest.mark.asyncio
 vault = fixture_vault
 
 
