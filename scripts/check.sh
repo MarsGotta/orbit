@@ -32,7 +32,8 @@ APP_PACKAGES=(orbit-app-core orbit-desktop)
 # starts that file needs it (see published_daemon_again).
 DAEMON_STEP=daemon
 # The dry run of the Mac's real-test harness: a pytest module that needs the
-# hub's environment, so the hub zone runs it, not the guards' unittest.
+# hub's environment and the interface's jsdom, so the hub zone runs it, not
+# the guards' unittest.
 HARNESS_TEST=../scripts/tests/mac_harness_dry_run_test.py
 
 usage() {
@@ -323,14 +324,13 @@ run_hub_zone() {
   hub_pytest hub-pytest "hub · pytest with the e2e"
   # With the hub's pytest configuration (asyncio mode), named explicitly: the
   # module lives outside server/tests, which the hub's testpaths cover.
-  check_run hub-harness "hub · dry run of the Mac's real-test harness" --needs env-hub --cwd "$ROOT/server" \
+  check_run hub-harness "hub · dry run of the Mac's real-test harness" --needs env-hub --needs env-ui --cwd "$ROOT/server" \
     --report "junit:$LOG_DIR/hub-harness.xml" -- \
     .venv/bin/python -m pytest -q -c pyproject.toml --rootdir . "--junitxml=$LOG_DIR/hub-harness.xml" \
     "$HARNESS_TEST"
 }
 
 run_ui_zone() {
-  check_run env-ui "environment · interface (node, pnpm)" --cwd "$ROOT" -- check_ui_environment
   local desktop="$ROOT/apps/desktop"
   check_run ui-lint "interface · lint" --needs env-ui --cwd "$desktop" -- pnpm run lint
   check_run ui-typecheck "interface · typecheck" --needs env-ui --cwd "$desktop" -- pnpm run typecheck
@@ -360,6 +360,9 @@ fi
 if selected rust; then run_rust_zone; fi
 if selected guards hub; then
   check_run env-hub "environment · hub (server/.venv)" --cwd "$ROOT" -- check_hub_environment
+fi
+if selected hub ui; then
+  check_run env-ui "environment · interface (node, pnpm)" --cwd "$ROOT" -- check_ui_environment
 fi
 if selected guards; then run_guards_zone; fi
 if selected hub; then run_hub_zone; fi
